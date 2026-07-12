@@ -347,6 +347,11 @@ precedenza sul file eventualmente caricato su GitHub con lo stesso numero;
 il bottone **"Rimuovi foto caricata"** toglie quella specifica e torna a
 mostrare il file di GitHub (se esiste).
 
+Sulla pagina di dettaglio di una stanza o di uno spazio comune, i visitatori
+possono cliccare una miniatura per portarla in primo piano, usare le
+frecce ‹ › per scorrere le foto, e cliccare la lente per aprirle a schermo
+intero (con zoom, sia da mobile con le dita sia da desktop con un click).
+
 **Attenzione:** questa funzione richiede che il progetto Firebase abbia il
 piano **Blaze** attivo (Firebase Storage non funziona sul piano gratuito
 Spark). Per attivarlo: Firebase Console → icona ⚙️ → **Utilizzo e
@@ -453,6 +458,25 @@ qui (o via GitHub con il nome mostrato accanto, es. `images/mare-1.jpg`).
 **"+ Aggiungi uno scatto"** per aggiungerne di nuovi, **"Elimina"** per
 toglierli — il carosello sulla home si adatta automaticamente a quanti
 scatti ci sono, restando responsive su ogni dimensione di schermo.
+
+### 3.16 Apartment Manager
+
+Scheda dashboard **"Impostazioni"**: nome e cognome, telefono, email e una
+foto (facoltativa, caricabile direttamente da qui). Compare sul sito, prima
+delle FAQ, **solo se scrivi almeno il nome** — utile se non vuoi ancora
+attivarla, o se in futuro vuoi nasconderla di nuovo (basta svuotare il
+campo nome). La foto è del tutto opzionale: se non la carichi, sul sito non
+resta nessun riquadro vuoto al suo posto. Telefono ed email compaiono solo
+se compilati, ciascuno con la propria icona.
+
+### 3.17 Social nel footer
+
+Scheda dashboard **"Impostazioni"**, sezione **"Social"**: quattro righe
+fisse (Facebook, Instagram, TikTok, YouTube), ognuna con una casella
+"Mostra" e un campo per il link. Attiva solo quelli che usi davvero e
+incolla il link del tuo profilo — le icone compaiono nel footer del sito,
+una accanto all'altra, e si adattano da sole a quante ne attivi (nessuno
+spazio vuoto se ne manca qualcuna).
 
 ---
 

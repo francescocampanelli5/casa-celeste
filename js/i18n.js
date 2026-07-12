@@ -173,6 +173,9 @@ window.CASA_CELESTE_I18N = {
     'photo.view': 'vista',
     'photo.n_label': 'Foto {n}',
     'photo.facade': 'facciata<br>Casa Celeste',
+    'photo.prev': 'Foto precedente',
+    'photo.next': 'Foto successiva',
+    'photo.zoom': 'Ingrandisci foto',
 
     'balcony.badge_privato': '🌅 Balcone privato',
     'balcony.badge_comunicante': '🌆 Balcone comunicante',
@@ -180,7 +183,10 @@ window.CASA_CELESTE_I18N = {
     'balcony.callout_comunicante': '🌆 <strong>Balcone comunicante</strong> (con separatore) — un affaccio esterno da condividere: perfetto per un caffè al sole o due chiacchiere in compagnia, con la brezza della sera.',
 
     'common.balcony_badge': '🌤️ Con balcone',
-    'common.balcony_callout': '🌤️ <strong>Con balcone</strong> — la porta si apre e i fornelli respirano: l\'aria fresca entra mentre cucini, e quando il piatto è pronto basta un passo per portarlo fuori, tra un brindisi e il cielo sopra la testa.'
+    'common.balcony_callout': '🌤️ <strong>Con balcone</strong> — la porta si apre e i fornelli respirano: l\'aria fresca entra mentre cucini, e quando il piatto è pronto basta un passo per portarlo fuori, tra un brindisi e il cielo sopra la testa.',
+
+    'manager.eyebrow': 'Il tuo Apartment Manager',
+    'manager.tagline': 'Sempre disponibile per qualsiasi necessità, prima e dopo il tuo arrivo.'
   },
 
   en: {
@@ -350,6 +356,9 @@ window.CASA_CELESTE_I18N = {
     'photo.view': 'view',
     'photo.n_label': 'Photo {n}',
     'photo.facade': 'facade<br>Casa Celeste',
+    'photo.prev': 'Previous photo',
+    'photo.next': 'Next photo',
+    'photo.zoom': 'Zoom photo',
 
     'balcony.badge_privato': '🌅 Private balcony',
     'balcony.badge_comunicante': '🌆 Connecting balcony',
@@ -357,7 +366,10 @@ window.CASA_CELESTE_I18N = {
     'balcony.callout_comunicante': '🌆 <strong>Connecting balcony</strong> (with a privacy divider) — an outdoor spot to share: perfect for a coffee in the sun or a chat with the evening breeze.',
 
     'common.balcony_badge': '🌤️ Has a balcony',
-    'common.balcony_callout': "🌤️ <strong>Has a balcony</strong> — the door opens and the stove gets some air: fresh breeze in while you cook, and once the plate's ready it's one step outside, between a toast and the open sky."
+    'common.balcony_callout': "🌤️ <strong>Has a balcony</strong> — the door opens and the stove gets some air: fresh breeze in while you cook, and once the plate's ready it's one step outside, between a toast and the open sky.",
+
+    'manager.eyebrow': 'Your Apartment Manager',
+    'manager.tagline': "Always available for anything you need, before and after you move in."
   }
 };
 

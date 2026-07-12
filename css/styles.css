@@ -298,6 +298,29 @@ button { font-family: inherit; }
 .outdoor-icon { font-size: 32px; margin-bottom: 10px; }
 .outdoor-panel p { font-size: 15.5px; line-height: 1.75; color: var(--text-body); margin: 0 auto; max-width: 640px; }
 
+/* Apartment Manager: card compatta, foto opzionale (nessun placeholder se
+   assente), nome in grassetto e contatti con icona + testo normale. */
+.manager-card {
+  display: flex; align-items: center; gap: clamp(20px,4vw,32px);
+  background: var(--panel-bg); border-radius: var(--radius-xl); padding: clamp(24px,4vw,36px);
+}
+.manager-photo {
+  width: clamp(84px,12vw,104px); height: clamp(84px,12vw,104px); border-radius: 50%;
+  overflow: hidden; flex-shrink: 0; background: var(--white); position: relative;
+}
+.manager-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.manager-info { min-width: 0; }
+.manager-name { font-family: var(--font-display); font-weight: 800; font-size: 19px; color: var(--navy); margin: 4px 0 6px; }
+.manager-tagline { font-size: 14px; line-height: 1.6; color: var(--text-body); margin: 0 0 14px; }
+.manager-contacts { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.manager-contact-row { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; color: var(--text-body); text-decoration: none; }
+.manager-contact-row:hover { color: var(--blue); }
+.manager-contact-row svg { flex-shrink: 0; color: var(--blue); }
+@media (max-width: 640px) {
+  .manager-card { flex-direction: column; text-align: center; }
+  .manager-contacts { justify-content: center; }
+}
+
 /* ==========================================================================
    Monopoli carousel
    ========================================================================== */
@@ -419,13 +442,44 @@ button { font-family: inherit; }
   position: relative; overflow: hidden;
 }
 .detail-media-main .photo-placeholder { font-size: 11px; }
+.media-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(16,35,59,0.55); color: var(--white); font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; transition: background-color .15s ease;
+}
+.media-arrow:hover { background: rgba(16,35,59,0.8); }
+.media-arrow--prev { left: 12px; }
+.media-arrow--next { right: 12px; }
+.media-zoom-btn {
+  position: absolute; bottom: 12px; right: 12px; z-index: 2;
+  width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(16,35,59,0.55); color: var(--white); transition: background-color .15s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+.media-zoom-btn:hover { background: rgba(16,35,59,0.8); }
 .detail-media-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px,1fr)); gap: 10px; }
 .detail-media-thumb {
   aspect-ratio: 1; border-radius: 12px; background: var(--panel-bg); border: 1px solid rgba(16,35,59,0.05);
   display: flex; align-items: center; justify-content: center;
-  position: relative; overflow: hidden;
+  position: relative; overflow: hidden; cursor: pointer; padding: 0;
 }
+.detail-media-thumb.is-active { border: 2px solid var(--blue); box-shadow: 0 0 0 2px var(--blue-bg); }
 .detail-media-thumb span { font-family: ui-monospace, monospace; font-size: 9px; color: var(--text-faintest); }
+
+/* Zoom foto a schermo intero: click sull'immagine la ingrandisce ancora
+   (cursore a lente su desktop); su mobile lo zoom nativo a due dita resta
+   comunque disponibile perché il viewport non disabilita mai lo scaling. */
+.media-zoom-overlay { background: rgba(10,16,26,0.92); flex-direction: column; padding: 0; }
+.media-zoom-img {
+  max-width: 92vw; max-height: 88vh; object-fit: contain; border-radius: 8px;
+  cursor: zoom-in; transition: transform .2s ease; touch-action: pinch-zoom;
+}
+.media-zoom-img.is-scaled { transform: scale(1.6); cursor: zoom-out; }
+.media-zoom-close {
+  position: fixed; top: 18px; right: 18px; background: rgba(255,255,255,0.12); color: var(--white);
+}
+.media-zoom-close:hover { background: rgba(255,255,255,0.22); color: var(--white); }
 
 .detail-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(28px,3.2vw,38px); letter-spacing: -0.02em; margin: 0 0 16px; color: var(--navy); }
 .detail-title--room { font-size: clamp(29px,3.2vw,39px); margin: 0 0 10px; }
@@ -532,6 +586,10 @@ button { font-family: inherit; }
 .admin-field-group--full { width: 100%; }
 .admin-field-group--full textarea.admin-field { resize: vertical; font-family: inherit; }
 .admin-room-type-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 10px; }
+.admin-social-row { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border-hairline); }
+.admin-social-row:last-child { border-bottom: none; }
+.admin-social-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--navy); width: 130px; flex-shrink: 0; }
+.admin-social-row input[type="text"] { flex: 1; }
 .admin-beds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 14px; }
 .admin-stats-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
 .admin-stat-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
@@ -672,6 +730,13 @@ button { font-family: inherit; }
 .footer-legal-btn { background: none; border: none; color: var(--footer-text-muted); font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; }
 .footer-legal-btn:hover { color: var(--white); }
 .footer-fineprint { font-size: 12px; color: var(--footer-text-dim); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
+.footer-social { display: flex; flex-wrap: wrap; gap: 10px; }
+.footer-social:empty { display: none; }
+.footer-social-icon {
+  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.08); color: var(--footer-text); transition: background-color .15s ease, color .15s ease;
+}
+.footer-social-icon:hover { background: rgba(255,255,255,0.18); color: var(--white); }
 
 /* ==========================================================================
    WhatsApp floating button

@@ -116,6 +116,12 @@
     })(),
     activeRoomId: null,
     activeCommonId: null,
+    roomMediaIndex: 0,
+    commonMediaIndex: 0,
+    mediaZoomOpen: false,
+    mediaZoomSrc: '',
+    mediaZoomAlt: '',
+    mediaZoomScaled: false,
     roomsData: JSON.parse(JSON.stringify(SEED_ROOMS)),
     commonsData: JSON.parse(JSON.stringify(SEED_COMMONS)),
     reviewsData: JSON.parse(JSON.stringify(SEED_REVIEWS)),
@@ -200,22 +206,38 @@
     thumb.remove();
     if (grid && !grid.querySelector('.detail-media-thumb')) grid.style.display = 'none';
   };
-  // Blocco foto di una pagina di dettaglio: foto principale (-1, sempre
-  // presente, placeholder se manca) + fino a 5 miniature (-2 … -6). Chi carica
-  // meno foto vede semplicemente meno miniature, senza riquadri vuoti.
+  // Blocco foto di una pagina di dettaglio: foto principale (grande, quella
+  // attualmente "attiva") + fino a 6 miniature cliccabili, una delle quali è
+  // sempre quella attiva (evidenziata). Cliccare una miniatura la porta in
+  // primo piano; le frecce ‹ › scorrono le foto; la lente apre uno zoom a
+  // schermo intero. kind ('room' | 'common') dice quale indice di stato
+  // usare, così una galleria stanza e una spazio comune aperte insieme non
+  // si influenzano a vicenda.
   var DETAIL_MAX_PHOTOS = 6;
   // photosOverride: array opzionale di URL (caricate dalla dashboard via
   // Firebase Storage) che, slot per slot, prendono il posto del file locale
   // images/idPrefix-N.jpg — permette di mescolare foto caricate su GitHub e
   // foto caricate dalla dashboard senza cambiare nient'altro.
-  function detailMediaHtml(idPrefix, altBase, photosOverride) {
+  function detailMediaHtml(idPrefix, altBase, photosOverride, kind) {
     function srcFor(i) { return (photosOverride && photosOverride[i - 1]) || ('images/' + idPrefix + '-' + i + '.jpg'); }
+    var activeIndex = (kind === 'common' ? state.commonMediaIndex : state.roomMediaIndex) || 0;
+    var mainSrc = srcFor(activeIndex + 1);
+    var mainAlt = altBase + ', ' + t('photo.view') + ' ' + (activeIndex + 1);
+    var kindAttr = 'data-media-kind="' + kind + '"';
     var main =
-      '<div class="detail-media-main"><span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(altBase) + ', ' + escapeHtml(t('photo.view')) + ' 1</span>' +
-      photoTag(srcFor(1), altBase + ', ' + t('photo.view') + ' 1') + '</div>';
+      '<div class="detail-media-main">' +
+        '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(mainAlt) + '</span>' +
+        photoTag(mainSrc, mainAlt) +
+        '<button type="button" class="media-arrow media-arrow--prev" data-media-nav="prev" ' + kindAttr + ' aria-label="' + escapeHtml(t('photo.prev')) + '">‹</button>' +
+        '<button type="button" class="media-arrow media-arrow--next" data-media-nav="next" ' + kindAttr + ' aria-label="' + escapeHtml(t('photo.next')) + '">›</button>' +
+        '<button type="button" class="media-zoom-btn" data-media-zoom data-media-src="' + escapeHtml(mainSrc) + '" data-media-alt="' + escapeHtml(mainAlt) + '" aria-label="' + escapeHtml(t('photo.zoom')) + '">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"></circle><line x1="15.3" y1="15.3" x2="20" y2="20"></line><line x1="7.5" y1="10.5" x2="13.5" y2="10.5"></line><line x1="10.5" y1="7.5" x2="10.5" y2="13.5"></line></svg>' +
+        '</button>' +
+      '</div>';
     var thumbs = '';
-    for (var i = 2; i <= DETAIL_MAX_PHOTOS; i++) {
-      thumbs += '<div class="detail-media-thumb"><span>' + escapeHtml(tpl(t('photo.n_label'), { n: i })) + '</span>' + photoThumbTag(srcFor(i), altBase + ', ' + t('photo.view') + ' ' + i) + '</div>';
+    for (var i = 1; i <= DETAIL_MAX_PHOTOS; i++) {
+      var isActive = (i - 1) === activeIndex;
+      thumbs += '<div class="detail-media-thumb' + (isActive ? ' is-active' : '') + '" data-media-thumb data-media-index="' + (i - 1) + '" ' + kindAttr + '><span>' + escapeHtml(tpl(t('photo.n_label'), { n: i })) + '</span>' + photoThumbTag(srcFor(i), altBase + ', ' + t('photo.view') + ' ' + i) + '</div>';
     }
     return main + '<div class="detail-media-grid">' + thumbs + '</div>';
   }
@@ -343,7 +365,7 @@
   function updateBodyScrollLock() {
     var drawerEl = document.getElementById('mobile-drawer');
     var drawerOpen = drawerEl && drawerEl.classList.contains('is-open');
-    document.body.style.overflow = (state.bookingOpen || state.legalOpen || drawerOpen) ? 'hidden' : '';
+    document.body.style.overflow = (state.bookingOpen || state.legalOpen || state.mediaZoomOpen || drawerOpen) ? 'hidden' : '';
   }
 
   /* ==========================================================================
@@ -427,6 +449,8 @@
     renderFaq();
     renderTestimonials();
     renderVirtualTourCta();
+    renderManager();
+    renderSocialLinks();
     renderBookingModal();
     renderLegalModal();
     renderCookieBanner();
@@ -536,7 +560,7 @@
       '<button type="button" class="back-link" data-go-home-common>' + escapeHtml(t('common.back_to_all')) + '</button>' +
       '<div class="detail-grid">' +
         '<div>' +
-          detailMediaHtml(id, name, def.photos) +
+          detailMediaHtml(id, name, def.photos, 'common') +
         '</div>' +
         '<div>' +
           '<h2 class="detail-title">' + escapeHtml(name) + '</h2>' +
@@ -579,7 +603,7 @@
     var el = document.getElementById(sectionId);
     if (el) el.scrollIntoView({ block: 'start' });
   }
-  function goToCommon(id) { state.activeCommonId = id; renderCommon(); scrollSectionIntoView('spazi-comuni-anchor'); }
+  function goToCommon(id) { state.activeCommonId = id; state.commonMediaIndex = 0; renderCommon(); scrollSectionIntoView('spazi-comuni-anchor'); }
   function goHomeCommon() { state.activeCommonId = null; renderCommon(); scrollSectionIntoView('spazi-comuni-anchor'); }
 
   /* ==========================================================================
@@ -696,7 +720,7 @@
     return (
       '<button type="button" class="back-link" data-go-home-room>' + escapeHtml(t('room.back_to_all')) + '</button>' +
       '<div class="detail-grid">' +
-        '<div>' + detailMediaHtml(id, room.name, room.photos) + '</div>' +
+        '<div>' + detailMediaHtml(id, room.name, room.photos, 'room') + '</div>' +
         '<div>' + bodyHtml + '</div>' +
       '</div>'
     );
@@ -787,7 +811,7 @@
         '<a href="' + waLink(t('urgency.wa_block')) + '" target="_blank" rel="noopener" class="btn btn-urgency">' + escapeHtml(t('urgency.rooms_cta')) + '</a>' +
       '</div>';
   }
-  function goToRoom(id) { state.activeRoomId = id; renderRooms(); scrollSectionIntoView('stanze'); }
+  function goToRoom(id) { state.activeRoomId = id; state.roomMediaIndex = 0; renderRooms(); scrollSectionIntoView('stanze'); }
   function goHomeRooms() { state.activeRoomId = null; renderRooms(); scrollSectionIntoView('stanze'); }
 
   /* ==========================================================================
@@ -829,6 +853,70 @@
     } else {
       slot.innerHTML = '';
     }
+  }
+
+  /* ==========================================================================
+     Render: Apartment Manager (persona di riferimento, tutta opzionale —
+     compare solo se il proprietario ha compilato almeno il nome; la foto,
+     se assente, non lascia alcun riquadro/placeholder al suo posto).
+     ========================================================================== */
+  function renderManager() {
+    var slot = document.getElementById('manager-slot');
+    if (!slot) return;
+    var s = state.settings || {};
+    var name = (s.managerName || '').trim();
+    if (!name) { slot.innerHTML = ''; return; }
+    var photoHtml = s.managerPhoto
+      ? '<div class="manager-photo"><img src="' + escapeHtml(s.managerPhoto) + '" alt="' + escapeHtml(name) + '" class="real-photo" loading="lazy"></div>'
+      : '';
+    var phoneDigits = (s.managerPhone || '').replace(/\D/g, '');
+    var phoneHtml = phoneDigits
+      ? '<a href="tel:+' + phoneDigits + '" class="manager-contact-row">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>' +
+          '<span>' + escapeHtml(formatPhoneDisplay(phoneDigits)) + '</span>' +
+        '</a>'
+      : '';
+    var email = (s.managerEmail || '').trim();
+    var emailHtml = email
+      ? '<a href="mailto:' + escapeHtml(email) + '" class="manager-contact-row">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22 6 12 13 2 6"></polyline></svg>' +
+          '<span>' + escapeHtml(email) + '</span>' +
+        '</a>'
+      : '';
+    slot.innerHTML =
+      '<div class="container container--narrow">' +
+        '<div class="manager-card">' +
+          photoHtml +
+          '<div class="manager-info">' +
+            '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('manager.eyebrow')) + '</div>' +
+            '<div class="manager-name">' + escapeHtml(name) + '</div>' +
+            '<p class="manager-tagline">' + escapeHtml(t('manager.tagline')) + '</p>' +
+            '<div class="manager-contacts">' + phoneHtml + emailHtml + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  /* ==========================================================================
+     Render: Icone social (footer) — il proprietario attiva/disattiva ogni
+     singolo social e ne scrive il link dalla dashboard; solo quelli attivi
+     e con un link compaiono, in un'unica riga che si adatta da sola a
+     quante icone ci sono (nessun buco se ne manca qualcuna).
+     ========================================================================== */
+  var SOCIAL_PLATFORMS = ['facebook', 'instagram', 'tiktok', 'youtube'];
+  var SOCIAL_LABELS = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' };
+  function renderSocialLinks() {
+    var slot = document.getElementById('social-links-slot');
+    if (!slot) return;
+    var socials = (state.settings && state.settings.socials) || {};
+    var html = SOCIAL_PLATFORMS.map(function (platform) {
+      var cfg = socials[platform];
+      if (!cfg || !cfg.enabled || !cfg.url) return '';
+      return '<a href="' + escapeHtml(cfg.url) + '" target="_blank" rel="noopener" class="footer-social-icon" aria-label="' + escapeHtml(SOCIAL_LABELS[platform]) + '">' +
+        '<svg width="17" height="17"><use href="#social-' + platform + '"></use></svg>' +
+      '</a>';
+    }).join('');
+    slot.innerHTML = html;
   }
 
   /* ==========================================================================
@@ -1089,6 +1177,53 @@
   function openLegal(id) { state.legalOpen = true; state.activeLegalId = id; renderLegalModal(); }
   function closeLegal() { state.legalOpen = false; renderLegalModal(); }
 
+  /* ==========================================================================
+     Zoom foto (lightbox a schermo intero, per la galleria di stanze/spazi
+     comuni): su desktop un click ingrandisce ulteriormente l'immagine
+     (cursore a lente), su mobile lo zoom nativo a due dita funziona comunque
+     perché il sito non disabilita mai lo scaling della pagina.
+     ========================================================================== */
+  function renderMediaZoomModal() {
+    var root = document.getElementById('media-zoom-root');
+    if (!root) return;
+    if (!state.mediaZoomOpen) { root.innerHTML = ''; updateBodyScrollLock(); return; }
+    root.innerHTML =
+      '<div class="modal-overlay media-zoom-overlay" id="media-zoom-overlay">' +
+        '<button type="button" class="modal-close media-zoom-close" data-media-zoom-close aria-label="' + escapeHtml(t('common.chiudi')) + '">×</button>' +
+        '<img src="' + escapeHtml(state.mediaZoomSrc) + '" alt="' + escapeHtml(state.mediaZoomAlt) + '" class="media-zoom-img' + (state.mediaZoomScaled ? ' is-scaled' : '') + '" data-media-zoom-img>' +
+      '</div>';
+    document.getElementById('media-zoom-overlay').addEventListener('click', function (e) {
+      if (e.target.id === 'media-zoom-overlay') closeMediaZoom();
+    });
+    document.querySelector('[data-media-zoom-img]').addEventListener('click', function (e) {
+      e.stopPropagation();
+      state.mediaZoomScaled = !state.mediaZoomScaled;
+      renderMediaZoomModal();
+    });
+    updateBodyScrollLock();
+  }
+  function openMediaZoom(src, alt) {
+    state.mediaZoomOpen = true;
+    state.mediaZoomSrc = src;
+    state.mediaZoomAlt = alt;
+    state.mediaZoomScaled = false;
+    renderMediaZoomModal();
+  }
+  function closeMediaZoom() { state.mediaZoomOpen = false; renderMediaZoomModal(); }
+
+  // Frecce ‹ › e miniature cliccabili della galleria foto di stanze/spazi
+  // comuni: kind ('room' | 'common') sceglie quale indice di stato
+  // aggiornare e quale sezione ri-renderizzare.
+  function mediaGoTo(kind, index) {
+    if (kind === 'common') { state.commonMediaIndex = index; renderCommon(); }
+    else { state.roomMediaIndex = index; renderRooms(); }
+  }
+  function mediaNav(kind, dir) {
+    var current = (kind === 'common' ? state.commonMediaIndex : state.roomMediaIndex) || 0;
+    var next = (current + (dir === 'next' ? 1 : -1) + DETAIL_MAX_PHOTOS) % DETAIL_MAX_PHOTOS;
+    mediaGoTo(kind, next);
+  }
+
   function renderCookieBanner() {
     var root = document.getElementById('cookie-banner-root');
     if (!state.showCookieBanner) { root.innerHTML = ''; return; }
@@ -1188,12 +1323,22 @@
 
       el = e.target.closest('[data-faq-toggle]');
       if (el) { faqToggle(Number(el.getAttribute('data-index'))); return; }
+
+      el = e.target.closest('[data-media-nav]');
+      if (el) { mediaNav(el.getAttribute('data-media-kind'), el.getAttribute('data-media-nav')); return; }
+      el = e.target.closest('[data-media-thumb]');
+      if (el) { mediaGoTo(el.getAttribute('data-media-kind'), Number(el.getAttribute('data-media-index'))); return; }
+      el = e.target.closest('[data-media-zoom]');
+      if (el) { openMediaZoom(el.getAttribute('data-media-src'), el.getAttribute('data-media-alt')); return; }
+      el = e.target.closest('[data-media-zoom-close]');
+      if (el) { closeMediaZoom(); return; }
     });
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
         if (state.bookingOpen) closeBooking();
         if (state.legalOpen) closeLegal();
+        if (state.mediaZoomOpen) closeMediaZoom();
         if (document.getElementById('mobile-drawer').classList.contains('is-open')) closeMobileDrawer();
       }
     });
@@ -1216,6 +1361,8 @@
     renderFaq();
     renderTestimonials();
     renderVirtualTourCta();
+    renderManager();
+    renderSocialLinks();
     renderBookingModal();
     renderLegalModal();
     renderCookieBanner();
@@ -1249,6 +1396,8 @@
       window.CasaCelesteDB.subscribeSettings(function (settingsFromDb) {
         state.settings = settingsFromDb || {};
         renderVirtualTourCta();
+        renderManager();
+        renderSocialLinks();
         renderHeroMedia();
         applyI18n();
         // Il numero WhatsApp (waNumber()) è incorporato nei link generati da

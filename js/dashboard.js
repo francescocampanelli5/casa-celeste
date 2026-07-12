@@ -352,18 +352,21 @@
       if (kind === 'room') return state.roomsData;
       if (kind === 'common') return state.commonsData;
       if (kind === 'mono') return state.monoSlidesData;
+      if (kind === 'manager') { var mwrap = {}; mwrap.manager = { photos: (state.settings && state.settings.managerPhoto) ? [state.settings.managerPhoto] : [] }; return mwrap; }
       var wrap = {}; wrap.facciata = { photos: (state.settings && state.settings.facadePhotos) || [] }; return wrap;
     }
     function setFnFor(kind) {
       if (kind === 'room') return window.CasaCelesteDB.setRoom;
       if (kind === 'common') return window.CasaCelesteDB.setCommon;
       if (kind === 'mono') return window.CasaCelesteDB.setMonoSlide;
+      if (kind === 'manager') return function (ownerId, patch) { return window.CasaCelesteDB.setSettings({ managerPhoto: (patch.photos && patch.photos[0]) || '' }); };
       return function (ownerId, patch) { return window.CasaCelesteDB.setSettings({ facadePhotos: patch.photos }); };
     }
     function uploadFnFor(kind) {
       if (kind === 'room') return window.CasaCelesteDB.uploadRoomPhoto;
       if (kind === 'common') return window.CasaCelesteDB.uploadCommonPhoto;
       if (kind === 'mono') return window.CasaCelesteDB.uploadMonoSlidePhoto;
+      if (kind === 'manager') return function (ownerId, idx, file) { return window.CasaCelesteDB.uploadManagerPhoto(idx, file); };
       return function (ownerId, idx, file) { return window.CasaCelesteDB.uploadFacadePhoto(idx, file); };
     }
     content.querySelectorAll('[data-photo-upload]').forEach(function (input) {
@@ -784,6 +787,47 @@
   }
 
   /* ==========================================================================
+     Social (footer): 4 piattaforme fisse, ognuna con on/off + link. Solo
+     quelle attive e con un link compaiono sul sito.
+     ========================================================================== */
+  var SOCIAL_PLATFORMS = [
+    { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/tuapagina' },
+    { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/tuoprofilo' },
+    { key: 'tiktok', label: 'TikTok', placeholder: 'https://tiktok.com/@tuoprofilo' },
+    { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@tuocanale' }
+  ];
+  function socialFieldsHtml(socials) {
+    return SOCIAL_PLATFORMS.map(function (p) {
+      var cfg = socials[p.key] || {};
+      return (
+        '<div class="admin-social-row">' +
+          '<label class="admin-social-toggle"><input type="checkbox" data-social-enabled data-social-key="' + p.key + '"' + (cfg.enabled ? ' checked' : '') + '> ' + p.label + '</label>' +
+          '<input type="text" class="admin-field" data-social-url data-social-key="' + p.key + '" placeholder="' + p.placeholder + '" value="' + escapeHtml(cfg.url || '') + '">' +
+        '</div>'
+      );
+    }).join('');
+  }
+  function bindSocialFieldsEvents(content) {
+    function currentSocials() { return (state.settings && state.settings.socials) || {}; }
+    content.querySelectorAll('[data-social-enabled]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var key = el.getAttribute('data-social-key');
+        var socials = Object.assign({}, currentSocials());
+        socials[key] = Object.assign({}, socials[key], { enabled: e.target.checked });
+        window.CasaCelesteDB.setSettings({ socials: socials });
+      });
+    });
+    content.querySelectorAll('[data-social-url]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var key = el.getAttribute('data-social-key');
+        var socials = Object.assign({}, currentSocials());
+        socials[key] = Object.assign({}, socials[key], { url: e.target.value.trim() });
+        window.CasaCelesteDB.setSettings({ socials: socials });
+      });
+    });
+  }
+
+  /* ==========================================================================
      Impostazioni tab (Virtual Tour, ecc.)
      ========================================================================== */
   function renderSettingsTab(content) {
@@ -807,7 +851,53 @@
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' +
         photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) +
       '</div>' +
-      '<div class="admin-note">Queste foto scorrono nel carosello della home page. Puoi caricarne da 1 a 6; se non carichi nulla resta il placeholder.</div>';
+      '<div class="admin-note">Queste foto scorrono nel carosello della home page. Puoi caricarne da 1 a 6; se non carichi nulla resta il placeholder.</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Apartment Manager</span></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Nome e cognome</label><input type="text" class="admin-field" id="manager-name" placeholder="es. Francesco Campanelli" value="' + escapeHtml(s.managerName || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="manager-phone" placeholder="393381567389" value="' + escapeHtml(s.managerPhone || '') + '">' +
+          '<div class="admin-field-error" id="manager-phone-error" style="display:none;"></div>' +
+        '</div>' +
+        '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" placeholder="nome@gmail.com" value="' + escapeHtml(s.managerEmail || '') + '">' +
+          '<div class="admin-field-error" id="manager-email-error" style="display:none;"></div>' +
+        '</div>' +
+        photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +
+      '</div>' +
+      '<div class="admin-note">Compare sul sito, prima delle FAQ, solo se scrivi almeno il nome. La foto è facoltativa: se non la carichi, semplicemente non compare (nessun riquadro vuoto). Telefono ed email compaiono solo se compilati.</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Social</span></div>' +
+        socialFieldsHtml(s.socials || {}) +
+      '</div>' +
+      '<div class="admin-note">Attiva solo i social che vuoi mostrare e incolla il link del tuo profilo: le icone compaiono nel footer del sito, una accanto all\'altra, indipendentemente da quante ne attivi.</div>';
+
+    document.getElementById('manager-name').addEventListener('change', function (e) {
+      window.CasaCelesteDB.setSettings({ managerName: e.target.value.trim() });
+    });
+    document.getElementById('manager-phone').addEventListener('change', function (e) {
+      var val = e.target.value.trim();
+      var digits = val.replace(/\D/g, '');
+      var errorEl = document.getElementById('manager-phone-error');
+      if (val && (digits.length < 8 || digits.length > 15)) {
+        errorEl.textContent = 'Numero non valido: servono solo cifre (prefisso incluso), tra 8 e 15 in tutto.';
+        errorEl.style.display = '';
+        return;
+      }
+      errorEl.style.display = 'none';
+      e.target.value = digits;
+      window.CasaCelesteDB.setSettings({ managerPhone: digits });
+    });
+    document.getElementById('manager-email').addEventListener('change', function (e) {
+      var val = e.target.value.trim();
+      var errorEl = document.getElementById('manager-email-error');
+      if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(val)) {
+        errorEl.textContent = 'Email non valida.';
+        errorEl.style.display = '';
+        return;
+      }
+      errorEl.style.display = 'none';
+      window.CasaCelesteDB.setSettings({ managerEmail: val });
+    });
+    bindSocialFieldsEvents(content);
 
     document.getElementById('settings-phone').addEventListener('change', function (e) {
       var digits = e.target.value.replace(/\D/g, '');
