@@ -238,6 +238,7 @@ button { font-family: inherit; }
   font-family: ui-monospace, monospace; font-size: 11.5px; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--text-faintest); text-align: center; padding: 0 20px;
 }
+.real-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
 /* ==========================================================================
    Trust strip
@@ -365,12 +366,14 @@ button { font-family: inherit; }
 .detail-media-main {
   aspect-ratio: 4/3; border-radius: var(--radius-md); background: var(--panel-bg);
   border: 1px solid rgba(16,35,59,0.05); display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+  position: relative; overflow: hidden;
 }
 .detail-media-main .photo-placeholder { font-size: 11px; }
-.detail-media-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.detail-media-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px,1fr)); gap: 10px; }
 .detail-media-thumb {
   aspect-ratio: 1; border-radius: 12px; background: var(--panel-bg); border: 1px solid rgba(16,35,59,0.05);
   display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
 }
 .detail-media-thumb span { font-family: ui-monospace, monospace; font-size: 9px; color: var(--text-faintest); }
 

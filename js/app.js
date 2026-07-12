@@ -8,9 +8,9 @@
   var DEFAULT_ROOM_DATA = window.CASA_CELESTE_DATA.DEFAULT_ROOM_DATA;
 
   var MONO_SLIDES = [
-    { eyebrow: 'Centro storico', tagBg: '#EAF6FC', caption: 'centro storico', title: 'Il centro storico', text: "Vicoli bianchi, piazzette e locali a due passi da casa: la vita universitaria, i bar e le uscite serali sono sempre dietro l'angolo." },
-    { eyebrow: 'Mare', tagBg: '#FFF6DD', caption: 'mare', title: 'Il mare', text: 'Cale e scogliere a portata di bici: la pausa studio perfetta è un tuffo, non un viaggio.' },
-    { eyebrow: 'Vita pugliese', tagBg: '#EAF6FC', caption: 'vita pugliese', title: 'La vita pugliese', text: 'Mercati, cucina tipica e ritmi lenti: Monopoli ti accoglie con la sua ospitalità, senza mai sentirti fuori posto.' }
+    { eyebrow: 'Centro storico', tagBg: '#EAF6FC', caption: 'centro storico', img: 'images/centro-storico.jpg', title: 'Il centro storico', text: "Vicoli bianchi, piazzette e locali a due passi da casa: la vita universitaria, i bar e le uscite serali sono sempre dietro l'angolo." },
+    { eyebrow: 'Mare', tagBg: '#FFF6DD', caption: 'mare', img: 'images/mare.jpg', title: 'Il mare', text: 'Cale e scogliere a portata di bici: la pausa studio perfetta è un tuffo, non un viaggio.' },
+    { eyebrow: 'Vita pugliese', tagBg: '#EAF6FC', caption: 'vita pugliese', img: 'images/vita-pugliese.jpg', title: 'La vita pugliese', text: 'Mercati, cucina tipica e ritmi lenti: Monopoli ti accoglie con la sua ospitalità, senza mai sentirti fuori posto.' }
   ];
 
   var FAQ_DEFS = [
@@ -99,6 +99,38 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  // Mostra la foto reale se il file esiste in images/, altrimenti sparisce e
+  // resta visibile il photo-placeholder già presente sotto di lei nel markup.
+  function photoTag(src, alt) {
+    return '<img src="' + src + '" alt="' + escapeHtml(alt) + '" class="real-photo" loading="lazy" onerror="this.remove()">';
+  }
+  // Come photoTag, ma per le miniature: se il file manca, rimuove l'intero
+  // riquadro (non solo la foto) e adatta la griglia alle foto rimaste, così
+  // non restano blocchi vuoti quando ci sono meno di 4 foto per stanza.
+  function photoThumbTag(src, alt) {
+    return '<img src="' + src + '" alt="' + escapeHtml(alt) + '" class="real-photo" loading="lazy" onerror="window.__ccThumbError(this)">';
+  }
+  window.__ccThumbError = function (img) {
+    var thumb = img.closest('.detail-media-thumb');
+    if (!thumb) { img.remove(); return; }
+    var grid = thumb.parentElement;
+    thumb.remove();
+    if (grid && !grid.querySelector('.detail-media-thumb')) grid.style.display = 'none';
+  };
+  // Blocco foto di una pagina di dettaglio: foto principale (-1, sempre
+  // presente, placeholder se manca) + fino a 5 miniature (-2 … -6). Chi carica
+  // meno foto vede semplicemente meno miniature, senza riquadri vuoti.
+  var DETAIL_MAX_PHOTOS = 6;
+  function detailMediaHtml(idPrefix, altBase) {
+    var main =
+      '<div class="detail-media-main"><span class="photo-placeholder">Foto — ' + escapeHtml(altBase) + ', vista 1</span>' +
+      photoTag('images/' + idPrefix + '-1.jpg', altBase + ', vista 1') + '</div>';
+    var thumbs = '';
+    for (var i = 2; i <= DETAIL_MAX_PHOTOS; i++) {
+      thumbs += '<div class="detail-media-thumb"><span>Foto ' + i + '</span>' + photoThumbTag('images/' + idPrefix + '-' + i + '.jpg', altBase + ', vista ' + i) + '</div>';
+    }
+    return main + '<div class="detail-media-grid">' + thumbs + '</div>';
+  }
   function waLink(text) {
     return 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(text);
   }
@@ -156,6 +188,7 @@
       '<div class="carousel-media">' +
         '<span class="carousel-tag" style="background:' + slide.tagBg + ';">' + escapeHtml(slide.eyebrow) + '</span>' +
         '<span class="photo-placeholder">Foto — ' + escapeHtml(slide.caption) + '</span>' +
+        photoTag(slide.img, slide.caption) +
       '</div>' +
       '<div>' +
         '<h3 class="carousel-title">' + escapeHtml(slide.title) + '</h3>' +
@@ -196,7 +229,7 @@
     var featuresHtml = def.features.map(function (f) { return '<span class="chip">' + escapeHtml(f) + '</span>'; }).join('');
     return (
       '<div class="card" data-common-card data-common-id="' + def.id + '">' +
-        '<div class="card-media"><span class="photo-placeholder">Foto — ' + escapeHtml(def.caption) + '</span></div>' +
+        '<div class="card-media"><span class="photo-placeholder">Foto — ' + escapeHtml(def.caption) + '</span>' + photoTag('images/' + def.id + '-1.jpg', def.name) + '</div>' +
         '<div class="card-body">' +
           '<h3 class="card-title">' + escapeHtml(def.name) + '</h3>' +
           '<p class="card-text">' + escapeHtml(def.shortText) + '</p>' +
@@ -215,12 +248,7 @@
       '<button type="button" class="back-link" data-go-home-common>← Tutti gli spazi comuni</button>' +
       '<div class="detail-grid">' +
         '<div>' +
-          '<div class="detail-media-main"><span class="photo-placeholder">Foto — ' + escapeHtml(def.caption) + ', vista 1</span></div>' +
-          '<div class="detail-media-grid">' +
-            '<div class="detail-media-thumb"><span>Foto 2</span></div>' +
-            '<div class="detail-media-thumb"><span>Foto 3</span></div>' +
-            '<div class="detail-media-thumb"><span>Foto 4</span></div>' +
-          '</div>' +
+          detailMediaHtml(def.id, def.caption) +
         '</div>' +
         '<div>' +
           '<h1 class="detail-title">' + escapeHtml(def.name) + '</h1>' +
@@ -268,6 +296,7 @@
       '<div class="card' + (disabled ? ' card--disabled' : '') + '" data-room-card data-room-id="' + view.id + '">' +
         '<div class="room-card-media">' +
           '<span class="photo-placeholder">Foto — ' + escapeHtml(view.name) + '</span>' +
+          photoTag('images/' + view.id + '-1.jpg', view.name) +
           '<span class="room-card-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
         '</div>' +
         '<div class="room-card-body">' +
@@ -293,12 +322,7 @@
       '<button type="button" class="back-link" data-go-home-room>← Tutte le stanze</button>' +
       '<div class="detail-grid">' +
         '<div>' +
-          '<div class="detail-media-main"><span class="photo-placeholder">Foto — ' + escapeHtml(def.name) + ', vista 1</span></div>' +
-          '<div class="detail-media-grid">' +
-            '<div class="detail-media-thumb"><span>Foto 2</span></div>' +
-            '<div class="detail-media-thumb"><span>Foto 3</span></div>' +
-            '<div class="detail-media-thumb"><span>Foto 4</span></div>' +
-          '</div>' +
+          detailMediaHtml(def.id, def.name) +
         '</div>' +
         '<div>' +
           '<span class="detail-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +

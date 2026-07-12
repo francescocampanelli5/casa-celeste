@@ -210,6 +210,44 @@ A questo punto la dashboard è già funzionante: apri `dashboard.html` sul sito
 (dopo averlo pubblicato con Netlify, Parte 5) e prova ad accedere con l'email
 e la password che hai creato al punto 3.2.
 
+### 3.3bis Caricare le foto (senza mai toccare il codice)
+
+Il sito mostra una foto reale al posto del placeholder non appena trovi, nella
+cartella `images/`, un file con **esattamente** questo nome (rispetta
+minuscole, trattini ed estensione `.jpg`):
+
+| Cosa | Nome file |
+|---|---|
+| Facciata casa (hero) | `images/facciata.jpg` |
+| Carousel — centro storico | `images/centro-storico.jpg` |
+| Carousel — mare | `images/mare.jpg` |
+| Carousel — vita pugliese | `images/vita-pugliese.jpg` |
+| Cucina | `images/cucina-1.jpg` … `images/cucina-6.jpg` |
+| Corridoio | `images/corridoio-1.jpg` … `images/corridoio-6.jpg` |
+| Bagno condiviso | `images/bagno-1.jpg` … `images/bagno-6.jpg` |
+| Lavanderia | `images/lavanderia-1.jpg` … `images/lavanderia-6.jpg` |
+| Stanza Maestrale | `images/maestrale-1.jpg` … `images/maestrale-6.jpg` |
+| Stanza Scirocco | `images/scirocco-1.jpg` … `images/scirocco-6.jpg` |
+| Stanza Ponente | `images/ponente-1.jpg` … `images/ponente-6.jpg` |
+| Stanza Levante | `images/levante-1.jpg` … `images/levante-6.jpg` |
+
+Per ogni stanza/spazio comune, il file `-1.jpg` è la foto principale (quella
+che appare anche nella card); da `-2.jpg` a `-6.jpg` sono le miniature della
+pagina di dettaglio — puoi caricarne **da 2 a 6** (4 è un buon numero di
+riferimento). Dove manca un file la miniatura corrispondente sparisce del
+tutto: il sito si adatta al numero di foto che carichi, senza lasciare
+riquadri vuoti.
+
+**Per caricare o aggiornare una foto:** vai sul repository su github.com,
+apri la cartella `images/`, clicca **"Add file" → "Upload files"**, trascina
+la foto rinominata esattamente come da tabella e clicca **Commit changes**.
+Se un file con quel nome esiste già, caricandone uno nuovo con lo stesso nome
+GitHub te lo fa sostituire — così puoi cambiare le foto quando vuoi, senza
+mai aprire il codice. Netlify ripubblica da solo in 1-2 minuti.
+
+Consiglio: foto orizzontali (proporzione 4:3), peso sotto 500 KB l'una così
+il sito resta veloce da caricare.
+
 ### 3.4 Popolare le 4 stanze la prima volta
 
 1. Accedi alla dashboard → scheda **Stanze**.
