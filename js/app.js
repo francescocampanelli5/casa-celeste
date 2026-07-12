@@ -652,12 +652,12 @@
   // dettaglio di una stanza doppia pubblicata come doppia.
   function bedBlockHtml(bv) {
     var disabled = bv.isOccupata;
-    var statusNoteHtml = '';
-    if (bv.isOccupata) {
-      statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + bv.occupantText + '</div>';
-    } else if (bv.isDisponibile) {
-      statusNoteHtml = '<div class="detail-status-note detail-status-note--available">' + escapeHtml(t('room.status_disponibile_dal')) + ' ' + bv.availableFromText + '</div>';
-    }
+    // Se il posto è "disponibile dal X" non ripetiamo la data qui: il tag
+    // in alto al blocco la mostra già. Questa nota resta solo per lo stato
+    // "occupata" (informazione diversa: chi occupa il posto).
+    var statusNoteHtml = bv.isOccupata
+      ? '<div class="detail-status-note detail-status-note--occupied">' + bv.occupantText + '</div>'
+      : '';
     var ctaHtml = bv.ctaIsWa
       ? '<a href="' + bv.ctaHref + '" target="_blank" rel="noopener" class="btn btn-block" style="background:' + bv.ctaBg + '; color:' + bv.ctaColor + ';">' + bv.ctaLabel + '</a>'
       : '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(bv.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + bv.ctaBg + '; color:' + bv.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + bv.ctaLabel + '</button>';
@@ -697,12 +697,12 @@
         '<div class="beds-grid">' + view.beds.map(bedBlockHtml).join('') + '</div>';
     } else {
       var disabled = view.isOccupata;
-      var statusNoteHtml = '';
-      if (view.isOccupata) {
-        statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + view.occupantText + '</div>';
-      } else if (view.isDisponibile) {
-        statusNoteHtml = '<div class="detail-status-note detail-status-note--available">' + escapeHtml(t('room.status_disponibile_dal')) + ' ' + view.availableFromText + '</div>';
-      }
+      // Se la stanza è "disponibile dal X" non ripetiamo la data qui: il tag
+      // in alto la mostra già. Questa nota resta solo per lo stato
+      // "occupata" (informazione diversa: chi occupa la stanza).
+      var statusNoteHtml = view.isOccupata
+        ? '<div class="detail-status-note detail-status-note--occupied">' + view.occupantText + '</div>'
+        : '';
       var ctaHtml2 = view.ctaIsWa
         ? '<a href="' + view.ctaHref + '" target="_blank" rel="noopener" class="btn btn-block" style="background:' + view.ctaBg + '; color:' + view.ctaColor + ';">' + view.ctaLabel + '</a>'
         : '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(view.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + view.ctaBg + '; color:' + view.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + view.ctaLabel + '</button>';
@@ -876,7 +876,9 @@
           '<span>' + escapeHtml(formatPhoneDisplay(phoneDigits)) + '</span>' +
         '</a>'
       : '';
-    var email = (s.managerEmail || '').trim();
+    // Email di contatto: se il proprietario non ne scrive una diversa in
+    // dashboard, resta quella pubblica già usata in tutto il resto del sito.
+    var email = (s.managerEmail || 'lacasacelestemonopoli@gmail.com').trim();
     var emailHtml = email
       ? '<a href="mailto:' + escapeHtml(email) + '" class="manager-contact-row">' +
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22 6 12 13 2 6"></polyline></svg>' +

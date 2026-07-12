@@ -858,7 +858,7 @@
         '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="manager-phone" placeholder="393381567389" value="' + escapeHtml(s.managerPhone || '') + '">' +
           '<div class="admin-field-error" id="manager-phone-error" style="display:none;"></div>' +
         '</div>' +
-        '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" placeholder="nome@gmail.com" value="' + escapeHtml(s.managerEmail || '') + '">' +
+        '<div class="admin-field-group"><label>Email (se vuota resta lacasacelestemonopoli@gmail.com)</label><input type="text" class="admin-field" id="manager-email" placeholder="lacasacelestemonopoli@gmail.com" value="' + escapeHtml(s.managerEmail || '') + '">' +
           '<div class="admin-field-error" id="manager-email-error" style="display:none;"></div>' +
         '</div>' +
         photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +

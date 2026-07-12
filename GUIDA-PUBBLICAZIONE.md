@@ -466,8 +466,10 @@ foto (facoltativa, caricabile direttamente da qui). Compare sul sito, prima
 delle FAQ, **solo se scrivi almeno il nome** — utile se non vuoi ancora
 attivarla, o se in futuro vuoi nasconderla di nuovo (basta svuotare il
 campo nome). La foto è del tutto opzionale: se non la carichi, sul sito non
-resta nessun riquadro vuoto al suo posto. Telefono ed email compaiono solo
-se compilati, ciascuno con la propria icona.
+resta nessun riquadro vuoto al suo posto. Il telefono compare solo se
+compilato; l'email invece, se lasci il campo vuoto, mostra automaticamente
+`lacasacelestemonopoli@gmail.com` (la stessa già usata nel resto del sito) —
+scrivine una diversa solo se vuoi sostituirla.
 
 ### 3.17 Social nel footer
 

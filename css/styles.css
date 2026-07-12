@@ -176,8 +176,9 @@ button { font-family: inherit; }
 .lang-flag-btn:hover { opacity: 0.75; }
 .lang-flag-btn.is-active { opacity: 1; background: var(--blue-bg); }
 .flag-icon { width: 20px; height: 14px; border-radius: 3px; display: block; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(16,35,59,0.12); }
-.lang-flags--drawer { width: 100%; margin-bottom: 12px; justify-content: center; }
-.lang-flags--drawer .lang-flag-btn { flex: 1; font-size: 13px; font-weight: 800; padding: 10px; }
+/* Bandiere accanto all'hamburger: visibili solo sotto i 768px (vedi media
+   query più sotto) — su desktop il cambio lingua resta nel menu .nav. */
+.lang-flags--mobile-header { display: none; flex-shrink: 0; }
 
 /* Hamburger (mobile only) */
 .hamburger-btn {
@@ -884,6 +885,7 @@ button { font-family: inherit; }
 @media (max-width: 768px) {
   .nav { display: none; }
   .hamburger-btn { display: flex; }
+  .lang-flags--mobile-header { display: flex; }
 
   .carousel-arrows { display: none; }
   .carousel-body { touch-action: pan-y; }
