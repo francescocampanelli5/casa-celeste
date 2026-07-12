@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
-Disallow: /dashboard.html
+Disallow: /studentato/dashboard.html
+Disallow: /affittacamere/dashboard.html
 
-Sitemap: https://www.casacelestemonopoli.it/sitemap.xml
+Sitemap: https://lacasaceleste.it/sitemap.xml

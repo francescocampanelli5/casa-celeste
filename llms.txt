@@ -17,4 +17,5 @@
 
 ## Pagine
 
-- [Home](https://www.casacelestemonopoli.it/): panoramica, stanze disponibili con stato/prezzo aggiornati in tempo reale, spazi comuni, posizione, recensioni, FAQ
+- [Studentato](https://lacasaceleste.it/studentato/): panoramica, stanze disponibili con stato/prezzo aggiornati in tempo reale, spazi comuni, posizione, recensioni, FAQ
+- [Casa Celeste](https://lacasaceleste.it/): pagina di ingresso che indirizza verso l'offerta studentato (per l'affittacamere estivo, vedi `/affittacamere/` quando disponibile)

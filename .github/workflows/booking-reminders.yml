@@ -15,10 +15,10 @@ jobs:
         with:
           node-version: '20'
       - name: Installa dipendenze
-        working-directory: scripts
+        working-directory: studentato/scripts
         run: npm install
       - name: Invia i promemoria del giorno prima
-        working-directory: scripts
+        working-directory: studentato/scripts
         run: node send-reminders.js
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

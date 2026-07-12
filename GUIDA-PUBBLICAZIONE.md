@@ -16,17 +16,19 @@ gestisci le stanze senza mai toccare il codice.
 > comunque la stessa versione già in cache sui server intermedi. Aspetta
 > qualche minuto, oppure — se hai chiesto una modifica a Claude Code —
 > chiedigli di aggiornare il numero di versione (`?v=2`, `?v=3`, ...) nei
-> tag `<link>`/`<script>` di `index.html` e `dashboard.html`: forza il
-> download della versione nuova subito, senza aspettare.
+> tag `<link>`/`<script>` di `studentato/index.html` e
+> `studentato/dashboard.html`: forza il download della versione nuova
+> subito, senza aspettare.
 
 ---
 
 ## Parte 0 — Con Claude Code in VS Code
 
-Claude Code può eseguire comandi al posto tuo (git, gh, firebase-tools,
-netlify-cli) e modificare i file di configurazione per te. Non può però
-creare account al posto tuo (richiedono il tuo browser e la tua identità):
-quelli restano 4 passaggi manuali, brevi, che trovi elencati sotto.
+Claude Code può eseguire comandi al posto tuo (git, gh, firebase-tools) e
+modificare i file di configurazione per te. Non può però creare account al
+posto tuo, né registrare un dominio (richiedono il tuo browser, la tua
+identità e — per il dominio — un pagamento): quelli restano pochi passaggi
+manuali, brevi, che trovi elencati sotto.
 
 ### 0.1 Installare gli strumenti
 
@@ -44,14 +46,19 @@ quelli restano 4 passaggi manuali, brevi, che trovi elencati sotto.
 5. Apri il pannello di Claude Code (icona nella barra laterale, o comando
    `claude` nel terminale integrato) e accedi con il tuo account Claude.
 
-### 0.2 I 4 account da creare tu (browser, 5-10 minuti in tutto)
+### 0.2 I 3 account da creare tu (browser, 5-10 minuti in tutto) + il dominio
 
 Questi richiedono la tua identità/email, nessun agente può farli al posto
 tuo:
 1. **GitHub** — https://github.com → Sign up
 2. **Google/Firebase** — https://console.firebase.google.com (usa un account Google esistente o creane uno gratis)
-3. **Netlify** — https://www.netlify.com → Sign up (puoi accedere con GitHub)
-4. **EmailJS** *(opzionale, per le notifiche via email)* — https://www.emailjs.com → Sign Up
+3. **EmailJS** *(opzionale, per le notifiche via email)* — https://www.emailjs.com → Sign Up
+
+Se non l'hai già fatto, serve anche **registrare il dominio**
+`lacasaceleste.it` presso un registrar (Aruba, Register.it, Namecheap, OVH,
+GoDaddy...) — vedi Parte 5. Questo è l'unico costo reale del progetto: il
+resto (GitHub Pages, Firebase piano Spark, EmailJS piano gratuito) resta a
+0€.
 
 Per Firebase, crea anche il progetto vero e proprio (Parte 3.1-3.2 più sotto
 spiegano cosa cliccare) e **l'utente Authentication** con la tua email/password
@@ -69,8 +76,8 @@ Ho un sito statico (Casa Celeste) in questa cartella, con una guida completa
 in GUIDA-PUBBLICAZIONE.md. Ho già creato: un account GitHub (username
 [TUO_USERNAME_GITHUB]), un progetto Firebase chiamato [NOME_PROGETTO_FIREBASE]
 con Firestore e Authentication (Email/Password) già attivi e un utente creato
-con la mia email, un account Netlify, e (opzionale) un account EmailJS con un
-Service e un Template già creati.
+con la mia email, e (opzionale) un account EmailJS con un Service e un
+Template già creati.
 
 Aiutami a:
 1. Inizializzare git in questa cartella e creare un repository su GitHub
@@ -83,16 +90,16 @@ Aiutami a:
    nella console.
 3. Guidarmi a recuperare i valori di configurazione Firebase (dalla console:
    Impostazioni progetto → Le tue app → Web app) e scriverli tu direttamente
-   in js/firebase-config.js quando te li incollo in chat.
+   in studentato/js/firebase-config.js quando te li incollo in chat.
 4. Se ho EmailJS: fare lo stesso per i valori EMAILJS_CONFIG in
-   js/firebase-config.js.
+   studentato/js/firebase-config.js.
 5. Fare commit e push di tutto su GitHub.
-6. Guidarmi a collegare Netlify al repository GitHub per la pubblicazione
-   automatica (questo passaggio è via browser su netlify.com — spiegami
+6. Guidarmi ad attivare GitHub Pages e collegare il dominio personalizzato
+   (questo passaggio è via browser su github.com — spiegami
    esattamente cosa cliccare).
 7. Alla fine, aiutami a testare: aprire il sito pubblicato, fare una
-   prenotazione di prova, verificare che compaia in dashboard.html dopo il
-   login.
+   prenotazione di prova, verificare che compaia in studentato/dashboard.html
+   dopo il login.
 
 Fammi una domanda alla volta se ti manca un'informazione, non dare per
 scontato nulla sui miei account.
@@ -109,8 +116,7 @@ Userai quattro strumenti, tutti gratuiti per un sito di queste dimensioni:
 | Strumento | A cosa serve |
 |---|---|
 | **Visual Studio Code** | l'editor per aprire/modificare i file del sito |
-| **GitHub** | dove "vive" il codice del sito (e da cui Netlify lo pubblica) |
-| **Netlify** | pubblica il sito online con un link pubblico |
+| **GitHub** | dove "vive" il codice del sito e da cui GitHub Pages lo pubblica online |
 | **Firebase** | il database che salva stanze e prenotazioni + il login della dashboard |
 | **EmailJS** *(opzionale)* | ti manda una email ogni volta che arriva una prenotazione |
 
@@ -141,11 +147,11 @@ scrivere codice.
    - Clicca **Create repository**
 3. Nella pagina del repository appena creato, clicca **uploading an existing
    file** (link azzurro al centro della pagina).
-4. Apri la cartella `site` che ti ho consegnato sul tuo computer, seleziona
-   **tutto il contenuto** (non la cartella `site` stessa, il contenuto: i file
-   `index.html`, `dashboard.html`, `README.md`, `GUIDA-PUBBLICAZIONE.md`, le
-   cartelle `css/`, `js/`, `images/`, `firestore.rules`) e trascinali nella
-   pagina di GitHub.
+4. Apri la cartella del progetto sul tuo computer, seleziona **tutto il
+   contenuto** (i file `README.md`, `GUIDA-PUBBLICAZIONE.md`, `CNAME`,
+   `sitemap.xml`, `robots.txt`, `llms.txt`, `index.html` di radice e le
+   cartelle `studentato/` e `affittacamere/` — vedi "Struttura" in
+   `README.md`) e trascinali nella pagina di GitHub.
 5. In basso scrivi un messaggio tipo "Primo caricamento del sito" e clicca
    **Commit changes**.
 
@@ -172,7 +178,8 @@ alto a destra di ogni file) oppure con VS Code — vedi la Parte 7.
 4. Scegli **Avvia in modalità produzione** → **Crea**.
 5. Vai sulla scheda **Regole** (in alto nella pagina di Firestore).
 6. Cancella tutto il contenuto e incolla al suo posto il testo del file
-   `firestore.rules` (che trovi nella cartella del sito). Clicca **Pubblica**.
+   `studentato/firestore.rules` (che trovi nella cartella del sito). Clicca
+   **Pubblica**.
 
 Queste regole fanno esattamente questo: chiunque visiti il sito può vedere lo
 stato delle stanze e può inviare una nuova prenotazione, ma **solo tu**,
@@ -185,8 +192,8 @@ autenticato, puoi leggere le prenotazioni ricevute o modificare le stanze.
    interruttore) → **Salva**.
 3. Vai sulla scheda **Users** → **Add user**.
 4. Inserisci **la tua email** e **una password a tua scelta** (sarà quella con
-   cui accedi a `dashboard.html`). Salva questa password in un posto sicuro:
-   è l'unico accesso alla tua area riservata.
+   cui accedi a `studentato/dashboard.html`). Salva questa password in un
+   posto sicuro: è l'unico accesso alla tua area riservata.
 
 ### 3.3 Copiare la configurazione nel sito
 
@@ -198,7 +205,7 @@ autenticato, puoi leggere le prenotazioni ricevute o modificare le stanze.
 3. Ti viene mostrato un blocco di codice con `const firebaseConfig = { ... }`.
    Ti servono i valori dentro le virgolette: `apiKey`, `authDomain`,
    `projectId`, `storageBucket`, `messagingSenderId`, `appId`.
-4. Su GitHub, apri il file **`js/firebase-config.js`** (icona matita ✎ per
+4. Su GitHub, apri il file **`studentato/js/firebase-config.js`** (icona matita ✎ per
    modificarlo) e sostituisci i segnaposto `INCOLLA_QUI_...` con i valori
    corrispondenti, mantenendo le virgolette. Esempio (i tuoi valori saranno
    diversi):
@@ -216,9 +223,9 @@ autenticato, puoi leggere le prenotazioni ricevute o modificare le stanze.
 
 5. In fondo alla pagina GitHub, clicca **Commit changes**.
 
-A questo punto la dashboard è già funzionante: apri `dashboard.html` sul sito
-(dopo averlo pubblicato con Netlify, Parte 5) e prova ad accedere con l'email
-e la password che hai creato al punto 3.2.
+A questo punto la dashboard è già funzionante: apri `studentato/dashboard.html`
+sul sito (dopo averlo pubblicato con GitHub Pages, Parte 5) e prova ad
+accedere con l'email e la password che hai creato al punto 3.2.
 
 ### 3.3bis Caricare le foto (senza mai toccare il codice)
 
@@ -249,11 +256,12 @@ tutto: il sito si adatta al numero di foto che carichi, senza lasciare
 riquadri vuoti.
 
 **Per caricare o aggiornare una foto:** vai sul repository su github.com,
-apri la cartella `images/`, clicca **"Add file" → "Upload files"**, trascina
-la foto rinominata esattamente come da tabella e clicca **Commit changes**.
-Se un file con quel nome esiste già, caricandone uno nuovo con lo stesso nome
-GitHub te lo fa sostituire — così puoi cambiare le foto quando vuoi, senza
-mai aprire il codice. Netlify ripubblica da solo in 1-2 minuti.
+apri la cartella `studentato/images/`, clicca **"Add file" → "Upload
+files"**, trascina la foto rinominata esattamente come da tabella e clicca
+**Commit changes**. Se un file con quel nome esiste già, caricandone uno
+nuovo con lo stesso nome GitHub te lo fa sostituire — così puoi cambiare le
+foto quando vuoi, senza mai aprire il codice. GitHub Pages ripubblica da
+solo in 1-2 minuti (ricorda il trucco del `?v=` per la cache, Parte 5).
 
 Consiglio: foto orizzontali (proporzione 4:3), peso sotto 500 KB l'una così
 il sito resta veloce da caricare.
@@ -414,7 +422,7 @@ visitatore (non a te). Per attivarle:
      Email"** deve essere **`{{email}}`** (non il tuo indirizzo fisso) —
      altrimenti l'email arriva a te invece che al visitatore.
    - Salva e copia il **Template ID**.
-2. Incolla quel Template ID in **`js/firebase-config.js`**, campo
+2. Incolla quel Template ID in **`studentato/js/firebase-config.js`**, campo
    `EMAILJS_CONFIG.visitorTemplateId` — così parte la conferma immediata.
 3. *(Solo per il promemoria automatico)* recupera anche:
    - la **Private Key** di EmailJS: Account → API Keys
@@ -523,59 +531,115 @@ email, così non devi controllare la dashboard di continuo.
    automaticamente con i dati di ogni prenotazione. Salva e copia il
    **Template ID**.
 4. Menu a sinistra → **Account** → **General** → copia la **Public Key**.
-5. Su GitHub, apri di nuovo **`js/firebase-config.js`** e compila la sezione
+5. Su GitHub, apri di nuovo **`studentato/js/firebase-config.js`** e compila la sezione
    `EMAILJS_CONFIG` con i tre valori appena copiati. **Commit changes**.
 
 ---
 
-## Parte 5 — Pubblicare il sito con Netlify
+## Parte 5 — Dominio personalizzato: lacasaceleste.it (architettura multi-sito)
 
-1. Vai su **https://www.netlify.com** → **Sign up** → scegli **GitHub** per
-   registrarti (più veloce, si collega automaticamente).
-2. Nella dashboard Netlify: **Add new site → Import an existing project**.
-3. Scegli **GitHub**, autorizza l'accesso, seleziona il repository
-   `casa-celeste` che hai creato nella Parte 2.
-4. Nelle impostazioni di build **non devi cambiare nulla** (il sito è già
-   pronto, senza bisogno di alcuna build): lascia i campi vuoti/di default e
-   clicca **Deploy site**.
-5. Dopo 1-2 minuti il sito è online, con un indirizzo tipo
-   `https://nome-a-caso-123.netlify.app`.
-6. *(Facoltativo)* In **Site settings → Domain management** puoi cambiare il
-   sottodominio gratuito (es. `casacelestemonopoli.netlify.app`) o collegare
-   un dominio tuo se ne acquisti uno.
+Il sito è già online gratuitamente su GitHub Pages, all'indirizzo
+`https://francescocampanelli5.github.io/casa-celeste/studentato/`. Questa
+parte spiega come collegarci sopra il dominio vero e proprio
+**lacasaceleste.it**, con la struttura a sottocartelle pensata per ospitare
+in futuro anche il sito turistico:
 
-Da ora ogni volta che modifichi un file su GitHub (Parte 7), Netlify
-ripubblica automaticamente il sito aggiornato in un paio di minuti — non devi
-fare nulla di manuale.
+- `lacasaceleste.it/` → oggi reindirizza automaticamente a `/studentato/`
+- `lacasaceleste.it/studentato/` → il sito per studenti (quello attivo)
+- `lacasaceleste.it/affittacamere/` → riservato per il futuro sito turistico
+
+**Costo:** l'hosting (GitHub Pages) resta a 0€. L'unico costo reale è la
+**registrazione del dominio** `.it`, che va rinnovata ogni anno presso un
+registrar (indicativamente 8-20€/anno a seconda del registrar — non è
+gratis, e va detto chiaramente). Registrar comuni per domini `.it`: Aruba,
+Register.it, Namecheap, OVH, GoDaddy. Nota: per registrare un `.it` serve un
+codice fiscale italiano o comunque un requisito di residenza/cittadinanza
+UE — qualunque registrar te lo richiede in fase di acquisto.
+
+### 5.1 Se non hai ancora registrato il dominio
+
+1. Scegli un registrar (uno qualsiasi tra quelli sopra) e cerca la
+   disponibilità di **lacasaceleste.it**.
+2. Completa l'acquisto (richiede i tuoi dati anagrafici/codice fiscale per il
+   `.it`). Salta al punto 5.2 una volta completato.
+
+### 5.2 Configurare il DNS presso il tuo registrar
+
+Nel pannello di gestione DNS del dominio (di solito una sezione chiamata
+"DNS", "Zona DNS" o "Name server"), aggiungi questi record:
+
+| Tipo  | Host/Nome | Valore                |
+|-------|-----------|------------------------|
+| A     | @ (o vuoto) | 185.199.108.153      |
+| A     | @ (o vuoto) | 185.199.109.153      |
+| A     | @ (o vuoto) | 185.199.110.153      |
+| A     | @ (o vuoto) | 185.199.111.153      |
+
+Questi sono gli indirizzi IP ufficiali di GitHub Pages: puntano il dominio
+"nudo" (senza `www`) direttamente ai server di GitHub. Se il tuo registrar
+supporta anche IPv6 (record AAAA), è facoltativo aggiungerlo, non necessario.
+
+### 5.3 Collegare il dominio su GitHub
+
+1. Sul repository `casa-celeste` su GitHub, vai su **Settings → Pages**.
+2. Nel campo **Custom domain**, scrivi `lacasaceleste.it` e clicca **Save**.
+   (Il file `CNAME` alla radice del repository, già presente, verrà
+   confermato automaticamente — non serve crearlo a mano.)
+3. GitHub verifica il DNS e genera un certificato HTTPS gratuito
+   (Let's Encrypt): può richiedere da qualche minuto ad alcune ore, a volte
+   fino a 24-48h se il DNS è appena stato configurato.
+4. Quando il certificato è pronto, spunta **Enforce HTTPS** nella stessa
+   pagina, per forzare sempre la connessione sicura.
+
+### 5.4 Verificare che funzioni
+
+- Apri `https://lacasaceleste.it/` → deve reindirizzarti a
+  `https://lacasaceleste.it/studentato/`.
+- Apri `https://lacasaceleste.it/studentato/dashboard.html` → deve
+  comparire la schermata di login.
+- Se dopo qualche ora non funziona ancora, controlla la propagazione DNS su
+  un sito come whatsmydns.net cercando `lacasaceleste.it` (tipo record A).
+
+Da questo momento, ogni volta che aggiorni un file su GitHub (Parte 7),
+GitHub Pages ripubblica automaticamente il sito in 1-2 minuti — non serve
+fare nulla di manuale. Nota però che GitHub Pages passa attraverso una rete
+di distribuzione (CDN) che tiene i file statici (`css/js`) in cache fino a
+10 minuti: per essere sicuro di vedere subito una modifica pubblicata, il
+trucco è alzare il numero di versione (`?v=`) nei tag `<link>`/`<script>` di
+`studentato/index.html`/`studentato/dashboard.html` (vedi la nota in cima a
+questa guida).
 
 ---
 
 ## Parte 6 — Test finale
 
-1. Apri il sito pubblicato (il link Netlify).
+1. Apri il sito pubblicato (`https://lacasaceleste.it/studentato/`, o nel
+   frattempo `https://francescocampanelli5.github.io/casa-celeste/studentato/`
+   se il dominio non è ancora collegato).
 2. Prova a prenotare un tour da una stanza: compila il modulo fino alla
    conferma.
-3. Apri `tuosito.netlify.app/dashboard.html`, accedi con le tue credenziali:
-   la prenotazione appena fatta deve comparire nella scheda **Prenotazioni**.
+3. Apri `.../studentato/dashboard.html`, accedi con le tue credenziali: la
+   prenotazione appena fatta deve comparire nella scheda **Prenotazioni**.
 4. Se hai configurato EmailJS, controlla di aver ricevuto l'email.
 5. Prova a cambiare lo stato di una stanza dalla dashboard e ricarica il sito
    pubblico: la card deve aggiornarsi.
 
 Se qualcosa non torna, il sospetto principale è quasi sempre un valore
-copiato male in `js/firebase-config.js` (spazi, virgolette mancanti, o un
-valore lasciato come `INCOLLA_QUI_...`).
+copiato male in `studentato/js/firebase-config.js` (spazi, virgolette
+mancanti, o un valore lasciato come `INCOLLA_QUI_...`).
 
 ---
 
 ## Parte 7 — Come fare modifiche in futuro
 
-**Per piccole modifiche di testo/prezzi:** usa la dashboard (`dashboard.html`)
-per tutto ciò che riguarda stato/prezzo/inquilini delle stanze — non serve
-mai toccare il codice per queste cose.
+**Per piccole modifiche di testo/prezzi:** usa la dashboard
+(`studentato/dashboard.html`) per tutto ciò che riguarda stato/prezzo/
+inquilini delle stanze — non serve mai toccare il codice per queste cose.
 
 **Per modifiche al design o ai testi del sito:**
 - *Modo semplice*: apri il file su github.com, clicca la matita ✎, modifica,
-  **Commit changes**. Netlify ripubblica da solo in 1-2 minuti.
+  **Commit changes**. GitHub Pages ripubblica da solo in 1-2 minuti (ricorda
+  il trucco del `?v=` per bypassare la cache della CDN, vedi Parte 5).
 - *Modo comodo per più modifiche insieme*: installa anche **GitHub Desktop**
   (https://desktop.github.com), clona il repository sul tuo computer, apri la
   cartella con VS Code, modifica i file, poi in GitHub Desktop scrivi un
@@ -585,10 +649,13 @@ mai toccare il codice per queste cose.
 
 ## Domande frequenti
 
-**Devo pagare qualcosa?** No. Per i volumi di un sito come questo, i piani
-gratuiti di GitHub, Netlify, Firebase (piano *Spark*) ed EmailJS (200
-email/mese) bastano ampiamente. Nessuno di questi servizi chiede la carta di
-credito per il piano gratuito.
+**Devo pagare qualcosa?** L'hosting no: per i volumi di un sito come questo, i
+piani gratuiti di GitHub Pages, Firebase (piano *Spark*) ed EmailJS (200
+email/mese) bastano ampiamente, e nessuno di questi chiede la carta di
+credito per il piano gratuito. L'unico costo reale è la **registrazione
+annuale del dominio** `.it` (vedi Parte 5), che nessun servizio gratuito può
+sostituire — è una tassa amministrativa dovuta al registro dei domini, non
+una scelta di Casa Celeste.
 
 **È sicuro lasciare il link "Area riservata" visibile nel footer del sito?**
 Sì: la pagina è protetta da login (solo l'account che hai creato in Firebase
