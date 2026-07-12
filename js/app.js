@@ -540,7 +540,12 @@
   function commonCardHtml(id, def) {
     var name = tf(def.name);
     var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip">' + escapeHtml(tf(f)) + '</span>'; }).join('');
-    var balconyBadge = def.balcony === 'presente' ? '<div class="room-card-badges"><span class="room-card-balcony">' + escapeHtml(t('common.balcony_badge')) + '</span></div>' : '';
+    var hasBalcony = def.balcony === 'presente';
+    var balconyBadge = hasBalcony ? '<div class="room-card-badges"><span class="room-card-balcony">' + escapeHtml(t('common.balcony_badge')) + '</span></div>' : '';
+    // Il messaggio persuasivo sul balcone vive qui, direttamente nella card
+    // (non solo nel dettaglio): stesso box evidenziato usato per i balconi
+    // delle stanze, in versione compatta.
+    var balconyCallout = hasBalcony ? '<div class="balcony-callout balcony-callout--card">' + t('common.balcony_callout') + '</div>' : '';
     return (
       '<div class="card" data-common-card data-common-id="' + id + '">' +
         '<div class="card-media"><span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(name) + '</span>' + photoTag((def.photos && def.photos[0]) || ('images/' + id + '-1.jpg'), name) + '</div>' +
@@ -548,6 +553,7 @@
           '<h3 class="card-title">' + escapeHtml(name) + '</h3>' +
           balconyBadge +
           '<p class="card-text">' + escapeHtml(tf(def.shortText)) + '</p>' +
+          balconyCallout +
           '<div class="chip-row">' + featuresHtml + '</div>' +
         '</div>' +
       '</div>'
