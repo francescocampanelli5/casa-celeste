@@ -240,9 +240,10 @@
     var occupantName = bed.tenantName ? escapeHtml(bed.tenantName) : null;
     var occupantAge = bed.tenantAge ? escapeHtml(String(bed.tenantAge)) : '—';
     var gLabel = genderLabel(bed.tenantGender);
+    var typeEmoji = bed.type === 'lavoratore' ? '💼' : '🎓';
     var occupantText = occupantName
-      ? (t('room.occupante_label') + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix') + (gLabel ? ' · ' + gLabel : ''))
-      : ((bed.type === 'lavoratore' ? '💼' : '🎓') + ' ' + t('room.coinquilino_attuale'));
+      ? (t('room.occupante_label') + ' ' + typeEmoji + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix') + (gLabel ? ' · ' + gLabel : ''))
+      : (typeEmoji + ' ' + t('room.coinquilino_attuale'));
     var link = waLink(tpl(t('room.wa_info_bed'), { room: room.name, bed: bedLabel }));
     var blockLink = waLink(tpl(t('room.wa_blocca'), { room: room.name + ' — ' + bedLabel, date: availableFromText }));
     var ctaLabel = isOccupata ? t('room.cta_non_disponibile') : (isDisponibile ? t('room.cta_blocca') : t('room.cta_prenota'));
@@ -313,9 +314,10 @@
     var occupantName = room.tenantName ? escapeHtml(room.tenantName) : null;
     var occupantAge = room.tenantAge ? escapeHtml(String(room.tenantAge)) : '—';
     var gLabel2 = genderLabel(room.tenantGender);
+    var typeEmoji2 = room.type === 'lavoratore' ? '💼' : '🎓';
     var occupantText = occupantName
-      ? (t('room.occupante_label') + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix') + (gLabel2 ? ' · ' + gLabel2 : ''))
-      : ((room.type === 'lavoratore' ? '💼' : '🎓') + ' ' + t('room.coinquilino_attuale'));
+      ? (t('room.occupante_label') + ' ' + typeEmoji2 + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix') + (gLabel2 ? ' · ' + gLabel2 : ''))
+      : (typeEmoji2 + ' ' + t('room.coinquilino_attuale'));
     var link2 = waLink(tpl(t('room.wa_info_room'), { room: room.name }));
     var blockLink2 = waLink(tpl(t('room.wa_blocca'), { room: room.name, date: availableFromText }));
 
