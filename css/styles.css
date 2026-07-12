@@ -396,6 +396,12 @@ button { font-family: inherit; }
 .btn-block { display: block; width: 100%; text-align: center; padding: 16px 28px; font-size: 15px; }
 .btn-block-inline { display: inline-block; text-align: center; }
 
+.beds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 18px; margin-top: 8px; }
+.bed-block { border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 20px; background: var(--off-white); }
+.bed-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.bed-block-label { font-weight: 800; font-size: 14px; color: var(--navy); }
+.bed-block-price { margin-bottom: 14px; }
+
 /* ==========================================================================
    Posizione
    ========================================================================== */
@@ -457,6 +463,30 @@ button { font-family: inherit; }
 .admin-price { display: flex; align-items: center; gap: 4px; }
 .admin-price span { font-size: 12.5px; color: var(--text-faintest); }
 .admin-note { font-size: 12px; color: var(--text-faintest); margin-top: 14px; }
+
+.admin-room-card {
+  background: var(--white); border: 1px solid var(--border-soft); border-radius: var(--radius-xs);
+  padding: 18px; display: flex; flex-direction: column; gap: 12px;
+}
+.admin-room-head { display: flex; align-items: center; gap: 10px; }
+.admin-room-name { font-weight: 700; font-size: 14px; flex: 1; min-width: 0; }
+.admin-room-slug { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-faintest); white-space: nowrap; }
+.admin-room-static-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; }
+.admin-field-group { display: flex; flex-direction: column; gap: 4px; }
+.admin-field-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.admin-field-group--full { width: 100%; }
+.admin-field-group--full textarea.admin-field { resize: vertical; font-family: inherit; }
+.admin-room-type-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 10px; }
+.admin-beds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 14px; }
+.admin-occupancy {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 10px; align-items: center;
+  background: var(--off-white); border-radius: 12px; padding: 12px;
+}
+.admin-bed-label { font-weight: 800; font-size: 12px; color: var(--navy); grid-column: 1 / -1; }
+.dash-add-room-btn {
+  background: none; border: 1px dashed var(--border-strong); color: var(--text-body); border-radius: var(--radius-xxs);
+  padding: 10px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer; margin-top: 14px;
+}
 
 .room-card-media { aspect-ratio: 4/3; position: relative; background: var(--panel-bg); display: flex; align-items: center; justify-content: center; }
 .room-card-media .photo-placeholder { font-size: 10.5px; padding: 0; }

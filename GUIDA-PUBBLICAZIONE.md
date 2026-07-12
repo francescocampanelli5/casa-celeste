@@ -248,14 +248,51 @@ mai aprire il codice. Netlify ripubblica da solo in 1-2 minuti.
 Consiglio: foto orizzontali (proporzione 4:3), peso sotto 500 KB l'una così
 il sito resta veloce da caricare.
 
-### 3.4 Popolare le 4 stanze la prima volta
+### 3.4 Popolare le stanze la prima volta
 
 1. Accedi alla dashboard → scheda **Stanze**.
 2. Clicca **"Inizializza le stanze con i valori di esempio"** — crea le 4
    stanze (Maestrale, Scirocco, Ponente, Levante) nel database con i dati di
    partenza, pronte da modificare.
-3. Da qui in poi modifica liberamente stato, prezzo, nome/età inquilino: si
-   salva subito e si vede subito sul sito pubblico.
+3. Da qui in poi modifica liberamente ogni campo (nome, mq, tipo di letto,
+   aria condizionata, esposizione, descrizione, stato, prezzo, nome/età
+   inquilino): si salva subito e si vede subito sul sito pubblico.
+
+Tutto il contenuto delle stanze vive ora nel database, non nel codice: puoi
+gestire l'intera casa dalla dashboard, incluse le due funzioni seguenti.
+
+### 3.5 Aggiungere o eliminare una stanza
+
+- **Aggiungere**: scheda Stanze → **"+ Aggiungi una stanza"** → scrivi il
+  nome. Viene creata una scheda vuota da compilare (mq, letto, descrizione,
+  prezzo, ecc.). Accanto al nome vedrai un identificativo tecnico (es.
+  `girasole`): usalo per le foto di quella stanza, seguendo la stessa regola
+  della sezione 3.3bis (`images/girasole-1.jpg`, ecc.).
+- **Eliminare**: bottone **"Elimina stanza"** sulla scheda — sparisce subito
+  anche dal sito pubblico. Non è reversibile: se serve di nuovo, va ricreata
+  da zero.
+
+### 3.6 Stanze "doppie": due posti letto nella stessa stanza
+
+Per una stanza che ha (o avrà, anche prima della ristrutturazione) due posti
+letto indipendenti:
+
+1. Nella scheda della stanza, imposta **Tipo stanza: "Doppia (2 posti
+   letto)"**. Compaiono due blocchi, **Letto A** e **Letto B**, ciascuno con
+   il proprio stato, inquilino e prezzo — gestibili come se fossero due
+   mini-stanze separate.
+2. Il menu **"Pubblicata sul sito come"** decide come la vedono i visitatori:
+   - **Doppia (2 posti separati)** → il sito mostra i due letti singolarmente,
+     ciascuno prenotabile per conto suo, con il proprio prezzo.
+   - **Singola (stanza intera a 1 persona)** → il sito la mostra come
+     un'unica stanza (usa i dati del blocco "occupazione" in alto nella
+     scheda, non i due letti), utile se in un dato momento preferisci
+     affittarla per intero a una sola persona/coppia invece che a due
+     inquilini separati.
+
+Puoi cambiare questa impostazione in qualsiasi momento, senza perdere i dati
+dell'altra modalità: passando da "Doppia" a "Singola" e poi di nuovo a
+"Doppia", i due letti restano come li avevi lasciati.
 
 ---
 

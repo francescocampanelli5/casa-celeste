@@ -4,8 +4,7 @@
   /* ==========================================================================
      Content data
      ========================================================================== */
-  var ROOM_DEFS = window.CASA_CELESTE_DATA.ROOM_DEFS;
-  var DEFAULT_ROOM_DATA = window.CASA_CELESTE_DATA.DEFAULT_ROOM_DATA;
+  var SEED_ROOMS = window.CASA_CELESTE_DATA.SEED_ROOMS;
 
   var MONO_SLIDES = [
     { eyebrow: 'Centro storico', tagBg: '#EAF6FC', caption: 'centro storico', img: 'images/centro-storico.jpg', title: 'Il centro storico', text: "Vicoli bianchi, piazzette e locali a due passi da casa: la vita universitaria, i bar e le uscite serali sono sempre dietro l'angolo." },
@@ -73,7 +72,7 @@
     activeRoomId: null,
     commonView: 'grid',
     activeCommonId: null,
-    roomsData: JSON.parse(JSON.stringify(DEFAULT_ROOM_DATA)),
+    roomsData: JSON.parse(JSON.stringify(SEED_ROOMS)),
     monoIndex: 0,
     faqOpen: {},
     bookingOpen: false,
@@ -139,30 +138,79 @@
     if (status === 'occupata') return { text: '🔴 Occupata', bg: '#F0F1F3', color: '#8792A0' };
     return { text: '🗓️ Disponibile', bg: '#FDF3D9', color: '#B08D1E' };
   }
-  function buildRoomView(def, roomData, forDetail) {
-    var status = roomData.status;
+  // Vista di un singolo posto letto (usata per le stanze doppie pubblicate
+  // come doppie: ogni letto ha proprio stato/inquilino/prezzo indipendenti).
+  function bedView(room, bed, bedLabel) {
+    var status = bed.status;
     var tag = tagFor(status);
     var isOccupata = status === 'occupata';
     var isDisponibile = status === 'disponibile';
     var isLibera = status === 'libera';
-    var occupantEmoji = roomData.type === 'lavoratore' ? '💼' : '🎓';
-    var occupantName = roomData.name ? escapeHtml(roomData.name) : null;
-    var occupantAge = roomData.age ? escapeHtml(String(roomData.age)) : '—';
+    var occupantEmoji = bed.type === 'lavoratore' ? '💼' : '🎓';
+    var occupantName = bed.tenantName ? escapeHtml(bed.tenantName) : null;
+    var occupantAge = bed.tenantAge ? escapeHtml(String(bed.tenantAge)) : '—';
     var occupantText = occupantName ? (occupantEmoji + ' ' + occupantName + ', ' + occupantAge + ' anni') : (occupantEmoji + ' Coinquilino attuale');
-    var availableFromText = roomData.date ? escapeHtml(roomData.date) : 'presto';
-    var link = waLink('Ciao! Vorrei informazioni sulla stanza ' + def.name + ' di Casa Celeste.');
+    var availableFromText = bed.date ? escapeHtml(bed.date) : 'presto';
+    var link = waLink('Ciao! Vorrei informazioni sulla stanza ' + room.name + ' (' + bedLabel + ') di Casa Celeste.');
+    var ctaLabel = isOccupata ? 'Non disponibile' : 'Prenota un tour';
+    var ctaBg = isOccupata ? '#F0F1F3' : '#2C8FC9';
+    var ctaColor = isOccupata ? '#94A3B3' : '#FFFFFF';
+    return {
+      label: bedLabel, roomLabel: room.name + ' — ' + bedLabel, priceText: '€' + bed.price + '/mese',
+      tagText: tag.text, tagBg: tag.bg, tagColor: tag.color,
+      isOccupata: isOccupata, isDisponibile: isDisponibile, isLibera: isLibera,
+      occupantText: occupantText, availableFromText: availableFromText,
+      ctaLabel: ctaLabel, ctaBg: ctaBg, ctaColor: ctaColor, waLink: link
+    };
+  }
+  function buildRoomView(id, room, forDetail) {
+    var isDoppiaPublished = room.roomType === 'doppia' && room.publishAs === 'doppia';
+
+    if (isDoppiaPublished) {
+      var beds = room.beds || [];
+      var combinedStatus = 'occupata';
+      if (beds.some(function (b) { return b.status === 'libera'; })) combinedStatus = 'libera';
+      else if (beds.some(function (b) { return b.status === 'disponibile'; })) combinedStatus = 'disponibile';
+      var tag = tagFor(combinedStatus);
+      var prices = beds.map(function (b) { return Number(b.price) || 0; }).filter(function (p) { return p > 0; });
+      var minPrice = prices.length ? Math.min.apply(null, prices) : 0;
+      var allOccupata = beds.length > 0 && beds.every(function (b) { return b.status === 'occupata'; });
+      var link = waLink('Ciao! Vorrei informazioni sulla stanza ' + room.name + ' di Casa Celeste.');
+      return {
+        id: id, name: room.name, priceText: (minPrice ? 'da €' + minPrice + '/mese' : '—'),
+        tagText: tag.text, tagBg: tag.bg, tagColor: tag.color,
+        isOccupata: allOccupata, isDisponibile: combinedStatus === 'disponibile', isLibera: combinedStatus === 'libera',
+        occupantText: '', availableFromText: '',
+        ctaLabel: allOccupata ? 'Non disponibile' : (forDetail ? 'Prenota un tour' : 'Vedi i posti letto'),
+        ctaBg: allOccupata ? '#F0F1F3' : '#2C8FC9', ctaColor: allOccupata ? '#94A3B3' : '#FFFFFF',
+        waLink: link, isDoppiaPublished: true,
+        beds: beds.map(function (b, i) { return bedView(room, b, 'Letto ' + (i === 0 ? 'A' : 'B')); })
+      };
+    }
+
+    var status = room.status;
+    var tag2 = tagFor(status);
+    var isOccupata = status === 'occupata';
+    var isDisponibile = status === 'disponibile';
+    var isLibera = status === 'libera';
+    var occupantEmoji = room.type === 'lavoratore' ? '💼' : '🎓';
+    var occupantName = room.tenantName ? escapeHtml(room.tenantName) : null;
+    var occupantAge = room.tenantAge ? escapeHtml(String(room.tenantAge)) : '—';
+    var occupantText = occupantName ? (occupantEmoji + ' ' + occupantName + ', ' + occupantAge + ' anni') : (occupantEmoji + ' Coinquilino attuale');
+    var availableFromText = room.date ? escapeHtml(room.date) : 'presto';
+    var link2 = waLink('Ciao! Vorrei informazioni sulla stanza ' + room.name + ' di Casa Celeste.');
 
     var ctaLabel = isOccupata ? 'Non disponibile' : (forDetail ? 'Prenota un tour' : 'Richiedi info');
     var ctaBg = isOccupata ? '#F0F1F3' : '#2C8FC9';
     var ctaColor = isOccupata ? '#94A3B3' : '#FFFFFF';
 
     return {
-      id: def.id, name: def.name, priceText: '€' + roomData.price + '/mese',
-      tagText: tag.text, tagBg: tag.bg, tagColor: tag.color,
+      id: id, name: room.name, priceText: '€' + room.price + '/mese',
+      tagText: tag2.text, tagBg: tag2.bg, tagColor: tag2.color,
       isOccupata: isOccupata, isDisponibile: isDisponibile, isLibera: isLibera,
       occupantText: occupantText, availableFromText: availableFromText,
       ctaLabel: ctaLabel, ctaBg: ctaBg, ctaColor: ctaColor,
-      waLink: link
+      waLink: link2, isDoppiaPublished: false, roomLabel: room.name
     };
   }
   function selectedDateLabel() {
@@ -310,49 +358,92 @@
       '</div>'
     );
   }
-  function roomDetailHtml(def, view) {
+  // Blocco stato+prezzo+CTA di un singolo posto letto, nella pagina di
+  // dettaglio di una stanza doppia pubblicata come doppia.
+  function bedBlockHtml(bv) {
+    var disabled = bv.isOccupata;
     var statusNoteHtml = '';
-    if (view.isOccupata) {
-      statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + view.occupantText + ' · attualmente non disponibile</div>';
-    } else if (view.isDisponibile) {
-      statusNoteHtml = '<div class="detail-status-note detail-status-note--available">🗓️ Disponibile dal ' + view.availableFromText + '</div>';
+    if (bv.isOccupata) {
+      statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + bv.occupantText + ' · attualmente non disponibile</div>';
+    } else if (bv.isDisponibile) {
+      statusNoteHtml = '<div class="detail-status-note detail-status-note--available">🗓️ Disponibile dal ' + bv.availableFromText + '</div>';
     }
-    var disabled = view.isOccupata;
+    return (
+      '<div class="bed-block">' +
+        '<div class="bed-block-head">' +
+          '<span class="bed-block-label">' + escapeHtml(bv.label) + '</span>' +
+          '<span class="detail-tag" style="background:' + bv.tagBg + '; color:' + bv.tagColor + ';">' + bv.tagText + '</span>' +
+        '</div>' +
+        '<div class="detail-price bed-block-price">' + bv.priceText + '</div>' +
+        statusNoteHtml +
+        '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(bv.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + bv.ctaBg + '; color:' + bv.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + bv.ctaLabel + '</button>' +
+      '</div>'
+    );
+  }
+  function roomDetailHtml(id, room, view) {
+    var statsHtml =
+      '<div class="stats-grid stats-grid--room">' +
+        '<div class="stat-tile"><div class="stat-label">Metratura</div><div class="stat-value">' + room.mq + ' m²</div></div>' +
+        '<div class="stat-tile"><div class="stat-label">Letto</div><div class="stat-value">' + room.bed + '</div></div>' +
+        '<div class="stat-tile"><div class="stat-label">Aria condizionata</div><div class="stat-value">' + room.ac + '</div></div>' +
+        '<div class="stat-tile"><div class="stat-label">Esposizione</div><div class="stat-value">' + room.exposure + '</div></div>' +
+      '</div>';
+    var bodyHtml;
+    if (view.isDoppiaPublished) {
+      bodyHtml =
+        '<span class="detail-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
+        '<h1 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h1>' +
+        '<p class="detail-text">' + room.description + '</p>' +
+        statsHtml +
+        '<div class="beds-grid">' + view.beds.map(bedBlockHtml).join('') + '</div>';
+    } else {
+      var disabled = view.isOccupata;
+      var statusNoteHtml = '';
+      if (view.isOccupata) {
+        statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + view.occupantText + ' · attualmente non disponibile</div>';
+      } else if (view.isDisponibile) {
+        statusNoteHtml = '<div class="detail-status-note detail-status-note--available">🗓️ Disponibile dal ' + view.availableFromText + '</div>';
+      }
+      bodyHtml =
+        '<span class="detail-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
+        '<h1 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h1>' +
+        '<div class="detail-price">' + view.priceText + '</div>' +
+        statusNoteHtml +
+        '<p class="detail-text">' + room.description + '</p>' +
+        statsHtml +
+        '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(view.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + view.ctaBg + '; color:' + view.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + view.ctaLabel + '</button>';
+    }
     return (
       '<button type="button" class="back-link" data-go-home-room>← Tutte le stanze</button>' +
       '<div class="detail-grid">' +
-        '<div>' +
-          detailMediaHtml(def.id, def.name) +
-        '</div>' +
-        '<div>' +
-          '<span class="detail-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
-          '<h1 class="detail-title detail-title--room">' + escapeHtml(def.name) + '</h1>' +
-          '<div class="detail-price">' + view.priceText + '</div>' +
-          statusNoteHtml +
-          '<p class="detail-text">' + def.description + '</p>' +
-          '<div class="stats-grid stats-grid--room">' +
-            '<div class="stat-tile"><div class="stat-label">Metratura</div><div class="stat-value">' + def.mq + ' m²</div></div>' +
-            '<div class="stat-tile"><div class="stat-label">Letto</div><div class="stat-value">' + def.bed + '</div></div>' +
-            '<div class="stat-tile"><div class="stat-label">Aria condizionata</div><div class="stat-value">' + def.ac + '</div></div>' +
-            '<div class="stat-tile"><div class="stat-label">Esposizione</div><div class="stat-value">' + def.exposure + '</div></div>' +
-          '</div>' +
-          '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(def.name) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + view.ctaBg + '; color:' + view.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + view.ctaLabel + '</button>' +
-        '</div>' +
+        '<div>' + detailMediaHtml(id, room.name) + '</div>' +
+        '<div>' + bodyHtml + '</div>' +
       '</div>'
     );
+  }
+  function orderedRoomIds(rooms) {
+    return Object.keys(rooms).sort(function (a, b) {
+      var oa = rooms[a].order != null ? rooms[a].order : 999999;
+      var ob = rooms[b].order != null ? rooms[b].order : 999999;
+      if (oa !== ob) return oa - ob;
+      return (rooms[a].name || '').localeCompare(rooms[b].name || '');
+    });
   }
   function renderRooms() {
     var container = document.getElementById('rooms-section');
     var rooms = state.roomsData;
+    var ids = orderedRoomIds(rooms);
 
     if (state.roomsView === 'detail') {
-      var def = ROOM_DEFS.filter(function (r) { return r.id === state.activeRoomId; })[0] || ROOM_DEFS[0];
-      var view = buildRoomView(def, rooms[def.id], true);
-      container.innerHTML = roomDetailHtml(def, view);
+      var activeId = rooms[state.activeRoomId] ? state.activeRoomId : ids[0];
+      if (!activeId) { container.innerHTML = ''; return; }
+      var room = rooms[activeId];
+      var view = buildRoomView(activeId, room, true);
+      container.innerHTML = roomDetailHtml(activeId, room, view);
       return;
     }
 
-    var cardsHtml = ROOM_DEFS.map(function (def) { return roomCardHtml(buildRoomView(def, rooms[def.id], false)); }).join('');
+    var cardsHtml = ids.map(function (id) { return roomCardHtml(buildRoomView(id, rooms[id], false)); }).join('');
 
     container.innerHTML =
       '<div class="admin-toggle-row">' +
@@ -726,8 +817,12 @@
     bindMobileDrawer();
 
     if (window.CasaCelesteDB && window.CasaCelesteDB.isConfigured()) {
+      // Una volta arrivati i dati reali da Firestore, sostituiscono del
+      // tutto i valori di esempio (anche se vuoti): così una stanza
+      // eliminata dalla dashboard sparisce davvero dal sito pubblico.
       window.CasaCelesteDB.subscribeRooms(function (roomsFromDb) {
-        state.roomsData = Object.assign({}, DEFAULT_ROOM_DATA, roomsFromDb);
+        state.roomsData = roomsFromDb;
+        if (state.activeRoomId && !roomsFromDb[state.activeRoomId]) { state.roomsView = 'home'; state.activeRoomId = null; }
         renderRooms();
       });
     }

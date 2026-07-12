@@ -44,6 +44,12 @@ window.CasaCelesteDB = {
   setRoom: function (roomId, data) {
     return setDoc(doc(requireDb(), 'rooms', roomId), data, { merge: true });
   },
+  createRoom: function (roomId, data) {
+    return setDoc(doc(requireDb(), 'rooms', roomId), data);
+  },
+  deleteRoom: function (roomId) {
+    return deleteDoc(doc(requireDb(), 'rooms', roomId));
+  },
   seedRoomsIfEmpty: function (defaults) {
     var db_ = requireDb();
     return getDocs(collection(db_, 'rooms')).then(function (snap) {
