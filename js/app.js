@@ -613,7 +613,8 @@
     var disabled = view.isOccupata;
     var statusHtml = '';
     if (view.isOccupata) {
-      statusHtml = '<div class="room-card-status room-card-status--occupied">' + view.occupantText + '</div>';
+      var occupataNote = view.occupantText ? '<br><i>' + escapeHtml(t('room.occupata_note')) + '</i>' : '';
+      statusHtml = '<div class="room-card-status room-card-status--occupied">' + view.occupantText + occupataNote + '</div>';
     } else if (view.isDisponibile) {
       statusHtml = '<div class="room-card-status room-card-status--available-from">' + escapeHtml(t('room.available_from')) + ' ' + view.availableFromText + '<br><i>' + escapeHtml(t('room.available_soon_note')) + '</i></div>';
     } else if (view.isLibera) {
@@ -907,18 +908,22 @@
      ========================================================================== */
   var SOCIAL_PLATFORMS = ['facebook', 'instagram', 'tiktok', 'youtube'];
   var SOCIAL_LABELS = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' };
+  // Le icone social compaiono in più punti del sito (menu desktop, drawer
+  // mobile, sotto il benvenuto, footer): ogni contenitore con la classe
+  // .js-social-slot riceve la stessa lista di icone attive, così restano
+  // tutte allineate senza duplicare la logica.
   function renderSocialLinks() {
-    var slot = document.getElementById('social-links-slot');
-    if (!slot) return;
+    var slots = document.querySelectorAll('.js-social-slot');
+    if (!slots.length) return;
     var socials = (state.settings && state.settings.socials) || {};
     var html = SOCIAL_PLATFORMS.map(function (platform) {
       var cfg = socials[platform];
       if (!cfg || !cfg.enabled || !cfg.url) return '';
-      return '<a href="' + escapeHtml(cfg.url) + '" target="_blank" rel="noopener" class="footer-social-icon" aria-label="' + escapeHtml(SOCIAL_LABELS[platform]) + '">' +
+      return '<a href="' + escapeHtml(cfg.url) + '" target="_blank" rel="noopener" class="social-icon-link" aria-label="' + escapeHtml(SOCIAL_LABELS[platform]) + '">' +
         '<svg width="17" height="17"><use href="#social-' + platform + '"></use></svg>' +
       '</a>';
     }).join('');
-    slot.innerHTML = html;
+    slots.forEach(function (slot) { slot.innerHTML = html; });
   }
 
   /* ==========================================================================

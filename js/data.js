@@ -105,8 +105,8 @@ window.CASA_CELESTE_DATA = {
     cucina: {
       order: 1, name: { it: 'Cucina', en: 'Kitchen' }, balcony: 'presente',
       shortText: {
-        it: 'Ampia e luminosa, pensata per cucinare insieme, condividere un pasto o godersi un momento tranquillo.',
-        en: 'Bright and spacious, made for cooking together, sharing a meal, or enjoying a quiet moment.'
+        it: 'Ampia e luminosa, con balcone per una boccata d\'aria: perfetta per cucinare insieme, un caffè al volo o un aperitivo a cielo aperto.',
+        en: 'Bright and spacious, with its own balcony for a breath of fresh air: perfect for cooking together, a quick coffee, or an aperitivo under the open sky.'
       },
       longText: {
         it: "La cucina è il cuore sociale della casa: ampia, luminosa e attrezzata per cucinare senza pestarsi i piedi. E poi c'è il suo asso nella manica: un balcone tutto suo, il posto perfetto per un caffè al volo, un aperitivo tra coinquilini o due chiacchiere all'aria aperta mentre qualcosa cuoce sul fuoco.",

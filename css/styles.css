@@ -648,8 +648,15 @@ button { font-family: inherit; }
 }
 .room-card-status { font-size: 12.5px; font-weight: 700; line-height: 1.5; margin-bottom: 16px; }
 .room-card-status--occupied { color: var(--text-faintest); }
-.room-card-status--available-from { color: var(--yellow-deep); }
-.room-card-status--available-from i { font-style: italic; opacity: 0.8; }
+.room-card-status--occupied i { font-style: italic; opacity: 0.85; }
+/* Badge invece di testo giallo puro: stesso trattamento (sfondo tenue +
+   testo scuro leggibile) già usato nella pagina di dettaglio, più coerente
+   con lo stile del sito e comunque ben visibile. */
+.room-card-status--available-from {
+  background: var(--yellow-bg-soft); color: var(--yellow-text-dark);
+  padding: 9px 12px; border-radius: 10px;
+}
+.room-card-status--available-from i { font-style: italic; opacity: 0.85; }
 .room-card-status--free { color: var(--green); }
 .room-card-status--free i { color: var(--text-faintest); font-style: italic; text-decoration: underline; }
 .room-card-cta {
@@ -731,13 +738,22 @@ button { font-family: inherit; }
 .footer-legal-btn { background: none; border: none; color: var(--footer-text-muted); font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; }
 .footer-legal-btn:hover { color: var(--white); }
 .footer-fineprint { font-size: 12px; color: var(--footer-text-dim); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
-.footer-social { display: flex; flex-wrap: wrap; gap: 10px; }
-.footer-social:empty { display: none; }
-.footer-social-icon {
-  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.08); color: var(--footer-text); transition: background-color .15s ease, color .15s ease;
+/* Icone social: stesso componente riusato in più punti del sito (menu
+   desktop, drawer mobile, dopo il benvenuto, footer). .js-social-slot resta
+   vuoto (e quindi invisibile, senza spazi residui) se il proprietario non
+   ha attivato nessun social dalle Impostazioni. */
+.js-social-slot:empty { display: none; }
+.social-icon-link {
+  width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--blue-bg); color: var(--blue-deep); transition: background-color .15s ease, color .15s ease; flex-shrink: 0;
 }
-.footer-social-icon:hover { background: rgba(255,255,255,0.18); color: var(--white); }
+.social-icon-link:hover { background: var(--blue); color: var(--white); }
+.footer-social { display: flex; flex-wrap: wrap; gap: 10px; }
+.footer-social .social-icon-link { background: rgba(255,255,255,0.08); color: var(--footer-text); }
+.footer-social .social-icon-link:hover { background: rgba(255,255,255,0.18); color: var(--white); }
+.nav-social { display: flex; align-items: center; gap: 8px; }
+.nav-social--drawer { flex-wrap: wrap; margin: 4px 0 14px; }
+.nav-social--welcome { justify-content: center; margin-top: 28px; }
 
 /* ==========================================================================
    WhatsApp floating button
