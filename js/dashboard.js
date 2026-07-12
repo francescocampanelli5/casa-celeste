@@ -362,6 +362,13 @@
               '<option value="doppia"' + (roomType === 'doppia' ? ' selected' : '') + '>Doppia (2 posti letto)</option>' +
             '</select>' +
           '</div>' +
+          '<div class="admin-field-group"><label>Balcone</label>' +
+            '<select class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="balcony">' +
+              '<option value="nessuno"' + (room.balcony !== 'privato' && room.balcony !== 'comunicante' ? ' selected' : '') + '>Nessuno</option>' +
+              '<option value="privato"' + (room.balcony === 'privato' ? ' selected' : '') + '>Privato</option>' +
+              '<option value="comunicante"' + (room.balcony === 'comunicante' ? ' selected' : '') + '>Comunicante (con separatore)</option>' +
+            '</select>' +
+          '</div>' +
           (roomType === 'doppia' ?
             '<div class="admin-field-group"><label>Pubblicata sul sito come</label>' +
               '<select class="admin-field" data-publish-as-select data-room-id="' + roomId + '">' +

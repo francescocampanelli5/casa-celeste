@@ -304,6 +304,13 @@ solo il valore: ad esempio puoi rinominare "Aria condizionata" in
 Con **"+ Aggiungi caratteristica"** ne aggiungi di nuove, con l'icona **✕**
 ne rimuovi — la pagina di dettaglio si adatta a quante ce ne sono.
 
+**Balcone**: campo a parte (menu "Balcone" nella scheda stanza) con tre
+opzioni — Nessuno / Privato / Comunicante (con separatore). Se una stanza ha
+un balcone, sul sito compaiono automaticamente un piccolo badge nella card e
+un riquadro persuasivo nella pagina di dettaglio, per valorizzarlo come
+plus — utile anche per giustificare un prezzo più alto rispetto alle stanze
+senza balcone.
+
 ### 3.8 Spazi comuni (Cucina, Corridoio, Bagno, Lavanderia)
 
 Scheda dashboard **"Spazi comuni"** — stessa logica dei punti sopra:

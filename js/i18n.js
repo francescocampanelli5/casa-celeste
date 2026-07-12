@@ -156,7 +156,12 @@ window.CASA_CELESTE_I18N = {
     'photo.prefix': 'Foto —',
     'photo.view': 'vista',
     'photo.n_label': 'Foto {n}',
-    'photo.facade': 'facciata<br>Casa Celeste'
+    'photo.facade': 'facciata<br>Casa Celeste',
+
+    'balcony.badge_privato': '🌅 Balcone privato',
+    'balcony.badge_comunicante': '🌆 Balcone comunicante',
+    'balcony.callout_privato': '🌅 <strong>Balcone privato</strong> — il tuo angolo personale all\'aperto: una sedia, la brezza della sera e la città vista dall\'alto, solo per te.',
+    'balcony.callout_comunicante': '🌆 <strong>Balcone comunicante</strong> (con separatore) — un affaccio esterno da condividere: perfetto per un caffè al sole o due chiacchiere in compagnia, con la brezza della sera.'
   },
 
   en: {
@@ -310,7 +315,12 @@ window.CASA_CELESTE_I18N = {
     'photo.prefix': 'Photo —',
     'photo.view': 'view',
     'photo.n_label': 'Photo {n}',
-    'photo.facade': 'facade<br>Casa Celeste'
+    'photo.facade': 'facade<br>Casa Celeste',
+
+    'balcony.badge_privato': '🌅 Private balcony',
+    'balcony.badge_comunicante': '🌆 Connecting balcony',
+    'balcony.callout_privato': '🌅 <strong>Private balcony</strong> — your own outdoor corner: a chair, the evening breeze and the city skyline, just for you.',
+    'balcony.callout_comunicante': '🌆 <strong>Connecting balcony</strong> (with a privacy divider) — an outdoor spot to share: perfect for a coffee in the sun or a chat with the evening breeze.'
   }
 };
 

@@ -276,7 +276,7 @@
         occupantText: '', availableFromText: '',
         ctaLabel: allOccupata ? t('room.cta_non_disponibile') : t('room.cta_prenota'),
         ctaBg: allOccupata ? '#F0F1F3' : '#2C8FC9', ctaColor: allOccupata ? '#94A3B3' : '#FFFFFF',
-        waLink: link, isDoppiaPublished: true, photos: room.photos,
+        waLink: link, isDoppiaPublished: true, photos: room.photos, balcony: room.balcony,
         beds: beds.map(function (b, i) { return bedView(room, b, 'Letto ' + (i === 0 ? 'A' : 'B')); })
       };
     }
@@ -303,7 +303,7 @@
       isOccupata: isOccupata, isDisponibile: isDisponibile, isLibera: isLibera,
       occupantText: occupantText, availableFromText: availableFromText,
       ctaLabel: ctaLabel, ctaBg: ctaBg, ctaColor: ctaColor,
-      waLink: link2, isDoppiaPublished: false, roomLabel: room.name, photos: room.photos
+      waLink: link2, isDoppiaPublished: false, roomLabel: room.name, photos: room.photos, balcony: room.balcony
     };
   }
   function selectedDateLabel() {
@@ -560,6 +560,7 @@
             '<h3 class="room-card-name">' + escapeHtml(view.name) + '</h3>' +
             '<div class="room-card-price">' + view.priceText + '</div>' +
           '</div>' +
+          (view.balcony && view.balcony !== 'nessuno' ? '<div class="room-card-balcony">' + escapeHtml(t('balcony.badge_' + view.balcony)) + '</div>' : '') +
           statusHtml +
           '<button type="button" class="btn room-card-cta" data-room-card-view>' + escapeHtml(view.isDoppiaPublished ? t('room.view_doppia') : t('room.view_singola')) + '</button>' +
         '</div>' +
@@ -603,6 +604,9 @@
           return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(s.label) + '</div><div class="stat-value">' + escapeHtml(s.value) + '</div></div>';
         }).join('') +
       '</div>';
+    var balconyHtml = (room.balcony && room.balcony !== 'nessuno')
+      ? '<div class="balcony-callout">' + t('balcony.callout_' + room.balcony) + '</div>'
+      : '';
     var bodyHtml;
     if (view.isDoppiaPublished) {
       bodyHtml =
@@ -610,6 +614,7 @@
         '<h2 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h2>' +
         '<p class="detail-text">' + room.description + '</p>' +
         statsHtml +
+        balconyHtml +
         '<div class="beds-grid">' + view.beds.map(bedBlockHtml).join('') + '</div>';
     } else {
       var disabled = view.isOccupata;
@@ -626,6 +631,7 @@
         statusNoteHtml +
         '<p class="detail-text">' + room.description + '</p>' +
         statsHtml +
+        balconyHtml +
         urgencyNoteHtml(view.isLibera, view.isDisponibile) +
         '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(view.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + view.ctaBg + '; color:' + view.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + view.ctaLabel + '</button>';
     }

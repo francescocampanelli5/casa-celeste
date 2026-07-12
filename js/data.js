@@ -30,9 +30,9 @@ window.CASA_CELESTE_DATA = {
         { label: 'Aria condizionata', value: 'Sì, split individuale' },
         { label: 'Esposizione', value: 'Esposizione est, molto luminosa' }
       ],
-      description: 'La stanza Maestrale accoglie con luce del mattino e un angolo scrivania pensato per lunghe sessioni di studio. Arredi essenziali, tinte neutre e tanto spazio per respirare.',
-      roomType: 'singola',
-      status: 'libera', date: '', tenantName: '', tenantAge: '', type: 'studente', price: 380
+      description: 'La stanza Maestrale accoglie con luce del mattino e un angolo scrivania pensato per lunghe sessioni di studio. Arredi essenziali, tinte neutre e tanto spazio per respirare. Il balcone privato è tutto tuo: un caffè al mattino o due chiacchiere sotto le stelle, con la città a portata di sguardo.',
+      roomType: 'singola', balcony: 'privato',
+      status: 'libera', date: '', tenantName: '', tenantAge: '', type: 'studente', price: 400
     },
     scirocco: {
       order: 2, name: 'Scirocco',
@@ -43,7 +43,7 @@ window.CASA_CELESTE_DATA = {
         { label: 'Esposizione', value: 'Esposizione sud, vista cortile interno' }
       ],
       description: 'Scirocco è la più ampia delle quattro: perfetta per chi lavora da casa, con scrivania doppia e armadio capiente.',
-      roomType: 'doppia', publishAs: 'doppia',
+      roomType: 'doppia', publishAs: 'doppia', balcony: 'nessuno',
       status: 'occupata', date: '', tenantName: 'Marco', tenantAge: '22', type: 'studente', price: 420,
       beds: [
         { status: 'occupata', date: '', tenantName: 'Marco', tenantAge: '22', type: 'studente', price: 420 },
@@ -58,9 +58,9 @@ window.CASA_CELESTE_DATA = {
         { label: 'Aria condizionata', value: 'Sì, split individuale' },
         { label: 'Esposizione', value: 'Esposizione ovest, luce del tramonto' }
       ],
-      description: 'Ponente è la stanza più raccolta e silenziosa della casa, ideale per chi cerca il massimo della concentrazione.',
-      roomType: 'singola',
-      status: 'disponibile', date: '15 settembre 2026', tenantName: '', tenantAge: '', type: 'studente', price: 360
+      description: 'Ponente è la stanza più raccolta e silenziosa della casa, ideale per chi cerca il massimo della concentrazione. Si affaccia su un balcone comunicante con Levante, diviso da un separatore: perfetto per una pausa all\'aperto nella brezza della sera, mantenendo comunque la propria privacy.',
+      roomType: 'singola', balcony: 'comunicante',
+      status: 'disponibile', date: '15 settembre 2026', tenantName: '', tenantAge: '', type: 'studente', price: 375
     },
     levante: {
       order: 4, name: 'Levante',
@@ -70,12 +70,12 @@ window.CASA_CELESTE_DATA = {
         { label: 'Aria condizionata', value: 'Sì, split individuale' },
         { label: 'Esposizione', value: 'Esposizione est-sud, doppia finestra' }
       ],
-      description: 'Levante affaccia su due lati e resta luminosa tutto il giorno; il divanetto la rende comoda anche per ricevere un amico.',
-      roomType: 'doppia', publishAs: 'doppia',
-      status: 'occupata', date: '', tenantName: 'Giulia', tenantAge: '24', type: 'lavoratore', price: 400,
+      description: 'Levante affaccia su due lati e resta luminosa tutto il giorno; il divanetto la rende comoda anche per ricevere un amico. Condivide con Ponente un balcone comunicante (con separatore): lo spazio ideale per guardare il panorama dall\'alto o godersi la brezza della sera.',
+      roomType: 'doppia', publishAs: 'doppia', balcony: 'comunicante',
+      status: 'occupata', date: '', tenantName: 'Giulia', tenantAge: '24', type: 'lavoratore', price: 410,
       beds: [
-        { status: 'occupata', date: '', tenantName: 'Giulia', tenantAge: '24', type: 'lavoratore', price: 400 },
-        { status: 'libera', date: '', tenantName: '', tenantAge: '', type: 'lavoratore', price: 400 }
+        { status: 'occupata', date: '', tenantName: 'Giulia', tenantAge: '24', type: 'lavoratore', price: 410 },
+        { status: 'libera', date: '', tenantName: '', tenantAge: '', type: 'lavoratore', price: 410 }
       ]
     }
   },
