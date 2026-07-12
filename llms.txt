@@ -1,0 +1,17 @@
+# Casa Celeste
+
+> Student housing a Monopoli (Puglia, Italia): stanze singole e doppie in
+> affitto in un appartamento condiviso, a pochi passi dal centro storico,
+> dal mare e dal Conservatorio Nino Rota. Aperto a studenti italiani,
+> Erasmus e internazionali.
+
+- Indirizzo: Via Giuseppe del Drago 9, Monopoli (BA), Italia — quinto piano con ascensore
+- Contatti: WhatsApp +39 338 156 7389, email lacasacelestemonopoli@gmail.com
+- Sito disponibile in italiano (default) e inglese: aggiungere `?lang=en` all'URL
+- Prezzo: formula tutto incluso (utenze, wifi, riscaldamento nel canone), cauzione pari a una mensilità restituita entro 30 giorni dalla fine del contratto
+- Regole della casa: divieto di animali, divieto di fumo negli spazi interni, rispetto degli orari di quiete
+- Prenotazione tour: modulo sul sito o messaggio WhatsApp diretto, nessun impegno
+
+## Pagine
+
+- [Home](https://www.casacelestemonopoli.it/): panoramica, stanze disponibili con stato/prezzo aggiornati in tempo reale, spazi comuni, posizione, recensioni, FAQ

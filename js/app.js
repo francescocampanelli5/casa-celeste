@@ -342,6 +342,10 @@
     if (ogTitle) ogTitle.setAttribute('content', SEO_META[state.lang].title);
     var ogLocale = document.querySelector('meta[property="og:locale"]');
     if (ogLocale) ogLocale.setAttribute('content', state.lang === 'en' ? 'en_GB' : 'it_IT');
+    var twTitle = document.querySelector('meta[name="twitter:title"]');
+    if (twTitle) twTitle.setAttribute('content', SEO_META[state.lang].title);
+    var twDesc = document.querySelector('meta[name="twitter:description"]');
+    if (twDesc) twDesc.setAttribute('content', SEO_META[state.lang].description);
 
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
       el.textContent = t(el.getAttribute('data-i18n'));
@@ -633,10 +637,59 @@
       '</div>'
     );
   }
+  // Dati strutturati (schema.org) per le singole stanze: prezzo e
+  // disponibilità reali, utili sia per i rich result di Google sia perché
+  // le AI (ChatGPT, Perplexity, ecc.) possano citare correttamente prezzo e
+  // stato di ogni stanza. Rigenerato a ogni render perché i dati vengono
+  // da Firestore e cambiano nel tempo.
+  function updateRoomsJsonLd() {
+    var rooms = state.roomsData;
+    var ids = orderedIds(rooms);
+    if (!ids.length) return;
+    function availabilityFor(status) {
+      if (status === 'occupata') return 'https://schema.org/OutOfStock';
+      if (status === 'disponibile') return 'https://schema.org/PreOrder';
+      return 'https://schema.org/InStock';
+    }
+    var items = ids.map(function (id, i) {
+      var room = rooms[id];
+      var isDoppiaPublished = room.roomType === 'doppia' && room.publishAs === 'doppia';
+      var price, availability;
+      if (isDoppiaPublished) {
+        var beds = room.beds || [];
+        var prices = beds.map(function (b) { return Number(b.price) || 0; }).filter(function (p) { return p > 0; });
+        price = prices.length ? Math.min.apply(null, prices) : (Number(room.price) || 0);
+        availability = beds.some(function (b) { return b.status === 'libera'; }) ? 'https://schema.org/InStock' :
+          (beds.some(function (b) { return b.status === 'disponibile'; }) ? 'https://schema.org/PreOrder' : 'https://schema.org/OutOfStock');
+      } else {
+        price = Number(room.price) || 0;
+        availability = availabilityFor(room.status);
+      }
+      return {
+        '@type': 'ListItem', 'position': i + 1,
+        'item': {
+          '@type': 'Accommodation',
+          'name': room.name,
+          'description': room.description || undefined,
+          'offers': { '@type': 'Offer', 'price': price, 'priceCurrency': 'EUR', 'availability': availability }
+        }
+      };
+    });
+    var data = { '@context': 'https://schema.org', '@type': 'ItemList', 'itemListElement': items };
+    var scriptEl = document.getElementById('rooms-jsonld');
+    if (!scriptEl) {
+      scriptEl = document.createElement('script');
+      scriptEl.type = 'application/ld+json';
+      scriptEl.id = 'rooms-jsonld';
+      document.head.appendChild(scriptEl);
+    }
+    scriptEl.textContent = JSON.stringify(data);
+  }
   function renderRooms() {
     var container = document.getElementById('rooms-section');
     var rooms = state.roomsData;
     var ids = orderedIds(rooms);
+    updateRoomsJsonLd();
 
     if (state.roomsView === 'detail') {
       var activeId = rooms[state.activeRoomId] ? state.activeRoomId : ids[0];
