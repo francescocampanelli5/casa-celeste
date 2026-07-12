@@ -47,6 +47,30 @@
     });
   }
 
+  // Contenuti rivolti al visitatore (descrizioni, caratteristiche, recensioni)
+  // sono oggetti bilingue { it, en }: due campi distinti in dashboard, uno
+  // per lingua. biVal legge il valore grezzo di una lingua (senza fallback,
+  // a differenza di tf() in app.js) così i due campi restano indipendenti
+  // in fase di modifica; biRowHtml genera la coppia di campi IT/EN, salvando
+  // su Firestore con un field path puntato (es. "description.it") che
+  // aggiorna solo quella lingua lasciando l'altra intatta.
+  function biVal(field, lang) {
+    if (field == null) return '';
+    if (typeof field === 'string') return lang === 'it' ? field : '';
+    return field[lang] || '';
+  }
+  function biRowHtml(tag, labelBase, dataIdAttr, fieldName, field, rows) {
+    function one(lang, langLabel) {
+      var val = escapeHtml(biVal(field, lang));
+      var dataField = 'data-field="' + fieldName + '.' + lang + '"';
+      if (tag === 'textarea') {
+        return '<div class="admin-field-group admin-field-group--full"><label>' + labelBase + ' (' + langLabel + ')</label><textarea class="admin-field" ' + dataIdAttr + ' ' + dataField + ' rows="' + rows + '">' + val + '</textarea></div>';
+      }
+      return '<div class="admin-field-group admin-field-group--full"><label>' + labelBase + ' (' + langLabel + ')</label><input type="text" class="admin-field" ' + dataIdAttr + ' ' + dataField + ' value="' + val + '"></div>';
+    }
+    return one('it', 'italiano') + one('en', 'inglese');
+  }
+
   function formatCreatedAt(ts) {
     try {
       if (ts && typeof ts.toDate === 'function') {
@@ -227,17 +251,23 @@
   // in quale mappa (roomsData/commonsData) e con quale funzione salvare.
   function statsEditorHtml(kind, ownerId, stats) {
     var rows = (stats || []).map(function (s, i) {
+      var idAttr = 'data-stat-kind="' + kind + '" data-owner-id="' + ownerId + '" data-stat-index="' + i + '"';
+      function field(part, placeholder, val) {
+        return '<input type="text" class="admin-field" placeholder="' + placeholder + '" data-stat-field ' + idAttr + ' data-stat-part="' + part + '" value="' + escapeHtml(val) + '">';
+      }
       return (
-        '<div class="admin-stat-row">' +
-          '<input type="text" class="admin-field" placeholder="Etichetta (es. Aria condizionata)" data-stat-field data-stat-kind="' + kind + '" data-owner-id="' + ownerId + '" data-stat-index="' + i + '" data-stat-part="label" value="' + escapeHtml(s.label || '') + '">' +
-          '<input type="text" class="admin-field" placeholder="Valore" data-stat-field data-stat-kind="' + kind + '" data-owner-id="' + ownerId + '" data-stat-index="' + i + '" data-stat-part="value" value="' + escapeHtml(s.value || '') + '">' +
-          '<button type="button" class="admin-stat-remove" data-stat-remove data-stat-kind="' + kind + '" data-owner-id="' + ownerId + '" data-stat-index="' + i + '" title="Rimuovi caratteristica">✕</button>' +
+        '<div class="admin-stat-row admin-stat-row--bilingual">' +
+          '<div class="admin-stat-row-lines">' +
+            '<div class="admin-stat-row-line">' + field('label.it', 'Etichetta (IT), es. Aria condizionata', biVal(s.label, 'it')) + field('label.en', 'Etichetta (EN)', biVal(s.label, 'en')) + '</div>' +
+            '<div class="admin-stat-row-line">' + field('value.it', 'Valore (IT)', biVal(s.value, 'it')) + field('value.en', 'Valore (EN)', biVal(s.value, 'en')) + '</div>' +
+          '</div>' +
+          '<button type="button" class="admin-stat-remove" data-stat-remove ' + idAttr + ' title="Rimuovi caratteristica">✕</button>' +
         '</div>'
       );
     }).join('');
     return (
       '<div class="admin-field-group admin-field-group--full">' +
-        '<label>Caratteristiche (etichetta + valore, mostrate nella pagina di dettaglio)</label>' +
+        '<label>Caratteristiche (etichetta + valore, in italiano e inglese — mostrate nella pagina di dettaglio)</label>' +
         '<div class="admin-stats-rows">' + rows + '</div>' +
         '<button type="button" class="admin-stat-add" data-stat-add data-stat-kind="' + kind + '" data-owner-id="' + ownerId + '">+ Aggiungi caratteristica</button>' +
       '</div>'
@@ -251,10 +281,14 @@
         var kind = el.getAttribute('data-stat-kind');
         var ownerId = el.getAttribute('data-owner-id');
         var idx = Number(el.getAttribute('data-stat-index'));
-        var part = el.getAttribute('data-stat-part');
+        var part = el.getAttribute('data-stat-part'); // "label.it" | "label.en" | "value.it" | "value.en"
+        var bits = part.split('.');
         var stats = (dataMapFor(kind)[ownerId].stats || []).slice();
-        var patch = {}; patch[part] = e.target.value;
-        stats[idx] = Object.assign({}, stats[idx], patch);
+        var current = Object.assign({}, stats[idx]);
+        var sub = { it: biVal(current[bits[0]], 'it'), en: biVal(current[bits[0]], 'en') };
+        sub[bits[1]] = e.target.value;
+        current[bits[0]] = sub;
+        stats[idx] = current;
         setFnFor(kind)(ownerId, { stats: stats });
       });
     });
@@ -263,7 +297,7 @@
         var kind = el.getAttribute('data-stat-kind');
         var ownerId = el.getAttribute('data-owner-id');
         var stats = (dataMapFor(kind)[ownerId].stats || []).slice();
-        stats.push({ label: '', value: '' });
+        stats.push({ label: { it: '', en: '' }, value: { it: '', en: '' } });
         setFnFor(kind)(ownerId, { stats: stats });
       });
     });
@@ -369,7 +403,7 @@
           '<span class="admin-room-slug" title="Nome file per le foto: images/' + roomId + '-1.jpg … -6.jpg">' + roomId + '</span>' +
           '<button type="button" class="dash-delete-btn" data-delete-room data-room-id="' + roomId + '">Elimina stanza</button>' +
         '</div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Descrizione</label><textarea class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="description" rows="2">' + escapeHtml(room.description || '') + '</textarea></div>' +
+        biRowHtml('textarea', 'Descrizione', 'data-room-field data-room-id="' + roomId + '"', 'description', room.description, 2) +
         photoSlotsHtml('room', roomId, room) +
         statsEditorHtml('room', roomId, room.stats) +
         '<div class="admin-room-type-row">' +
@@ -480,7 +514,7 @@
       var id = uniqueRoomId(slugify(name));
       var maxOrder = Object.keys(state.roomsData).reduce(function (m, k) { return Math.max(m, state.roomsData[k].order || 0); }, 0);
       window.CasaCelesteDB.createRoom(id, {
-        order: maxOrder + 1, name: name, stats: [], description: '',
+        order: maxOrder + 1, name: name, stats: [], description: { it: '', en: '' },
         roomType: 'singola', status: 'libera', date: '', tenantName: '', tenantAge: '', type: 'studente', price: 0
       }).then(function () {
         window.alert('Stanza "' + name + '" creata. Ricordati di caricare le foto come images/' + id + '-1.jpg (vedi GUIDA-PUBBLICAZIONE.md).');
@@ -495,17 +529,21 @@
      Common areas tab
      ========================================================================== */
   function commonAdminCardHtml(commonId, common) {
-    var featuresText = (common.features || []).join(', ');
+    var featuresTextIt = (common.features || []).map(function (f) { return biVal(f, 'it'); }).join(', ');
+    var featuresTextEn = (common.features || []).map(function (f) { return biVal(f, 'en'); }).join(', ');
+    var idAttr = 'data-common-field data-common-id="' + commonId + '"';
     return (
       '<div class="admin-room-card" data-common-id="' + commonId + '">' +
         '<div class="admin-room-head">' +
-          '<input type="text" class="admin-field admin-room-name" placeholder="Nome spazio" data-common-field data-common-id="' + commonId + '" data-field="name" value="' + escapeHtml(common.name || '') + '">' +
+          '<input type="text" class="admin-field admin-room-name" placeholder="Nome spazio (IT)" ' + idAttr + ' data-field="name.it" value="' + escapeHtml(biVal(common.name, 'it')) + '">' +
+          '<input type="text" class="admin-field admin-room-name" placeholder="Name (EN)" ' + idAttr + ' data-field="name.en" value="' + escapeHtml(biVal(common.name, 'en')) + '">' +
           '<span class="admin-room-slug" title="Nome file per le foto: images/' + commonId + '-1.jpg … -6.jpg">' + commonId + '</span>' +
           '<button type="button" class="dash-delete-btn" data-delete-common data-common-id="' + commonId + '">Elimina</button>' +
         '</div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Descrizione breve (mostrata nella card)</label><textarea class="admin-field" data-common-field data-common-id="' + commonId + '" data-field="shortText" rows="2">' + escapeHtml(common.shortText || '') + '</textarea></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Descrizione completa (pagina di dettaglio)</label><textarea class="admin-field" data-common-field data-common-id="' + commonId + '" data-field="longText" rows="3">' + escapeHtml(common.longText || '') + '</textarea></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Caratteristiche brevi, separate da virgola (es. Doccia, Specchio ampio)</label><input type="text" class="admin-field" data-common-field data-common-id="' + commonId + '" data-field="features" value="' + escapeHtml(featuresText) + '"></div>' +
+        biRowHtml('textarea', 'Descrizione breve (mostrata nella card)', idAttr, 'shortText', common.shortText, 2) +
+        biRowHtml('textarea', 'Descrizione completa (pagina di dettaglio)', idAttr, 'longText', common.longText, 3) +
+        '<div class="admin-field-group admin-field-group--full"><label>Caratteristiche brevi, separate da virgola (IT), es. Doccia, Specchio ampio</label><input type="text" class="admin-field" ' + idAttr + ' data-field="features.it" value="' + escapeHtml(featuresTextIt) + '"></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Caratteristiche brevi, separate da virgola (EN)</label><input type="text" class="admin-field" ' + idAttr + ' data-field="features.en" value="' + escapeHtml(featuresTextEn) + '"></div>' +
         photoSlotsHtml('common', commonId, common) +
         statsEditorHtml('common', commonId, common.stats) +
       '</div>'
@@ -530,7 +568,27 @@
       var field = el.getAttribute('data-field');
       el.addEventListener('change', function (e) {
         var val = e.target.value;
-        if (field === 'features') val = val.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        // "features.it" / "features.en": le caratteristiche sono un array di
+        // oggetti { it, en }, non un campo scalare, quindi non si può fare un
+        // merge puntato su Firestore — si ricostruisce l'intero array
+        // rizippando la lista appena modificata con quella dell'altra lingua
+        // già esistente, indice per indice.
+        if (field === 'features.it' || field === 'features.en') {
+          var lang = field.split('.')[1];
+          var otherLang = lang === 'it' ? 'en' : 'it';
+          var list = val.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+          var existing = state.commonsData[commonId].features || [];
+          var maxLen = Math.max(list.length, existing.length);
+          var features = [];
+          for (var i = 0; i < maxLen; i++) {
+            var item = {};
+            item[lang] = list[i] || '';
+            item[otherLang] = biVal(existing[i], otherLang);
+            features.push(item);
+          }
+          window.CasaCelesteDB.setCommon(commonId, { features: features });
+          return;
+        }
         var patch = {};
         patch[field] = val;
         window.CasaCelesteDB.setCommon(commonId, patch);
@@ -540,7 +598,7 @@
     content.querySelectorAll('[data-delete-common]').forEach(function (el) {
       el.addEventListener('click', function () {
         var commonId = el.getAttribute('data-common-id');
-        var name = (state.commonsData[commonId] && state.commonsData[commonId].name) || commonId;
+        var name = biVal(state.commonsData[commonId] && state.commonsData[commonId].name, 'it') || commonId;
         if (window.confirm('Eliminare definitivamente lo spazio "' + name + '"? Sparirà subito dal sito pubblico.')) {
           window.CasaCelesteDB.deleteCommon(commonId);
         }
@@ -559,7 +617,7 @@
       var id = uniqueCommonId(slugify(name));
       var maxOrder = Object.keys(state.commonsData).reduce(function (m, k) { return Math.max(m, state.commonsData[k].order || 0); }, 0);
       window.CasaCelesteDB.createCommon(id, {
-        order: maxOrder + 1, name: name, shortText: '', longText: '', features: [], stats: []
+        order: maxOrder + 1, name: { it: name, en: '' }, shortText: { it: '', en: '' }, longText: { it: '', en: '' }, features: [], stats: []
       }).then(function () {
         window.alert('Spazio "' + name + '" creato. Ricordati di caricare le foto come images/' + id + '-1.jpg (vedi GUIDA-PUBBLICAZIONE.md).');
       });
@@ -573,14 +631,16 @@
      Reviews (testimonianze) tab
      ========================================================================== */
   function reviewAdminCardHtml(reviewId, review) {
+    var idAttr = 'data-review-field data-review-id="' + reviewId + '"';
     return (
       '<div class="admin-room-card" data-review-id="' + reviewId + '">' +
         '<div class="admin-room-head">' +
-          '<input type="text" class="admin-field admin-room-name" placeholder="Nome (es. Sara, 21 anni)" data-review-field data-review-id="' + reviewId + '" data-field="name" value="' + escapeHtml(review.name || '') + '">' +
+          '<input type="text" class="admin-field admin-room-name" placeholder="Nome (IT), es. Sara, 21 anni" ' + idAttr + ' data-field="name.it" value="' + escapeHtml(biVal(review.name, 'it')) + '">' +
+          '<input type="text" class="admin-field admin-room-name" placeholder="Name (EN), es. Sara, 21" ' + idAttr + ' data-field="name.en" value="' + escapeHtml(biVal(review.name, 'en')) + '">' +
           '<button type="button" class="dash-delete-btn" data-delete-review data-review-id="' + reviewId + '">Elimina</button>' +
         '</div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Ruolo (facoltativo, es. Studentessa, Economia)</label><input type="text" class="admin-field" data-review-field data-review-id="' + reviewId + '" data-field="role" value="' + escapeHtml(review.role || '') + '"></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Recensione</label><textarea class="admin-field" data-review-field data-review-id="' + reviewId + '" data-field="quote" rows="3">' + escapeHtml(review.quote || '') + '</textarea></div>' +
+        biRowHtml('input', 'Ruolo (facoltativo, es. Studentessa, Economia)', idAttr, 'role', review.role, null) +
+        biRowHtml('textarea', 'Recensione', idAttr, 'quote', review.quote, 3) +
       '</div>'
     );
   }
@@ -626,7 +686,7 @@
     document.getElementById('add-review-btn').addEventListener('click', function () {
       var id = uniqueReviewId();
       var maxOrder = Object.keys(state.reviewsData).reduce(function (m, k) { return Math.max(m, state.reviewsData[k].order || 0); }, 0);
-      window.CasaCelesteDB.createReview(id, { order: maxOrder + 1, name: '', role: '', quote: '' });
+      window.CasaCelesteDB.createReview(id, { order: maxOrder + 1, name: { it: '', en: '' }, role: { it: '', en: '' }, quote: { it: '', en: '' } });
     });
   }
 

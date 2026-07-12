@@ -155,7 +155,7 @@
   function tf(field) {
     if (field == null) return '';
     if (typeof field === 'string') return field;
-    return field[state.lang] != null ? field[state.lang] : field.it;
+    return field[state.lang] || field.it || '';
   }
   function tpl(str, params) {
     return str.replace(/\{(\w+)\}/g, function (_, k) { return params[k] != null ? params[k] : ''; });
@@ -352,12 +352,12 @@
      ========================================================================== */
   var SEO_META = {
     it: {
-      title: 'Casa Celeste | Alloggi per Studenti a Monopoli — Stanze in Affitto',
-      description: 'Casa Celeste: alloggio moderno per studenti nel cuore di Monopoli. Stanze singole in affitto a pochi passi da centro storico, mare e Conservatorio. Prenota un tour su WhatsApp.'
+      title: 'Casa Celeste | Studentato e Alloggi per Studenti a Monopoli — Stanze in Affitto',
+      description: 'Casa Celeste: uno studentato e casa in condivisione nel cuore di Monopoli. Stanze singole e doppie in affitto, il comfort di una vera casa con lo spirito di un dormitorio per studenti. A pochi passi da centro storico, mare e Conservatorio. Prenota un tour su WhatsApp.'
     },
     en: {
-      title: 'Casa Celeste | Student Housing in Monopoli, Italy — Rooms for Rent',
-      description: 'Casa Celeste: modern student housing in the heart of Monopoli, Italy. Private rooms for rent steps from the historic centre, the sea and the Conservatory. Book a tour on WhatsApp.'
+      title: 'Casa Celeste | Student Housing & Shared House in Monopoli, Italy — Rooms for Rent',
+      description: 'Casa Celeste: a student housing and shared house in the heart of Monopoli, Italy. Private and shared rooms for rent, dorm-style community with all the comforts of home. Steps from the historic centre, the sea and the Conservatory. Book a tour on WhatsApp.'
     }
   };
   function applyI18n() {
@@ -493,37 +493,39 @@
       var oa = map[a].order != null ? map[a].order : 999999;
       var ob = map[b].order != null ? map[b].order : 999999;
       if (oa !== ob) return oa - ob;
-      return (map[a].name || '').localeCompare(map[b].name || '');
+      return tf(map[a].name).localeCompare(tf(map[b].name));
     });
   }
   function commonCardHtml(id, def) {
-    var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip">' + escapeHtml(f) + '</span>'; }).join('');
+    var name = tf(def.name);
+    var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip">' + escapeHtml(tf(f)) + '</span>'; }).join('');
     return (
       '<div class="card" data-common-card data-common-id="' + id + '">' +
-        '<div class="card-media"><span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(def.caption || def.name) + '</span>' + photoTag((def.photos && def.photos[0]) || ('images/' + id + '-1.jpg'), def.name) + '</div>' +
+        '<div class="card-media"><span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(name) + '</span>' + photoTag((def.photos && def.photos[0]) || ('images/' + id + '-1.jpg'), name) + '</div>' +
         '<div class="card-body">' +
-          '<h3 class="card-title">' + escapeHtml(def.name) + '</h3>' +
-          '<p class="card-text">' + escapeHtml(def.shortText || '') + '</p>' +
+          '<h3 class="card-title">' + escapeHtml(name) + '</h3>' +
+          '<p class="card-text">' + escapeHtml(tf(def.shortText)) + '</p>' +
           '<div class="chip-row">' + featuresHtml + '</div>' +
         '</div>' +
       '</div>'
     );
   }
   function commonDetailHtml(id, def) {
-    var link = waLink(tpl(t('common.wa_info'), { name: def.name }));
+    var name = tf(def.name);
+    var link = waLink(tpl(t('common.wa_info'), { name: name }));
     var statsHtml = (def.stats || []).map(function (s) {
-      return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(s.label) + '</div><div class="stat-value">' + escapeHtml(s.value) + '</div></div>';
+      return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(tf(s.label)) + '</div><div class="stat-value">' + escapeHtml(tf(s.value)) + '</div></div>';
     }).join('');
-    var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip chip--lg">' + escapeHtml(f) + '</span>'; }).join('');
+    var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip chip--lg">' + escapeHtml(tf(f)) + '</span>'; }).join('');
     return (
       '<button type="button" class="back-link" data-go-home-common>' + escapeHtml(t('common.back_to_all')) + '</button>' +
       '<div class="detail-grid">' +
         '<div>' +
-          detailMediaHtml(id, def.caption || def.name, def.photos) +
+          detailMediaHtml(id, name, def.photos) +
         '</div>' +
         '<div>' +
-          '<h2 class="detail-title">' + escapeHtml(def.name) + '</h2>' +
-          '<p class="detail-text">' + (def.longText || '') + '</p>' +
+          '<h2 class="detail-title">' + escapeHtml(name) + '</h2>' +
+          '<p class="detail-text">' + escapeHtml(tf(def.longText)) + '</p>' +
           '<div class="stats-grid">' + statsHtml + '</div>' +
           '<div class="chip-row" style="margin-bottom:28px;">' + featuresHtml + '</div>' +
           '<div class="detail-ctas">' +
@@ -635,7 +637,7 @@
     var statsHtml =
       '<div class="stats-grid stats-grid--room">' +
         (room.stats || []).map(function (s) {
-          return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(s.label) + '</div><div class="stat-value">' + escapeHtml(s.value) + '</div></div>';
+          return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(tf(s.label)) + '</div><div class="stat-value">' + escapeHtml(tf(s.value)) + '</div></div>';
         }).join('') +
       '</div>';
     var balconyHtml = (room.balcony && room.balcony !== 'nessuno')
@@ -647,7 +649,7 @@
       bodyHtml =
         '<span class="detail-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
         '<h2 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h2>' +
-        '<p class="detail-text">' + room.description + '</p>' +
+        '<p class="detail-text">' + escapeHtml(tf(room.description)) + '</p>' +
         sameSexHtml +
         statsHtml +
         balconyHtml +
@@ -668,7 +670,7 @@
         '<h2 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h2>' +
         '<div class="detail-price">' + view.priceText + '</div>' +
         statusNoteHtml +
-        '<p class="detail-text">' + room.description + '</p>' +
+        '<p class="detail-text">' + escapeHtml(tf(room.description)) + '</p>' +
         statsHtml +
         balconyHtml +
         urgencyNoteHtml(view.isLibera, view.isDisponibile) +
@@ -715,7 +717,7 @@
         'item': {
           '@type': 'Accommodation',
           'name': room.name,
-          'description': room.description || undefined,
+          'description': tf(room.description) || undefined,
           'offers': { '@type': 'Offer', 'price': price, 'priceCurrency': 'EUR', 'availability': availability }
         }
       };
@@ -776,16 +778,17 @@
     var ids = orderedIds(state.reviewsData);
     container.innerHTML = ids.map(function (id, i) {
       var r = state.reviewsData[id];
-      var letter = (r.name || '?').trim().charAt(0).toUpperCase() || '?';
+      var name = tf(r.name);
+      var letter = (name || '?').trim().charAt(0).toUpperCase() || '?';
       var avatarClass = i % 2 === 0 ? 'testimonial-avatar--blue' : 'testimonial-avatar--yellow';
       return (
         '<div class="testimonial-card">' +
-          '<p class="testimonial-quote">"' + escapeHtml(r.quote || '') + '"</p>' +
+          '<p class="testimonial-quote">"' + escapeHtml(tf(r.quote)) + '"</p>' +
           '<div class="testimonial-person">' +
             '<div class="testimonial-avatar ' + avatarClass + '">' + escapeHtml(letter) + '</div>' +
             '<div>' +
-              '<div class="testimonial-name">' + escapeHtml(r.name || '') + '</div>' +
-              '<div class="testimonial-role">' + escapeHtml(r.role || '') + '</div>' +
+              '<div class="testimonial-name">' + escapeHtml(name) + '</div>' +
+              '<div class="testimonial-role">' + escapeHtml(tf(r.role)) + '</div>' +
             '</div>' +
           '</div>' +
         '</div>'

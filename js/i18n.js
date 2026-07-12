@@ -1,9 +1,10 @@
 // Dizionario di traduzione IT/EN per il testo "di cornice" del sito (menu,
-// titoli, bottoni, testi fissi). I contenuti scritti dal proprietario nella
-// dashboard (nome/descrizione stanze e spazi comuni, recensioni) restano
-// nella lingua in cui li scrive: una traduzione automatica di quei testi
-// richiederebbe un servizio esterno a pagamento, fuori dallo scopo di
-// questo sito. window.t(key) restituisce la stringa nella lingua attiva.
+// titoli, bottoni, testi fissi). window.t(key) restituisce la stringa nella
+// lingua attiva. I contenuti scritti dal proprietario nella dashboard
+// (descrizioni stanze/spazi comuni, caratteristiche, recensioni) usano invece
+// window.tf(field), che legge un oggetto { it, en } compilato a mano dalla
+// dashboard stessa (due campi distinti, uno per lingua) — se l'inglese non è
+// stato ancora scritto, tf() torna automaticamente all'italiano.
 window.CASA_CELESTE_I18N = {
   it: {
     'nav.monopoli': 'Monopoli',
@@ -17,7 +18,7 @@ window.CASA_CELESTE_I18N = {
 
     'hero.badge': '🎓 Student Housing · Monopoli',
     'hero.title_html': 'Studia sereno,<br>vivi in <span class="hero-title-highlight">compagnia<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.',
-    'hero.lead_html': "Un appartamento moderno nel cuore di Monopoli: spazi condivisi curati, silenzio e privacy per i tuoi studi, socialità appena avrai finito.<br>Tutto a pochi passi dal centro e dal <b>Conservatorio</b>.",
+    'hero.lead_html': "Un appartamento moderno nel cuore di Monopoli: più che un semplice studentato o dormitorio, una vera casa in condivisione — con spazi curati, silenzio e privacy per i tuoi studi, socialità appena avrai finito.<br>Tutto a pochi passi dal centro e dal <b>Conservatorio</b>.",
     'hero.address': '📍 Via Giuseppe del Drago 9 &nbsp;–&nbsp; Monopoli (BA)',
     'hero.cta_rooms': 'Vedi le stanze →',
 
@@ -112,7 +113,7 @@ window.CASA_CELESTE_I18N = {
 
     'outdoor.eyebrow': 'Vita all\'aperto',
     'outdoor.title': 'Un balcone, una boccata d\'aria',
-    'outdoor.text': 'Tra una lezione e l\'altra basta aprire una porta: alcune stanze si affacciano su un balcone tutto da vivere — un caffè al sole, due chiacchiere in compagnia, o un momento di silenzio con la brezza della sera che accarezza la pelle. Un piccolo lusso incluso, non un optional.',
+    'outdoor.text': 'Tra una pausa studio e l\'altra basta aprire una porta: alcune stanze si affacciano su un balcone tutto da vivere — un caffè al sole, due chiacchiere in compagnia, o un momento di silenzio con la brezza della sera che accarezza la pelle. Un piccolo lusso incluso, non un optional.',
 
     'faq.eyebrow': 'Domande frequenti',
     'faq.title': 'Tutto quello che vuoi sapere',
@@ -188,7 +189,7 @@ window.CASA_CELESTE_I18N = {
 
     'hero.badge': '🎓 Student Housing · Monopoli, Italy',
     'hero.title_html': 'Study calm,<br>live in <span class="hero-title-highlight">good company<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.',
-    'hero.lead_html': "A modern apartment in the heart of Monopoli: well-kept shared spaces, quiet and privacy for your studies, socialising whenever you're ready.<br>Just steps from the historic centre and the <b>Conservatory</b>.",
+    'hero.lead_html': "A modern apartment in the heart of Monopoli: more than just a student dorm, a real shared home — well-kept shared spaces, quiet and privacy for your studies, socialising whenever you're ready.<br>Just steps from the historic centre and the <b>Conservatory</b>.",
     'hero.address': '📍 Via Giuseppe del Drago 9 &nbsp;–&nbsp; Monopoli (BA), Italy',
     'hero.cta_rooms': 'See the rooms →',
 
@@ -283,7 +284,7 @@ window.CASA_CELESTE_I18N = {
 
     'outdoor.eyebrow': 'Outdoor living',
     'outdoor.title': 'A balcony, a breath of fresh air',
-    'outdoor.text': 'Between classes, just open a door: some rooms open onto a balcony worth living in — a coffee in the sun, a chat with friends, or a quiet moment as the evening breeze brushes past. A small luxury included, not an add-on.',
+    'outdoor.text': 'Between study sessions, just open a door: some rooms open onto a balcony worth living in — a coffee in the sun, a chat with friends, or a quiet moment as the evening breeze brushes past. A small luxury included, not an add-on.',
 
     'faq.eyebrow': 'Frequently asked questions',
     'faq.title': 'Everything you want to know',

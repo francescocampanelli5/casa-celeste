@@ -171,9 +171,11 @@ button { font-family: inherit; }
 .lang-flag-btn {
   background: none; border: none; border-radius: var(--radius-pill); cursor: pointer;
   padding: 5px 9px; font-size: 15px; line-height: 1; opacity: 0.45; transition: opacity .15s ease, background-color .15s ease;
+  display: inline-flex; align-items: center; gap: 6px;
 }
 .lang-flag-btn:hover { opacity: 0.75; }
 .lang-flag-btn.is-active { opacity: 1; background: var(--blue-bg); }
+.flag-icon { width: 20px; height: 14px; border-radius: 3px; display: block; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(16,35,59,0.12); }
 .lang-flags--drawer { width: 100%; margin-bottom: 12px; justify-content: center; }
 .lang-flags--drawer .lang-flag-btn { flex: 1; font-size: 13px; font-weight: 800; padding: 10px; }
 
@@ -472,9 +474,9 @@ button { font-family: inherit; }
    Testimonianze
    ========================================================================== */
 .testimonial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 22px; }
-.testimonial-card { background: var(--white); border: 1px solid var(--border-hairline); border-radius: 20px; padding: 26px; }
-.testimonial-quote { font-size: 14.5px; line-height: 1.7; color: var(--text-body-alt); margin: 0 0 20px; }
-.testimonial-person { display: flex; align-items: center; gap: 12px; }
+.testimonial-card { background: var(--white); border: 1px solid var(--border-hairline); border-radius: 20px; padding: 26px; display: flex; flex-direction: column; }
+.testimonial-quote { font-size: 14.5px; line-height: 1.7; color: var(--text-body-alt); margin: 0 0 20px; flex: 1; }
+.testimonial-person { display: flex; align-items: center; gap: 12px; margin-top: auto; }
 .testimonial-avatar {
   width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center;
   justify-content: center; font-weight: 800; font-size: 15px; flex-shrink: 0;
@@ -526,6 +528,9 @@ button { font-family: inherit; }
 .admin-beds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 14px; }
 .admin-stats-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
 .admin-stat-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
+.admin-stat-row--bilingual { display: flex; align-items: center; gap: 10px; background: var(--grey-bg); border-radius: 10px; padding: 10px; }
+.admin-stat-row-lines { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.admin-stat-row-line { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .admin-stat-remove {
   background: none; border: 1px solid var(--border-strong); border-radius: 8px; color: #B3261E;
   cursor: pointer; width: 34px; height: 34px; font-size: 13px; flex-shrink: 0;

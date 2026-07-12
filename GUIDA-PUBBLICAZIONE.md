@@ -301,6 +301,7 @@ dettaglio (di serie: Metratura, Letto, Aria condizionata, Esposizione). In
 dashboard puoi modificare **sia il testo dell'etichetta sia il valore**, non
 solo il valore: ad esempio puoi rinominare "Aria condizionata" in
 "Climatizzazione", o cambiarla del tutto in "Vista" con il suo valore.
+Etichetta e valore hanno ciascuno una casella IT e una EN (vedi 3.13).
 Con **"+ Aggiungi caratteristica"** ne aggiungi di nuove, con l'icona **✕**
 ne rimuovi — la pagina di dettaglio si adatta a quante ce ne sono.
 
@@ -417,19 +418,22 @@ GitHub, scheda **Actions** → **Promemoria prenotazioni** → **Run workflow**.
 
 ### 3.13 Sito in italiano e inglese
 
-Il sito ha un bottone di cambio lingua in alto nel menu (🇬🇧 EN / 🇮🇹 IT).
-Tutti i testi "fissi" del sito (menu, sezioni, FAQ, condizioni legali,
-modulo di prenotazione) sono già tradotti e cambiano automaticamente. In
-inglese compare anche un blocco di benvenuto dedicato agli studenti
-Erasmus/internazionali.
+Il sito ha due bandiere di cambio lingua in alto nel menu (🇮🇹 / 🇬🇧), sia da
+desktop sia da mobile (menu ☰). Tutti i testi "fissi" del sito (menu,
+sezioni, FAQ, condizioni legali, modulo di prenotazione) sono già tradotti e
+cambiano automaticamente. In inglese compare anche un blocco di benvenuto
+dedicato agli studenti Erasmus/internazionali.
 
-**Cosa NON viene tradotto automaticamente** (perché lo scrivi tu nella
-dashboard): nome e descrizione delle stanze, degli spazi comuni e le
-recensioni. Restano nella lingua in cui li scrivi — una traduzione
-automatica di quei testi richiederebbe un servizio a pagamento, che non è
-stato attivato. Se vuoi che il tuo sito sia bilingue anche lì, scrivi tu
-stesso una versione breve in inglese nei campi descrizione (è un testo
-libero, puoi scriverci quello che preferisci).
+**Contenuti che scrivi tu nella dashboard** (descrizione delle stanze,
+nome/descrizione/caratteristiche degli spazi comuni, recensioni): per
+ciascuno di questi campi la dashboard mostra **due caselle distinte, una per
+l'italiano e una per l'inglese** (etichettate "(italiano)" / "(inglese)").
+Scrivi il testo in entrambe per avere un sito davvero bilingue in ogni sua
+parte — se lasci vuota la casella inglese, il sito mostra semplicemente il
+testo italiano anche a chi naviga in inglese, così non c'è mai un campo
+vuoto. Puoi tradurre solo alcune caratteristiche o solo alcune stanze e
+completare il resto con calma in un secondo momento: nulla si rompe nel
+frattempo.
 
 ---
 
