@@ -16,7 +16,10 @@ var EMAILJS_SERVICE_ID = 'service_pgej8ka';
 var EMAILJS_PUBLIC_KEY = 'wuB-uArgD97brV8OX';
 var EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY;
 
-var serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+// .trim() toglie anche un eventuale BOM iniziale (capita se il secret è
+// stato incollato/salvato da Windows) che altrimenti manda in errore
+// JSON.parse — in Node il BOM (U+FEFF) è considerato spazio da trim().
+var serviceAccount = JSON.parse((process.env.FIREBASE_SERVICE_ACCOUNT || '{}').trim());
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 var db = admin.firestore();
 
