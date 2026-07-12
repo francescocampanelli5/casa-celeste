@@ -11,7 +11,7 @@ var admin = require('firebase-admin');
 // Stesso template EmailJS usato per la conferma immediata al visitatore
 // (js/firebase-config.js → EMAILJS_CONFIG.visitorTemplateId). Aggiornalo
 // qui se cambi quel valore.
-var EMAILJS_VISITOR_TEMPLATE_ID = 'INCOLLA_QUI_IL_TEMPLATE_ID_VISITATORE';
+var EMAILJS_VISITOR_TEMPLATE_ID = 'template_ldm6lmm';
 var EMAILJS_SERVICE_ID = 'service_pgej8ka';
 var EMAILJS_PUBLIC_KEY = 'wuB-uArgD97brV8OX';
 var EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY;

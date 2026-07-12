@@ -31,7 +31,7 @@ window.EMAILJS_CONFIG = {
   // Il campo "To Email" di QUESTO template deve essere {{email}}, non il
   // tuo indirizzo fisso. Se lo lasci vuoto, il sito funziona comunque: il
   // visitatore semplicemente non riceve conferma/promemoria via email.
-  visitorTemplateId: "INCOLLA_QUI_IL_TEMPLATE_ID_VISITATORE"
+  visitorTemplateId: "template_ldm6lmm"
 };
 
 // Lascia questo a false. Serve solo a me per fare i test in locale prima
