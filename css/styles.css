@@ -393,7 +393,7 @@ button { font-family: inherit; }
 .detail-status-note--occupied { background: var(--panel-bg); color: var(--text-muted); }
 .detail-status-note--available { background: var(--yellow-bg-soft); color: var(--yellow-text-dark); }
 
-.btn-block { display: block; width: 100%; text-align: center; }
+.btn-block { display: block; width: 100%; text-align: center; padding: 16px 28px; font-size: 15px; }
 .btn-block-inline { display: inline-block; text-align: center; }
 
 /* ==========================================================================
