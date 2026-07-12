@@ -647,8 +647,9 @@ button { font-family: inherit; }
   background: var(--yellow-bg-soft); border-radius: var(--radius-pill); padding: 4px 11px;
 }
 .room-card-status { font-size: 12.5px; font-weight: 700; line-height: 1.5; margin-bottom: 16px; }
-.room-card-status--occupied { color: var(--text-faintest); }
-.room-card-status--occupied i { font-style: italic; opacity: 0.85; }
+.room-card-status--occupied { display: flex; flex-direction: column; gap: 3px; }
+.room-card-status-title { color: #B3261E; font-weight: 800; }
+.room-card-status-sub { color: var(--text-faintest); font-weight: 500; }
 /* Badge invece di testo giallo puro: stesso trattamento (sfondo tenue +
    testo scuro leggibile) già usato nella pagina di dettaglio, più coerente
    con lo stile del sito e comunque ben visibile. */
@@ -676,6 +677,9 @@ button { font-family: inherit; }
   display: flex; align-items: center; gap: 10px; background: var(--yellow-bg-soft); color: var(--yellow-text-darker);
   border-radius: 12px; padding: 12px 16px; font-size: 13px; font-weight: 600; margin-bottom: 18px;
 }
+/* Stesso messaggio ma senza il riquadro giallo: solo testo colorato, per un
+   avviso che resta visibile senza pesare su un'intera frase. */
+.urgency-inline--plain { background: none; color: var(--yellow-text-dark); padding: 0 0 18px; }
 .urgency-banner {
   margin-top: 28px; background: var(--yellow-bg); border-radius: 20px; padding: 22px 26px;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between;

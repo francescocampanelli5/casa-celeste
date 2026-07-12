@@ -341,6 +341,11 @@
     var occupantText = occupantName
       ? (t('room.occupante_label') + ' ' + typeEmoji2 + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix') + (gLabel2 ? ' · ' + gLabel2 : ''))
       : (typeEmoji2 + ' ' + t('room.coinquilino_attuale'));
+    // Versione senza emoji/note, usata solo nella card chiusa (vedi
+    // roomCardHtml): il dettaglio aperto continua a mostrare occupantText.
+    var cardOccupantText = occupantName
+      ? (t('room.occupante_label') + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix') + (gLabel2 ? ' · ' + gLabel2 : ''))
+      : t('room.coinquilino_attuale');
     var link2 = waLink(tpl(t('room.wa_info_room'), { room: room.name }));
     var blockLink2 = waLink(tpl(t('room.wa_blocca'), { room: room.name, date: availableFromText }));
 
@@ -352,7 +357,7 @@
       id: id, name: room.name, priceText: '€' + room.price + t('room.per_month'),
       tagText: tag2.text, tagBg: tag2.bg, tagColor: tag2.color,
       isOccupata: isOccupata, isDisponibile: isDisponibile, isLibera: isLibera,
-      occupantText: occupantText, availableFromText: availableFromText,
+      occupantText: occupantText, cardOccupantText: cardOccupantText, availableFromText: availableFromText,
       ctaLabel: ctaLabel, ctaBg: ctaBg, ctaColor: ctaColor,
       waLink: link2, isDoppiaPublished: false, roomLabel: room.name, photos: room.photos, balcony: room.balcony,
       ctaIsWa: isDisponibile, ctaHref: isDisponibile ? blockLink2 : null
@@ -612,13 +617,16 @@
   function roomCardHtml(view) {
     var disabled = view.isOccupata;
     var statusHtml = '';
+    // Nella card CHIUSA lo stato è volutamente essenziale (niente emoji né
+    // frasi persuasive: quelle restano solo nel dettaglio aperto, vedi
+    // roomDetailHtml/bedBlockHtml più sotto, invariati).
     if (view.isOccupata) {
-      var occupataNote = view.occupantText ? '<br><i>' + escapeHtml(t('room.occupata_note')) + '</i>' : '';
-      statusHtml = '<div class="room-card-status room-card-status--occupied">' + view.occupantText + occupataNote + '</div>';
+      var cardOccupantLine = view.cardOccupantText ? '<span class="room-card-status-sub">' + view.cardOccupantText + '</span>' : '';
+      statusHtml = '<div class="room-card-status room-card-status--occupied"><span class="room-card-status-title">' + escapeHtml(t('room.card_occupied_label')) + '</span>' + cardOccupantLine + '</div>';
     } else if (view.isDisponibile) {
-      statusHtml = '<div class="room-card-status room-card-status--available-from">' + escapeHtml(t('room.available_from')) + ' ' + view.availableFromText + '<br><i>' + escapeHtml(t('room.available_soon_note')) + '</i></div>';
+      statusHtml = '<div class="room-card-status room-card-status--available-from">' + escapeHtml(t('room.available_from')) + ' ' + view.availableFromText + '</div>';
     } else if (view.isLibera) {
-      statusHtml = '<div class="room-card-status room-card-status--free">' + escapeHtml(t('room.free_now')) + '<br><i>' + escapeHtml(t('room.free_now_note')) + '</i></div>';
+      statusHtml = '<div class="room-card-status room-card-status--free">' + escapeHtml(t('room.free_now')) + '</div>';
     }
     return (
       '<div class="card' + (disabled ? ' card--disabled' : '') + '" data-room-card data-room-id="' + view.id + '">' +
@@ -646,7 +654,7 @@
   // (o di un posto letto) è aperto e ancora prenotabile.
   function urgencyNoteHtml(isLibera, isDisponibile) {
     if (isLibera) return '<div class="urgency-inline">' + escapeHtml(t('room.urgency_free')) + '</div>';
-    if (isDisponibile) return '<div class="urgency-inline">' + escapeHtml(t('room.urgency_soon')) + '</div>';
+    if (isDisponibile) return '<div class="urgency-inline urgency-inline--plain">' + escapeHtml(t('room.urgency_soon')) + '</div>';
     return '';
   }
   // Blocco stato+prezzo+CTA di un singolo posto letto, nella pagina di
