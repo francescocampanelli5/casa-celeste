@@ -8,18 +8,24 @@ import {
   getAuth, connectAuthEmulator,
   signInWithEmailAndPassword, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getStorage, connectStorageEmulator, ref as storageRef,
+  uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 var cfg = window.FIREBASE_CONFIG || {};
 var configured = !!cfg.apiKey && cfg.apiKey.indexOf('INCOLLA_QUI') === -1;
 
-var app = null, db = null, auth = null;
+var app = null, db = null, auth = null, storage = null;
 if (configured) {
   app = initializeApp(cfg);
   db = getFirestore(app);
   auth = getAuth(app);
+  storage = getStorage(app);
   if (window.USE_FIREBASE_EMULATOR) {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
     connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+    connectStorageEmulator(storage, '127.0.0.1', 9199);
   }
 }
 
@@ -89,6 +95,64 @@ window.CasaCelesteDB = {
       });
       return Promise.all(writes);
     });
+  },
+
+  // ---- reviews (testimonianze) ----
+  subscribeReviews: function (callback) {
+    if (!configured) return function () {};
+    var ref = collection(requireDb(), 'reviews');
+    return onSnapshot(ref, function (snap) {
+      var reviews = {};
+      snap.forEach(function (d) { reviews[d.id] = d.data(); });
+      callback(reviews);
+    });
+  },
+  setReview: function (reviewId, data) {
+    return setDoc(doc(requireDb(), 'reviews', reviewId), data, { merge: true });
+  },
+  createReview: function (reviewId, data) {
+    return setDoc(doc(requireDb(), 'reviews', reviewId), data);
+  },
+  deleteReview: function (reviewId) {
+    return deleteDoc(doc(requireDb(), 'reviews', reviewId));
+  },
+  seedReviewsIfEmpty: function (defaults) {
+    var db_ = requireDb();
+    return getDocs(collection(db_, 'reviews')).then(function (snap) {
+      if (!snap.empty) return;
+      var writes = Object.keys(defaults).map(function (id) {
+        return setDoc(doc(db_, 'reviews', id), defaults[id]);
+      });
+      return Promise.all(writes);
+    });
+  },
+
+  // ---- impostazioni globali del sito (virtual tour, ecc.) ----
+  subscribeSettings: function (callback) {
+    if (!configured) return function () {};
+    return onSnapshot(doc(requireDb(), 'settings', 'site'), function (snap) {
+      callback(snap.exists() ? snap.data() : {});
+    });
+  },
+  setSettings: function (data) {
+    return setDoc(doc(requireDb(), 'settings', 'site'), data, { merge: true });
+  },
+
+  // ---- upload foto stanze (Firebase Storage — richiede piano Blaze) ----
+  uploadRoomPhoto: function (roomId, slotIndex, file) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    if (!storage) return Promise.reject(new Error('Firebase Storage non disponibile'));
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    var path = 'rooms/' + roomId + '/slot' + slotIndex + '.' + ext;
+    var fileRef = storageRef(storage, path);
+    return uploadBytes(fileRef, file).then(function () {
+      return getDownloadURL(fileRef);
+    });
+  },
+  deleteRoomPhotoFile: function (roomId, slotIndex, ext) {
+    if (!storage) return Promise.resolve();
+    var fileRef = storageRef(storage, 'rooms/' + roomId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
+    return deleteObject(fileRef).catch(function () {});
   },
 
   // ---- bookings ----

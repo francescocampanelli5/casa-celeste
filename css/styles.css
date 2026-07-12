@@ -55,6 +55,7 @@
   --radius-xxs: 12px;
 
   --container-max: 1220px;
+  --header-h: 76px;
 }
 
 /* ==========================================================================
@@ -62,12 +63,14 @@
    ========================================================================== */
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+section[id] { scroll-margin-top: var(--header-h); }
 body {
   margin: 0;
   background: var(--white);
   color: var(--navy);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 img { max-width: 100%; display: block; }
 ::selection { background: var(--yellow); color: var(--navy); }
@@ -80,7 +83,11 @@ a { color: var(--blue); text-decoration: none; }
 a:hover { color: var(--navy); }
 button { font-family: inherit; }
 
-.page { background: var(--white); color: var(--navy); overflow-x: hidden; position: relative; }
+/* NOTA: niente overflow-x/y su .page — un overflow su un asse solo su un
+   antenato di .header forza l'altro asse a "auto" (regola CSS), il che
+   rompe position:sticky sui figli. overflow-x sta invece su body sopra,
+   che non ha questo effetto collaterale sull'header. */
+.page { background: var(--white); color: var(--navy); position: relative; }
 
 .container { max-width: var(--container-max); margin: 0 auto; }
 .container--narrow { max-width: 820px; }
@@ -97,6 +104,7 @@ button { font-family: inherit; }
 }
 .eyebrow--blue { color: var(--blue-deep); }
 .eyebrow--yellow { color: var(--yellow-deep); }
+.text-yellow { color: var(--yellow-text-dark); }
 
 .h2 {
   font-family: var(--font-display); font-weight: 800;
@@ -234,6 +242,15 @@ button { font-family: inherit; }
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 30px 60px -28px rgba(18,58,92,0.25);
 }
+.hero-media-scroll {
+  display: flex; width: 100%; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.hero-media-scroll::-webkit-scrollbar { display: none; }
+.hero-media-slide {
+  flex: 0 0 100%; scroll-snap-align: start; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
 .photo-placeholder {
   font-family: ui-monospace, monospace; font-size: 11.5px; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--text-faintest); text-align: center; padding: 0 20px;
@@ -250,7 +267,7 @@ button { font-family: inherit; }
   padding: 22px 0;
 }
 .trust-item { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 700; color: var(--text-body-alt); }
-.trust-item span.check { color: var(--blue); }
+.trust-item span.check { color: var(--green); width: 16px; flex-shrink: 0; text-align: center; }
 
 /* ==========================================================================
    Benvenuto
@@ -286,7 +303,10 @@ button { font-family: inherit; }
   font-weight: 800; font-size: 11.5px; padding: 7px 14px; border-radius: var(--radius-pill);
 }
 .carousel-title { font-family: var(--font-display); font-weight: 800; font-size: 27px; margin: 0 0 14px; color: var(--navy); }
-.carousel-text { font-size: 15.5px; line-height: 1.75; color: var(--text-body); margin: 0 0 26px; }
+/* min-height fissa: sulle schermate dove media e testo si impilano (mobile),
+   evita che uno scatto con testo più corto faccia "saltare" la pagina
+   cambiando l'altezza totale del carousel da uno scatto all'altro. */
+.carousel-text { font-size: 15.5px; line-height: 1.75; color: var(--text-body); margin: 0 0 26px; min-height: 7em; }
 .carousel-dots { display: flex; gap: 9px; }
 .carousel-dot {
   height: 9px; border-radius: var(--radius-pill); border: none; cursor: pointer;
@@ -395,6 +415,7 @@ button { font-family: inherit; }
 
 .btn-block { display: block; width: 100%; text-align: center; padding: 16px 28px; font-size: 15px; }
 .btn-block-inline { display: inline-block; text-align: center; }
+.detail-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
 
 .beds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 18px; margin-top: 8px; }
 .bed-block { border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 20px; background: var(--off-white); }
@@ -492,6 +513,21 @@ button { font-family: inherit; }
   background: var(--off-white); border-radius: 12px; padding: 12px;
 }
 .admin-bed-label { font-weight: 800; font-size: 12px; color: var(--navy); grid-column: 1 / -1; }
+.admin-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px,1fr)); gap: 10px; }
+.admin-photo-slot { display: flex; flex-direction: column; gap: 6px; }
+.admin-photo-preview {
+  aspect-ratio: 4/3; border-radius: 10px; background: var(--panel-bg); border: 1px solid var(--border-soft);
+  overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
+}
+.admin-photo-preview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.admin-photo-empty { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 10px; color: var(--text-faintest); padding: 4px; }
+.admin-photo-upload-btn {
+  position: relative; overflow: hidden; text-align: center; font-size: 11px; font-weight: 700;
+  padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border-strong); color: var(--text-body); cursor: pointer;
+}
+.admin-photo-upload-btn:hover { border-color: var(--blue); color: var(--blue); }
+.admin-photo-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.admin-photo-remove { background: none; border: none; color: #B3261E; font-size: 10.5px; cursor: pointer; padding: 0; }
 .dash-add-room-btn {
   background: none; border: 1px dashed var(--border-strong); color: var(--text-body); border-radius: var(--radius-xxs);
   padding: 10px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer; margin-top: 14px;
@@ -511,11 +547,17 @@ button { font-family: inherit; }
 .room-card-status--free i { color: var(--text-faintest); font-style: italic; text-decoration: underline; }
 .room-card-cta {
   margin-top: 15px; width: 100%; text-align: center; font-weight: 700; font-size: 13px;
-  padding: 12px; border-radius: var(--radius-pill); border: none;
+  padding: 12px; border-radius: var(--radius-pill); border: none; cursor: pointer;
+  background: var(--blue-bg); color: var(--blue-deep); transition: background-color .15s ease, color .15s ease;
 }
+.room-card-cta:hover { background: var(--blue); color: var(--white); }
 .card--disabled { cursor: default; }
 .card--disabled:hover { transform: none; box-shadow: none; }
 
+.urgency-inline {
+  display: flex; align-items: center; gap: 10px; background: var(--yellow-bg-soft); color: var(--yellow-text-darker);
+  border-radius: 12px; padding: 12px 16px; font-size: 13px; font-weight: 600; margin-bottom: 18px;
+}
 .urgency-banner {
   margin-top: 28px; background: var(--yellow-bg); border-radius: 20px; padding: 22px 26px;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between;
@@ -729,9 +771,9 @@ button { font-family: inherit; }
   .rule-card { text-align: center; display: flex; flex-direction: column; align-items: center; }
   .rule-icon { margin: 0 0 14px; }
 
-  .trust-strip { grid-template-columns: 1fr; gap: 0; border: none; padding: 0; }
+  .trust-strip { grid-template-columns: 1fr; gap: 0; border: none; padding: 0; max-width: 320px; }
   .trust-item {
-    justify-content: center; text-align: center; padding: 16px 8px;
+    justify-content: flex-start; text-align: left; padding: 16px 8px;
     border-bottom: 1px solid rgba(16,35,59,0.08);
   }
   .trust-item:first-child { border-top: 1px solid rgba(16,35,59,0.08); }

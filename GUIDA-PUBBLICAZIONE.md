@@ -218,7 +218,7 @@ minuscole, trattini ed estensione `.jpg`):
 
 | Cosa | Nome file |
 |---|---|
-| Facciata casa (hero) | `images/facciata.jpg` |
+| Facciata casa (hero, scorribile) | `images/facciata-1.jpg` … `images/facciata-6.jpg` |
 | Carousel — centro storico | `images/centro-storico.jpg` |
 | Carousel — mare | `images/mare.jpg` |
 | Carousel — vita pugliese | `images/vita-pugliese.jpg` |
@@ -319,6 +319,45 @@ Scheda dashboard **"Spazi comuni"** — stessa logica dei punti sopra:
    "Terrazzo", "Studio"); **"Elimina"** per toglierlo dal sito.
 4. Anche qui, l'identificativo tecnico mostrato accanto al nome è quello da
    usare per le foto (`images/nome-1.jpg` … `-6.jpg`, sezione 3.3bis).
+
+### 3.9 Recensioni (testimonianze)
+
+Scheda dashboard **"Recensioni"**: stessa logica — "Inizializza le
+recensioni" la prima volta, poi modifica liberamente nome, ruolo (es.
+"Studentessa, Economia") e testo di ogni recensione, aggiungine di nuove con
+**"+ Aggiungi una recensione"** o eliminale con **"Elimina"**.
+
+### 3.10 Caricare le foto delle stanze direttamente dalla dashboard
+
+Oltre a caricarle su GitHub (sezione 3.3bis), ora puoi caricare le foto delle
+**stanze** (non degli spazi comuni) direttamente dalla scheda **Stanze**:
+ogni stanza mostra una griglia di 6 riquadri con un bottone **"Carica"** —
+scegli un file dal tuo computer e viene caricato automaticamente. Se in un
+riquadro c'è già una foto caricata da qui, ha la precedenza sul file
+eventualmente caricato su GitHub con lo stesso numero; il bottone
+**"Rimuovi foto caricata"** toglie quella specifica e torna a mostrare il
+file di GitHub (se esiste).
+
+**Attenzione:** questa funzione richiede che il progetto Firebase abbia il
+piano **Blaze** attivo (Firebase Storage non funziona sul piano gratuito
+Spark). Per attivarlo: Firebase Console → icona ⚙️ → **Utilizzo e
+fatturazione** → **Modifica piano** → **Blaze** → collega una carta di
+credito. Per un sito di queste dimensioni il costo resta a 0€/mese nella
+quasi totalità dei casi (la soglia gratuita di Firebase Storage è 5 GB di
+spazio e 1 GB/giorno di traffico), ma **non è un tetto rigido garantito**:
+se lo vuoi, imposta anche un avviso di budget (Google Cloud Console →
+Fatturazione → Budget e avvisi) per essere avvisato in caso di superamento.
+Se preferisci restare sicuro al 100% su 0€, continua semplicemente a
+caricare le foto via GitHub: le due modalità convivono senza conflitti.
+
+### 3.11 Virtual Tour (es. Matterport)
+
+Scheda dashboard **"Impostazioni"**: incolla il link del tuo virtual tour
+(es. un link Matterport) nel campo dedicato e spunta **"Mostra il bottone
+Virtual Tour sul sito pubblico"**. Il bottone compare nella sezione
+principale del sito solo se entrambe le condizioni sono vere (link presente
+e casella spuntata) — deselezionando la casella lo nascondi in qualsiasi
+momento senza perdere il link salvato.
 
 ---
 

@@ -85,11 +85,11 @@
         <div class="hero-ctas">
           <button type="button" class="btn btn-primary" data-open-booking data-room-label="Casa Celeste">Prenota un tour</button>
           <a href="#stanze" class="btn btn-outline">Vedi le stanze →</a>
+          <span id="virtual-tour-cta-slot"></span>
         </div>
       </div>
       <div class="hero-media">
-        <span class="photo-placeholder">Foto — facciata<br>Casa Celeste</span>
-        <img src="images/facciata.jpg" alt="Facciata di Casa Celeste" class="real-photo" loading="lazy" onerror="this.remove()">
+        <div class="hero-media-scroll" id="hero-media-scroll"></div>
       </div>
     </div>
   </section>
@@ -108,7 +108,7 @@
     <div class="container container--narrow welcome">
       <div class="eyebrow eyebrow--blue">Benvenuto/a</div>
       <h2 class="h2">Casa Celeste ti dà il benvenuto.</h2>
-      <p>Che tu stia per iniziare l'università o cambi solo casa, qui trovi un posto pensato per farti sentire subito parte del gruppo: stanze pronte, spazi condivisi curati e coinquilini con cui costruire, giorno dopo giorno, una vera community.</p>
+      <p>Che tu stia per iniziare l'università o cambi solo casa, qui trovi un posto pensato per farti sentire subito parte del gruppo: stanze pronte, spazi condivisi curati e coinquilini con cui costruire, giorno dopo giorno, <span class="text-yellow">una vera community</span>.</p>
     </div>
   </section>
 
@@ -137,7 +137,7 @@
       <div class="mood-intro">
         <div class="eyebrow eyebrow--blue">Il mood di casa</div>
         <h2 class="h2">L'equilibrio perfetto tra concentrazione e convivenza</h2>
-        <p>Casa Celeste offre spazi privati ideali per quando serve concentrarsi.<br>Ma appena chiudi i libri, gli spazi comuni diventano il posto dove nascono le amicizie.<br>Nessuna pressione a socializzare, nessuna colpa a chiudersi in stanza: ognuno vive la casa al proprio ritmo, in un ambiente unito e accogliente.</p>
+        <p>Casa Celeste offre spazi privati ideali per quando serve concentrarsi.<br>Ma appena chiudi i libri, gli spazi comuni diventano il posto dove nascono <span class="text-yellow">le amicizie</span>.<br>Nessuna pressione a socializzare, nessuna colpa a chiudersi in stanza: ognuno vive la casa al proprio ritmo, in un ambiente unito e accogliente.</p>
       </div>
 
       <div class="rules-grid">
@@ -215,38 +215,7 @@
         <div class="eyebrow eyebrow--blue">Chi ci ha vissuto</div>
         <h2 class="h2" style="margin:0 0 14px;">Le parole di chi ha vissuto a Casa Celeste</h2>
       </div>
-      <div class="testimonial-grid">
-        <div class="testimonial-card">
-          <p class="testimonial-quote">"Il perfetto equilibrio tra silenzio per studiare e serate in compagnia."</p>
-          <div class="testimonial-person">
-            <div class="testimonial-avatar testimonial-avatar--blue">S</div>
-            <div>
-              <div class="testimonial-name">Sara, 21 anni</div>
-              <div class="testimonial-role">Studentessa, Economia</div>
-            </div>
-          </div>
-        </div>
-        <div class="testimonial-card">
-          <p class="testimonial-quote">"Arrivavo da fuori regione e non conoscevo nessuno: qui ho trovato subito un gruppo con cui condividere tutto, dalla spesa alle serate studio."</p>
-          <div class="testimonial-person">
-            <div class="testimonial-avatar testimonial-avatar--yellow">L</div>
-            <div>
-              <div class="testimonial-name">Luca, 23 anni</div>
-              <div class="testimonial-role">Studente, Conservatorio</div>
-            </div>
-          </div>
-        </div>
-        <div class="testimonial-card">
-          <p class="testimonial-quote">"Posizione perfetta: trasporti e centro a due passi, e la casa è sempre pulita e ordinata grazie al calendario condiviso."</p>
-          <div class="testimonial-person">
-            <div class="testimonial-avatar testimonial-avatar--blue">G</div>
-            <div>
-              <div class="testimonial-name">Giorgia, 22 anni</div>
-              <div class="testimonial-role">Studentessa fuori sede</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div class="testimonial-grid" id="testimonial-grid"><!-- rendered by js/app.js --></div>
     </div>
   </section>
 
@@ -272,7 +241,7 @@
   <section class="section">
     <div class="final-cta">
       <h2>Pronto a trovare casa a Monopoli?</h2>
-      <p>Scrivici due righe: rispondiamo in giornata con tutte le informazioni su stanze libere, prezzi e disponibilità.<br>Nessun impegno, solo due chiacchiere.</p>
+      <p>Scrivici due righe: rispondiamo in giornata con tutte le informazioni su stanze libere, prezzi e disponibilità.<br>Nessun impegno, solo <span class="text-yellow">due chiacchiere</span>.</p>
       <div class="final-cta-ctas">
         <a href="https://wa.me/393381567389?text=Ciao!%20Vorrei%20avere%20informazioni%20su%20Casa%20Celeste." target="_blank" rel="noopener" class="btn btn-whatsapp">Scrivici su WhatsApp</a>
         <a href="mailto:lacasacelestemonopoli@gmail.com?subject=Informazioni%20Casa%20Celeste" class="btn btn-outline btn-outline--dark">Scrivici una email</a>

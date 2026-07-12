@@ -12,9 +12,13 @@
     bookings: [],
     roomsData: JSON.parse(JSON.stringify(SEED_ROOMS)),
     commonsData: JSON.parse(JSON.stringify(window.CASA_CELESTE_DATA.SEED_COMMONS)),
+    reviewsData: JSON.parse(JSON.stringify(window.CASA_CELESTE_DATA.SEED_REVIEWS)),
+    settings: {},
     unsubBookings: null,
     unsubRooms: null,
-    unsubCommons: null
+    unsubCommons: null,
+    unsubReviews: null,
+    unsubSettings: null
   };
 
   function slugify(str) {
@@ -30,6 +34,11 @@
     var id = base, n = 2;
     while (state.commonsData[id]) { id = base + '-' + n; n += 1; }
     return id;
+  }
+  function uniqueReviewId() {
+    var n = 1;
+    while (state.reviewsData['r' + n]) n += 1;
+    return 'r' + n;
   }
 
   function escapeHtml(str) {
@@ -106,6 +115,8 @@
           '<button type="button" class="dash-tab' + (state.activeTab === 'bookings' ? ' is-active' : '') + '" data-tab="bookings">Prenotazioni</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'rooms' ? ' is-active' : '') + '" data-tab="rooms">Stanze</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'commons' ? ' is-active' : '') + '" data-tab="commons">Spazi comuni</button>' +
+          '<button type="button" class="dash-tab' + (state.activeTab === 'reviews' ? ' is-active' : '') + '" data-tab="reviews">Recensioni</button>' +
+          '<button type="button" class="dash-tab' + (state.activeTab === 'settings' ? ' is-active' : '') + '" data-tab="settings">Impostazioni</button>' +
         '</div>' +
         '<div id="dash-content"></div>' +
       '</div>';
@@ -128,6 +139,8 @@
     if (!content) return;
     if (state.activeTab === 'bookings') renderBookingsTab(content);
     else if (state.activeTab === 'commons') renderCommonsTab(content);
+    else if (state.activeTab === 'reviews') renderReviewsTab(content);
+    else if (state.activeTab === 'settings') renderSettingsTab(content);
     else renderRoomsTab(content);
   }
 
@@ -260,6 +273,59 @@
       });
     });
   }
+  // Upload diretto delle foto stanza via Firebase Storage (richiede il
+  // piano Blaze attivo sul progetto). In alternativa resta valido caricare
+  // le foto su GitHub con nome fisso images/roomId-N.jpg (sezione 3.3bis
+  // della guida) — le due modalità convivono: se una foto è stata caricata
+  // da qui ha la precedenza sul file locale con lo stesso numero.
+  function roomPhotoSlotsHtml(roomId, room) {
+    var slots = '';
+    for (var i = 1; i <= 6; i++) {
+      var uploaded = room.photos && room.photos[i - 1];
+      var src = uploaded || ('images/' + roomId + '-' + i + '.jpg');
+      slots +=
+        '<div class="admin-photo-slot">' +
+          '<div class="admin-photo-preview">' +
+            '<img src="' + src + '" alt="Foto ' + i + '" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
+            '<div class="admin-photo-empty">Nessuna foto</div>' +
+          '</div>' +
+          '<label class="admin-photo-upload-btn">' + (uploaded ? 'Sostituisci' : 'Carica') +
+            '<input type="file" accept="image/*" class="admin-photo-input" data-photo-upload data-room-id="' + roomId + '" data-slot-index="' + i + '">' +
+          '</label>' +
+          (uploaded ? '<button type="button" class="admin-photo-remove" data-photo-remove data-room-id="' + roomId + '" data-slot-index="' + i + '">Rimuovi foto caricata</button>' : '') +
+        '</div>';
+    }
+    return '<div class="admin-field-group admin-field-group--full"><label>Foto (fino a 6 — carica qui direttamente, oppure via GitHub come spiegato in guida)</label><div class="admin-photo-grid">' + slots + '</div></div>';
+  }
+  function bindPhotoUploadEvents(content) {
+    content.querySelectorAll('[data-photo-upload]').forEach(function (input) {
+      input.addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        var roomId = input.getAttribute('data-room-id');
+        var idx = Number(input.getAttribute('data-slot-index'));
+        input.disabled = true;
+        window.CasaCelesteDB.uploadRoomPhoto(roomId, idx, file).then(function (url) {
+          var photos = (state.roomsData[roomId].photos || []).slice();
+          photos[idx - 1] = url;
+          return window.CasaCelesteDB.setRoom(roomId, { photos: photos });
+        }).catch(function (err) {
+          window.alert('Errore nel caricamento della foto: ' + (err && err.message ? err.message : err) + '\n\nSe non hai ancora attivato il piano Blaze di Firebase (necessario per Firebase Storage), attivalo dalla console Firebase e riprova.');
+          input.disabled = false;
+        });
+      });
+    });
+    content.querySelectorAll('[data-photo-remove]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var roomId = btn.getAttribute('data-room-id');
+        var idx = Number(btn.getAttribute('data-slot-index'));
+        if (!window.confirm('Rimuovere questa foto caricata? Se esiste anche un file su GitHub con lo stesso nome, tornerà a essere quello mostrato.')) return;
+        var photos = (state.roomsData[roomId].photos || []).slice();
+        photos[idx - 1] = '';
+        window.CasaCelesteDB.setRoom(roomId, { photos: photos });
+      });
+    });
+  }
   function roomAdminCardHtml(roomId, room) {
     var roomType = room.roomType === 'doppia' ? 'doppia' : 'singola';
     var publishAs = room.publishAs === 'singola' ? 'singola' : 'doppia';
@@ -282,6 +348,7 @@
           '<button type="button" class="dash-delete-btn" data-delete-room data-room-id="' + roomId + '">Elimina stanza</button>' +
         '</div>' +
         '<div class="admin-field-group admin-field-group--full"><label>Descrizione</label><textarea class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="description" rows="2">' + escapeHtml(room.description || '') + '</textarea></div>' +
+        roomPhotoSlotsHtml(roomId, room) +
         statsEditorHtml('room', roomId, room.stats) +
         '<div class="admin-room-type-row">' +
           '<div class="admin-field-group"><label>Tipo stanza</label>' +
@@ -392,6 +459,7 @@
     });
 
     bindStatsEditorEvents(content);
+    bindPhotoUploadEvents(content);
   }
 
   /* ==========================================================================
@@ -471,12 +539,95 @@
   }
 
   /* ==========================================================================
+     Reviews (testimonianze) tab
+     ========================================================================== */
+  function reviewAdminCardHtml(reviewId, review) {
+    return (
+      '<div class="admin-room-card" data-review-id="' + reviewId + '">' +
+        '<div class="admin-room-head">' +
+          '<input type="text" class="admin-field admin-room-name" placeholder="Nome (es. Sara, 21 anni)" data-review-field data-review-id="' + reviewId + '" data-field="name" value="' + escapeHtml(review.name || '') + '">' +
+          '<button type="button" class="dash-delete-btn" data-delete-review data-review-id="' + reviewId + '">Elimina</button>' +
+        '</div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Ruolo (facoltativo, es. Studentessa, Economia)</label><input type="text" class="admin-field" data-review-field data-review-id="' + reviewId + '" data-field="role" value="' + escapeHtml(review.role || '') + '"></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Recensione</label><textarea class="admin-field" data-review-field data-review-id="' + reviewId + '" data-field="quote" rows="3">' + escapeHtml(review.quote || '') + '</textarea></div>' +
+      '</div>'
+    );
+  }
+  function renderReviewsTab(content) {
+    var ids = Object.keys(state.reviewsData).sort(function (a, b) {
+      var oa = state.reviewsData[a].order != null ? state.reviewsData[a].order : 999999;
+      var ob = state.reviewsData[b].order != null ? state.reviewsData[b].order : 999999;
+      return oa - ob;
+    });
+    var cards = ids.map(function (id) { return reviewAdminCardHtml(id, state.reviewsData[id]); }).join('');
+
+    content.innerHTML =
+      '<button type="button" class="dash-seed-btn" id="seed-reviews-btn">Inizializza le recensioni con i valori di esempio (solo se il database è vuoto)</button>' +
+      '<div class="dash-room-rows">' + cards + '</div>' +
+      '<button type="button" class="dash-add-room-btn" id="add-review-btn">+ Aggiungi una recensione</button>' +
+      '<div class="admin-note">Le modifiche si salvano automaticamente sul database e si aggiornano subito sul sito pubblico.</div>';
+
+    content.querySelectorAll('[data-review-field]').forEach(function (el) {
+      var reviewId = el.getAttribute('data-review-id');
+      var field = el.getAttribute('data-field');
+      el.addEventListener('change', function (e) {
+        var patch = {};
+        patch[field] = e.target.value;
+        window.CasaCelesteDB.setReview(reviewId, patch);
+      });
+    });
+
+    content.querySelectorAll('[data-delete-review]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var reviewId = el.getAttribute('data-review-id');
+        if (window.confirm('Eliminare definitivamente questa recensione?')) {
+          window.CasaCelesteDB.deleteReview(reviewId);
+        }
+      });
+    });
+
+    document.getElementById('seed-reviews-btn').addEventListener('click', function () {
+      window.CasaCelesteDB.seedReviewsIfEmpty(window.CASA_CELESTE_DATA.SEED_REVIEWS).then(function () {
+        window.alert('Fatto: se il database era vuoto, ora contiene le recensioni di esempio.');
+      });
+    });
+
+    document.getElementById('add-review-btn').addEventListener('click', function () {
+      var id = uniqueReviewId();
+      var maxOrder = Object.keys(state.reviewsData).reduce(function (m, k) { return Math.max(m, state.reviewsData[k].order || 0); }, 0);
+      window.CasaCelesteDB.createReview(id, { order: maxOrder + 1, name: '', role: '', quote: '' });
+    });
+  }
+
+  /* ==========================================================================
+     Impostazioni tab (Virtual Tour, ecc.)
+     ========================================================================== */
+  function renderSettingsTab(content) {
+    var s = state.settings || {};
+    content.innerHTML =
+      '<div class="admin-room-card">' +
+        '<div class="admin-field-group"><label><input type="checkbox" id="virtual-tour-enabled"' + (s.virtualTourEnabled ? ' checked' : '') + '> Mostra il bottone "Virtual Tour" sul sito pubblico</label></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Link del virtual tour (es. Matterport)</label><input type="text" class="admin-field" id="virtual-tour-url" placeholder="https://my.matterport.com/show/?m=..." value="' + escapeHtml(s.virtualTourUrl || '') + '"></div>' +
+      '</div>' +
+      '<div class="admin-note">Se disattivato, o se il link è vuoto, il bottone non compare sul sito — anche se hai già scritto un link, ricordati di attivare la casella qui sopra.</div>';
+
+    document.getElementById('virtual-tour-enabled').addEventListener('change', function (e) {
+      window.CasaCelesteDB.setSettings({ virtualTourEnabled: e.target.checked });
+    });
+    document.getElementById('virtual-tour-url').addEventListener('change', function (e) {
+      window.CasaCelesteDB.setSettings({ virtualTourUrl: e.target.value.trim() });
+    });
+  }
+
+  /* ==========================================================================
      Init
      ========================================================================== */
   function subscribeToData() {
     if (state.unsubBookings) state.unsubBookings();
     if (state.unsubRooms) state.unsubRooms();
     if (state.unsubCommons) state.unsubCommons();
+    if (state.unsubReviews) state.unsubReviews();
+    if (state.unsubSettings) state.unsubSettings();
     state.unsubBookings = window.CasaCelesteDB.subscribeBookings(function (items) {
       state.bookings = items;
       if (state.user) renderTabContent();
@@ -489,6 +640,14 @@
     });
     state.unsubCommons = window.CasaCelesteDB.subscribeCommons(function (commonsFromDb) {
       state.commonsData = commonsFromDb;
+      if (state.user) renderTabContent();
+    });
+    state.unsubReviews = window.CasaCelesteDB.subscribeReviews(function (reviewsFromDb) {
+      state.reviewsData = reviewsFromDb;
+      if (state.user) renderTabContent();
+    });
+    state.unsubSettings = window.CasaCelesteDB.subscribeSettings(function (settingsFromDb) {
+      state.settings = settingsFromDb || {};
       if (state.user) renderTabContent();
     });
   }

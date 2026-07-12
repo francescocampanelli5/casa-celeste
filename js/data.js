@@ -109,5 +109,11 @@ window.CASA_CELESTE_DATA = {
       features: ['Lavatrice', 'Utensili per pulizie'],
       stats: [{ label: 'Metratura', value: '5 m²' }, { label: 'Lavatrici', value: '1' }, { label: 'Accesso', value: 'H24' }]
     }
+  },
+
+  SEED_REVIEWS: {
+    r1: { order: 1, name: 'Sara, 21 anni', role: 'Studentessa, Economia', quote: 'Il perfetto equilibrio tra silenzio per studiare e serate in compagnia.' },
+    r2: { order: 2, name: 'Luca, 23 anni', role: 'Studente, Conservatorio', quote: 'Arrivavo da fuori regione e non conoscevo nessuno: qui ho trovato subito un gruppo con cui condividere tutto, dalla spesa alle serate studio.' },
+    r3: { order: 3, name: 'Giorgia, 22 anni', role: 'Studentessa fuori sede', quote: 'Posizione perfetta: trasporti e centro a due passi, e la casa è sempre pulita e ordinata grazie al calendario condiviso.' }
   }
 };
