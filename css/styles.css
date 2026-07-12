@@ -164,6 +164,12 @@ button { font-family: inherit; }
 .nav-links::-webkit-scrollbar { display: none; }
 .nav-link { color: var(--text-body-alt); text-decoration: none; }
 .nav-link:hover { color: var(--blue); }
+.lang-switch {
+  background: none; border: 1.5px solid var(--border-medium); border-radius: var(--radius-pill);
+  padding: 8px 14px; font-size: 12.5px; font-weight: 800; color: var(--navy); cursor: pointer; white-space: nowrap;
+}
+.lang-switch:hover { border-color: var(--blue); color: var(--blue); }
+.lang-switch--drawer { width: 100%; margin-bottom: 12px; }
 
 /* Hamburger (mobile only) */
 .hamburger-btn {
@@ -275,6 +281,7 @@ button { font-family: inherit; }
 .welcome { text-align: center; }
 .welcome h2 { font-size: clamp(26px,3.2vw,36px); margin: 0 0 18px; }
 .welcome p { font-size: 16px; line-height: 1.75; color: var(--text-body); margin: 0; }
+.erasmus-block { margin-top: 40px; padding-top: 40px; border-top: 1px solid var(--border-hairline); }
 
 /* ==========================================================================
    Monopoli carousel

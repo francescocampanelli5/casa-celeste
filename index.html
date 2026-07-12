@@ -7,6 +7,9 @@
 <meta name="description" content="Casa Celeste: alloggio moderno per studenti nel cuore di Monopoli. Stanze singole in affitto a pochi passi da centro storico, mare e Conservatorio. Prenota un tour su WhatsApp.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://www.casacelestemonopoli.it/">
+<link rel="alternate" hreflang="it" href="https://www.casacelestemonopoli.it/">
+<link rel="alternate" hreflang="en" href="https://www.casacelestemonopoli.it/?lang=en">
+<link rel="alternate" hreflang="x-default" href="https://www.casacelestemonopoli.it/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Casa Celeste | Alloggi per Studenti a Monopoli">
 <meta property="og:description" content="Stanze moderne in affitto per studenti a Monopoli: silenzio per lo studio, socialità condivisa, a due passi da centro e mare.">
@@ -14,7 +17,17 @@
 <meta name="theme-color" content="#10233B">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232C8FC9'/%3E%3Crect x='14' y='4' width='14' height='14' rx='4' fill='%23FFD24C'/%3E%3C/svg%3E">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"ApartmentComplex","name":"Casa Celeste","description":"Alloggio condiviso per studenti universitari a Monopoli, con stanze singole in affitto.","address":{"@type":"PostalAddress","streetAddress":"Via Giuseppe del Drago 9","addressLocality":"Monopoli","addressRegion":"BA","addressCountry":"IT"},"telephone":"+393381567389"}
+{"@context":"https://schema.org","@type":"ApartmentComplex","name":"Casa Celeste","description":"Alloggio condiviso per studenti universitari e internazionali a Monopoli, con stanze singole e doppie in affitto a pochi passi dal centro storico, dal mare e dal Conservatorio.","url":"https://www.casacelestemonopoli.it/","image":"https://www.casacelestemonopoli.it/images/facciata-1.jpg","address":{"@type":"PostalAddress","streetAddress":"Via Giuseppe del Drago 9","addressLocality":"Monopoli","addressRegion":"BA","postalCode":"70043","addressCountry":"IT"},"telephone":"+393381567389","petsAllowed":false,"smokingAllowed":false}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Quanto è la cauzione e quando viene restituita?","acceptedAnswer":{"@type":"Answer","text":"Richiediamo una cauzione pari a una mensilità. Viene restituita integralmente entro 30 giorni dalla fine del contratto, a condizione che la stanza sia in buone condizioni."}},
+{"@type":"Question","name":"Come funziona la pulizia degli spazi comuni?","acceptedAnswer":{"@type":"Answer","text":"Le aree comuni (cucina, bagno, corridoio, zona lavanderia) vengono gestite con un calendario a rotazione condiviso tra i coinquilini, solitamente settimanale."}},
+{"@type":"Question","name":"C'è parcheggio disponibile?","acceptedAnswer":{"@type":"Answer","text":"Sì: c'è uno spazio parcheggio gratuito direttamente sotto casa, dove è disponibile anche un servizio di noleggio biciclette."}},
+{"@type":"Question","name":"Cosa è incluso nel prezzo mensile?","acceptedAnswer":{"@type":"Answer","text":"Formula tutto incluso: utenze, wifi e riscaldamento sono compresi nel canone."}},
+{"@type":"Question","name":"Posso ospitare qualcuno a dormire?","acceptedAnswer":{"@type":"Answer","text":"Per rispetto della privacy e della quiete di tutti i coinquilini, non è prevista la possibilità di ospitare esterni a dormire durante la notte."}},
+{"@type":"Question","name":"Posso vedere la casa prima di decidere?","acceptedAnswer":{"@type":"Answer","text":"Certo — prenota un tour dal sito o scrivici su WhatsApp: ti mostriamo la casa, stanza per stanza, prima di qualsiasi prenotazione."}}
+]}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,13 +46,16 @@
     </a>
     <nav class="nav">
       <div class="nav-links">
-        <a href="#monopoli" class="nav-link">Monopoli</a>
-        <a href="#stanze" class="nav-link">Stanze</a>
-        <a href="#posizione" class="nav-link">Posizione</a>
-        <a href="#testimonianze" class="nav-link">Testimonianze</a>
-        <a href="#faq" class="nav-link">FAQ</a>
+        <a href="#monopoli" class="nav-link" data-i18n="nav.monopoli">Monopoli</a>
+        <a href="#stanze" class="nav-link" data-i18n="nav.stanze">Stanze</a>
+        <a href="#posizione" class="nav-link" data-i18n="nav.posizione">Posizione</a>
+        <a href="#testimonianze" class="nav-link" data-i18n="nav.testimonianze">Testimonianze</a>
+        <a href="#faq" class="nav-link" data-i18n="nav.faq">FAQ</a>
       </div>
-      <button type="button" class="btn btn-navy" data-open-booking data-room-label="Casa Celeste">Prenota un tour</button>
+      <button type="button" class="lang-switch" data-lang-toggle aria-label="Change language / Cambia lingua">
+        <span data-lang-flag>🇬🇧 EN</span>
+      </button>
+      <button type="button" class="btn btn-navy" data-open-booking data-room-label="Casa Celeste" data-i18n="common.prenota_tour">Prenota un tour</button>
     </nav>
     <button type="button" class="hamburger-btn" id="hamburger-btn" aria-label="Apri menu" aria-expanded="false">
       <span></span><span></span><span></span>
@@ -58,13 +74,16 @@
       <button type="button" class="modal-close" id="mobile-drawer-close" aria-label="Chiudi menu">×</button>
     </div>
     <nav class="mobile-drawer-links">
-      <a href="#monopoli" class="mobile-drawer-link" data-close-drawer>Monopoli</a>
-      <a href="#stanze" class="mobile-drawer-link" data-close-drawer>Stanze</a>
-      <a href="#posizione" class="mobile-drawer-link" data-close-drawer>Posizione</a>
-      <a href="#testimonianze" class="mobile-drawer-link" data-close-drawer>Testimonianze</a>
-      <a href="#faq" class="mobile-drawer-link" data-close-drawer>FAQ</a>
+      <a href="#monopoli" class="mobile-drawer-link" data-close-drawer data-i18n="nav.monopoli">Monopoli</a>
+      <a href="#stanze" class="mobile-drawer-link" data-close-drawer data-i18n="nav.stanze">Stanze</a>
+      <a href="#posizione" class="mobile-drawer-link" data-close-drawer data-i18n="nav.posizione">Posizione</a>
+      <a href="#testimonianze" class="mobile-drawer-link" data-close-drawer data-i18n="nav.testimonianze">Testimonianze</a>
+      <a href="#faq" class="mobile-drawer-link" data-close-drawer data-i18n="nav.faq">FAQ</a>
     </nav>
-    <button type="button" class="btn btn-primary" style="width:100%;" data-open-booking data-room-label="Casa Celeste" data-close-drawer>Prenota un tour</button>
+    <button type="button" class="lang-switch lang-switch--drawer" data-lang-toggle>
+      <span data-lang-flag>🇬🇧 EN</span>
+    </button>
+    <button type="button" class="btn btn-primary" style="width:100%;" data-open-booking data-room-label="Casa Celeste" data-close-drawer data-i18n="common.prenota_tour">Prenota un tour</button>
   </aside>
 
   <!-- HERO -->
@@ -73,18 +92,18 @@
     <div class="hero-blob-2" aria-hidden="true"></div>
     <div class="hero-grid">
       <div>
-        <div class="badge">🎓 Student Housing · Monopoli</div>
-        <h1 class="hero-title">
+        <div class="badge" data-i18n="hero.badge">🎓 Student Housing · Monopoli</div>
+        <h1 class="hero-title" data-i18n-html="hero.title_html">
           Studia sereno,<br>vivi in <span class="hero-title-highlight">compagnia<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.
         </h1>
-        <p class="hero-lead">
+        <p class="hero-lead" data-i18n-html="hero.lead_html">
           Un appartamento moderno nel cuore di Monopoli: spazi condivisi curati, silenzio e privacy per i tuoi studi, socialità appena avrai finito.<br>
           Tutto a pochi passi dal centro e dal <b>Conservatorio</b>.
         </p>
-        <div class="hero-address">📍 Via Giuseppe del Drago 9 &nbsp;–&nbsp; Monopoli (BA)</div>
+        <div class="hero-address" data-i18n-html="hero.address">📍 Via Giuseppe del Drago 9 &nbsp;–&nbsp; Monopoli (BA)</div>
         <div class="hero-ctas">
-          <button type="button" class="btn btn-primary" data-open-booking data-room-label="Casa Celeste">Prenota un tour</button>
-          <a href="#stanze" class="btn btn-outline">Vedi le stanze →</a>
+          <button type="button" class="btn btn-primary" data-open-booking data-room-label="Casa Celeste" data-i18n="common.prenota_tour">Prenota un tour</button>
+          <a href="#stanze" class="btn btn-outline" data-i18n="hero.cta_rooms">Vedi le stanze →</a>
           <span id="virtual-tour-cta-slot"></span>
         </div>
       </div>
@@ -97,18 +116,23 @@
   <!-- TRUST STRIP -->
   <section class="section section--tight">
     <div class="trust-strip">
-      <div class="trust-item"><span class="check">✓</span> Cauzione restituita in 30 giorni</div>
-      <div class="trust-item"><span class="check">✓</span> Tutto incluso: bollette e WiFi</div>
-      <div class="trust-item"><span class="check">✓</span> Risposta su WhatsApp in giornata</div>
+      <div class="trust-item"><span class="check">✓</span> <span data-i18n="trust.1">Cauzione restituita in 30 giorni</span></div>
+      <div class="trust-item"><span class="check">✓</span> <span data-i18n="trust.2">Tutto incluso: bollette e WiFi</span></div>
+      <div class="trust-item"><span class="check">✓</span> <span data-i18n="trust.3">Risposta su WhatsApp in giornata</span></div>
     </div>
   </section>
 
   <!-- BENVENUTO -->
   <section class="section">
     <div class="container container--narrow welcome">
-      <div class="eyebrow eyebrow--blue">Benvenuto/a</div>
-      <h2 class="h2">Casa Celeste ti dà il benvenuto.</h2>
-      <p>Che tu stia per iniziare l'università o cambi solo casa, qui trovi un posto pensato per farti sentire subito parte del gruppo: stanze pronte, spazi condivisi curati e coinquilini con cui costruire, giorno dopo giorno, <span class="text-yellow">una vera community</span>.</p>
+      <div class="eyebrow eyebrow--blue" data-i18n="welcome.eyebrow">Benvenuto/a</div>
+      <h2 class="h2" data-i18n="welcome.title">Casa Celeste ti dà il benvenuto.</h2>
+      <p data-i18n-html="welcome.text_html">Che tu stia per iniziare l'università o cambi solo casa, qui trovi un posto pensato per farti sentire subito parte del gruppo: stanze pronte, spazi condivisi curati e coinquilini con cui costruire, giorno dopo giorno, <span class="text-yellow">una vera community</span>.</p>
+    </div>
+    <div class="container container--narrow welcome erasmus-block" id="erasmus-block" style="display:none;">
+      <div class="eyebrow eyebrow--yellow" id="erasmus-eyebrow"></div>
+      <h2 class="h2" id="erasmus-title"></h2>
+      <p id="erasmus-text"></p>
     </div>
   </section>
 
@@ -117,8 +141,8 @@
     <div class="container">
       <div class="carousel-head">
         <div style="max-width:600px;">
-          <div class="eyebrow eyebrow--yellow">Dove vivrai</div>
-          <h2 class="h2">Monopoli, in tre scatti</h2>
+          <div class="eyebrow eyebrow--yellow" data-i18n="monopoli.eyebrow">Dove vivrai</div>
+          <h2 class="h2" data-i18n="monopoli.title">Monopoli, in tre scatti</h2>
         </div>
         <div class="carousel-arrows">
           <button type="button" class="arrow-btn" id="mono-prev" aria-label="Scatto precedente">←</button>
@@ -135,26 +159,26 @@
       <div class="mood-blob-1" aria-hidden="true"></div>
       <div class="mood-blob-2" aria-hidden="true"></div>
       <div class="mood-intro">
-        <div class="eyebrow eyebrow--blue">Il mood di casa</div>
-        <h2 class="h2">L'equilibrio perfetto tra concentrazione e convivenza</h2>
-        <p>Casa Celeste offre spazi privati ideali per quando serve concentrarsi.<br>Ma appena chiudi i libri, gli spazi comuni diventano il posto dove nascono <span class="text-yellow">le amicizie</span>.<br>Nessuna pressione a socializzare, nessuna colpa a chiudersi in stanza: ognuno vive la casa al proprio ritmo, in un ambiente unito e accogliente.</p>
+        <div class="eyebrow eyebrow--blue" data-i18n="mood.eyebrow">Il mood di casa</div>
+        <h2 class="h2" data-i18n="mood.title">L'equilibrio perfetto tra concentrazione e convivenza</h2>
+        <p data-i18n-html="mood.text_html">Casa Celeste offre spazi privati ideali per quando serve concentrarsi.<br>Ma appena chiudi i libri, gli spazi comuni diventano il posto dove nascono <span class="text-yellow">le amicizie</span>.<br>Nessuna pressione a socializzare, nessuna colpa a chiudersi in stanza: ognuno vive la casa al proprio ritmo, in un ambiente unito e accogliente.</p>
       </div>
 
       <div class="rules-grid">
         <div class="rule-card">
           <div class="rule-icon">🚫</div>
-          <div class="rule-title">No animali</div>
-          <div class="rule-desc">Per il rispetto di tutti i coinquilini.</div>
+          <div class="rule-title" data-i18n="rule1.title">No animali</div>
+          <div class="rule-desc" data-i18n="rule1.desc">Per il rispetto di tutti i coinquilini.</div>
         </div>
         <div class="rule-card">
           <div class="rule-icon">🚭</div>
-          <div class="rule-title">Non si fuma in casa</div>
-          <div class="rule-desc">Aria pulita per tutti, sempre.</div>
+          <div class="rule-title" data-i18n="rule2.title">Non si fuma in casa</div>
+          <div class="rule-desc" data-i18n="rule2.desc">Aria pulita per tutti, sempre.</div>
         </div>
         <div class="rule-card">
           <div class="rule-icon">🔇</div>
-          <div class="rule-title">No festini a tarda ora</div>
-          <div class="rule-desc">Rispetto per chi studia o lavora il giorno dopo.</div>
+          <div class="rule-title" data-i18n="rule3.title">No festini a tarda ora</div>
+          <div class="rule-desc" data-i18n="rule3.desc">Rispetto per chi studia o lavora il giorno dopo.</div>
         </div>
       </div>
 
@@ -162,11 +186,11 @@
         <div class="cleaning-copy">
           <div class="cleaning-icon">🧼</div>
           <div>
-            <div class="cleaning-title">Cura condivisa degli spazi</div>
-            <div class="cleaning-desc">Ogni coinquilino contribuisce a mantenere puliti gli spazi comuni.<br>Il gruppo può attivare il <strong>Servizio Pulizia Extra</strong> — pulizia professionale periodica.</div>
+            <div class="cleaning-title" data-i18n="cleaning.title">Cura condivisa degli spazi</div>
+            <div class="cleaning-desc" data-i18n-html="cleaning.desc_html">Ogni coinquilino contribuisce a mantenere puliti gli spazi comuni.<br>Il gruppo può attivare il <strong>Servizio Pulizia Extra</strong> — pulizia professionale periodica.</div>
           </div>
         </div>
-        <a href="https://wa.me/393381567389?text=Ciao!%20Vorremmo%20informazioni%20sul%20Servizio%20Pulizia%20Extra." target="_blank" rel="noopener" class="btn btn-navy">Info sul servizio</a>
+        <a href="https://wa.me/393381567389?text=Ciao!%20Vorremmo%20informazioni%20sul%20Servizio%20Pulizia%20Extra." target="_blank" rel="noopener" class="btn btn-navy" id="cleaning-cta" data-i18n="cleaning.cta">Info sul servizio</a>
       </div>
     </div>
   </section>
@@ -182,27 +206,27 @@
   <section id="posizione" class="section">
     <div class="container">
       <div class="section-intro">
-        <div class="eyebrow eyebrow--yellow">Posizione</div>
-        <h2 class="h2" style="margin:0 0 14px;">Via Giuseppe del Drago 9</h2>
-        <p class="address-line">Tutto quello che ti serve, a due passi da casa.<br><b><u><i>Quinto piano con ascensore.</i></u></b></p>
+        <div class="eyebrow eyebrow--yellow" data-i18n="posizione.eyebrow">Posizione</div>
+        <h2 class="h2" style="margin:0 0 14px;" data-i18n="posizione.title">Via Giuseppe del Drago 9</h2>
+        <p class="address-line" data-i18n-html="posizione.subtitle_html">Tutto quello che ti serve, a due passi da casa.<br><b><u><i>Quinto piano con ascensore.</i></u></b></p>
       </div>
       <div class="location-grid">
         <div class="map-frame">
           <iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia&output=embed" loading="lazy"></iframe>
         </div>
         <div class="distance-list">
-          <div class="distance-item"><span class="distance-label">🏛️ Centro città</span><span class="distance-value">8 min a piedi</span></div>
-          <div class="distance-item"><span class="distance-label">🛒 Supermercato</span><span class="distance-value">5 min a piedi</span></div>
-          <div class="distance-item"><span class="distance-label">🚂 Stazione</span><span class="distance-value">3 min a piedi</span></div>
-          <div class="distance-item"><span class="distance-label">🎵 Conservatorio Nino Rota</span><span class="distance-value">6 min a piedi</span></div>
+          <div class="distance-item"><span class="distance-label" data-i18n="dist.centro">🏛️ Centro città</span><span class="distance-value" data-i18n="dist.min1">8 min a piedi</span></div>
+          <div class="distance-item"><span class="distance-label" data-i18n="dist.super">🛒 Supermercato</span><span class="distance-value" data-i18n="dist.min2">5 min a piedi</span></div>
+          <div class="distance-item"><span class="distance-label" data-i18n="dist.stazione">🚂 Stazione</span><span class="distance-value" data-i18n="dist.min3">3 min a piedi</span></div>
+          <div class="distance-item"><span class="distance-label" data-i18n="dist.conservatorio">🎵 Conservatorio Nino Rota</span><span class="distance-value" data-i18n="dist.min4">6 min a piedi</span></div>
           <div class="parking-callout">
             <span class="parking-callout-icon">🅿️🚲</span>
             <div>
-              <div class="parking-callout-title">Parcheggio gratuito sotto casa</div>
-              <div class="parking-callout-desc">Con servizio di noleggio biciclette.</div>
+              <div class="parking-callout-title" data-i18n="parking.title">Parcheggio gratuito sotto casa</div>
+              <div class="parking-callout-desc" data-i18n="parking.desc">Con servizio di noleggio biciclette.</div>
             </div>
           </div>
-          <a href="https://www.google.com/maps/search/?api=1&query=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia" target="_blank" rel="noopener" class="btn btn-outline" style="padding:12px; font-size:13px;">Apri in Google Maps ↗</a>
+          <a href="https://www.google.com/maps/search/?api=1&query=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia" target="_blank" rel="noopener" class="btn btn-outline" style="padding:12px; font-size:13px;" data-i18n="maps.cta">Apri in Google Maps ↗</a>
         </div>
       </div>
     </div>
@@ -212,8 +236,8 @@
   <section id="testimonianze" class="section section--faded">
     <div class="container">
       <div class="section-intro">
-        <div class="eyebrow eyebrow--blue">Chi ci ha vissuto</div>
-        <h2 class="h2" style="margin:0 0 14px;">Le parole di chi ha vissuto a Casa Celeste</h2>
+        <div class="eyebrow eyebrow--blue" data-i18n="testimonianze.eyebrow">Chi ci ha vissuto</div>
+        <h2 class="h2" style="margin:0 0 14px;" data-i18n="testimonianze.title">Le parole di chi ha vissuto a Casa Celeste</h2>
       </div>
       <div class="testimonial-grid" id="testimonial-grid"><!-- rendered by js/app.js --></div>
     </div>
@@ -230,8 +254,8 @@
   <section id="faq" class="section">
     <div class="container container--faq">
       <div class="faq-intro">
-        <div class="eyebrow eyebrow--blue">Domande frequenti</div>
-        <h2 class="h2">Tutto quello che vuoi sapere</h2>
+        <div class="eyebrow eyebrow--blue" data-i18n="faq.eyebrow">Domande frequenti</div>
+        <h2 class="h2" data-i18n="faq.title">Tutto quello che vuoi sapere</h2>
       </div>
       <div class="faq-list" id="faq-list"></div>
     </div>
@@ -240,11 +264,11 @@
   <!-- FINAL CTA -->
   <section class="section">
     <div class="final-cta">
-      <h2>Pronto a trovare casa a Monopoli?</h2>
-      <p>Scrivici due righe: rispondiamo in giornata con tutte le informazioni su stanze libere, prezzi e disponibilità.<br>Nessun impegno, solo <span class="text-yellow">due chiacchiere</span>.</p>
+      <h2 data-i18n="finalcta.title">Pronto/a a trovare casa a Monopoli?</h2>
+      <p data-i18n-html="finalcta.text_html">Scrivici due righe: rispondiamo in giornata con tutte le informazioni su stanze libere, prezzi e disponibilità.<br>Nessun impegno, solo <span class="text-yellow">due chiacchiere</span> — Casa Celeste è una casa aperta a tutte e tutti, pensata per chiunque cerchi un ambiente sereno e rispettoso in cui sentirsi a casa.</p>
       <div class="final-cta-ctas">
-        <a href="https://wa.me/393381567389?text=Ciao!%20Vorrei%20avere%20informazioni%20su%20Casa%20Celeste." target="_blank" rel="noopener" class="btn btn-whatsapp">Scrivici su WhatsApp</a>
-        <a href="mailto:lacasacelestemonopoli@gmail.com?subject=Informazioni%20Casa%20Celeste" class="btn btn-outline btn-outline--dark">Scrivici una email</a>
+        <a href="https://wa.me/393381567389?text=Ciao!%20Vorrei%20avere%20informazioni%20su%20Casa%20Celeste." target="_blank" rel="noopener" class="btn btn-whatsapp" id="finalcta-wa" data-i18n="finalcta.wa_cta">Scrivici su WhatsApp</a>
+        <a href="mailto:lacasacelestemonopoli@gmail.com?subject=Informazioni%20Casa%20Celeste" class="btn btn-outline btn-outline--dark" data-i18n="finalcta.email_cta">Scrivici una email</a>
       </div>
     </div>
   </section>
@@ -258,20 +282,20 @@
           <span class="footer-logo-dot" style="background:#FFD24C; margin-left:-4px;"></span>
           <span style="margin-left:4px;">Casa Celeste</span>
         </div>
-        <p class="footer-tagline">Student housing a Monopoli.<br>Via Giuseppe del Drago 9.</p>
+        <p class="footer-tagline" data-i18n-html="footer.tagline_html">Student housing a Monopoli.<br>Via Giuseppe del Drago 9.</p>
       </div>
       <div>
-        <div class="footer-col-title">Esplora</div>
+        <div class="footer-col-title" data-i18n="footer.esplora">Esplora</div>
         <div class="footer-links">
-          <a href="#monopoli" class="footer-link">Monopoli</a>
-          <a href="#stanze" class="footer-link">Stanze</a>
-          <a href="#posizione" class="footer-link">Posizione</a>
-          <a href="#testimonianze" class="footer-link">Testimonianze</a>
-          <a href="#faq" class="footer-link">FAQ</a>
+          <a href="#monopoli" class="footer-link" data-i18n="nav.monopoli">Monopoli</a>
+          <a href="#stanze" class="footer-link" data-i18n="nav.stanze">Stanze</a>
+          <a href="#posizione" class="footer-link" data-i18n="nav.posizione">Posizione</a>
+          <a href="#testimonianze" class="footer-link" data-i18n="nav.testimonianze">Testimonianze</a>
+          <a href="#faq" class="footer-link" data-i18n="nav.faq">FAQ</a>
         </div>
       </div>
       <div>
-        <div class="footer-col-title">Contatti</div>
+        <div class="footer-col-title" data-i18n="footer.contatti">Contatti</div>
         <div class="footer-links">
           <a href="https://wa.me/393381567389" target="_blank" rel="noopener" class="footer-link">WhatsApp — +39 338 156 7389</a>
           <a href="mailto:lacasacelestemonopoli@gmail.com" class="footer-link">lacasacelestemonopoli@gmail.com</a>
@@ -279,30 +303,30 @@
         </div>
       </div>
       <div>
-        <div class="footer-col-title">Prenota</div>
-        <p class="footer-book-copy">Fissa un tour della casa in pochi secondi.</p>
+        <div class="footer-col-title" data-i18n="footer.prenota">Prenota</div>
+        <p class="footer-book-copy" data-i18n="footer.book_copy">Fissa un tour della casa in pochi secondi.</p>
         <div class="footer-book-ctas">
-          <button type="button" class="btn btn-footer-primary" data-open-booking data-room-label="Casa Celeste">Prenota un tour</button>
-          <a href="https://wa.me/393381567389?text=Ciao!%20Vorrei%20avere%20informazioni%20su%20Casa%20Celeste." target="_blank" rel="noopener" class="btn btn-footer-outline">Scrivici</a>
+          <button type="button" class="btn btn-footer-primary" data-open-booking data-room-label="Casa Celeste" data-i18n="common.prenota_tour">Prenota un tour</button>
+          <a href="https://wa.me/393381567389?text=Ciao!%20Vorrei%20avere%20informazioni%20su%20Casa%20Celeste." target="_blank" rel="noopener" class="btn btn-footer-outline" id="footer-wa" data-i18n="common.scrivici">Scrivici</a>
         </div>
       </div>
     </div>
     <div class="footer-bottom">
       <div class="footer-legal-links">
-        <button type="button" class="footer-legal-btn" data-open-legal="privacy">Privacy Policy</button>
-        <button type="button" class="footer-legal-btn" data-open-legal="cookie">Cookie Policy</button>
-        <button type="button" class="footer-legal-btn" data-open-legal="termini">Termini e Condizioni</button>
-        <a href="dashboard.html" class="footer-legal-btn">Area riservata</a>
+        <button type="button" class="footer-legal-btn" data-open-legal="privacy" data-i18n="footer.privacy">Privacy Policy</button>
+        <button type="button" class="footer-legal-btn" data-open-legal="cookie" data-i18n="footer.cookie">Cookie Policy</button>
+        <button type="button" class="footer-legal-btn" data-open-legal="termini" data-i18n="footer.termini">Termini e Condizioni</button>
+        <a href="dashboard.html" class="footer-legal-btn" data-i18n="footer.area_riservata">Area riservata</a>
       </div>
       <div class="footer-fineprint">
-        <span>© 2026 Casa Celeste — Monopoli</span>
+        <span data-i18n="footer.copyright">© 2026 Casa Celeste — Monopoli</span>
         <span>Foto in attesa di materiale reale</span>
       </div>
     </div>
   </footer>
 
   <!-- WHATSAPP FLOATING BUTTON -->
-  <a href="https://wa.me/393381567389?text=Ciao!%20Vorrei%20avere%20informazioni%20su%20Casa%20Celeste." target="_blank" rel="noopener" class="wa-float" aria-label="Scrivici su WhatsApp">
+  <a href="https://wa.me/393381567389?text=Ciao!%20Vorrei%20avere%20informazioni%20su%20Casa%20Celeste." target="_blank" rel="noopener" class="wa-float" id="wa-float" aria-label="Scrivici su WhatsApp">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.04 3.67C14.25 3.67 16.32 4.53 17.89 6.09C19.45 7.66 20.31 9.73 20.3 11.92C20.3 16.46 16.58 20.17 12.03 20.17C10.56 20.17 9.12 19.78 7.85 19.05L7.55 18.87L4.42 19.7L5.26 16.65L5.06 16.32C4.26 15.01 3.84 13.5 3.84 11.91C3.85 7.37 7.5 3.67 12.04 3.67M8.53 6.83C8.37 6.83 8.1 6.89 7.88 7.13C7.65 7.37 7 7.98 7 9.21C7 10.44 7.89 11.62 8 11.79C8.14 11.96 9.76 14.5 12.29 15.61C14.38 16.53 14.81 16.37 15.26 16.33C15.71 16.29 16.72 15.72 16.94 15.14C17.14 14.55 17.14 14.05 17.08 13.94C17 13.83 16.85 13.77 16.61 13.66C16.38 13.54 15.24 12.97 15.03 12.9C14.81 12.82 14.65 12.78 14.5 13.01C14.34 13.24 13.89 13.77 13.75 13.94C13.61 14.1 13.47 14.12 13.24 14C13 13.88 12.26 13.64 11.38 12.86C10.69 12.25 10.23 11.49 10.09 11.26C9.96 11.03 10.08 10.9 10.19 10.79C10.3 10.68 10.44 10.5 10.56 10.37C10.68 10.24 10.72 10.14 10.8 9.98C10.88 9.82 10.84 9.68 10.78 9.56C10.72 9.45 10.28 8.27 10.08 7.79C9.9 7.35 9.72 7.35 9.55 7.34L8.53 6.83Z"></path></svg>
   </a>
 
@@ -317,6 +341,7 @@
 
 </div>
 <script src="js/data.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script type="module" src="js/firebase-init.js"></script>

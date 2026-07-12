@@ -407,6 +407,22 @@ del mattino in Italia) tramite GitHub Actions — gratuito, nessun server da
 mantenere. Puoi anche avviarlo manualmente per testarlo: nel repository su
 GitHub, scheda **Actions** → **Promemoria prenotazioni** → **Run workflow**.
 
+### 3.13 Sito in italiano e inglese
+
+Il sito ha un bottone di cambio lingua in alto nel menu (🇬🇧 EN / 🇮🇹 IT).
+Tutti i testi "fissi" del sito (menu, sezioni, FAQ, condizioni legali,
+modulo di prenotazione) sono già tradotti e cambiano automaticamente. In
+inglese compare anche un blocco di benvenuto dedicato agli studenti
+Erasmus/internazionali.
+
+**Cosa NON viene tradotto automaticamente** (perché lo scrivi tu nella
+dashboard): nome e descrizione delle stanze, degli spazi comuni e le
+recensioni. Restano nella lingua in cui li scrivi — una traduzione
+automatica di quei testi richiederebbe un servizio a pagamento, che non è
+stato attivato. Se vuoi che il tuo sito sia bilingue anche lì, scrivi tu
+stesso una versione breve in inglese nei campi descrizione (è un testo
+libero, puoi scriverci quello che preferisci).
+
 ---
 
 ## Parte 4 — Collegare EmailJS (opzionale, per ricevere una email ad ogni prenotazione)

@@ -9,53 +9,93 @@
   var SEED_REVIEWS = window.CASA_CELESTE_DATA.SEED_REVIEWS;
 
   var MONO_SLIDES = [
-    { eyebrow: 'Centro storico', tagBg: '#EAF6FC', caption: 'centro storico', img: 'images/centro-storico.jpg', title: 'Il centro storico', text: "Vicoli bianchi, piazzette e locali a due passi da casa: la vita universitaria, i bar e le uscite serali sono sempre dietro l'angolo." },
-    { eyebrow: 'Mare', tagBg: '#FFF6DD', caption: 'mare', img: 'images/mare.jpg', title: 'Il mare', text: 'Cale e scogliere a portata di bici: la pausa studio perfetta è un tuffo, non un viaggio.' },
-    { eyebrow: 'Vita pugliese', tagBg: '#EAF6FC', caption: 'vita pugliese', img: 'images/vita-pugliese.jpg', title: 'La vita pugliese', text: 'Mercati, cucina tipica e ritmi lenti: Monopoli ti accoglie con la sua ospitalità, senza mai sentirti fuori posto.' }
+    { eyebrow: { it: 'Centro storico', en: 'Historic centre' }, tagBg: '#EAF6FC', caption: { it: 'centro storico', en: 'historic centre' }, img: 'images/centro-storico.jpg',
+      title: { it: 'Il centro storico', en: 'The historic centre' },
+      text: { it: "Vicoli bianchi, piazzette e locali a due passi da casa: la vita universitaria, i bar e le uscite serali sono sempre dietro l'angolo.", en: "Whitewashed alleys, small squares and bars just steps from home: university life, cafés and evenings out are always around the corner." } },
+    { eyebrow: { it: 'Mare', en: 'The sea' }, tagBg: '#FFF6DD', caption: { it: 'mare', en: 'sea' }, img: 'images/mare.jpg',
+      title: { it: 'Il mare', en: 'The sea' },
+      text: { it: 'Cale e scogliere a portata di bici: la pausa studio perfetta è un tuffo, non un viaggio.', en: 'Coves and rocky shores just a bike ride away: the perfect study break is a swim, not a journey.' } },
+    { eyebrow: { it: 'Vita pugliese', en: 'Puglia life' }, tagBg: '#EAF6FC', caption: { it: 'vita pugliese', en: 'Puglia life' }, img: 'images/vita-pugliese.jpg',
+      title: { it: 'La vita pugliese', en: 'Local life in Puglia' },
+      text: { it: 'Mercati, cucina tipica e ritmi lenti: Monopoli ti accoglie con la sua ospitalità, senza mai sentirti fuori posto.', en: 'Markets, local food and a slower pace: Monopoli welcomes you with its hospitality, so you never feel out of place.' } }
   ];
 
   var FAQ_DEFS = [
-    { q: 'Quanto è la cauzione e quando viene restituita?', a: 'Richiediamo una cauzione pari a una mensilità. Viene restituita integralmente entro 30 giorni dalla fine del contratto, a condizione che la stanza sia in buone condizioni.' },
-    { q: 'Come funziona la pulizia degli spazi comuni?', a: 'Le aree comuni (cucina, bagno, corridoio, zona lavanderia) vengono gestite con un calendario a rotazione condiviso tra i coinquilini, solitamente settimanale.' },
-    { q: "C'è parcheggio disponibile?", a: "Sì: c'è uno spazio parcheggio gratuito direttamente sotto casa, dove è disponibile anche un servizio di noleggio biciclette per spostarsi in comodità." },
-    { q: 'Cosa è incluso nel prezzo mensile?', a: 'Formula tutto incluso: utenze, wifi e riscaldamento sono compresi nel canone.' },
-    { q: 'Posso ospitare qualcuno a dormire?', a: "Per rispetto della privacy e della quiete di tutti i coinquilini, non è prevista la possibilità di ospitare esterni a dormire durante la notte e fare troppo rumore dopo l'orario consentito." },
-    { q: 'Posso vedere la casa prima di decidere?', a: 'Certo — prenota un tour dal sito o scrivici su WhatsApp: ti mostriamo la casa, stanza per stanza, prima di qualsiasi prenotazione.' }
+    { q: { it: 'Quanto è la cauzione e quando viene restituita?', en: 'How much is the deposit, and when is it refunded?' },
+      a: { it: 'Richiediamo una cauzione pari a una mensilità. Viene restituita integralmente entro 30 giorni dalla fine del contratto, a condizione che la stanza sia in buone condizioni.', en: 'We ask for a deposit equal to one month’s rent. It’s refunded in full within 30 days of the end of the contract, provided the room is in good condition.' } },
+    { q: { it: 'Come funziona la pulizia degli spazi comuni?', en: 'How does cleaning of the shared spaces work?' },
+      a: { it: 'Le aree comuni (cucina, bagno, corridoio, zona lavanderia) vengono gestite con un calendario a rotazione condiviso tra i coinquilini, solitamente settimanale.', en: 'The shared areas (kitchen, bathroom, hallway, laundry area) are managed with a rotating schedule shared between housemates, usually weekly.' } },
+    { q: { it: "C'è parcheggio disponibile?", en: 'Is parking available?' },
+      a: { it: "Sì: c'è uno spazio parcheggio gratuito direttamente sotto casa, dove è disponibile anche un servizio di noleggio biciclette per spostarsi in comodità.", en: 'Yes: there’s free parking right under the building, along with a bike rental service so you can get around easily.' } },
+    { q: { it: 'Cosa è incluso nel prezzo mensile?', en: 'What’s included in the monthly price?' },
+      a: { it: 'Formula tutto incluso: utenze, wifi e riscaldamento sono compresi nel canone.', en: 'All-inclusive: utilities, WiFi and heating are all included in the rent.' } },
+    { q: { it: 'Posso ospitare qualcuno a dormire?', en: 'Can I have someone stay overnight?' },
+      a: { it: "Per rispetto della privacy e della quiete di tutti i coinquilini, non è prevista la possibilità di ospitare esterni a dormire durante la notte e fare troppo rumore dopo l'orario consentito.", en: 'Out of respect for the privacy and quiet of all housemates, overnight guests and noise after quiet hours aren’t allowed.' } },
+    { q: { it: 'Posso vedere la casa prima di decidere?', en: 'Can I see the house before deciding?' },
+      a: { it: 'Certo — prenota un tour dal sito o scrivici su WhatsApp: ti mostriamo la casa, stanza per stanza, prima di qualsiasi prenotazione.', en: 'Of course — book a tour from the site or message us on WhatsApp: we’ll show you the house, room by room, before any booking.' } }
   ];
 
   var LEGAL_DEFS = {
     privacy: {
-      title: 'Privacy Policy',
-      paragraphs: [
-        'Casa Celeste ("Titolare del trattamento") rispetta la privacy degli utenti che visitano questo sito e dei potenziali inquilini che ci contattano.',
-        'Dati raccolti: nome, email, numero di telefono e messaggi inviati tramite i moduli di contatto, WhatsApp o email, utilizzati esclusivamente per rispondere a richieste di informazioni e gestire prenotazioni di visite.',
-        'I dati non vengono ceduti a terzi per finalità commerciali e sono conservati per il tempo necessario a gestire la richiesta, salvo diversi obblighi di legge.',
-        'Per esercitare i tuoi diritti (accesso, rettifica, cancellazione) scrivici a lacasacelestemonopoli@gmail.com.',
-        'Nota: questo testo è un modello generico — si consiglia di farlo revisionare da un consulente legale/privacy prima della pubblicazione definitiva.'
-      ]
+      title: { it: 'Privacy Policy', en: 'Privacy Policy' },
+      paragraphs: {
+        it: [
+          'Casa Celeste ("Titolare del trattamento") rispetta la privacy degli utenti che visitano questo sito e dei potenziali inquilini che ci contattano.',
+          'Dati raccolti: nome, email, numero di telefono e messaggi inviati tramite i moduli di contatto, WhatsApp o email, utilizzati esclusivamente per rispondere a richieste di informazioni e gestire prenotazioni di visite.',
+          'I dati non vengono ceduti a terzi per finalità commerciali e sono conservati per il tempo necessario a gestire la richiesta, salvo diversi obblighi di legge.',
+          'Per esercitare i tuoi diritti (accesso, rettifica, cancellazione) scrivici a lacasacelestemonopoli@gmail.com.',
+          'Nota: questo testo è un modello generico — si consiglia di farlo revisionare da un consulente legale/privacy prima della pubblicazione definitiva.'
+        ],
+        en: [
+          'Casa Celeste ("Data Controller") respects the privacy of visitors to this site and of prospective tenants who contact us.',
+          'Data collected: name, email, phone number and messages sent through the contact forms, WhatsApp or email, used exclusively to reply to information requests and manage tour bookings.',
+          'Data is not shared with third parties for commercial purposes and is kept for as long as needed to handle the request, unless otherwise required by law.',
+          'To exercise your rights (access, correction, deletion) write to lacasacelestemonopoli@gmail.com.',
+          'Note: this text is a generic template — we recommend having it reviewed by a legal/privacy advisor before final publication.'
+        ]
+      }
     },
     cookie: {
-      title: 'Cookie Policy',
-      paragraphs: [
-        'Questo sito utilizza esclusivamente cookie tecnici necessari al funzionamento (es. salvataggio locale delle preferenze e dei dati inseriti nel pannello di gestione stanze).',
-        'Non vengono utilizzati cookie di profilazione o di tracciamento pubblicitario.',
-        'Alcuni contenuti esterni (Google Maps, Google Fonts) possono impostare propri cookie tecnici secondo le rispettive policy.',
-        'Continuando la navigazione acconsenti all’utilizzo dei cookie tecnici necessari al funzionamento del sito.'
-      ]
+      title: { it: 'Cookie Policy', en: 'Cookie Policy' },
+      paragraphs: {
+        it: [
+          'Questo sito utilizza esclusivamente cookie tecnici necessari al funzionamento (es. salvataggio locale delle preferenze e dei dati inseriti nel pannello di gestione stanze).',
+          'Non vengono utilizzati cookie di profilazione o di tracciamento pubblicitario.',
+          'Alcuni contenuti esterni (Google Maps, Google Fonts) possono impostare propri cookie tecnici secondo le rispettive policy.',
+          'Continuando la navigazione acconsenti all’utilizzo dei cookie tecnici necessari al funzionamento del sito.'
+        ],
+        en: [
+          'This site uses only technical cookies necessary for it to work (e.g. locally saving preferences and data entered in the room management panel).',
+          'No profiling or advertising tracking cookies are used.',
+          'Some external content (Google Maps, Google Fonts) may set its own technical cookies according to its own policy.',
+          'By continuing to browse you consent to the use of the technical cookies necessary for the site to function.'
+        ]
+      }
     },
     termini: {
-      title: 'Termini e Condizioni',
-      paragraphs: [
-        "L'utilizzo di questo sito implica l'accettazione delle presenti condizioni.",
-        'Le informazioni su stanze, prezzi e disponibilità presenti sul sito sono indicative e possono subire variazioni; verranno confermate in fase di contatto diretto.',
-        'La prenotazione di un tour o di una stanza non costituisce contratto vincolante fino alla firma dell’accordo di locazione e al versamento della cauzione concordata.',
-        'Regolamento della casa: divieto di animali, divieto di fumo negli spazi interni, rispetto degli orari di quiete e cura condivisa degli spazi comuni, come descritto nella sezione dedicata del sito.'
-      ]
+      title: { it: 'Termini e Condizioni', en: 'Terms & Conditions' },
+      paragraphs: {
+        it: [
+          "L'utilizzo di questo sito implica l'accettazione delle presenti condizioni.",
+          'Le informazioni su stanze, prezzi e disponibilità presenti sul sito sono indicative e possono subire variazioni; verranno confermate in fase di contatto diretto.',
+          'La prenotazione di un tour o di una stanza non costituisce contratto vincolante fino alla firma dell’accordo di locazione e al versamento della cauzione concordata.',
+          'Regolamento della casa: divieto di animali, divieto di fumo negli spazi interni, rispetto degli orari di quiete e cura condivisa degli spazi comuni, come descritto nella sezione dedicata del sito.'
+        ],
+        en: [
+          'Using this site implies acceptance of these terms.',
+          'Information on rooms, prices and availability shown on the site is indicative and may change; it will be confirmed during direct contact.',
+          'Booking a tour or a room does not constitute a binding contract until the lease agreement is signed and the agreed deposit is paid.',
+          'House rules: no pets, no smoking indoors, respect for quiet hours, and shared care of the common spaces, as described in the dedicated section of the site.'
+        ]
+      }
     }
   };
 
-  var DAY_LABELS = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
-  var MONTHS_IT = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+  var DAY_LABELS = { it: ['L', 'M', 'M', 'G', 'V', 'S', 'D'], en: ['M', 'T', 'W', 'T', 'F', 'S', 'S'] };
+  var MONTHS = {
+    it: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
+    en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  };
   var WA_NUMBER = '393381567389';
   var TIME_SLOTS = ['10:00', '11:30', '14:00', '15:30', '17:00', '18:30'];
 
@@ -63,6 +103,15 @@
      State
      ========================================================================== */
   var state = {
+    lang: (function () {
+      try {
+        var urlLang = new URLSearchParams(window.location.search).get('lang');
+        if (urlLang === 'en' || urlLang === 'it') return urlLang;
+        var saved = localStorage.getItem('casaceleste_lang');
+        if (saved === 'en' || saved === 'it') return saved;
+      } catch (e) {}
+      return 'it';
+    })(),
     roomsView: 'home',
     activeRoomId: null,
     commonView: 'grid',
@@ -96,6 +145,21 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  // Traduzione del testo "di cornice" del sito (js/i18n.js). Per i contenuti
+  // scritti dal proprietario nella dashboard, usare tf() che sceglie il
+  // campo giusto da un oggetto { it, en } (con fallback a it se manca en).
+  function t(key) {
+    var dict = (window.CASA_CELESTE_I18N && window.CASA_CELESTE_I18N[state.lang]) || {};
+    return dict[key] != null ? dict[key] : key;
+  }
+  function tf(field) {
+    if (field == null) return '';
+    if (typeof field === 'string') return field;
+    return field[state.lang] != null ? field[state.lang] : field.it;
+  }
+  function tpl(str, params) {
+    return str.replace(/\{(\w+)\}/g, function (_, k) { return params[k] != null ? params[k] : ''; });
+  }
   // Mostra la foto reale se il file esiste in images/, altrimenti sparisce e
   // resta visibile il photo-placeholder già presente sotto di lei nel markup.
   function photoTag(src, alt) {
@@ -117,7 +181,7 @@
   function renderHeroMedia() {
     var container = document.getElementById('hero-media-scroll');
     if (!container) return;
-    var html = '<div class="hero-media-slide"><span class="photo-placeholder">Foto — facciata<br>Casa Celeste</span>' + photoTag('images/facciata-1.jpg', 'Facciata di Casa Celeste') + '</div>';
+    var html = '<div class="hero-media-slide"><span class="photo-placeholder">' + t('photo.prefix') + ' ' + t('photo.facade') + '</span>' + photoTag('images/facciata-1.jpg', 'Facciata di Casa Celeste') + '</div>';
     for (var i = 2; i <= 6; i++) {
       html += '<div class="hero-media-slide"><img src="images/facciata-' + i + '.jpg" alt="Facciata di Casa Celeste, vista ' + i + '" class="real-photo" loading="lazy" onerror="window.__ccHeroSlideError(this)"></div>';
     }
@@ -141,11 +205,11 @@
   function detailMediaHtml(idPrefix, altBase, photosOverride) {
     function srcFor(i) { return (photosOverride && photosOverride[i - 1]) || ('images/' + idPrefix + '-' + i + '.jpg'); }
     var main =
-      '<div class="detail-media-main"><span class="photo-placeholder">Foto — ' + escapeHtml(altBase) + ', vista 1</span>' +
-      photoTag(srcFor(1), altBase + ', vista 1') + '</div>';
+      '<div class="detail-media-main"><span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(altBase) + ', ' + escapeHtml(t('photo.view')) + ' 1</span>' +
+      photoTag(srcFor(1), altBase + ', ' + t('photo.view') + ' 1') + '</div>';
     var thumbs = '';
     for (var i = 2; i <= DETAIL_MAX_PHOTOS; i++) {
-      thumbs += '<div class="detail-media-thumb"><span>Foto ' + i + '</span>' + photoThumbTag(srcFor(i), altBase + ', vista ' + i) + '</div>';
+      thumbs += '<div class="detail-media-thumb"><span>' + escapeHtml(tpl(t('photo.n_label'), { n: i })) + '</span>' + photoThumbTag(srcFor(i), altBase + ', ' + t('photo.view') + ' ' + i) + '</div>';
     }
     return main + '<div class="detail-media-grid">' + thumbs + '</div>';
   }
@@ -153,9 +217,9 @@
     return 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(text);
   }
   function tagFor(status) {
-    if (status === 'libera') return { text: '🟢 Libera', bg: '#E4F7EA', color: '#2E9E5B' };
-    if (status === 'occupata') return { text: '🔴 Occupata', bg: '#F0F1F3', color: '#8792A0' };
-    return { text: '🗓️ Disponibile', bg: '#FDF3D9', color: '#B08D1E' };
+    if (status === 'libera') return { text: t('room.status_libera'), bg: '#E4F7EA', color: '#2E9E5B' };
+    if (status === 'occupata') return { text: t('room.status_occupata'), bg: '#F0F1F3', color: '#8792A0' };
+    return { text: t('room.status_disponibile_dal'), bg: '#FDF3D9', color: '#B08D1E' };
   }
   // Vista di un singolo posto letto (usata per le stanze doppie pubblicate
   // come doppie: ogni letto ha proprio stato/inquilino/prezzo indipendenti).
@@ -168,14 +232,14 @@
     var occupantEmoji = bed.type === 'lavoratore' ? '💼' : '🎓';
     var occupantName = bed.tenantName ? escapeHtml(bed.tenantName) : null;
     var occupantAge = bed.tenantAge ? escapeHtml(String(bed.tenantAge)) : '—';
-    var occupantText = occupantName ? (occupantEmoji + ' ' + occupantName + ', ' + occupantAge + ' anni') : (occupantEmoji + ' Coinquilino attuale');
-    var availableFromText = bed.date ? escapeHtml(bed.date) : 'presto';
-    var link = waLink('Ciao! Vorrei informazioni sulla stanza ' + room.name + ' (' + bedLabel + ') di Casa Celeste.');
-    var ctaLabel = isOccupata ? 'Non disponibile' : (isDisponibile ? 'Blocca la stanza' : 'Prenota un tour');
+    var occupantText = occupantName ? (occupantEmoji + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix')) : (occupantEmoji + ' ' + t('room.coinquilino_attuale'));
+    var availableFromText = bed.date ? escapeHtml(bed.date) : t('room.presto');
+    var link = waLink(tpl(t('room.wa_info_bed'), { room: room.name, bed: bedLabel }));
+    var ctaLabel = isOccupata ? t('room.cta_non_disponibile') : (isDisponibile ? t('room.cta_blocca') : t('room.cta_prenota'));
     var ctaBg = isOccupata ? '#F0F1F3' : '#2C8FC9';
     var ctaColor = isOccupata ? '#94A3B3' : '#FFFFFF';
     return {
-      label: bedLabel, roomLabel: room.name + ' — ' + bedLabel, priceText: '€' + bed.price + '/mese',
+      label: bedLabel, roomLabel: room.name + ' — ' + bedLabel, priceText: '€' + bed.price + t('room.per_month'),
       tagText: tag.text, tagBg: tag.bg, tagColor: tag.color,
       isOccupata: isOccupata, isDisponibile: isDisponibile, isLibera: isLibera,
       occupantText: occupantText, availableFromText: availableFromText,
@@ -193,7 +257,7 @@
         combinedStatus = 'libera';
       } else if (freeCount === 1) {
         combinedStatus = 'libera';
-        tagOverrideText = '🟢 1 posto libero';
+        tagOverrideText = t('room.status_un_posto_libero');
       } else if (beds.some(function (b) { return b.status === 'disponibile'; })) {
         combinedStatus = 'disponibile';
       } else {
@@ -204,13 +268,13 @@
       var prices = beds.map(function (b) { return Number(b.price) || 0; }).filter(function (p) { return p > 0; });
       var minPrice = prices.length ? Math.min.apply(null, prices) : 0;
       var allOccupata = beds.length > 0 && beds.every(function (b) { return b.status === 'occupata'; });
-      var link = waLink('Ciao! Vorrei informazioni sulla stanza ' + room.name + ' di Casa Celeste.');
+      var link = waLink(tpl(t('room.wa_info_room'), { room: room.name }));
       return {
-        id: id, name: room.name, priceText: (minPrice ? 'da €' + minPrice + '/mese' : '—'),
+        id: id, name: room.name, priceText: (minPrice ? t('room.from') + ' €' + minPrice + t('room.per_month') : '—'),
         tagText: tagText, tagBg: tag.bg, tagColor: tag.color,
         isOccupata: allOccupata, isDisponibile: combinedStatus === 'disponibile', isLibera: combinedStatus === 'libera',
         occupantText: '', availableFromText: '',
-        ctaLabel: allOccupata ? 'Non disponibile' : 'Prenota un tour',
+        ctaLabel: allOccupata ? t('room.cta_non_disponibile') : t('room.cta_prenota'),
         ctaBg: allOccupata ? '#F0F1F3' : '#2C8FC9', ctaColor: allOccupata ? '#94A3B3' : '#FFFFFF',
         waLink: link, isDoppiaPublished: true, photos: room.photos,
         beds: beds.map(function (b, i) { return bedView(room, b, 'Letto ' + (i === 0 ? 'A' : 'B')); })
@@ -225,16 +289,16 @@
     var occupantEmoji = room.type === 'lavoratore' ? '💼' : '🎓';
     var occupantName = room.tenantName ? escapeHtml(room.tenantName) : null;
     var occupantAge = room.tenantAge ? escapeHtml(String(room.tenantAge)) : '—';
-    var occupantText = occupantName ? (occupantEmoji + ' ' + occupantName + ', ' + occupantAge + ' anni') : (occupantEmoji + ' Coinquilino attuale');
-    var availableFromText = room.date ? escapeHtml(room.date) : 'presto';
-    var link2 = waLink('Ciao! Vorrei informazioni sulla stanza ' + room.name + ' di Casa Celeste.');
+    var occupantText = occupantName ? (occupantEmoji + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix')) : (occupantEmoji + ' ' + t('room.coinquilino_attuale'));
+    var availableFromText = room.date ? escapeHtml(room.date) : t('room.presto');
+    var link2 = waLink(tpl(t('room.wa_info_room'), { room: room.name }));
 
-    var ctaLabel = isOccupata ? 'Non disponibile' : (isDisponibile ? 'Blocca la stanza' : 'Prenota un tour');
+    var ctaLabel = isOccupata ? t('room.cta_non_disponibile') : (isDisponibile ? t('room.cta_blocca') : t('room.cta_prenota'));
     var ctaBg = isOccupata ? '#F0F1F3' : '#2C8FC9';
     var ctaColor = isOccupata ? '#94A3B3' : '#FFFFFF';
 
     return {
-      id: id, name: room.name, priceText: '€' + room.price + '/mese',
+      id: id, name: room.name, priceText: '€' + room.price + t('room.per_month'),
       tagText: tag2.text, tagBg: tag2.bg, tagColor: tag2.color,
       isOccupata: isOccupata, isDisponibile: isDisponibile, isLibera: isLibera,
       occupantText: occupantText, availableFromText: availableFromText,
@@ -243,13 +307,103 @@
     };
   }
   function selectedDateLabel() {
-    return state.selectedDate ? state.selectedDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+    var locale = state.lang === 'en' ? 'en-GB' : 'it-IT';
+    return state.selectedDate ? state.selectedDate.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   }
   function updateBodyScrollLock() {
     var drawerEl = document.getElementById('mobile-drawer');
     var drawerOpen = drawerEl && drawerEl.classList.contains('is-open');
     document.body.style.overflow = (state.bookingOpen || state.legalOpen || drawerOpen) ? 'hidden' : '';
   }
+
+  /* ==========================================================================
+     i18n: applica le traduzioni al markup statico e ai testi dinamici,
+     gestisce il cambio lingua (persistito in localStorage e nell'URL
+     ?lang=en, utile per SEO/condivisione e per gli hreflang in index.html).
+     ========================================================================== */
+  var SEO_META = {
+    it: {
+      title: 'Casa Celeste | Alloggi per Studenti a Monopoli — Stanze in Affitto',
+      description: 'Casa Celeste: alloggio moderno per studenti nel cuore di Monopoli. Stanze singole in affitto a pochi passi da centro storico, mare e Conservatorio. Prenota un tour su WhatsApp.'
+    },
+    en: {
+      title: 'Casa Celeste | Student Housing in Monopoli, Italy — Rooms for Rent',
+      description: 'Casa Celeste: modern student housing in the heart of Monopoli, Italy. Private rooms for rent steps from the historic centre, the sea and the Conservatory. Book a tour on WhatsApp.'
+    }
+  };
+  function applyI18n() {
+    document.documentElement.lang = state.lang;
+    document.title = SEO_META[state.lang].title;
+    var metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', SEO_META[state.lang].description);
+    var ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute('content', SEO_META[state.lang].description);
+    var ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', SEO_META[state.lang].title);
+    var ogLocale = document.querySelector('meta[property="og:locale"]');
+    if (ogLocale) ogLocale.setAttribute('content', state.lang === 'en' ? 'en_GB' : 'it_IT');
+
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach(function (el) {
+      el.innerHTML = t(el.getAttribute('data-i18n-html'));
+    });
+
+    // Bottone di cambio lingua: mostra la lingua in cui si passerebbe.
+    document.querySelectorAll('[data-lang-flag]').forEach(function (el) {
+      el.textContent = state.lang === 'en' ? '🇮🇹 IT' : '🇬🇧 EN';
+    });
+
+    // Link WhatsApp con testo del messaggio precompilato nella lingua attiva.
+    var cleaningCta = document.getElementById('cleaning-cta');
+    if (cleaningCta) cleaningCta.href = waLink(t('cleaning.wa_text'));
+    var finalWa = document.getElementById('finalcta-wa');
+    if (finalWa) finalWa.href = waLink(t('finalcta.wa_text'));
+    var footerWa = document.getElementById('footer-wa');
+    if (footerWa) footerWa.href = waLink(t('finalcta.wa_text'));
+    var waFloat = document.getElementById('wa-float');
+    if (waFloat) { waFloat.href = waLink(t('finalcta.wa_text')); waFloat.setAttribute('aria-label', t('wa.aria_label')); }
+
+    // Blocco di benvenuto per studenti Erasmus/internazionali: visibile solo
+    // in inglese (i contenuti in italiano già parlano a un pubblico locale).
+    var erasmusBlock = document.getElementById('erasmus-block');
+    if (erasmusBlock) {
+      if (state.lang === 'en' && window.CASA_CELESTE_ERASMUS_EN) {
+        var e = window.CASA_CELESTE_ERASMUS_EN;
+        document.getElementById('erasmus-eyebrow').textContent = e.eyebrow;
+        document.getElementById('erasmus-title').textContent = e.title;
+        document.getElementById('erasmus-text').textContent = e.text;
+        erasmusBlock.style.display = '';
+      } else {
+        erasmusBlock.style.display = 'none';
+      }
+    }
+  }
+  function renderAllDynamic() {
+    renderHeroMedia();
+    renderMono();
+    renderCommon();
+    renderRooms();
+    renderFaq();
+    renderTestimonials();
+    renderVirtualTourCta();
+    renderBookingModal();
+    renderLegalModal();
+    renderCookieBanner();
+  }
+  function setLang(lang) {
+    state.lang = lang;
+    try { localStorage.setItem('casaceleste_lang', lang); } catch (e) {}
+    try {
+      var url = new URL(window.location.href);
+      if (lang === 'en') url.searchParams.set('lang', 'en'); else url.searchParams.delete('lang');
+      window.history.pushState({}, '', url);
+    } catch (e) {}
+    applyI18n();
+    renderAllDynamic();
+  }
+  function toggleLang() { setLang(state.lang === 'en' ? 'it' : 'en'); }
 
   /* ==========================================================================
      Render: Monopoli carousel
@@ -263,13 +417,13 @@
     }).join('');
     container.innerHTML =
       '<div class="carousel-media">' +
-        '<span class="carousel-tag" style="background:' + slide.tagBg + ';">' + escapeHtml(slide.eyebrow) + '</span>' +
-        '<span class="photo-placeholder">Foto — ' + escapeHtml(slide.caption) + '</span>' +
-        photoTag(slide.img, slide.caption) +
+        '<span class="carousel-tag" style="background:' + slide.tagBg + ';">' + escapeHtml(tf(slide.eyebrow)) + '</span>' +
+        '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(tf(slide.caption)) + '</span>' +
+        photoTag(slide.img, tf(slide.caption)) +
       '</div>' +
       '<div>' +
-        '<h3 class="carousel-title">' + escapeHtml(slide.title) + '</h3>' +
-        '<p class="carousel-text">' + escapeHtml(slide.text) + '</p>' +
+        '<h3 class="carousel-title">' + escapeHtml(tf(slide.title)) + '</h3>' +
+        '<p class="carousel-text">' + escapeHtml(tf(slide.text)) + '</p>' +
         '<div class="carousel-dots">' + dotsHtml + '</div>' +
       '</div>';
   }
@@ -314,7 +468,7 @@
     var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip">' + escapeHtml(f) + '</span>'; }).join('');
     return (
       '<div class="card" data-common-card data-common-id="' + id + '">' +
-        '<div class="card-media"><span class="photo-placeholder">Foto — ' + escapeHtml(def.caption || def.name) + '</span>' + photoTag((def.photos && def.photos[0]) || ('images/' + id + '-1.jpg'), def.name) + '</div>' +
+        '<div class="card-media"><span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(def.caption || def.name) + '</span>' + photoTag((def.photos && def.photos[0]) || ('images/' + id + '-1.jpg'), def.name) + '</div>' +
         '<div class="card-body">' +
           '<h3 class="card-title">' + escapeHtml(def.name) + '</h3>' +
           '<p class="card-text">' + escapeHtml(def.shortText || '') + '</p>' +
@@ -324,25 +478,25 @@
     );
   }
   function commonDetailHtml(id, def) {
-    var link = waLink('Ciao! Vorrei informazioni su: ' + def.name + ' di Casa Celeste.');
+    var link = waLink(tpl(t('common.wa_info'), { name: def.name }));
     var statsHtml = (def.stats || []).map(function (s) {
       return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(s.label) + '</div><div class="stat-value">' + escapeHtml(s.value) + '</div></div>';
     }).join('');
     var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip chip--lg">' + escapeHtml(f) + '</span>'; }).join('');
     return (
-      '<button type="button" class="back-link" data-go-home-common>← Tutti gli spazi comuni</button>' +
+      '<button type="button" class="back-link" data-go-home-common>' + escapeHtml(t('common.back_to_all')) + '</button>' +
       '<div class="detail-grid">' +
         '<div>' +
           detailMediaHtml(id, def.caption || def.name, def.photos) +
         '</div>' +
         '<div>' +
-          '<h1 class="detail-title">' + escapeHtml(def.name) + '</h1>' +
+          '<h2 class="detail-title">' + escapeHtml(def.name) + '</h2>' +
           '<p class="detail-text">' + (def.longText || '') + '</p>' +
           '<div class="stats-grid">' + statsHtml + '</div>' +
           '<div class="chip-row" style="margin-bottom:28px;">' + featuresHtml + '</div>' +
           '<div class="detail-ctas">' +
-            '<button type="button" class="btn btn-primary" data-open-booking data-room-label="Casa Celeste">Prenota un tour</button>' +
-            '<a href="' + link + '" target="_blank" rel="noopener" class="btn btn-outline">Richiedi info su WhatsApp</a>' +
+            '<button type="button" class="btn btn-primary" data-open-booking data-room-label="Casa Celeste">' + escapeHtml(t('common.prenota_tour')) + '</button>' +
+            '<a href="' + link + '" target="_blank" rel="noopener" class="btn btn-outline">' + escapeHtml(t('common.wa_cta')) + '</a>' +
           '</div>' +
         '</div>' +
       '</div>'
@@ -360,9 +514,9 @@
     }
     var intro =
       '<div class="section-intro">' +
-        '<div class="eyebrow eyebrow--blue">Vita comune</div>' +
-        '<h2 class="h2" style="margin:0 0 14px;">Spazi comuni curati, per vivere bene insieme</h2>' +
-        '<p>Cucina, bagno e lavanderia e ampio corridoio pensati per rendere la quotidianità semplice e senza attriti.</p>' +
+        '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('common.eyebrow')) + '</div>' +
+        '<h2 class="h2" style="margin:0 0 14px;">' + escapeHtml(t('common.title')) + '</h2>' +
+        '<p>' + escapeHtml(t('common.text')) + '</p>' +
       '</div>';
     var cardsHtml = ids.map(function (id) { return commonCardHtml(id, commons[id]); }).join('');
     container.innerHTML = intro + '<div class="cards-grid">' + cardsHtml + '</div>';
@@ -386,14 +540,14 @@
     if (view.isOccupata) {
       statusHtml = '<div class="room-card-status room-card-status--occupied">' + view.occupantText + '</div>';
     } else if (view.isDisponibile) {
-      statusHtml = '<div class="room-card-status room-card-status--available-from">Disponibile dal ' + view.availableFromText + '</div>';
+      statusHtml = '<div class="room-card-status room-card-status--available-from">' + escapeHtml(t('room.available_from')) + ' ' + view.availableFromText + '</div>';
     } else if (view.isLibera) {
-      statusHtml = '<div class="room-card-status room-card-status--free">Disponibile fin da subito.<br><i>(Ma attenti a non farvela scappare)</i></div>';
+      statusHtml = '<div class="room-card-status room-card-status--free">' + escapeHtml(t('room.free_now')) + '<br><i>' + escapeHtml(t('room.free_now_note')) + '</i></div>';
     }
     return (
       '<div class="card' + (disabled ? ' card--disabled' : '') + '" data-room-card data-room-id="' + view.id + '">' +
         '<div class="room-card-media">' +
-          '<span class="photo-placeholder">Foto — ' + escapeHtml(view.name) + '</span>' +
+          '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(view.name) + '</span>' +
           photoTag((view.photos && view.photos[0]) || ('images/' + view.id + '-1.jpg'), view.name) +
           '<span class="room-card-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
         '</div>' +
@@ -403,7 +557,7 @@
             '<div class="room-card-price">' + view.priceText + '</div>' +
           '</div>' +
           statusHtml +
-          '<button type="button" class="btn room-card-cta" data-room-card-view>' + (view.isDoppiaPublished ? 'Vedi posti letto' : 'Vedi stanza') + '</button>' +
+          '<button type="button" class="btn room-card-cta" data-room-card-view>' + escapeHtml(view.isDoppiaPublished ? t('room.view_doppia') : t('room.view_singola')) + '</button>' +
         '</div>' +
       '</div>'
     );
@@ -411,8 +565,8 @@
   // Piccolo messaggio di urgenza mostrato quando il dettaglio di una stanza
   // (o di un posto letto) è aperto e ancora prenotabile.
   function urgencyNoteHtml(isLibera, isDisponibile) {
-    if (isLibera) return '<div class="urgency-inline">🔥 Stanza libera e molto richiesta: prenota un tour prima che se la accaparri qualcun altro.</div>';
-    if (isDisponibile) return '<div class="urgency-inline">📌 Si libera presto: blocca il posto in anticipo per essere sicuro di averla.</div>';
+    if (isLibera) return '<div class="urgency-inline">' + escapeHtml(t('room.urgency_free')) + '</div>';
+    if (isDisponibile) return '<div class="urgency-inline">' + escapeHtml(t('room.urgency_soon')) + '</div>';
     return '';
   }
   // Blocco stato+prezzo+CTA di un singolo posto letto, nella pagina di
@@ -421,9 +575,9 @@
     var disabled = bv.isOccupata;
     var statusNoteHtml = '';
     if (bv.isOccupata) {
-      statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + bv.occupantText + ' · attualmente non disponibile</div>';
+      statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + bv.occupantText + ' · ' + escapeHtml(t('room.occupied_note')) + '</div>';
     } else if (bv.isDisponibile) {
-      statusNoteHtml = '<div class="detail-status-note detail-status-note--available">🗓️ Disponibile dal ' + bv.availableFromText + '</div>';
+      statusNoteHtml = '<div class="detail-status-note detail-status-note--available">' + escapeHtml(t('room.status_disponibile_dal')) + ' ' + bv.availableFromText + '</div>';
     }
     return (
       '<div class="bed-block">' +
@@ -449,7 +603,7 @@
     if (view.isDoppiaPublished) {
       bodyHtml =
         '<span class="detail-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
-        '<h1 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h1>' +
+        '<h2 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h2>' +
         '<p class="detail-text">' + room.description + '</p>' +
         statsHtml +
         '<div class="beds-grid">' + view.beds.map(bedBlockHtml).join('') + '</div>';
@@ -457,13 +611,13 @@
       var disabled = view.isOccupata;
       var statusNoteHtml = '';
       if (view.isOccupata) {
-        statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + view.occupantText + ' · attualmente non disponibile</div>';
+        statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + view.occupantText + ' · ' + escapeHtml(t('room.occupied_note')) + '</div>';
       } else if (view.isDisponibile) {
-        statusNoteHtml = '<div class="detail-status-note detail-status-note--available">🗓️ Disponibile dal ' + view.availableFromText + '</div>';
+        statusNoteHtml = '<div class="detail-status-note detail-status-note--available">' + escapeHtml(t('room.status_disponibile_dal')) + ' ' + view.availableFromText + '</div>';
       }
       bodyHtml =
         '<span class="detail-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
-        '<h1 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h1>' +
+        '<h2 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h2>' +
         '<div class="detail-price">' + view.priceText + '</div>' +
         statusNoteHtml +
         '<p class="detail-text">' + room.description + '</p>' +
@@ -472,7 +626,7 @@
         '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(view.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + view.ctaBg + '; color:' + view.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + view.ctaLabel + '</button>';
     }
     return (
-      '<button type="button" class="back-link" data-go-home-room>← Tutte le stanze</button>' +
+      '<button type="button" class="back-link" data-go-home-room>' + escapeHtml(t('room.back_to_all')) + '</button>' +
       '<div class="detail-grid">' +
         '<div>' + detailMediaHtml(id, room.name, room.photos) + '</div>' +
         '<div>' + bodyHtml + '</div>' +
@@ -498,18 +652,18 @@
     container.innerHTML =
       '<div class="admin-toggle-row">' +
         '<div style="max-width:560px;">' +
-          '<div class="eyebrow eyebrow--blue">Le stanze</div>' +
-          '<h2 class="h2" style="margin:0 0 12px;">I quattro venti di Casa Celeste</h2>' +
-          '<p style="font-size:15.5px; line-height:1.65; color:var(--text-body); margin:0;">Contattaci tramite <b>Email</b> o <b>WhatsApp</b> per richiedere maggiori informazioni.</p>' +
+          '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('stanze.eyebrow')) + '</div>' +
+          '<h2 class="h2" style="margin:0 0 12px;">' + escapeHtml(t('stanze.title')) + '</h2>' +
+          '<p style="font-size:15.5px; line-height:1.65; color:var(--text-body); margin:0;">' + t('stanze.text') + '</p>' +
         '</div>' +
       '</div>' +
       '<div class="cards-grid cards-grid--rooms">' + cardsHtml + '</div>' +
       '<div class="urgency-banner">' +
         '<div class="urgency-copy">' +
           '<div class="urgency-icon">⏳</div>' +
-          '<div class="urgency-text">Le stanze libere si prenotano in fretta: bloccala oggi e assicurati il posto prima che se ne accorga qualcun altro.</div>' +
+          '<div class="urgency-text">' + escapeHtml(t('urgency.rooms_text')) + '</div>' +
         '</div>' +
-        '<a href="' + waLink('Ciao! Vorrei bloccare una stanza di Casa Celeste.') + '" target="_blank" rel="noopener" class="btn btn-urgency">Blocca la tua stanza</a>' +
+        '<a href="' + waLink(t('urgency.wa_block')) + '" target="_blank" rel="noopener" class="btn btn-urgency">' + escapeHtml(t('urgency.rooms_cta')) + '</a>' +
       '</div>';
   }
   function goToRoom(id) { state.roomsView = 'detail'; state.activeRoomId = id; renderRooms(); scrollSectionIntoView('stanze'); }
@@ -565,10 +719,10 @@
       return (
         '<div class="faq-item">' +
           '<button type="button" class="faq-question" data-faq-toggle data-index="' + i + '">' +
-            '<span class="faq-question-text">' + escapeHtml(f.q) + '</span>' +
+            '<span class="faq-question-text">' + escapeHtml(tf(f.q)) + '</span>' +
             '<span class="faq-icon">' + (open ? '−' : '+') + '</span>' +
           '</button>' +
-          (open ? '<div class="faq-answer">' + f.a + '</div>' : '') +
+          (open ? '<div class="faq-answer">' + escapeHtml(tf(f.a)) + '</div>' : '') +
         '</div>'
       );
     }).join('');
@@ -594,13 +748,13 @@
       var color = isSelected ? '#FFFFFF' : (isPast ? '#C7D0D9' : '#10233B');
       cells += '<button type="button" class="cal-day" data-pick-date data-timestamp="' + dateObj.getTime() + '"' + (isPast ? ' disabled' : '') + ' style="background:' + bg + '; color:' + color + '; cursor:' + (isPast ? 'default' : 'pointer') + '; opacity:' + (isPast ? 0.5 : 1) + ';">' + d + '</button>';
     }
-    var dayLabelsHtml = DAY_LABELS.map(function (l) { return '<div class="cal-weekday">' + l + '</div>'; }).join('');
+    var dayLabelsHtml = DAY_LABELS[state.lang].map(function (l) { return '<div class="cal-weekday">' + l + '</div>'; }).join('');
 
     return (
       '<div class="cal-header">' +
-        '<button type="button" class="cal-nav-btn" data-cal-prev aria-label="Mese precedente">‹</button>' +
-        '<div class="cal-month-label">' + MONTHS_IT[state.calMonth] + ' ' + state.calYear + '</div>' +
-        '<button type="button" class="cal-nav-btn" data-cal-next aria-label="Mese successivo">›</button>' +
+        '<button type="button" class="cal-nav-btn" data-cal-prev aria-label="' + escapeHtml(t('booking.mese_prec')) + '">‹</button>' +
+        '<div class="cal-month-label">' + MONTHS[state.lang][state.calMonth] + ' ' + state.calYear + '</div>' +
+        '<button type="button" class="cal-nav-btn" data-cal-next aria-label="' + escapeHtml(t('booking.mese_succ')) + '">›</button>' +
       '</div>' +
       '<div class="cal-weekdays">' + dayLabelsHtml + '</div>' +
       '<div class="cal-days">' + cells + '</div>'
@@ -608,15 +762,15 @@
   }
   function timeStepHtml() {
     var dateLabel = selectedDateLabel();
-    var slotsHtml = TIME_SLOTS.map(function (t) {
-      var active = state.selectedTime === t;
-      return '<button type="button" class="slot-btn" data-pick-time data-time="' + t + '" style="background:' + (active ? '#2C8FC9' : '#F5FAFD') + '; color:' + (active ? '#FFFFFF' : '#10233B') + ';">' + t + '</button>';
+    var slotsHtml = TIME_SLOTS.map(function (ti) {
+      var active = state.selectedTime === ti;
+      return '<button type="button" class="slot-btn" data-pick-time data-time="' + ti + '" style="background:' + (active ? '#2C8FC9' : '#F5FAFD') + '; color:' + (active ? '#FFFFFF' : '#10233B') + ';">' + ti + '</button>';
     }).join('');
     return (
-      '<div class="booking-summary">Data scelta: ' + escapeHtml(dateLabel) + '</div>' +
-      '<div class="slot-label">SCEGLI UN ORARIO</div>' +
+      '<div class="booking-summary">' + escapeHtml(t('booking.data_scelta')) + ' ' + escapeHtml(dateLabel) + '</div>' +
+      '<div class="slot-label">' + escapeHtml(t('booking.scegli_orario')) + '</div>' +
       '<div class="slot-grid">' + slotsHtml + '</div>' +
-      '<button type="button" class="link-btn" data-back-to-calendar>← Cambia data</button>'
+      '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_data')) + '</button>'
     );
   }
   function contactStepHtml() {
@@ -624,25 +778,29 @@
     return (
       '<div class="booking-summary">' + escapeHtml(dateLabel) + ' · ' + escapeHtml(state.selectedTime || '') + '</div>' +
       '<div class="contact-form">' +
-        '<input type="text" placeholder="Nome e cognome" id="contact-name-input">' +
-        '<input type="email" placeholder="Email" id="contact-email-input">' +
-        '<input type="tel" placeholder="Telefono" id="contact-phone-input">' +
+        '<input type="text" placeholder="' + escapeHtml(t('booking.nome_cognome')) + '" id="contact-name-input">' +
+        '<input type="email" placeholder="' + escapeHtml(t('booking.email')) + '" id="contact-email-input">' +
+        '<input type="tel" placeholder="' + escapeHtml(t('booking.telefono')) + '" id="contact-phone-input">' +
       '</div>' +
-      '<button type="button" class="btn confirm-btn" data-confirm-booking id="confirm-booking-btn">Conferma prenotazione</button>' +
-      '<button type="button" class="link-btn link-btn--centered" data-back-to-times>← Cambia orario</button>'
+      '<button type="button" class="btn confirm-btn" data-confirm-booking id="confirm-booking-btn">' + escapeHtml(t('booking.conferma_prenotazione')) + '</button>' +
+      '<button type="button" class="link-btn link-btn--centered" data-back-to-times>' + escapeHtml(t('booking.cambia_orario')) + '</button>'
     );
   }
   function successStepHtml() {
     var dateLabel = selectedDateLabel();
-    var msg = 'Ciao! Ho prenotato un tour per ' + (state.bookingRoomLabel || 'Casa Celeste') + ' il ' + dateLabel + ' alle ' + state.selectedTime + '. Sono ' + state.contactName + ', ' + state.contactEmail + (state.contactPhone ? ', tel: ' + state.contactPhone : '') + '.';
+    var phoneStr = state.contactPhone ? tpl(t('booking.wa_tel'), { phone: state.contactPhone }) : '';
+    var msg = tpl(t('booking.wa_prenotato'), {
+      room: state.bookingRoomLabel || 'Casa Celeste', date: dateLabel, time: state.selectedTime,
+      name: state.contactName, email: state.contactEmail, phoneStr: phoneStr
+    });
     var link = waLink(msg);
     return (
       '<div class="booking-success">' +
         '<div class="success-icon">✓</div>' +
-        '<h4 class="success-title">Tour prenotato!</h4>' +
-        '<p class="success-text">' + escapeHtml(dateLabel) + ' alle ' + escapeHtml(state.selectedTime || '') + ' — ti scriveremo su WhatsApp per confermare i dettagli.</p>' +
-        '<a href="' + link + '" target="_blank" rel="noopener" class="success-wa-link">Conferma su WhatsApp</a>' +
-        '<button type="button" class="link-btn" data-close-booking>Chiudi</button>' +
+        '<h4 class="success-title">' + escapeHtml(t('booking.tour_prenotato')) + '</h4>' +
+        '<p class="success-text">' + escapeHtml(dateLabel) + ' · ' + escapeHtml(state.selectedTime || '') + ' — ' + escapeHtml(t('booking.success_text')) + '</p>' +
+        '<a href="' + link + '" target="_blank" rel="noopener" class="success-wa-link">' + escapeHtml(t('booking.conferma_wa')) + '</a>' +
+        '<button type="button" class="link-btn" data-close-booking>' + escapeHtml(t('common.chiudi')) + '</button>' +
       '</div>'
     );
   }
@@ -659,11 +817,11 @@
     root.innerHTML =
       '<div class="modal-overlay" id="booking-overlay">' +
         '<div class="modal-box">' +
-          '<button type="button" class="modal-close" data-close-booking aria-label="Chiudi">×</button>' +
+          '<button type="button" class="modal-close" data-close-booking aria-label="' + escapeHtml(t('common.chiudi')) + '">×</button>' +
           '<div class="modal-body">' +
-            '<div class="modal-eyebrow">Prenota un tour</div>' +
+            '<div class="modal-eyebrow">' + escapeHtml(t('booking.modal_eyebrow')) + '</div>' +
             '<h3 class="modal-title">' + escapeHtml(state.bookingRoomLabel || 'Casa Celeste') + '</h3>' +
-            '<p class="modal-subtitle">Scegli data e ora per la visita.</p>' +
+            '<p class="modal-subtitle">' + escapeHtml(t('booking.modal_subtitle')) + '</p>' +
             stepHtml +
           '</div>' +
         '</div>' +
@@ -765,12 +923,12 @@
     var root = document.getElementById('legal-modal-root');
     if (!state.legalOpen) { root.innerHTML = ''; updateBodyScrollLock(); return; }
     var legal = LEGAL_DEFS[state.activeLegalId] || LEGAL_DEFS.privacy;
-    var paragraphs = legal.paragraphs.map(function (p) { return '<p>' + p + '</p>'; }).join('');
+    var paragraphs = (legal.paragraphs[state.lang] || legal.paragraphs.it).map(function (p) { return '<p>' + escapeHtml(p) + '</p>'; }).join('');
     root.innerHTML =
       '<div class="modal-overlay" id="legal-overlay">' +
         '<div class="modal-box modal-box--legal">' +
-          '<button type="button" class="modal-close" data-close-legal aria-label="Chiudi">×</button>' +
-          '<h3 class="legal-title">' + escapeHtml(legal.title) + '</h3>' +
+          '<button type="button" class="modal-close" data-close-legal aria-label="' + escapeHtml(t('common.chiudi')) + '">×</button>' +
+          '<h3 class="legal-title">' + escapeHtml(tf(legal.title)) + '</h3>' +
           '<div class="legal-paragraphs">' + paragraphs + '</div>' +
         '</div>' +
       '</div>';
@@ -787,8 +945,8 @@
     if (!state.showCookieBanner) { root.innerHTML = ''; return; }
     root.innerHTML =
       '<div class="cookie-banner">' +
-        '<div class="cookie-text">Usiamo solo cookie tecnici necessari al funzionamento del sito. <button type="button" class="cookie-link" data-open-legal="cookie">Scopri di più</button></div>' +
-        '<button type="button" class="btn-cookie-accept" data-accept-cookies>Accetta</button>' +
+        '<div class="cookie-text">' + escapeHtml(t('cookie.text')) + ' <button type="button" class="cookie-link" data-open-legal="cookie">' + escapeHtml(t('cookie.more')) + '</button></div>' +
+        '<button type="button" class="btn-cookie-accept" data-accept-cookies>' + escapeHtml(t('cookie.accept')) + '</button>' +
       '</div>';
   }
   function acceptCookies() {
@@ -832,6 +990,9 @@
 
       el = e.target.closest('[data-close-drawer]');
       if (el) closeMobileDrawer();
+
+      el = e.target.closest('[data-lang-toggle]');
+      if (el) { toggleLang(); return; }
 
       el = e.target.closest('[data-room-card]');
       if (el) { goToRoom(el.getAttribute('data-room-id')); return; }
@@ -898,6 +1059,7 @@
       if (!consent) state.showCookieBanner = true;
     } catch (e) {}
 
+    applyI18n();
     renderHeroMedia();
     renderMono();
     renderCommon();
