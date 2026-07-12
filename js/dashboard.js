@@ -209,6 +209,11 @@
           '<input type="text" class="admin-field" placeholder="Nome inquilino" data-room-field data-room-id="' + roomId + '"' + bedAttr + ' data-field="tenantName" value="' + escapeHtml(occ.tenantName || '') + '">' +
           '<input type="text" class="admin-field" placeholder="Età" data-room-field data-room-id="' + roomId + '"' + bedAttr + ' data-field="tenantAge" value="' + escapeHtml(occ.tenantAge || '') + '">' +
         '</div>' +
+        '<select class="admin-field" data-room-field data-room-id="' + roomId + '"' + bedAttr + ' data-field="tenantGender">' +
+          '<option value=""' + (!occ.tenantGender ? ' selected' : '') + '>Genere —</option>' +
+          '<option value="uomo"' + (occ.tenantGender === 'uomo' ? ' selected' : '') + '>Uomo</option>' +
+          '<option value="donna"' + (occ.tenantGender === 'donna' ? ' selected' : '') + '>Donna</option>' +
+        '</select>' +
         '<select class="admin-field" data-room-field data-room-id="' + roomId + '"' + bedAttr + ' data-field="type">' +
           '<option value="studente"' + (occ.type === 'studente' ? ' selected' : '') + '>🎓 Studente</option>' +
           '<option value="lavoratore"' + (occ.type === 'lavoratore' ? ' selected' : '') + '>💼 Lavoratore</option>' +
@@ -298,9 +303,21 @@
     return '<div class="admin-field-group admin-field-group--full"><label>Foto (fino a 6 — carica qui direttamente, oppure via GitHub come spiegato in guida)</label><div class="admin-photo-grid">' + slots + '</div></div>';
   }
   function bindPhotoUploadEvents(content) {
-    function dataMapFor(kind) { return kind === 'room' ? state.roomsData : state.commonsData; }
-    function setFnFor(kind) { return kind === 'room' ? window.CasaCelesteDB.setRoom : window.CasaCelesteDB.setCommon; }
-    function uploadFnFor(kind) { return kind === 'room' ? window.CasaCelesteDB.uploadRoomPhoto : window.CasaCelesteDB.uploadCommonPhoto; }
+    function dataMapFor(kind) {
+      if (kind === 'room') return state.roomsData;
+      if (kind === 'common') return state.commonsData;
+      var wrap = {}; wrap.facciata = { photos: (state.settings && state.settings.facadePhotos) || [] }; return wrap;
+    }
+    function setFnFor(kind) {
+      if (kind === 'room') return window.CasaCelesteDB.setRoom;
+      if (kind === 'common') return window.CasaCelesteDB.setCommon;
+      return function (ownerId, patch) { return window.CasaCelesteDB.setSettings({ facadePhotos: patch.photos }); };
+    }
+    function uploadFnFor(kind) {
+      if (kind === 'room') return window.CasaCelesteDB.uploadRoomPhoto;
+      if (kind === 'common') return window.CasaCelesteDB.uploadCommonPhoto;
+      return function (ownerId, idx, file) { return window.CasaCelesteDB.uploadFacadePhoto(idx, file); };
+    }
     content.querySelectorAll('[data-photo-upload]').forEach(function (input) {
       input.addEventListener('change', function (e) {
         var file = e.target.files && e.target.files[0];
@@ -623,7 +640,12 @@
         '<div class="admin-field-group"><label><input type="checkbox" id="virtual-tour-enabled"' + (s.virtualTourEnabled ? ' checked' : '') + '> Mostra il bottone "Virtual Tour" sul sito pubblico</label></div>' +
         '<div class="admin-field-group admin-field-group--full"><label>Link del virtual tour (es. Matterport)</label><input type="text" class="admin-field" id="virtual-tour-url" placeholder="https://my.matterport.com/show/?m=..." value="' + escapeHtml(s.virtualTourUrl || '') + '"></div>' +
       '</div>' +
-      '<div class="admin-note">Se disattivato, o se il link è vuoto, il bottone non compare sul sito — anche se hai già scritto un link, ricordati di attivare la casella qui sopra.</div>';
+      '<div class="admin-note">Se disattivato, o se il link è vuoto, il bottone non compare sul sito — anche se hai già scritto un link, ricordati di attivare la casella qui sopra.</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' +
+        photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) +
+      '</div>' +
+      '<div class="admin-note">Queste foto scorrono nel carosello della home page. Puoi caricarne da 1 a 6; se non carichi nulla resta il placeholder.</div>';
 
     document.getElementById('virtual-tour-enabled').addEventListener('change', function (e) {
       window.CasaCelesteDB.setSettings({ virtualTourEnabled: e.target.checked });
@@ -631,6 +653,7 @@
     document.getElementById('virtual-tour-url').addEventListener('change', function (e) {
       window.CasaCelesteDB.setSettings({ virtualTourUrl: e.target.value.trim() });
     });
+    bindPhotoUploadEvents(content);
   }
 
   /* ==========================================================================

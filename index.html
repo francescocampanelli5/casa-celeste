@@ -57,9 +57,10 @@
         <a href="#testimonianze" class="nav-link" data-i18n="nav.testimonianze">Testimonianze</a>
         <a href="#faq" class="nav-link" data-i18n="nav.faq">FAQ</a>
       </div>
-      <button type="button" class="lang-switch" data-lang-toggle aria-label="Change language / Cambia lingua">
-        <span data-lang-flag>🇬🇧 EN</span>
-      </button>
+      <div class="lang-flags" role="group" aria-label="Change language / Cambia lingua">
+        <button type="button" class="lang-flag-btn" data-lang-set="it" aria-label="Italiano" title="Italiano">🇮🇹</button>
+        <button type="button" class="lang-flag-btn" data-lang-set="en" aria-label="English" title="English">🇬🇧</button>
+      </div>
       <button type="button" class="btn btn-navy" data-open-booking data-room-label="Casa Celeste" data-i18n="common.prenota_tour">Prenota un tour</button>
     </nav>
     <button type="button" class="hamburger-btn" id="hamburger-btn" aria-label="Apri menu" aria-expanded="false">
@@ -85,9 +86,10 @@
       <a href="#testimonianze" class="mobile-drawer-link" data-close-drawer data-i18n="nav.testimonianze">Testimonianze</a>
       <a href="#faq" class="mobile-drawer-link" data-close-drawer data-i18n="nav.faq">FAQ</a>
     </nav>
-    <button type="button" class="lang-switch lang-switch--drawer" data-lang-toggle>
-      <span data-lang-flag>🇬🇧 EN</span>
-    </button>
+    <div class="lang-flags lang-flags--drawer" role="group" aria-label="Change language / Cambia lingua">
+      <button type="button" class="lang-flag-btn" data-lang-set="it" aria-label="Italiano" title="Italiano">🇮🇹 IT</button>
+      <button type="button" class="lang-flag-btn" data-lang-set="en" aria-label="English" title="English">🇬🇧 EN</button>
+    </div>
     <button type="button" class="btn btn-primary" style="width:100%;" data-open-booking data-room-label="Casa Celeste" data-close-drawer data-i18n="common.prenota_tour">Prenota un tour</button>
   </aside>
 
@@ -245,6 +247,16 @@
         <h2 class="h2" style="margin:0 0 14px;" data-i18n="testimonianze.title">Le parole di chi ha vissuto a Casa Celeste</h2>
       </div>
       <div class="testimonial-grid" id="testimonial-grid"><!-- rendered by js/app.js --></div>
+    </div>
+  </section>
+
+  <!-- VITA ALL'APERTO (balconi) -->
+  <section class="section section--tight">
+    <div class="container container--narrow outdoor-panel">
+      <div class="outdoor-icon" aria-hidden="true">🌇</div>
+      <div class="eyebrow eyebrow--yellow" data-i18n="outdoor.eyebrow">Vita all'aperto</div>
+      <h2 class="h2" style="margin:0 0 12px;" data-i18n="outdoor.title">Un balcone, una boccata d'aria</h2>
+      <p data-i18n="outdoor.text">Tra una lezione e l'altra basta aprire una porta: alcune stanze si affacciano su un balcone tutto da vivere — un caffè al sole, due chiacchiere in compagnia, o un momento di silenzio con la brezza della sera che accarezza la pelle. Un piccolo lusso incluso, non un optional.</p>
     </div>
   </section>
 

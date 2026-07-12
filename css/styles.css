@@ -164,12 +164,18 @@ button { font-family: inherit; }
 .nav-links::-webkit-scrollbar { display: none; }
 .nav-link { color: var(--text-body-alt); text-decoration: none; }
 .nav-link:hover { color: var(--blue); }
-.lang-switch {
-  background: none; border: 1.5px solid var(--border-medium); border-radius: var(--radius-pill);
-  padding: 8px 14px; font-size: 12.5px; font-weight: 800; color: var(--navy); cursor: pointer; white-space: nowrap;
+.lang-flags {
+  display: flex; align-items: center; gap: 4px; border: 1.5px solid var(--border-medium);
+  border-radius: var(--radius-pill); padding: 3px;
 }
-.lang-switch:hover { border-color: var(--blue); color: var(--blue); }
-.lang-switch--drawer { width: 100%; margin-bottom: 12px; }
+.lang-flag-btn {
+  background: none; border: none; border-radius: var(--radius-pill); cursor: pointer;
+  padding: 5px 9px; font-size: 15px; line-height: 1; opacity: 0.45; transition: opacity .15s ease, background-color .15s ease;
+}
+.lang-flag-btn:hover { opacity: 0.75; }
+.lang-flag-btn.is-active { opacity: 1; background: var(--blue-bg); }
+.lang-flags--drawer { width: 100%; margin-bottom: 12px; justify-content: center; }
+.lang-flags--drawer .lang-flag-btn { flex: 1; font-size: 13px; font-weight: 800; padding: 10px; }
 
 /* Hamburger (mobile only) */
 .hamburger-btn {
@@ -283,6 +289,13 @@ button { font-family: inherit; }
 .welcome p { font-size: 16px; line-height: 1.75; color: var(--text-body); margin: 0; }
 .erasmus-block { margin-top: 40px; padding-top: 40px; border-top: 1px solid var(--border-hairline); }
 
+.outdoor-panel {
+  text-align: center; background: var(--yellow-bg-soft); border-radius: var(--radius-xl);
+  padding: clamp(32px,5vw,48px) clamp(24px,5vw,48px);
+}
+.outdoor-icon { font-size: 32px; margin-bottom: 10px; }
+.outdoor-panel p { font-size: 15.5px; line-height: 1.75; color: var(--text-body); margin: 0 auto; max-width: 640px; }
+
 /* ==========================================================================
    Monopoli carousel
    ========================================================================== */
@@ -372,6 +385,7 @@ button { font-family: inherit; }
 .card {
   background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-md);
   overflow: hidden; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease;
+  display: flex; flex-direction: column;
 }
 .card:hover { transform: translateY(-4px); box-shadow: 0 18px 34px -20px rgba(16,35,59,0.18); }
 .card-media { aspect-ratio: 4/3; background: var(--panel-bg); display: flex; align-items: center; justify-content: center; position: relative; }
@@ -425,10 +439,15 @@ button { font-family: inherit; }
 .detail-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
 
 .beds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 18px; margin-top: 8px; }
-.bed-block { border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 20px; background: var(--off-white); }
+.bed-block {
+  border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 20px; background: var(--off-white);
+  display: flex; flex-direction: column; height: 100%;
+}
 .bed-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
 .bed-block-label { font-weight: 800; font-size: 14px; color: var(--navy); }
 .bed-block-price { margin-bottom: 14px; }
+.bed-block-cta { margin-top: auto; }
+.room-note { font-size: 13px; line-height: 1.6; color: var(--text-faintest-2); font-style: italic; margin: 0 0 20px; }
 
 /* ==========================================================================
    Posizione
@@ -543,13 +562,18 @@ button { font-family: inherit; }
 .room-card-media { aspect-ratio: 4/3; position: relative; background: var(--panel-bg); display: flex; align-items: center; justify-content: center; }
 .room-card-media .photo-placeholder { font-size: 10.5px; padding: 0; }
 .room-card-tag { position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 800; padding: 6px 13px; border-radius: var(--radius-pill); }
-.room-card-body { padding: 20px; }
+.room-card-body { padding: 20px; display: flex; flex-direction: column; flex: 1; }
 .room-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
 .room-card-name { font-family: var(--font-display); font-weight: 700; font-size: 18.5px; margin: 0; color: var(--navy); }
 .room-card-price { font-weight: 800; font-size: 16.5px; color: var(--blue); white-space: nowrap; }
+.room-card-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.room-card-type-badge {
+  display: inline-block; font-size: 11.5px; font-weight: 800; color: var(--blue-deep);
+  background: var(--blue-bg); border-radius: var(--radius-pill); padding: 4px 11px;
+}
 .room-card-balcony {
   display: inline-block; font-size: 11.5px; font-weight: 800; color: var(--yellow-text-dark);
-  background: var(--yellow-bg-soft); border-radius: var(--radius-pill); padding: 4px 11px; margin-bottom: 8px;
+  background: var(--yellow-bg-soft); border-radius: var(--radius-pill); padding: 4px 11px;
 }
 .room-card-status { font-size: 12.5px; font-weight: 700; }
 .room-card-status--occupied { color: var(--text-faintest); }
@@ -557,7 +581,7 @@ button { font-family: inherit; }
 .room-card-status--free { color: var(--green); }
 .room-card-status--free i { color: var(--text-faintest); font-style: italic; text-decoration: underline; }
 .room-card-cta {
-  margin-top: 15px; width: 100%; text-align: center; font-weight: 700; font-size: 13px;
+  margin-top: auto; width: 100%; text-align: center; font-weight: 700; font-size: 13px;
   padding: 12px; border-radius: var(--radius-pill); border: none; cursor: pointer;
   background: var(--blue-bg); color: var(--blue-deep); transition: background-color .15s ease, color .15s ease;
 }

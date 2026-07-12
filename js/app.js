@@ -181,9 +181,14 @@
   function renderHeroMedia() {
     var container = document.getElementById('hero-media-scroll');
     if (!container) return;
-    var html = '<div class="hero-media-slide"><span class="photo-placeholder">' + t('photo.prefix') + ' ' + t('photo.facade') + '</span>' + photoTag('images/facciata-1.jpg', 'Facciata di Casa Celeste') + '</div>';
+    // Come per le foto di stanze/spazi comuni: una foto caricata dalla
+    // dashboard (Firebase Storage) ha la precedenza sul file locale
+    // images/facciata-N.jpg con lo stesso numero.
+    var uploaded = (state.settings && state.settings.facadePhotos) || [];
+    function srcFor(i) { return uploaded[i - 1] || ('images/facciata-' + i + '.jpg'); }
+    var html = '<div class="hero-media-slide"><span class="photo-placeholder">' + t('photo.prefix') + ' ' + t('photo.facade') + '</span>' + photoTag(srcFor(1), 'Facciata di Casa Celeste') + '</div>';
     for (var i = 2; i <= 6; i++) {
-      html += '<div class="hero-media-slide"><img src="images/facciata-' + i + '.jpg" alt="Facciata di Casa Celeste, vista ' + i + '" class="real-photo" loading="lazy" onerror="window.__ccHeroSlideError(this)"></div>';
+      html += '<div class="hero-media-slide"><img src="' + srcFor(i) + '" alt="Facciata di Casa Celeste, vista ' + i + '" class="real-photo" loading="lazy" onerror="window.__ccHeroSlideError(this)"></div>';
     }
     container.innerHTML = html;
   }
@@ -216,25 +221,30 @@
   function waLink(text) {
     return 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(text);
   }
-  function tagFor(status) {
+  function tagFor(status, dateText) {
     if (status === 'libera') return { text: t('room.status_libera'), bg: '#E4F7EA', color: '#2E9E5B' };
     if (status === 'occupata') return { text: t('room.status_occupata'), bg: '#F0F1F3', color: '#8792A0' };
-    return { text: t('room.status_disponibile_dal'), bg: '#FDF3D9', color: '#B08D1E' };
+    var label = t('room.status_disponibile_dal') + (dateText ? ' ' + dateText : '');
+    return { text: label, bg: '#FDF3D9', color: '#B08D1E' };
   }
+  function genderLabel(g) { return g === 'uomo' ? t('gender.uomo') : (g === 'donna' ? t('gender.donna') : ''); }
   // Vista di un singolo posto letto (usata per le stanze doppie pubblicate
   // come doppie: ogni letto ha proprio stato/inquilino/prezzo indipendenti).
   function bedView(room, bed, bedLabel) {
     var status = bed.status;
-    var tag = tagFor(status);
     var isOccupata = status === 'occupata';
     var isDisponibile = status === 'disponibile';
     var isLibera = status === 'libera';
-    var occupantEmoji = bed.type === 'lavoratore' ? '💼' : '🎓';
+    var availableFromText = bed.date ? escapeHtml(bed.date) : t('room.presto');
+    var tag = tagFor(status, isDisponibile ? availableFromText : null);
     var occupantName = bed.tenantName ? escapeHtml(bed.tenantName) : null;
     var occupantAge = bed.tenantAge ? escapeHtml(String(bed.tenantAge)) : '—';
-    var occupantText = occupantName ? (occupantEmoji + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix')) : (occupantEmoji + ' ' + t('room.coinquilino_attuale'));
-    var availableFromText = bed.date ? escapeHtml(bed.date) : t('room.presto');
+    var gLabel = genderLabel(bed.tenantGender);
+    var occupantText = occupantName
+      ? (t('room.occupante_label') + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix') + (gLabel ? ' · ' + gLabel : ''))
+      : ((bed.type === 'lavoratore' ? '💼' : '🎓') + ' ' + t('room.coinquilino_attuale'));
     var link = waLink(tpl(t('room.wa_info_bed'), { room: room.name, bed: bedLabel }));
+    var blockLink = waLink(tpl(t('room.wa_blocca'), { room: room.name + ' — ' + bedLabel, date: availableFromText }));
     var ctaLabel = isOccupata ? t('room.cta_non_disponibile') : (isDisponibile ? t('room.cta_blocca') : t('room.cta_prenota'));
     var ctaBg = isOccupata ? '#F0F1F3' : '#2C8FC9';
     var ctaColor = isOccupata ? '#94A3B3' : '#FFFFFF';
@@ -243,7 +253,8 @@
       tagText: tag.text, tagBg: tag.bg, tagColor: tag.color,
       isOccupata: isOccupata, isDisponibile: isDisponibile, isLibera: isLibera,
       occupantText: occupantText, availableFromText: availableFromText,
-      ctaLabel: ctaLabel, ctaBg: ctaBg, ctaColor: ctaColor, waLink: link
+      ctaLabel: ctaLabel, ctaBg: ctaBg, ctaColor: ctaColor, waLink: link,
+      ctaIsWa: isDisponibile, ctaHref: isDisponibile ? blockLink : null
     };
   }
   function buildRoomView(id, room) {
@@ -252,23 +263,35 @@
     if (isDoppiaPublished) {
       var beds = room.beds || [];
       var freeCount = beds.filter(function (b) { return b.status === 'libera'; }).length;
-      var combinedStatus, tagOverrideText;
+      var combinedStatus, tagOverrideText, tagDate;
       if (beds.length > 0 && freeCount === beds.length) {
         combinedStatus = 'libera';
       } else if (freeCount === 1) {
         combinedStatus = 'libera';
         tagOverrideText = t('room.status_un_posto_libero');
-      } else if (beds.some(function (b) { return b.status === 'disponibile'; })) {
-        combinedStatus = 'disponibile';
       } else {
-        combinedStatus = 'occupata';
+        var dispBed = beds.filter(function (b) { return b.status === 'disponibile'; })[0];
+        if (dispBed) { combinedStatus = 'disponibile'; tagDate = dispBed.date ? escapeHtml(dispBed.date) : t('room.presto'); }
+        else combinedStatus = 'occupata';
       }
-      var tag = tagFor(combinedStatus);
+      var tag = tagFor(combinedStatus, tagDate);
       var tagText = tagOverrideText || tag.text;
       var prices = beds.map(function (b) { return Number(b.price) || 0; }).filter(function (p) { return p > 0; });
       var minPrice = prices.length ? Math.min.apply(null, prices) : 0;
       var allOccupata = beds.length > 0 && beds.every(function (b) { return b.status === 'occupata'; });
       var link = waLink(tpl(t('room.wa_info_room'), { room: room.name }));
+      // Nota "stesso sesso": quando la stanza doppia ha un letto occupato e
+      // uno libero, il posto libero va offerto a persone dello stesso sesso
+      // dell'attuale coinquilino (i due letti condividono la stanza).
+      var sameSexNote = null;
+      if (beds.length === 2) {
+        var occBeds = beds.filter(function (b) { return b.status === 'occupata'; });
+        var libBeds = beds.filter(function (b) { return b.status === 'libera'; });
+        if (occBeds.length === 1 && libBeds.length === 1) {
+          var g = genderLabel(occBeds[0].tenantGender);
+          sameSexNote = g ? tpl(t('room.same_sex_note'), { gender: g }) : t('room.same_sex_note_generic');
+        }
+      }
       return {
         id: id, name: room.name, priceText: (minPrice ? t('room.from') + ' €' + minPrice + t('room.per_month') : '—'),
         tagText: tagText, tagBg: tag.bg, tagColor: tag.color,
@@ -276,22 +299,25 @@
         occupantText: '', availableFromText: '',
         ctaLabel: allOccupata ? t('room.cta_non_disponibile') : t('room.cta_prenota'),
         ctaBg: allOccupata ? '#F0F1F3' : '#2C8FC9', ctaColor: allOccupata ? '#94A3B3' : '#FFFFFF',
-        waLink: link, isDoppiaPublished: true, photos: room.photos, balcony: room.balcony,
+        waLink: link, isDoppiaPublished: true, photos: room.photos, balcony: room.balcony, sameSexNote: sameSexNote,
         beds: beds.map(function (b, i) { return bedView(room, b, 'Letto ' + (i === 0 ? 'A' : 'B')); })
       };
     }
 
     var status = room.status;
-    var tag2 = tagFor(status);
     var isOccupata = status === 'occupata';
     var isDisponibile = status === 'disponibile';
     var isLibera = status === 'libera';
-    var occupantEmoji = room.type === 'lavoratore' ? '💼' : '🎓';
+    var availableFromText = room.date ? escapeHtml(room.date) : t('room.presto');
+    var tag2 = tagFor(status, isDisponibile ? availableFromText : null);
     var occupantName = room.tenantName ? escapeHtml(room.tenantName) : null;
     var occupantAge = room.tenantAge ? escapeHtml(String(room.tenantAge)) : '—';
-    var occupantText = occupantName ? (occupantEmoji + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix')) : (occupantEmoji + ' ' + t('room.coinquilino_attuale'));
-    var availableFromText = room.date ? escapeHtml(room.date) : t('room.presto');
+    var gLabel2 = genderLabel(room.tenantGender);
+    var occupantText = occupantName
+      ? (t('room.occupante_label') + ' ' + occupantName + ', ' + occupantAge + t('room.age_suffix') + (gLabel2 ? ' · ' + gLabel2 : ''))
+      : ((room.type === 'lavoratore' ? '💼' : '🎓') + ' ' + t('room.coinquilino_attuale'));
     var link2 = waLink(tpl(t('room.wa_info_room'), { room: room.name }));
+    var blockLink2 = waLink(tpl(t('room.wa_blocca'), { room: room.name, date: availableFromText }));
 
     var ctaLabel = isOccupata ? t('room.cta_non_disponibile') : (isDisponibile ? t('room.cta_blocca') : t('room.cta_prenota'));
     var ctaBg = isOccupata ? '#F0F1F3' : '#2C8FC9';
@@ -303,7 +329,8 @@
       isOccupata: isOccupata, isDisponibile: isDisponibile, isLibera: isLibera,
       occupantText: occupantText, availableFromText: availableFromText,
       ctaLabel: ctaLabel, ctaBg: ctaBg, ctaColor: ctaColor,
-      waLink: link2, isDoppiaPublished: false, roomLabel: room.name, photos: room.photos, balcony: room.balcony
+      waLink: link2, isDoppiaPublished: false, roomLabel: room.name, photos: room.photos, balcony: room.balcony,
+      ctaIsWa: isDisponibile, ctaHref: isDisponibile ? blockLink2 : null
     };
   }
   function selectedDateLabel() {
@@ -354,9 +381,9 @@
       el.innerHTML = t(el.getAttribute('data-i18n-html'));
     });
 
-    // Bottone di cambio lingua: mostra la lingua in cui si passerebbe.
-    document.querySelectorAll('[data-lang-flag]').forEach(function (el) {
-      el.textContent = state.lang === 'en' ? '🇮🇹 IT' : '🇬🇧 EN';
+    // Bandiere di cambio lingua: evidenzia quella attiva.
+    document.querySelectorAll('[data-lang-set]').forEach(function (el) {
+      el.classList.toggle('is-active', el.getAttribute('data-lang-set') === state.lang);
     });
 
     // Link WhatsApp con testo del messaggio precompilato nella lingua attiva.
@@ -407,7 +434,6 @@
     applyI18n();
     renderAllDynamic();
   }
-  function toggleLang() { setLang(state.lang === 'en' ? 'it' : 'en'); }
 
   /* ==========================================================================
      Render: Monopoli carousel
@@ -560,7 +586,10 @@
             '<h3 class="room-card-name">' + escapeHtml(view.name) + '</h3>' +
             '<div class="room-card-price">' + view.priceText + '</div>' +
           '</div>' +
-          (view.balcony && view.balcony !== 'nessuno' ? '<div class="room-card-balcony">' + escapeHtml(t('balcony.badge_' + view.balcony)) + '</div>' : '') +
+          '<div class="room-card-badges">' +
+            '<span class="room-card-type-badge">' + escapeHtml(view.isDoppiaPublished ? t('room.badge_doppia') : t('room.badge_singola')) + '</span>' +
+            (view.balcony && view.balcony !== 'nessuno' ? '<span class="room-card-balcony">' + escapeHtml(t('balcony.badge_' + view.balcony)) + '</span>' : '') +
+          '</div>' +
           statusHtml +
           '<button type="button" class="btn room-card-cta" data-room-card-view>' + escapeHtml(view.isDoppiaPublished ? t('room.view_doppia') : t('room.view_singola')) + '</button>' +
         '</div>' +
@@ -580,10 +609,13 @@
     var disabled = bv.isOccupata;
     var statusNoteHtml = '';
     if (bv.isOccupata) {
-      statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + bv.occupantText + ' · ' + escapeHtml(t('room.occupied_note')) + '</div>';
+      statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + bv.occupantText + '</div>';
     } else if (bv.isDisponibile) {
       statusNoteHtml = '<div class="detail-status-note detail-status-note--available">' + escapeHtml(t('room.status_disponibile_dal')) + ' ' + bv.availableFromText + '</div>';
     }
+    var ctaHtml = bv.ctaIsWa
+      ? '<a href="' + bv.ctaHref + '" target="_blank" rel="noopener" class="btn btn-block" style="background:' + bv.ctaBg + '; color:' + bv.ctaColor + ';">' + bv.ctaLabel + '</a>'
+      : '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(bv.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + bv.ctaBg + '; color:' + bv.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + bv.ctaLabel + '</button>';
     return (
       '<div class="bed-block">' +
         '<div class="bed-block-head">' +
@@ -593,7 +625,7 @@
         '<div class="detail-price bed-block-price">' + bv.priceText + '</div>' +
         statusNoteHtml +
         urgencyNoteHtml(bv.isLibera, bv.isDisponibile) +
-        '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(bv.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + bv.ctaBg + '; color:' + bv.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + bv.ctaLabel + '</button>' +
+        '<div class="bed-block-cta">' + ctaHtml + '</div>' +
       '</div>'
     );
   }
@@ -609,10 +641,12 @@
       : '';
     var bodyHtml;
     if (view.isDoppiaPublished) {
+      var sameSexHtml = view.sameSexNote ? '<p class="room-note">*' + escapeHtml(t('room.nota_bene')) + ': ' + escapeHtml(view.sameSexNote) + '</p>' : '';
       bodyHtml =
         '<span class="detail-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
         '<h2 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h2>' +
         '<p class="detail-text">' + room.description + '</p>' +
+        sameSexHtml +
         statsHtml +
         balconyHtml +
         '<div class="beds-grid">' + view.beds.map(bedBlockHtml).join('') + '</div>';
@@ -620,10 +654,13 @@
       var disabled = view.isOccupata;
       var statusNoteHtml = '';
       if (view.isOccupata) {
-        statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + view.occupantText + ' · ' + escapeHtml(t('room.occupied_note')) + '</div>';
+        statusNoteHtml = '<div class="detail-status-note detail-status-note--occupied">' + view.occupantText + '</div>';
       } else if (view.isDisponibile) {
         statusNoteHtml = '<div class="detail-status-note detail-status-note--available">' + escapeHtml(t('room.status_disponibile_dal')) + ' ' + view.availableFromText + '</div>';
       }
+      var ctaHtml2 = view.ctaIsWa
+        ? '<a href="' + view.ctaHref + '" target="_blank" rel="noopener" class="btn btn-block" style="background:' + view.ctaBg + '; color:' + view.ctaColor + ';">' + view.ctaLabel + '</a>'
+        : '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(view.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + view.ctaBg + '; color:' + view.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + view.ctaLabel + '</button>';
       bodyHtml =
         '<span class="detail-tag" style="background:' + view.tagBg + '; color:' + view.tagColor + ';">' + view.tagText + '</span>' +
         '<h2 class="detail-title detail-title--room">' + escapeHtml(room.name) + '</h2>' +
@@ -633,7 +670,7 @@
         statsHtml +
         balconyHtml +
         urgencyNoteHtml(view.isLibera, view.isDisponibile) +
-        '<button type="button" class="btn btn-block" data-open-booking data-room-label="' + escapeHtml(view.roomLabel) + '"' + (disabled ? ' disabled' : '') + ' style="background:' + view.ctaBg + '; color:' + view.ctaColor + '; cursor:' + (disabled ? 'default' : 'pointer') + ';">' + view.ctaLabel + '</button>';
+        ctaHtml2;
     }
     return (
       '<button type="button" class="back-link" data-go-home-room>' + escapeHtml(t('room.back_to_all')) + '</button>' +
@@ -1050,8 +1087,8 @@
       el = e.target.closest('[data-close-drawer]');
       if (el) closeMobileDrawer();
 
-      el = e.target.closest('[data-lang-toggle]');
-      if (el) { toggleLang(); return; }
+      el = e.target.closest('[data-lang-set]');
+      if (el) { setLang(el.getAttribute('data-lang-set')); return; }
 
       el = e.target.closest('[data-room-card]');
       if (el) { goToRoom(el.getAttribute('data-room-id')); return; }
@@ -1154,6 +1191,7 @@
       window.CasaCelesteDB.subscribeSettings(function (settingsFromDb) {
         state.settings = settingsFromDb || {};
         renderVirtualTourCta();
+        renderHeroMedia();
       });
     }
   }

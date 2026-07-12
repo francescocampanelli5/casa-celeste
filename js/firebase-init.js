@@ -172,6 +172,18 @@ window.CasaCelesteDB = {
     return deleteObject(fileRef).catch(function () {});
   },
 
+  // ---- upload foto facciata (home, Firebase Storage) ----
+  uploadFacadePhoto: function (slotIndex, file) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    if (!storage) return Promise.reject(new Error('Firebase Storage non disponibile'));
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    var path = 'site/facade/slot' + slotIndex + '.' + ext;
+    var fileRef = storageRef(storage, path);
+    return uploadBytes(fileRef, file).then(function () {
+      return getDownloadURL(fileRef);
+    });
+  },
+
   // ---- bookings ----
   createBooking: function (data) {
     if (!configured) return Promise.resolve(null);
