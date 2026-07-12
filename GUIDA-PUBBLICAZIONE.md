@@ -359,6 +359,54 @@ principale del sito solo se entrambe le condizioni sono vere (link presente
 e casella spuntata) — deselezionando la casella lo nascondi in qualsiasi
 momento senza perdere il link salvato.
 
+### 3.12 Conferma al visitatore e promemoria automatico del giorno prima
+
+Chi prenota un tour può ricevere due email, entrambe facoltative:
+
+1. **Conferma immediata**, appena prenota.
+2. **Promemoria automatico**, il giorno prima del tour — inviato una volta
+   al giorno da un "robot" gratuito (GitHub Actions) che controlla le
+   prenotazioni del giorno successivo.
+
+Entrambe usano lo **stesso template EmailJS**, quello scritto per parlare al
+visitatore (non a te). Per attivarle:
+
+1. **Crea il template** su EmailJS (Email Templates → Create New Template):
+   - Oggetto: `Il tuo tour a Casa Celeste — {{roomLabel}}`
+   - Corpo:
+     ```
+     Ciao {{name}},
+
+     ti aspettiamo per il tour della stanza {{roomLabel}} il {{dateLabel}}
+     alle {{time}}.
+
+     Indirizzo: Via Giuseppe del Drago 9, Monopoli (BA), quinto piano con
+     ascensore.
+
+     A presto!
+     Casa Celeste
+     ```
+   - **Importante**: nelle impostazioni del template, il campo **"To
+     Email"** deve essere **`{{email}}`** (non il tuo indirizzo fisso) —
+     altrimenti l'email arriva a te invece che al visitatore.
+   - Salva e copia il **Template ID**.
+2. Incolla quel Template ID in **`js/firebase-config.js`**, campo
+   `EMAILJS_CONFIG.visitorTemplateId` — così parte la conferma immediata.
+3. *(Solo per il promemoria automatico)* recupera anche:
+   - la **Private Key** di EmailJS: Account → API Keys
+   - un **service account** Firebase: Impostazioni progetto → Service
+     accounts → **Generate new private key** (scarica un file `.json`)
+4. Se hai usato Claude Code, incollagli in chat il Template ID e la Private
+   Key, e allegagli il contenuto del file `.json` del service account: li
+   userà per completare `scripts/send-reminders.js` e salvarli come
+   **secrets** del repository GitHub (Settings → Secrets and variables →
+   Actions), così restano privati e non finiscono nel codice pubblico.
+
+Il promemoria gira automaticamente ogni giorno alle 7:00 UTC (circa le 8-9
+del mattino in Italia) tramite GitHub Actions — gratuito, nessun server da
+mantenere. Puoi anche avviarlo manualmente per testarlo: nel repository su
+GitHub, scheda **Actions** → **Promemoria prenotazioni** → **Run workflow**.
+
 ---
 
 ## Parte 4 — Collegare EmailJS (opzionale, per ricevere una email ad ogni prenotazione)

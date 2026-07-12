@@ -1,0 +1,8 @@
+{
+  "name": "casa-celeste-scripts",
+  "private": true,
+  "description": "Script di automazione (promemoria prenotazioni) eseguiti da GitHub Actions, separati dal sito statico.",
+  "dependencies": {
+    "firebase-admin": "^12.6.0"
+  }
+}

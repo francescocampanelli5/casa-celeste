@@ -722,9 +722,18 @@
   }
   function sendBookingEmail(data) {
     if (!isEmailJsConfigured() || typeof emailjs === 'undefined') return;
+    var c = window.EMAILJS_CONFIG;
     try {
-      emailjs.send(window.EMAILJS_CONFIG.serviceId, window.EMAILJS_CONFIG.templateId, data, window.EMAILJS_CONFIG.publicKey);
+      emailjs.send(c.serviceId, c.templateId, data, c.publicKey);
     } catch (e) { /* notifica via email best-effort: la prenotazione resta comunque salvata */ }
+    // Conferma al visitatore stesso (template separato, facoltativo — il suo
+    // "To Email" è {{email}}, non il tuo indirizzo). Lo stesso template
+    // viene poi riusato per il promemoria automatico del giorno prima.
+    if (c.visitorTemplateId && c.visitorTemplateId.indexOf('INCOLLA_QUI') === -1) {
+      try {
+        emailjs.send(c.serviceId, c.visitorTemplateId, data, c.publicKey);
+      } catch (e) { /* best-effort */ }
+    }
   }
   function confirmBooking() {
     if (!state.contactName || !state.contactEmail) return;

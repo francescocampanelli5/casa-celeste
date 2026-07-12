@@ -24,7 +24,14 @@ window.FIREBASE_CONFIG = {
 window.EMAILJS_CONFIG = {
   publicKey: "wuB-uArgD97brV8OX",
   serviceId: "service_pgej8ka",
-  templateId: "template_tdn3rko"
+  templateId: "template_tdn3rko",
+  // Facoltativo: template EmailJS che scrive AL VISITATORE (non a te) per
+  // confermargli la prenotazione appena effettuata, e riusato anche per il
+  // promemoria automatico del giorno prima (vedi GUIDA-PUBBLICAZIONE.md).
+  // Il campo "To Email" di QUESTO template deve essere {{email}}, non il
+  // tuo indirizzo fisso. Se lo lasci vuoto, il sito funziona comunque: il
+  // visitatore semplicemente non riceve conferma/promemoria via email.
+  visitorTemplateId: "INCOLLA_QUI_IL_TEMPLATE_ID_VISITATORE"
 };
 
 // Lascia questo a false. Serve solo a me per fare i test in locale prima
