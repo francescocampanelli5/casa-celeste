@@ -273,16 +273,16 @@
       });
     });
   }
-  // Upload diretto delle foto stanza via Firebase Storage (richiede il
-  // piano Blaze attivo sul progetto). In alternativa resta valido caricare
-  // le foto su GitHub con nome fisso images/roomId-N.jpg (sezione 3.3bis
-  // della guida) — le due modalità convivono: se una foto è stata caricata
-  // da qui ha la precedenza sul file locale con lo stesso numero.
-  function roomPhotoSlotsHtml(roomId, room) {
+  // Upload diretto delle foto (stanze e spazi comuni) via Firebase Storage
+  // (richiede il piano Blaze attivo sul progetto). In alternativa resta
+  // valido caricare le foto su GitHub con nome fisso images/id-N.jpg
+  // (sezione 3.3bis della guida) — le due modalità convivono: se una foto è
+  // stata caricata da qui ha la precedenza sul file locale con lo stesso numero.
+  function photoSlotsHtml(kind, ownerId, entity) {
     var slots = '';
     for (var i = 1; i <= 6; i++) {
-      var uploaded = room.photos && room.photos[i - 1];
-      var src = uploaded || ('images/' + roomId + '-' + i + '.jpg');
+      var uploaded = entity.photos && entity.photos[i - 1];
+      var src = uploaded || ('images/' + ownerId + '-' + i + '.jpg');
       slots +=
         '<div class="admin-photo-slot">' +
           '<div class="admin-photo-preview">' +
@@ -290,25 +290,29 @@
             '<div class="admin-photo-empty">Nessuna foto</div>' +
           '</div>' +
           '<label class="admin-photo-upload-btn">' + (uploaded ? 'Sostituisci' : 'Carica') +
-            '<input type="file" accept="image/*" class="admin-photo-input" data-photo-upload data-room-id="' + roomId + '" data-slot-index="' + i + '">' +
+            '<input type="file" accept="image/*" class="admin-photo-input" data-photo-upload data-photo-kind="' + kind + '" data-owner-id="' + ownerId + '" data-slot-index="' + i + '">' +
           '</label>' +
-          (uploaded ? '<button type="button" class="admin-photo-remove" data-photo-remove data-room-id="' + roomId + '" data-slot-index="' + i + '">Rimuovi foto caricata</button>' : '') +
+          (uploaded ? '<button type="button" class="admin-photo-remove" data-photo-remove data-photo-kind="' + kind + '" data-owner-id="' + ownerId + '" data-slot-index="' + i + '">Rimuovi foto caricata</button>' : '') +
         '</div>';
     }
     return '<div class="admin-field-group admin-field-group--full"><label>Foto (fino a 6 — carica qui direttamente, oppure via GitHub come spiegato in guida)</label><div class="admin-photo-grid">' + slots + '</div></div>';
   }
   function bindPhotoUploadEvents(content) {
+    function dataMapFor(kind) { return kind === 'room' ? state.roomsData : state.commonsData; }
+    function setFnFor(kind) { return kind === 'room' ? window.CasaCelesteDB.setRoom : window.CasaCelesteDB.setCommon; }
+    function uploadFnFor(kind) { return kind === 'room' ? window.CasaCelesteDB.uploadRoomPhoto : window.CasaCelesteDB.uploadCommonPhoto; }
     content.querySelectorAll('[data-photo-upload]').forEach(function (input) {
       input.addEventListener('change', function (e) {
         var file = e.target.files && e.target.files[0];
         if (!file) return;
-        var roomId = input.getAttribute('data-room-id');
+        var kind = input.getAttribute('data-photo-kind');
+        var ownerId = input.getAttribute('data-owner-id');
         var idx = Number(input.getAttribute('data-slot-index'));
         input.disabled = true;
-        window.CasaCelesteDB.uploadRoomPhoto(roomId, idx, file).then(function (url) {
-          var photos = (state.roomsData[roomId].photos || []).slice();
+        uploadFnFor(kind)(ownerId, idx, file).then(function (url) {
+          var photos = (dataMapFor(kind)[ownerId].photos || []).slice();
           photos[idx - 1] = url;
-          return window.CasaCelesteDB.setRoom(roomId, { photos: photos });
+          return setFnFor(kind)(ownerId, { photos: photos });
         }).catch(function (err) {
           window.alert('Errore nel caricamento della foto: ' + (err && err.message ? err.message : err) + '\n\nSe non hai ancora attivato il piano Blaze di Firebase (necessario per Firebase Storage), attivalo dalla console Firebase e riprova.');
           input.disabled = false;
@@ -317,12 +321,13 @@
     });
     content.querySelectorAll('[data-photo-remove]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var roomId = btn.getAttribute('data-room-id');
+        var kind = btn.getAttribute('data-photo-kind');
+        var ownerId = btn.getAttribute('data-owner-id');
         var idx = Number(btn.getAttribute('data-slot-index'));
         if (!window.confirm('Rimuovere questa foto caricata? Se esiste anche un file su GitHub con lo stesso nome, tornerà a essere quello mostrato.')) return;
-        var photos = (state.roomsData[roomId].photos || []).slice();
+        var photos = (dataMapFor(kind)[ownerId].photos || []).slice();
         photos[idx - 1] = '';
-        window.CasaCelesteDB.setRoom(roomId, { photos: photos });
+        setFnFor(kind)(ownerId, { photos: photos });
       });
     });
   }
@@ -348,7 +353,7 @@
           '<button type="button" class="dash-delete-btn" data-delete-room data-room-id="' + roomId + '">Elimina stanza</button>' +
         '</div>' +
         '<div class="admin-field-group admin-field-group--full"><label>Descrizione</label><textarea class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="description" rows="2">' + escapeHtml(room.description || '') + '</textarea></div>' +
-        roomPhotoSlotsHtml(roomId, room) +
+        photoSlotsHtml('room', roomId, room) +
         statsEditorHtml('room', roomId, room.stats) +
         '<div class="admin-room-type-row">' +
           '<div class="admin-field-group"><label>Tipo stanza</label>' +
@@ -477,6 +482,7 @@
         '<div class="admin-field-group admin-field-group--full"><label>Descrizione breve (mostrata nella card)</label><textarea class="admin-field" data-common-field data-common-id="' + commonId + '" data-field="shortText" rows="2">' + escapeHtml(common.shortText || '') + '</textarea></div>' +
         '<div class="admin-field-group admin-field-group--full"><label>Descrizione completa (pagina di dettaglio)</label><textarea class="admin-field" data-common-field data-common-id="' + commonId + '" data-field="longText" rows="3">' + escapeHtml(common.longText || '') + '</textarea></div>' +
         '<div class="admin-field-group admin-field-group--full"><label>Caratteristiche brevi, separate da virgola (es. Doccia, Specchio ampio)</label><input type="text" class="admin-field" data-common-field data-common-id="' + commonId + '" data-field="features" value="' + escapeHtml(featuresText) + '"></div>' +
+        photoSlotsHtml('common', commonId, common) +
         statsEditorHtml('common', commonId, common.stats) +
       '</div>'
     );
@@ -536,6 +542,7 @@
     });
 
     bindStatsEditorEvents(content);
+    bindPhotoUploadEvents(content);
   }
 
   /* ==========================================================================

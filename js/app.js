@@ -314,7 +314,7 @@
     var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip">' + escapeHtml(f) + '</span>'; }).join('');
     return (
       '<div class="card" data-common-card data-common-id="' + id + '">' +
-        '<div class="card-media"><span class="photo-placeholder">Foto — ' + escapeHtml(def.caption || def.name) + '</span>' + photoTag('images/' + id + '-1.jpg', def.name) + '</div>' +
+        '<div class="card-media"><span class="photo-placeholder">Foto — ' + escapeHtml(def.caption || def.name) + '</span>' + photoTag((def.photos && def.photos[0]) || ('images/' + id + '-1.jpg'), def.name) + '</div>' +
         '<div class="card-body">' +
           '<h3 class="card-title">' + escapeHtml(def.name) + '</h3>' +
           '<p class="card-text">' + escapeHtml(def.shortText || '') + '</p>' +
@@ -333,7 +333,7 @@
       '<button type="button" class="back-link" data-go-home-common>← Tutti gli spazi comuni</button>' +
       '<div class="detail-grid">' +
         '<div>' +
-          detailMediaHtml(id, def.caption || def.name) +
+          detailMediaHtml(id, def.caption || def.name, def.photos) +
         '</div>' +
         '<div>' +
           '<h1 class="detail-title">' + escapeHtml(def.name) + '</h1>' +

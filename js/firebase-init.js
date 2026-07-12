@@ -155,6 +155,23 @@ window.CasaCelesteDB = {
     return deleteObject(fileRef).catch(function () {});
   },
 
+  // ---- upload foto spazi comuni (Firebase Storage) ----
+  uploadCommonPhoto: function (commonId, slotIndex, file) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    if (!storage) return Promise.reject(new Error('Firebase Storage non disponibile'));
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    var path = 'commons/' + commonId + '/slot' + slotIndex + '.' + ext;
+    var fileRef = storageRef(storage, path);
+    return uploadBytes(fileRef, file).then(function () {
+      return getDownloadURL(fileRef);
+    });
+  },
+  deleteCommonPhotoFile: function (commonId, slotIndex, ext) {
+    if (!storage) return Promise.resolve();
+    var fileRef = storageRef(storage, 'commons/' + commonId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
+    return deleteObject(fileRef).catch(function () {});
+  },
+
   // ---- bookings ----
   createBooking: function (data) {
     if (!configured) return Promise.resolve(null);

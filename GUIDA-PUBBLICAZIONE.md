@@ -327,16 +327,16 @@ recensioni" la prima volta, poi modifica liberamente nome, ruolo (es.
 "Studentessa, Economia") e testo di ogni recensione, aggiungine di nuove con
 **"+ Aggiungi una recensione"** o eliminale con **"Elimina"**.
 
-### 3.10 Caricare le foto delle stanze direttamente dalla dashboard
+### 3.10 Caricare le foto direttamente dalla dashboard
 
-Oltre a caricarle su GitHub (sezione 3.3bis), ora puoi caricare le foto delle
-**stanze** (non degli spazi comuni) direttamente dalla scheda **Stanze**:
-ogni stanza mostra una griglia di 6 riquadri con un bottone **"Carica"** —
-scegli un file dal tuo computer e viene caricato automaticamente. Se in un
-riquadro c'è già una foto caricata da qui, ha la precedenza sul file
-eventualmente caricato su GitHub con lo stesso numero; il bottone
-**"Rimuovi foto caricata"** toglie quella specifica e torna a mostrare il
-file di GitHub (se esiste).
+Oltre a caricarle su GitHub (sezione 3.3bis), ora puoi caricare le foto sia
+delle **stanze** (scheda Stanze) sia degli **spazi comuni** (scheda Spazi
+comuni) direttamente da lì: ogni scheda mostra una griglia di 6 riquadri con
+un bottone **"Carica"** — scegli un file dal tuo computer e viene caricato
+automaticamente. Se in un riquadro c'è già una foto caricata da qui, ha la
+precedenza sul file eventualmente caricato su GitHub con lo stesso numero;
+il bottone **"Rimuovi foto caricata"** toglie quella specifica e torna a
+mostrare il file di GitHub (se esiste).
 
 **Attenzione:** questa funzione richiede che il progetto Firebase abbia il
 piano **Blaze** attivo (Firebase Storage non funziona sul piano gratuito
