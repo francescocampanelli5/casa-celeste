@@ -549,24 +549,28 @@ in futuro anche il sito turistico:
 - `lacasaceleste.it/affittacamere/` → riservato per il futuro sito turistico
 
 **Costo:** l'hosting (GitHub Pages) resta a 0€. L'unico costo reale è la
-**registrazione del dominio** `.it`, che va rinnovata ogni anno presso un
-registrar (indicativamente 8-20€/anno a seconda del registrar — non è
-gratis, e va detto chiaramente). Registrar comuni per domini `.it`: Aruba,
-Register.it, Namecheap, OVH, GoDaddy. Nota: per registrare un `.it` serve un
-codice fiscale italiano o comunque un requisito di residenza/cittadinanza
-UE — qualunque registrar te lo richiede in fase di acquisto.
+**registrazione/rinnovo del dominio** `.it` presso un registrar
+(indicativamente 8-20€/anno — non è gratis, e va detto chiaramente).
 
-### 5.1 Se non hai ancora registrato il dominio
+**`lacasaceleste.it` risulta già registrato** (nameserver Aruba), quindi
+questa parte di solito è già fatta — se però non fosse tuo, registralo
+presso un registrar `.it` (Aruba, Register.it, Namecheap, OVH, GoDaddy...:
+serve un codice fiscale italiano o un requisito di residenza/cittadinanza
+UE) prima di continuare.
 
-1. Scegli un registrar (uno qualsiasi tra quelli sopra) e cerca la
-   disponibilità di **lacasaceleste.it**.
-2. Completa l'acquisto (richiede i tuoi dati anagrafici/codice fiscale per il
-   `.it`). Salta al punto 5.2 una volta completato.
+> ⚠️ **Importante — segui l'ordine esatto qui sotto.** Se aggiungi il
+> dominio personalizzato su GitHub (5.2) *prima* che il DNS punti davvero a
+> GitHub Pages (5.1), GitHub inizia subito a reindirizzare il link
+> `.github.io` verso il tuo dominio — che nel frattempo, non avendo ancora
+> il DNS configurato, mostra la pagina di default del tuo provider (Aruba)
+> invece del sito. Il link `.github.io` che stai usando ora smette di
+> funzionare finché il DNS non è pronto. Configura sempre prima il DNS.
 
-### 5.2 Configurare il DNS presso il tuo registrar
+### 5.1 Configurare il DNS presso il tuo registrar (Aruba, nel tuo caso)
 
-Nel pannello di gestione DNS del dominio (di solito una sezione chiamata
-"DNS", "Zona DNS" o "Name server"), aggiungi questi record:
+Nel pannello di gestione DNS del dominio (su Aruba: area clienti →
+gestione dominio → **DNS**), **sostituisci** i record A esistenti (che oggi
+puntano ai server Aruba) con questi:
 
 | Tipo  | Host/Nome | Valore                |
 |-------|-----------|------------------------|
@@ -576,29 +580,35 @@ Nel pannello di gestione DNS del dominio (di solito una sezione chiamata
 | A     | @ (o vuoto) | 185.199.111.153      |
 
 Questi sono gli indirizzi IP ufficiali di GitHub Pages: puntano il dominio
-"nudo" (senza `www`) direttamente ai server di GitHub. Se il tuo registrar
-supporta anche IPv6 (record AAAA), è facoltativo aggiungerlo, non necessario.
+"nudo" (senza `www`) direttamente ai server di GitHub. Se il pannello
+supporta anche IPv6 (record AAAA), è facoltativo aggiungerlo, non
+necessario.
 
-### 5.3 Collegare il dominio su GitHub
+**Aspetta che il DNS si propaghi** prima di andare al passo successivo:
+verifica su un sito come whatsmydns.net cercando `lacasaceleste.it` (tipo
+record A) finché non vedi ovunque i 4 IP di GitHub qui sopra al posto di
+quello Aruba. Di solito richiede da pochi minuti a qualche ora.
+
+### 5.2 Collegare il dominio su GitHub (solo dopo che il DNS punta a GitHub)
 
 1. Sul repository `casa-celeste` su GitHub, vai su **Settings → Pages**.
-2. Nel campo **Custom domain**, scrivi `lacasaceleste.it` e clicca **Save**.
-   (Il file `CNAME` alla radice del repository, già presente, verrà
-   confermato automaticamente — non serve crearlo a mano.)
+2. Nel campo **Custom domain**, scrivi `lacasaceleste.it` e clicca **Save**
+   — questo ricrea automaticamente il file `CNAME` alla radice del
+   repository, non serve farlo a mano.
 3. GitHub verifica il DNS e genera un certificato HTTPS gratuito
-   (Let's Encrypt): può richiedere da qualche minuto ad alcune ore, a volte
-   fino a 24-48h se il DNS è appena stato configurato.
+   (Let's Encrypt): può richiedere da qualche minuto ad alcune ore.
 4. Quando il certificato è pronto, spunta **Enforce HTTPS** nella stessa
    pagina, per forzare sempre la connessione sicura.
 
-### 5.4 Verificare che funzioni
+### 5.3 Verificare che funzioni
 
 - Apri `https://lacasaceleste.it/` → deve reindirizzarti a
   `https://lacasaceleste.it/studentato/`.
 - Apri `https://lacasaceleste.it/studentato/dashboard.html` → deve
   comparire la schermata di login.
-- Se dopo qualche ora non funziona ancora, controlla la propagazione DNS su
-  un sito come whatsmydns.net cercando `lacasaceleste.it` (tipo record A).
+- Se qualcosa non torna, il link `https://francescocampanelli5.github.io/casa-celeste/studentato/`
+  resta comunque una via di accesso di riserva finché non hai completato
+  questi passaggi.
 
 Da questo momento, ogni volta che aggiorni un file su GitHub (Parte 7),
 GitHub Pages ripubblica automaticamente il sito in 1-2 minuti — non serve
