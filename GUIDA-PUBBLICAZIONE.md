@@ -294,6 +294,32 @@ Puoi cambiare questa impostazione in qualsiasi momento, senza perdere i dati
 dell'altra modalità: passando da "Doppia" a "Singola" e poi di nuovo a
 "Doppia", i due letti restano come li avevi lasciati.
 
+### 3.7 Caratteristiche personalizzate (etichetta + valore)
+
+Ogni stanza ha una lista di "caratteristiche" mostrate nella pagina di
+dettaglio (di serie: Metratura, Letto, Aria condizionata, Esposizione). In
+dashboard puoi modificare **sia il testo dell'etichetta sia il valore**, non
+solo il valore: ad esempio puoi rinominare "Aria condizionata" in
+"Climatizzazione", o cambiarla del tutto in "Vista" con il suo valore.
+Con **"+ Aggiungi caratteristica"** ne aggiungi di nuove, con l'icona **✕**
+ne rimuovi — la pagina di dettaglio si adatta a quante ce ne sono.
+
+### 3.8 Spazi comuni (Cucina, Corridoio, Bagno, Lavanderia)
+
+Scheda dashboard **"Spazi comuni"** — stessa logica dei punti sopra:
+
+1. **"Inizializza gli spazi comuni con i valori di esempio"** la prima volta
+   (solo se il database è vuoto), per creare i 4 spazi di partenza.
+2. Da lì, modifica liberamente nome, descrizione breve (quella nella card),
+   descrizione completa (pagina di dettaglio), le "caratteristiche brevi"
+   (i tag piccoli tipo "Doccia", "Balcone" — scrivili separati da virgola) e
+   le caratteristiche etichetta+valore (Metratura, Accesso, ecc., come per
+   le stanze — anche qui il testo dell'etichetta è modificabile).
+3. **"+ Aggiungi uno spazio comune"** per crearne uno nuovo da zero (es.
+   "Terrazzo", "Studio"); **"Elimina"** per toglierlo dal sito.
+4. Anche qui, l'identificativo tecnico mostrato accanto al nome è quello da
+   usare per le foto (`images/nome-1.jpg` … `-6.jpg`, sezione 3.3bis).
+
 ---
 
 ## Parte 4 — Collegare EmailJS (opzionale, per ricevere una email ad ogni prenotazione)

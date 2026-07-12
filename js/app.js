@@ -5,6 +5,7 @@
      Content data
      ========================================================================== */
   var SEED_ROOMS = window.CASA_CELESTE_DATA.SEED_ROOMS;
+  var SEED_COMMONS = window.CASA_CELESTE_DATA.SEED_COMMONS;
 
   var MONO_SLIDES = [
     { eyebrow: 'Centro storico', tagBg: '#EAF6FC', caption: 'centro storico', img: 'images/centro-storico.jpg', title: 'Il centro storico', text: "Vicoli bianchi, piazzette e locali a due passi da casa: la vita universitaria, i bar e le uscite serali sono sempre dietro l'angolo." },
@@ -19,13 +20,6 @@
     { q: 'Cosa è incluso nel prezzo mensile?', a: 'Formula tutto incluso: utenze, wifi e riscaldamento sono compresi nel canone.' },
     { q: 'Posso ospitare qualcuno a dormire?', a: "Per rispetto della privacy e della quiete di tutti i coinquilini, non è prevista la possibilità di ospitare esterni a dormire durante la notte e fare troppo rumore dopo l'orario consentito." },
     { q: 'Posso vedere la casa prima di decidere?', a: 'Certo — prenota un tour dal sito o scrivici su WhatsApp: ti mostriamo la casa, stanza per stanza, prima di qualsiasi prenotazione.' }
-  ];
-
-  var COMMON_DEFS = [
-    { id: 'cucina', name: 'Cucina', caption: 'cucina', shortText: 'Ampia e luminosa, pensata per cucinare insieme, condividere un pasto o godersi un momento tranquillo.', longText: "La cucina è il cuore sociale della casa: ampia, luminosa e attrezzata per cucinare senza pestarsi i piedi. Il balcone annesso è perfetto per un caffè o una pausa tra una lezione e l'altra.", features: ['Frigoriferi/Congelatori', 'Piano ad induzione', 'Balcone', 'Microonde'], stats: [{ label: 'Metratura', value: '12 m²' }, { label: 'Posti a sedere', value: '6' }, { label: 'Accesso', value: 'H24' }] },
-    { id: 'corridoio', name: 'Corridoio', caption: 'corridoio', shortText: 'Ampio e ordinato, collega tutte le stanze e offre spazio extra per armadi e scarpiere.', longText: 'Il corridoio è ampio e ben illuminato: collega tutte le stanze della casa e ospita armadi, scarpiere e portaoggetti aggiuntivi, per tenere gli spazi comuni sempre in ordine.', features: ['Portaombrelli', 'Scarpiera', 'Portaoggetti'], stats: [{ label: 'Metratura', value: '8 m²' }, { label: 'Armadi comuni', value: '2' }, { label: 'Accesso', value: 'H24' }] },
-    { id: 'bagno', name: 'Bagno condiviso', caption: 'bagno', shortText: 'Pulito e funzionale. Un calendario di pulizia condiviso mantiene tutto in ordine.', longText: 'Il bagno condiviso è organizzato con un calendario di pulizia a rotazione tra i coinquilini, così resta sempre in ordine per tutti.', features: ['Doccia', 'Specchio ampio', 'Portaoggetti'], stats: [{ label: 'Metratura', value: '6 m²' }, { label: 'Docce', value: '1' }, { label: 'Accesso', value: 'H24' }] },
-    { id: 'lavanderia', name: 'Lavanderia', caption: 'lavanderia', shortText: 'Zona dedicata al bucato, comoda e sempre disponibile in casa.', longText: 'Niente più lavanderie a gettoni fuori casa: la zona lavanderia è sempre disponibile, comoda e pensata per stare al passo con la routine di ognuno.', features: ['Lavatrice', 'Utensili per pulizie'], stats: [{ label: 'Metratura', value: '5 m²' }, { label: 'Lavatrici', value: '1' }, { label: 'Accesso', value: 'H24' }] }
   ];
 
   var LEGAL_DEFS = {
@@ -73,6 +67,7 @@
     commonView: 'grid',
     activeCommonId: null,
     roomsData: JSON.parse(JSON.stringify(SEED_ROOMS)),
+    commonsData: JSON.parse(JSON.stringify(SEED_COMMONS)),
     monoIndex: 0,
     faqOpen: {},
     bookingOpen: false,
@@ -273,34 +268,42 @@
   /* ==========================================================================
      Render: Common areas
      ========================================================================== */
-  function commonCardHtml(def) {
-    var featuresHtml = def.features.map(function (f) { return '<span class="chip">' + escapeHtml(f) + '</span>'; }).join('');
+  function orderedIds(map) {
+    return Object.keys(map).sort(function (a, b) {
+      var oa = map[a].order != null ? map[a].order : 999999;
+      var ob = map[b].order != null ? map[b].order : 999999;
+      if (oa !== ob) return oa - ob;
+      return (map[a].name || '').localeCompare(map[b].name || '');
+    });
+  }
+  function commonCardHtml(id, def) {
+    var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip">' + escapeHtml(f) + '</span>'; }).join('');
     return (
-      '<div class="card" data-common-card data-common-id="' + def.id + '">' +
-        '<div class="card-media"><span class="photo-placeholder">Foto — ' + escapeHtml(def.caption) + '</span>' + photoTag('images/' + def.id + '-1.jpg', def.name) + '</div>' +
+      '<div class="card" data-common-card data-common-id="' + id + '">' +
+        '<div class="card-media"><span class="photo-placeholder">Foto — ' + escapeHtml(def.caption || def.name) + '</span>' + photoTag('images/' + id + '-1.jpg', def.name) + '</div>' +
         '<div class="card-body">' +
           '<h3 class="card-title">' + escapeHtml(def.name) + '</h3>' +
-          '<p class="card-text">' + escapeHtml(def.shortText) + '</p>' +
+          '<p class="card-text">' + escapeHtml(def.shortText || '') + '</p>' +
           '<div class="chip-row">' + featuresHtml + '</div>' +
         '</div>' +
       '</div>'
     );
   }
-  function commonDetailHtml(def) {
+  function commonDetailHtml(id, def) {
     var link = waLink('Ciao! Vorrei informazioni su: ' + def.name + ' di Casa Celeste.');
-    var statsHtml = def.stats.map(function (s) {
+    var statsHtml = (def.stats || []).map(function (s) {
       return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(s.label) + '</div><div class="stat-value">' + escapeHtml(s.value) + '</div></div>';
     }).join('');
-    var featuresHtml = def.features.map(function (f) { return '<span class="chip chip--lg">' + escapeHtml(f) + '</span>'; }).join('');
+    var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip chip--lg">' + escapeHtml(f) + '</span>'; }).join('');
     return (
       '<button type="button" class="back-link" data-go-home-common>← Tutti gli spazi comuni</button>' +
       '<div class="detail-grid">' +
         '<div>' +
-          detailMediaHtml(def.id, def.caption) +
+          detailMediaHtml(id, def.caption || def.name) +
         '</div>' +
         '<div>' +
           '<h1 class="detail-title">' + escapeHtml(def.name) + '</h1>' +
-          '<p class="detail-text">' + def.longText + '</p>' +
+          '<p class="detail-text">' + (def.longText || '') + '</p>' +
           '<div class="stats-grid">' + statsHtml + '</div>' +
           '<div class="chip-row" style="margin-bottom:28px;">' + featuresHtml + '</div>' +
           '<a href="' + link + '" target="_blank" rel="noopener" class="btn btn-primary btn-block-inline">Richiedi info su WhatsApp</a>' +
@@ -310,9 +313,12 @@
   }
   function renderCommon() {
     var container = document.getElementById('common-section');
+    var commons = state.commonsData;
+    var ids = orderedIds(commons);
     if (state.commonView === 'detail') {
-      var def = COMMON_DEFS.filter(function (c) { return c.id === state.activeCommonId; })[0] || COMMON_DEFS[0];
-      container.innerHTML = commonDetailHtml(def);
+      var activeId = commons[state.activeCommonId] ? state.activeCommonId : ids[0];
+      if (!activeId) { container.innerHTML = ''; return; }
+      container.innerHTML = commonDetailHtml(activeId, commons[activeId]);
       return;
     }
     var intro =
@@ -321,7 +327,7 @@
         '<h2 class="h2" style="margin:0 0 14px;">Spazi comuni curati, per vivere bene insieme</h2>' +
         '<p>Cucina, bagno e lavanderia e ampio corridoio pensati per rendere la quotidianità semplice e senza attriti.</p>' +
       '</div>';
-    var cardsHtml = COMMON_DEFS.map(commonCardHtml).join('');
+    var cardsHtml = ids.map(function (id) { return commonCardHtml(id, commons[id]); }).join('');
     container.innerHTML = intro + '<div class="cards-grid">' + cardsHtml + '</div>';
   }
   function goToCommon(id) { state.commonView = 'detail'; state.activeCommonId = id; renderCommon(); }
@@ -383,10 +389,9 @@
   function roomDetailHtml(id, room, view) {
     var statsHtml =
       '<div class="stats-grid stats-grid--room">' +
-        '<div class="stat-tile"><div class="stat-label">Metratura</div><div class="stat-value">' + room.mq + ' m²</div></div>' +
-        '<div class="stat-tile"><div class="stat-label">Letto</div><div class="stat-value">' + room.bed + '</div></div>' +
-        '<div class="stat-tile"><div class="stat-label">Aria condizionata</div><div class="stat-value">' + room.ac + '</div></div>' +
-        '<div class="stat-tile"><div class="stat-label">Esposizione</div><div class="stat-value">' + room.exposure + '</div></div>' +
+        (room.stats || []).map(function (s) {
+          return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(s.label) + '</div><div class="stat-value">' + escapeHtml(s.value) + '</div></div>';
+        }).join('') +
       '</div>';
     var bodyHtml;
     if (view.isDoppiaPublished) {
@@ -421,18 +426,10 @@
       '</div>'
     );
   }
-  function orderedRoomIds(rooms) {
-    return Object.keys(rooms).sort(function (a, b) {
-      var oa = rooms[a].order != null ? rooms[a].order : 999999;
-      var ob = rooms[b].order != null ? rooms[b].order : 999999;
-      if (oa !== ob) return oa - ob;
-      return (rooms[a].name || '').localeCompare(rooms[b].name || '');
-    });
-  }
   function renderRooms() {
     var container = document.getElementById('rooms-section');
     var rooms = state.roomsData;
-    var ids = orderedRoomIds(rooms);
+    var ids = orderedIds(rooms);
 
     if (state.roomsView === 'detail') {
       var activeId = rooms[state.activeRoomId] ? state.activeRoomId : ids[0];
@@ -824,6 +821,11 @@
         state.roomsData = roomsFromDb;
         if (state.activeRoomId && !roomsFromDb[state.activeRoomId]) { state.roomsView = 'home'; state.activeRoomId = null; }
         renderRooms();
+      });
+      window.CasaCelesteDB.subscribeCommons(function (commonsFromDb) {
+        state.commonsData = commonsFromDb;
+        if (state.activeCommonId && !commonsFromDb[state.activeCommonId]) { state.commonView = 'grid'; state.activeCommonId = null; }
+        renderCommon();
       });
     }
   }

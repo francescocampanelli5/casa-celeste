@@ -11,8 +11,10 @@
     activeTab: 'bookings',
     bookings: [],
     roomsData: JSON.parse(JSON.stringify(SEED_ROOMS)),
+    commonsData: JSON.parse(JSON.stringify(window.CASA_CELESTE_DATA.SEED_COMMONS)),
     unsubBookings: null,
-    unsubRooms: null
+    unsubRooms: null,
+    unsubCommons: null
   };
 
   function slugify(str) {
@@ -22,6 +24,11 @@
   function uniqueRoomId(base) {
     var id = base, n = 2;
     while (state.roomsData[id]) { id = base + '-' + n; n += 1; }
+    return id;
+  }
+  function uniqueCommonId(base) {
+    var id = base, n = 2;
+    while (state.commonsData[id]) { id = base + '-' + n; n += 1; }
     return id;
   }
 
@@ -98,6 +105,7 @@
         '<div class="dash-tabs">' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'bookings' ? ' is-active' : '') + '" data-tab="bookings">Prenotazioni</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'rooms' ? ' is-active' : '') + '" data-tab="rooms">Stanze</button>' +
+          '<button type="button" class="dash-tab' + (state.activeTab === 'commons' ? ' is-active' : '') + '" data-tab="commons">Spazi comuni</button>' +
         '</div>' +
         '<div id="dash-content"></div>' +
       '</div>';
@@ -119,6 +127,7 @@
     var content = document.getElementById('dash-content');
     if (!content) return;
     if (state.activeTab === 'bookings') renderBookingsTab(content);
+    else if (state.activeTab === 'commons') renderCommonsTab(content);
     else renderRoomsTab(content);
   }
 
@@ -195,6 +204,62 @@
       '</div>'
     );
   }
+  // Editor libero di caratteristiche { label, value } — usato sia per le
+  // stanze (Metratura, Letto, ecc.) sia per gli spazi comuni. "kind" indica
+  // in quale mappa (roomsData/commonsData) e con quale funzione salvare.
+  function statsEditorHtml(kind, ownerId, stats) {
+    var rows = (stats || []).map(function (s, i) {
+      return (
+        '<div class="admin-stat-row">' +
+          '<input type="text" class="admin-field" placeholder="Etichetta (es. Aria condizionata)" data-stat-field data-stat-kind="' + kind + '" data-owner-id="' + ownerId + '" data-stat-index="' + i + '" data-stat-part="label" value="' + escapeHtml(s.label || '') + '">' +
+          '<input type="text" class="admin-field" placeholder="Valore" data-stat-field data-stat-kind="' + kind + '" data-owner-id="' + ownerId + '" data-stat-index="' + i + '" data-stat-part="value" value="' + escapeHtml(s.value || '') + '">' +
+          '<button type="button" class="admin-stat-remove" data-stat-remove data-stat-kind="' + kind + '" data-owner-id="' + ownerId + '" data-stat-index="' + i + '" title="Rimuovi caratteristica">✕</button>' +
+        '</div>'
+      );
+    }).join('');
+    return (
+      '<div class="admin-field-group admin-field-group--full">' +
+        '<label>Caratteristiche (etichetta + valore, mostrate nella pagina di dettaglio)</label>' +
+        '<div class="admin-stats-rows">' + rows + '</div>' +
+        '<button type="button" class="admin-stat-add" data-stat-add data-stat-kind="' + kind + '" data-owner-id="' + ownerId + '">+ Aggiungi caratteristica</button>' +
+      '</div>'
+    );
+  }
+  function bindStatsEditorEvents(content) {
+    function dataMapFor(kind) { return kind === 'room' ? state.roomsData : state.commonsData; }
+    function setFnFor(kind) { return kind === 'room' ? window.CasaCelesteDB.setRoom : window.CasaCelesteDB.setCommon; }
+    content.querySelectorAll('[data-stat-field]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var kind = el.getAttribute('data-stat-kind');
+        var ownerId = el.getAttribute('data-owner-id');
+        var idx = Number(el.getAttribute('data-stat-index'));
+        var part = el.getAttribute('data-stat-part');
+        var stats = (dataMapFor(kind)[ownerId].stats || []).slice();
+        var patch = {}; patch[part] = e.target.value;
+        stats[idx] = Object.assign({}, stats[idx], patch);
+        setFnFor(kind)(ownerId, { stats: stats });
+      });
+    });
+    content.querySelectorAll('[data-stat-add]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var kind = el.getAttribute('data-stat-kind');
+        var ownerId = el.getAttribute('data-owner-id');
+        var stats = (dataMapFor(kind)[ownerId].stats || []).slice();
+        stats.push({ label: '', value: '' });
+        setFnFor(kind)(ownerId, { stats: stats });
+      });
+    });
+    content.querySelectorAll('[data-stat-remove]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var kind = el.getAttribute('data-stat-kind');
+        var ownerId = el.getAttribute('data-owner-id');
+        var idx = Number(el.getAttribute('data-stat-index'));
+        var stats = (dataMapFor(kind)[ownerId].stats || []).slice();
+        stats.splice(idx, 1);
+        setFnFor(kind)(ownerId, { stats: stats });
+      });
+    });
+  }
   function roomAdminCardHtml(roomId, room) {
     var roomType = room.roomType === 'doppia' ? 'doppia' : 'singola';
     var publishAs = room.publishAs === 'singola' ? 'singola' : 'doppia';
@@ -216,13 +281,8 @@
           '<span class="admin-room-slug" title="Nome file per le foto: images/' + roomId + '-1.jpg … -6.jpg">' + roomId + '</span>' +
           '<button type="button" class="dash-delete-btn" data-delete-room data-room-id="' + roomId + '">Elimina stanza</button>' +
         '</div>' +
-        '<div class="admin-room-static-grid">' +
-          '<div class="admin-field-group"><label>Metratura (m²)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="mq" value="' + (room.mq != null ? room.mq : '') + '"></div>' +
-          '<div class="admin-field-group"><label>Letto</label><input type="text" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="bed" value="' + escapeHtml(room.bed || '') + '"></div>' +
-          '<div class="admin-field-group"><label>Aria condizionata</label><input type="text" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="ac" value="' + escapeHtml(room.ac || '') + '"></div>' +
-          '<div class="admin-field-group"><label>Esposizione</label><input type="text" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="exposure" value="' + escapeHtml(room.exposure || '') + '"></div>' +
-        '</div>' +
         '<div class="admin-field-group admin-field-group--full"><label>Descrizione</label><textarea class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="description" rows="2">' + escapeHtml(room.description || '') + '</textarea></div>' +
+        statsEditorHtml('room', roomId, room.stats) +
         '<div class="admin-room-type-row">' +
           '<div class="admin-field-group"><label>Tipo stanza</label>' +
             '<select class="admin-field" data-room-type-select data-room-id="' + roomId + '">' +
@@ -263,7 +323,7 @@
       var bedIndex = bedIndexAttr != null ? Number(bedIndexAttr) : null;
       el.addEventListener('change', function (e) {
         var val = e.target.value;
-        if (field === 'price' || field === 'mq') val = Number(val) || 0;
+        if (field === 'price') val = Number(val) || 0;
         if (bedIndex != null) {
           var beds = (state.roomsData[roomId].beds || [{}, {}]).slice();
           beds[bedIndex] = Object.assign({}, beds[bedIndex], (function () { var p = {}; p[field] = val; return p; })());
@@ -324,12 +384,90 @@
       var id = uniqueRoomId(slugify(name));
       var maxOrder = Object.keys(state.roomsData).reduce(function (m, k) { return Math.max(m, state.roomsData[k].order || 0); }, 0);
       window.CasaCelesteDB.createRoom(id, {
-        order: maxOrder + 1, name: name, mq: '', bed: '', ac: '', exposure: '', description: '',
+        order: maxOrder + 1, name: name, stats: [], description: '',
         roomType: 'singola', status: 'libera', date: '', tenantName: '', tenantAge: '', type: 'studente', price: 0
       }).then(function () {
         window.alert('Stanza "' + name + '" creata. Ricordati di caricare le foto come images/' + id + '-1.jpg (vedi GUIDA-PUBBLICAZIONE.md).');
       });
     });
+
+    bindStatsEditorEvents(content);
+  }
+
+  /* ==========================================================================
+     Common areas tab
+     ========================================================================== */
+  function commonAdminCardHtml(commonId, common) {
+    var featuresText = (common.features || []).join(', ');
+    return (
+      '<div class="admin-room-card" data-common-id="' + commonId + '">' +
+        '<div class="admin-room-head">' +
+          '<input type="text" class="admin-field admin-room-name" placeholder="Nome spazio" data-common-field data-common-id="' + commonId + '" data-field="name" value="' + escapeHtml(common.name || '') + '">' +
+          '<span class="admin-room-slug" title="Nome file per le foto: images/' + commonId + '-1.jpg … -6.jpg">' + commonId + '</span>' +
+          '<button type="button" class="dash-delete-btn" data-delete-common data-common-id="' + commonId + '">Elimina</button>' +
+        '</div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Descrizione breve (mostrata nella card)</label><textarea class="admin-field" data-common-field data-common-id="' + commonId + '" data-field="shortText" rows="2">' + escapeHtml(common.shortText || '') + '</textarea></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Descrizione completa (pagina di dettaglio)</label><textarea class="admin-field" data-common-field data-common-id="' + commonId + '" data-field="longText" rows="3">' + escapeHtml(common.longText || '') + '</textarea></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Caratteristiche brevi, separate da virgola (es. Doccia, Specchio ampio)</label><input type="text" class="admin-field" data-common-field data-common-id="' + commonId + '" data-field="features" value="' + escapeHtml(featuresText) + '"></div>' +
+        statsEditorHtml('common', commonId, common.stats) +
+      '</div>'
+    );
+  }
+  function renderCommonsTab(content) {
+    var ids = Object.keys(state.commonsData).sort(function (a, b) {
+      var oa = state.commonsData[a].order != null ? state.commonsData[a].order : 999999;
+      var ob = state.commonsData[b].order != null ? state.commonsData[b].order : 999999;
+      return oa - ob;
+    });
+    var cards = ids.map(function (id) { return commonAdminCardHtml(id, state.commonsData[id]); }).join('');
+
+    content.innerHTML =
+      '<button type="button" class="dash-seed-btn" id="seed-commons-btn">Inizializza gli spazi comuni con i valori di esempio (solo se il database è vuoto)</button>' +
+      '<div class="dash-room-rows">' + cards + '</div>' +
+      '<button type="button" class="dash-add-room-btn" id="add-common-btn">+ Aggiungi uno spazio comune</button>' +
+      '<div class="admin-note">Le modifiche si salvano automaticamente sul database e si aggiornano subito sul sito pubblico per tutti i visitatori. Per le foto, usa il nome mostrato accanto al nome dello spazio (es. images/nome-1.jpg) — vedi GUIDA-PUBBLICAZIONE.md.</div>';
+
+    content.querySelectorAll('[data-common-field]').forEach(function (el) {
+      var commonId = el.getAttribute('data-common-id');
+      var field = el.getAttribute('data-field');
+      el.addEventListener('change', function (e) {
+        var val = e.target.value;
+        if (field === 'features') val = val.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        var patch = {};
+        patch[field] = val;
+        window.CasaCelesteDB.setCommon(commonId, patch);
+      });
+    });
+
+    content.querySelectorAll('[data-delete-common]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var commonId = el.getAttribute('data-common-id');
+        var name = (state.commonsData[commonId] && state.commonsData[commonId].name) || commonId;
+        if (window.confirm('Eliminare definitivamente lo spazio "' + name + '"? Sparirà subito dal sito pubblico.')) {
+          window.CasaCelesteDB.deleteCommon(commonId);
+        }
+      });
+    });
+
+    document.getElementById('seed-commons-btn').addEventListener('click', function () {
+      window.CasaCelesteDB.seedCommonsIfEmpty(window.CASA_CELESTE_DATA.SEED_COMMONS).then(function () {
+        window.alert('Fatto: se il database era vuoto, ora contiene i 4 spazi comuni di esempio.');
+      });
+    });
+
+    document.getElementById('add-common-btn').addEventListener('click', function () {
+      var name = window.prompt('Nome del nuovo spazio comune (es. "Terrazzo"):');
+      if (!name) return;
+      var id = uniqueCommonId(slugify(name));
+      var maxOrder = Object.keys(state.commonsData).reduce(function (m, k) { return Math.max(m, state.commonsData[k].order || 0); }, 0);
+      window.CasaCelesteDB.createCommon(id, {
+        order: maxOrder + 1, name: name, shortText: '', longText: '', features: [], stats: []
+      }).then(function () {
+        window.alert('Spazio "' + name + '" creato. Ricordati di caricare le foto come images/' + id + '-1.jpg (vedi GUIDA-PUBBLICAZIONE.md).');
+      });
+    });
+
+    bindStatsEditorEvents(content);
   }
 
   /* ==========================================================================
@@ -338,6 +476,7 @@
   function subscribeToData() {
     if (state.unsubBookings) state.unsubBookings();
     if (state.unsubRooms) state.unsubRooms();
+    if (state.unsubCommons) state.unsubCommons();
     state.unsubBookings = window.CasaCelesteDB.subscribeBookings(function (items) {
       state.bookings = items;
       if (state.user) renderTabContent();
@@ -346,6 +485,10 @@
       // Sostituisce del tutto i valori di esempio: una stanza eliminata da
       // qui non deve ricomparire perché "coperta" dai default locali.
       state.roomsData = roomsFromDb;
+      if (state.user) renderTabContent();
+    });
+    state.unsubCommons = window.CasaCelesteDB.subscribeCommons(function (commonsFromDb) {
+      state.commonsData = commonsFromDb;
       if (state.user) renderTabContent();
     });
   }

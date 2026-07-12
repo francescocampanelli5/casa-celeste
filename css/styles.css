@@ -471,13 +471,22 @@ button { font-family: inherit; }
 .admin-room-head { display: flex; align-items: center; gap: 10px; }
 .admin-room-name { font-weight: 700; font-size: 14px; flex: 1; min-width: 0; }
 .admin-room-slug { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-faintest); white-space: nowrap; }
-.admin-room-static-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; }
 .admin-field-group { display: flex; flex-direction: column; gap: 4px; }
 .admin-field-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .admin-field-group--full { width: 100%; }
 .admin-field-group--full textarea.admin-field { resize: vertical; font-family: inherit; }
 .admin-room-type-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 10px; }
 .admin-beds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 14px; }
+.admin-stats-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.admin-stat-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
+.admin-stat-remove {
+  background: none; border: 1px solid var(--border-strong); border-radius: 8px; color: #B3261E;
+  cursor: pointer; width: 34px; height: 34px; font-size: 13px; flex-shrink: 0;
+}
+.admin-stat-add {
+  background: none; border: 1px dashed var(--border-strong); color: var(--text-body); border-radius: 8px;
+  padding: 8px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
 .admin-occupancy {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 10px; align-items: center;
   background: var(--off-white); border-radius: 12px; padding: 12px;

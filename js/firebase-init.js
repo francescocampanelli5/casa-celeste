@@ -50,6 +50,36 @@ window.CasaCelesteDB = {
   deleteRoom: function (roomId) {
     return deleteDoc(doc(requireDb(), 'rooms', roomId));
   },
+
+  // ---- common areas (cucina, corridoio, bagno, lavanderia, ...) ----
+  subscribeCommons: function (callback) {
+    if (!configured) return function () {};
+    var ref = collection(requireDb(), 'commons');
+    return onSnapshot(ref, function (snap) {
+      var commons = {};
+      snap.forEach(function (d) { commons[d.id] = d.data(); });
+      callback(commons);
+    });
+  },
+  setCommon: function (commonId, data) {
+    return setDoc(doc(requireDb(), 'commons', commonId), data, { merge: true });
+  },
+  createCommon: function (commonId, data) {
+    return setDoc(doc(requireDb(), 'commons', commonId), data);
+  },
+  deleteCommon: function (commonId) {
+    return deleteDoc(doc(requireDb(), 'commons', commonId));
+  },
+  seedCommonsIfEmpty: function (defaults) {
+    var db_ = requireDb();
+    return getDocs(collection(db_, 'commons')).then(function (snap) {
+      if (!snap.empty) return;
+      var writes = Object.keys(defaults).map(function (id) {
+        return setDoc(doc(db_, 'commons', id), defaults[id]);
+      });
+      return Promise.all(writes);
+    });
+  },
   seedRoomsIfEmpty: function (defaults) {
     var db_ = requireDb();
     return getDocs(collection(db_, 'rooms')).then(function (snap) {
