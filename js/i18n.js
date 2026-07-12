@@ -19,7 +19,7 @@ window.CASA_CELESTE_I18N = {
     'hero.badge': '🎓 Student Housing · Monopoli',
     'hero.title_html': 'Studia sereno,<br>vivi in <span class="hero-title-highlight">compagnia<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.',
     'hero.lead_html': "Un appartamento moderno nel cuore di Monopoli: più che un semplice studentato o dormitorio, una vera casa in condivisione — con spazi curati, silenzio e privacy per i tuoi studi, socialità appena avrai finito.<br>Tutto a pochi passi dal centro e dal <b>Conservatorio</b>.",
-    'hero.address': '📍 Via Giuseppe del Drago 9 &nbsp;–&nbsp; Monopoli (BA)',
+    'hero.address': '📍 Via Giuseppe Can. del Drago 9 &nbsp;–&nbsp; Monopoli (BA)',
     'hero.cta_rooms': 'Vedi le stanze →',
 
     'trust.1': 'Cauzione restituita in 30 giorni',
@@ -31,7 +31,7 @@ window.CASA_CELESTE_I18N = {
     'welcome.text_html': "Che tu stia per iniziare l'università o cambi solo casa, qui trovi un posto pensato per farti sentire subito parte del gruppo: stanze pronte, spazi condivisi curati e coinquilini con cui costruire, giorno dopo giorno, <span class=\"text-yellow\">una vera community</span>.",
 
     'monopoli.eyebrow': 'Dove vivrai',
-    'monopoli.title': 'Monopoli, in tre scatti',
+    'monopoli.title': 'Monopoli in pochi scatti',
 
     'mood.eyebrow': 'Il mood di casa',
     'mood.title': "L'equilibrio perfetto tra concentrazione e convivenza",
@@ -48,7 +48,7 @@ window.CASA_CELESTE_I18N = {
     'cleaning.wa_text': 'Ciao! Vorremmo informazioni sul Servizio Pulizia Extra.',
 
     'posizione.eyebrow': 'Posizione',
-    'posizione.title': 'Via Giuseppe del Drago 9',
+    'posizione.title': 'Via Giuseppe Can. del Drago 9',
     'posizione.subtitle_html': 'Tutto quello che ti serve, a due passi da casa.<br><b><u><i>Quinto piano con ascensore.</i></u></b>',
     'dist.centro': '🏛️ Centro città',
     'dist.super': '🛒 Supermercato',
@@ -88,6 +88,7 @@ window.CASA_CELESTE_I18N = {
     'room.free_now': 'Disponibile fin da subito.',
     'room.free_now_note': "(Ma attenti a non farvela scappare)",
     'room.available_from': 'Disponibile dal',
+    'room.available_soon_note': '(Si prenota in anticipo: assicurati il posto)',
     'room.occupante_label': 'Occupante:',
     'room.coinquilino_attuale': 'Coinquilino attuale',
     'room.age_suffix': ' anni',
@@ -124,7 +125,7 @@ window.CASA_CELESTE_I18N = {
     'finalcta.wa_cta': 'Scrivici su WhatsApp',
     'finalcta.email_cta': 'Scrivici una email',
 
-    'footer.tagline_html': 'Student housing a Monopoli.<br>Via Giuseppe del Drago 9.',
+    'footer.tagline_html': 'Student housing a Monopoli.<br>Via Giuseppe Can. del Drago 9.',
     'footer.esplora': 'Esplora',
     'footer.contatti': 'Contatti',
     'footer.prenota': 'Prenota',
@@ -149,6 +150,8 @@ window.CASA_CELESTE_I18N = {
     'booking.email': 'Email',
     'booking.telefono': 'Telefono',
     'booking.conferma_prenotazione': 'Conferma prenotazione',
+    'booking.email_invalid': 'Email non valida.',
+    'booking.phone_invalid': 'Numero di telefono non valido: controlla di aver inserito tutte le cifre.',
     'booking.tour_prenotato': 'Tour prenotato!',
     'booking.success_text': 'ti scriveremo su WhatsApp per confermare i dettagli.',
     'booking.conferma_wa': 'Conferma su WhatsApp',
@@ -174,7 +177,10 @@ window.CASA_CELESTE_I18N = {
     'balcony.badge_privato': '🌅 Balcone privato',
     'balcony.badge_comunicante': '🌆 Balcone comunicante',
     'balcony.callout_privato': '🌅 <strong>Balcone privato</strong> — il tuo angolo personale all\'aperto: una sedia, la brezza della sera e la città vista dall\'alto, solo per te.',
-    'balcony.callout_comunicante': '🌆 <strong>Balcone comunicante</strong> (con separatore) — un affaccio esterno da condividere: perfetto per un caffè al sole o due chiacchiere in compagnia, con la brezza della sera.'
+    'balcony.callout_comunicante': '🌆 <strong>Balcone comunicante</strong> (con separatore) — un affaccio esterno da condividere: perfetto per un caffè al sole o due chiacchiere in compagnia, con la brezza della sera.',
+
+    'common.balcony_badge': '🌤️ Con balcone',
+    'common.balcony_callout': '🌤️ <strong>Con balcone</strong> — la porta si apre e i fornelli respirano: l\'aria fresca entra mentre cucini, e quando il piatto è pronto basta un passo per portarlo fuori, tra un brindisi e il cielo sopra la testa.'
   },
 
   en: {
@@ -190,7 +196,7 @@ window.CASA_CELESTE_I18N = {
     'hero.badge': '🎓 Student Housing · Monopoli, Italy',
     'hero.title_html': 'Study calm,<br>live in <span class="hero-title-highlight">good company<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.',
     'hero.lead_html': "A modern apartment in the heart of Monopoli: more than just a student dorm, a real shared home — well-kept shared spaces, quiet and privacy for your studies, socialising whenever you're ready.<br>Just steps from the historic centre and the <b>Conservatory</b>.",
-    'hero.address': '📍 Via Giuseppe del Drago 9 &nbsp;–&nbsp; Monopoli (BA), Italy',
+    'hero.address': '📍 Via Giuseppe Can. del Drago 9 &nbsp;–&nbsp; Monopoli (BA), Italy',
     'hero.cta_rooms': 'See the rooms →',
 
     'trust.1': 'Deposit refunded within 30 days',
@@ -202,7 +208,7 @@ window.CASA_CELESTE_I18N = {
     'welcome.text_html': "Whether you're just starting university or simply moving house, this is a place designed to make you feel part of the group from day one: rooms ready to move into, well-kept shared spaces, and housemates to build, day after day, <span class=\"text-yellow\">a real community</span> with.",
 
     'monopoli.eyebrow': 'Where you’ll live',
-    'monopoli.title': 'Monopoli, in three shots',
+    'monopoli.title': 'Monopoli, in a few shots',
 
     'mood.eyebrow': 'The vibe at home',
     'mood.title': 'The perfect balance between focus and togetherness',
@@ -219,7 +225,7 @@ window.CASA_CELESTE_I18N = {
     'cleaning.wa_text': "Hi! We'd like information about the Extra Cleaning Service.",
 
     'posizione.eyebrow': 'Location',
-    'posizione.title': 'Via Giuseppe del Drago 9',
+    'posizione.title': 'Via Giuseppe Can. del Drago 9',
     'posizione.subtitle_html': 'Everything you need, right around the corner.<br><b><u><i>Fifth floor, with lift.</i></u></b>',
     'dist.centro': '🏛️ City centre',
     'dist.super': '🛒 Supermarket',
@@ -259,6 +265,7 @@ window.CASA_CELESTE_I18N = {
     'room.free_now': 'Available right away.',
     'room.free_now_note': "(Don't let it slip away)",
     'room.available_from': 'Available from',
+    'room.available_soon_note': "(Book ahead to make sure it's yours)",
     'room.occupante_label': 'Occupant:',
     'room.coinquilino_attuale': 'Current housemate',
     'room.age_suffix': '',
@@ -295,7 +302,7 @@ window.CASA_CELESTE_I18N = {
     'finalcta.wa_cta': 'Message us on WhatsApp',
     'finalcta.email_cta': 'Send us an email',
 
-    'footer.tagline_html': 'Student housing in Monopoli.<br>Via Giuseppe del Drago 9.',
+    'footer.tagline_html': 'Student housing in Monopoli.<br>Via Giuseppe Can. del Drago 9.',
     'footer.esplora': 'Explore',
     'footer.contatti': 'Contact',
     'footer.prenota': 'Book',
@@ -320,6 +327,8 @@ window.CASA_CELESTE_I18N = {
     'booking.email': 'Email',
     'booking.telefono': 'Phone',
     'booking.conferma_prenotazione': 'Confirm booking',
+    'booking.email_invalid': 'Invalid email address.',
+    'booking.phone_invalid': "Invalid phone number: check you've entered all the digits.",
     'booking.tour_prenotato': 'Tour booked!',
     'booking.success_text': 'we’ll message you on WhatsApp to confirm the details.',
     'booking.conferma_wa': 'Confirm on WhatsApp',
@@ -345,7 +354,10 @@ window.CASA_CELESTE_I18N = {
     'balcony.badge_privato': '🌅 Private balcony',
     'balcony.badge_comunicante': '🌆 Connecting balcony',
     'balcony.callout_privato': '🌅 <strong>Private balcony</strong> — your own outdoor corner: a chair, the evening breeze and the city skyline, just for you.',
-    'balcony.callout_comunicante': '🌆 <strong>Connecting balcony</strong> (with a privacy divider) — an outdoor spot to share: perfect for a coffee in the sun or a chat with the evening breeze.'
+    'balcony.callout_comunicante': '🌆 <strong>Connecting balcony</strong> (with a privacy divider) — an outdoor spot to share: perfect for a coffee in the sun or a chat with the evening breeze.',
+
+    'common.balcony_badge': '🌤️ Has a balcony',
+    'common.balcony_callout': "🌤️ <strong>Has a balcony</strong> — the door opens and the stove gets some air: fresh breeze in while you cook, and once the plate's ready it's one step outside, between a toast and the open sky."
   }
 };
 

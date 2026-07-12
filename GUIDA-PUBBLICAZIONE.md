@@ -389,7 +389,7 @@ visitatore (non a te). Per attivarle:
      ti aspettiamo per il tour della stanza {{roomLabel}} il {{dateLabel}}
      alle {{time}}.
 
-     Indirizzo: Via Giuseppe del Drago 9, Monopoli (BA), quinto piano con
+     Indirizzo: Via Giuseppe Can. del Drago 9, Monopoli (BA), quinto piano con
      ascensore.
 
      A presto!
@@ -434,6 +434,25 @@ testo italiano anche a chi naviga in inglese, così non c'è mai un campo
 vuoto. Puoi tradurre solo alcune caratteristiche o solo alcune stanze e
 completare il resto con calma in un secondo momento: nulla si rompe nel
 frattempo.
+
+### 3.14 Numero WhatsApp di contatto
+
+Scheda dashboard **"Impostazioni"**, primo campo: scrivi il numero con
+prefisso internazionale, senza "+" o spazi (es. `393381567389`). Si aggiorna
+automaticamente ovunque compaia un link o un numero WhatsApp sul sito — card
+e dettaglio stanze, pulsante flottante, footer — senza dover toccare il
+codice. Se il numero inserito ha troppe o troppo poche cifre, la dashboard
+te lo segnala e non lo salva finché non lo correggi.
+
+### 3.15 "Monopoli in pochi scatti"
+
+Scheda dashboard **"Monopoli"**: stessa logica di stanze e spazi comuni.
+Ogni scatto ha un'etichetta breve, un titolo, un testo e una didascalia
+foto (tutti in italiano e inglese), più una foto caricabile direttamente da
+qui (o via GitHub con il nome mostrato accanto, es. `images/mare-1.jpg`).
+**"+ Aggiungi uno scatto"** per aggiungerne di nuovi, **"Elimina"** per
+toglierli — il carosello sulla home si adatta automaticamente a quanti
+scatti ci sono, restando responsive su ogni dimensione di schermo.
 
 ---
 

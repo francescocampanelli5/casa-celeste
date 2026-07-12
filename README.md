@@ -58,7 +58,8 @@ Quando avrai le foto reali, il modo più semplice è:
 
 - WhatsApp: +39 338 156 7389
 - Email: lacasacelestemonopoli@gmail.com
-- Indirizzo: Via Giuseppe del Drago 9, Monopoli (BA)
+- Indirizzo: Via Giuseppe Can. del Drago 9, Monopoli (BA)
 
-Per cambiarli, cerca questi valori in `index.html` e nella costante `WA_NUMBER`
-in `js/app.js`.
+Il numero WhatsApp si modifica dalla dashboard (scheda Impostazioni): si
+aggiorna automaticamente ovunque compaia sul sito. Per cambiare email o
+indirizzo, cerca questi valori in `index.html`.

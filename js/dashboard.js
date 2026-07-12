@@ -13,11 +13,13 @@
     roomsData: JSON.parse(JSON.stringify(SEED_ROOMS)),
     commonsData: JSON.parse(JSON.stringify(window.CASA_CELESTE_DATA.SEED_COMMONS)),
     reviewsData: JSON.parse(JSON.stringify(window.CASA_CELESTE_DATA.SEED_REVIEWS)),
+    monoSlidesData: JSON.parse(JSON.stringify(window.CASA_CELESTE_DATA.SEED_MONO_SLIDES)),
     settings: {},
     unsubBookings: null,
     unsubRooms: null,
     unsubCommons: null,
     unsubReviews: null,
+    unsubMonoSlides: null,
     unsubSettings: null
   };
 
@@ -39,6 +41,11 @@
     var n = 1;
     while (state.reviewsData['r' + n]) n += 1;
     return 'r' + n;
+  }
+  function uniqueMonoSlideId(base) {
+    var id = base, n = 2;
+    while (state.monoSlidesData[id]) { id = base + '-' + n; n += 1; }
+    return id;
   }
 
   function escapeHtml(str) {
@@ -140,6 +147,7 @@
           '<button type="button" class="dash-tab' + (state.activeTab === 'rooms' ? ' is-active' : '') + '" data-tab="rooms">Stanze</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'commons' ? ' is-active' : '') + '" data-tab="commons">Spazi comuni</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'reviews' ? ' is-active' : '') + '" data-tab="reviews">Recensioni</button>' +
+          '<button type="button" class="dash-tab' + (state.activeTab === 'monopoli' ? ' is-active' : '') + '" data-tab="monopoli">Monopoli</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'settings' ? ' is-active' : '') + '" data-tab="settings">Impostazioni</button>' +
         '</div>' +
         '<div id="dash-content"></div>' +
@@ -164,6 +172,7 @@
     if (state.activeTab === 'bookings') renderBookingsTab(content);
     else if (state.activeTab === 'commons') renderCommonsTab(content);
     else if (state.activeTab === 'reviews') renderReviewsTab(content);
+    else if (state.activeTab === 'monopoli') renderMonopoliTab(content);
     else if (state.activeTab === 'settings') renderSettingsTab(content);
     else renderRoomsTab(content);
   }
@@ -317,9 +326,10 @@
   // valido caricare le foto su GitHub con nome fisso images/id-N.jpg
   // (sezione 3.3bis della guida) — le due modalità convivono: se una foto è
   // stata caricata da qui ha la precedenza sul file locale con lo stesso numero.
-  function photoSlotsHtml(kind, ownerId, entity) {
+  function photoSlotsHtml(kind, ownerId, entity, maxSlots) {
+    maxSlots = maxSlots || 6;
     var slots = '';
-    for (var i = 1; i <= 6; i++) {
+    for (var i = 1; i <= maxSlots; i++) {
       var uploaded = entity.photos && entity.photos[i - 1];
       var src = uploaded || ('images/' + ownerId + '-' + i + '.jpg');
       slots +=
@@ -334,22 +344,26 @@
           (uploaded ? '<button type="button" class="admin-photo-remove" data-photo-remove data-photo-kind="' + kind + '" data-owner-id="' + ownerId + '" data-slot-index="' + i + '">Rimuovi foto caricata</button>' : '') +
         '</div>';
     }
-    return '<div class="admin-field-group admin-field-group--full"><label>Foto (fino a 6 — carica qui direttamente, oppure via GitHub come spiegato in guida)</label><div class="admin-photo-grid">' + slots + '</div></div>';
+    var label = maxSlots === 1 ? 'Foto (una sola immagine — carica qui direttamente, oppure via GitHub come spiegato in guida)' : 'Foto (fino a ' + maxSlots + ' — carica qui direttamente, oppure via GitHub come spiegato in guida)';
+    return '<div class="admin-field-group admin-field-group--full"><label>' + label + '</label><div class="admin-photo-grid">' + slots + '</div></div>';
   }
   function bindPhotoUploadEvents(content) {
     function dataMapFor(kind) {
       if (kind === 'room') return state.roomsData;
       if (kind === 'common') return state.commonsData;
+      if (kind === 'mono') return state.monoSlidesData;
       var wrap = {}; wrap.facciata = { photos: (state.settings && state.settings.facadePhotos) || [] }; return wrap;
     }
     function setFnFor(kind) {
       if (kind === 'room') return window.CasaCelesteDB.setRoom;
       if (kind === 'common') return window.CasaCelesteDB.setCommon;
+      if (kind === 'mono') return window.CasaCelesteDB.setMonoSlide;
       return function (ownerId, patch) { return window.CasaCelesteDB.setSettings({ facadePhotos: patch.photos }); };
     }
     function uploadFnFor(kind) {
       if (kind === 'room') return window.CasaCelesteDB.uploadRoomPhoto;
       if (kind === 'common') return window.CasaCelesteDB.uploadCommonPhoto;
+      if (kind === 'mono') return window.CasaCelesteDB.uploadMonoSlidePhoto;
       return function (ownerId, idx, file) { return window.CasaCelesteDB.uploadFacadePhoto(idx, file); };
     }
     content.querySelectorAll('[data-photo-upload]').forEach(function (input) {
@@ -542,6 +556,12 @@
         '</div>' +
         biRowHtml('textarea', 'Descrizione breve (mostrata nella card)', idAttr, 'shortText', common.shortText, 2) +
         biRowHtml('textarea', 'Descrizione completa (pagina di dettaglio)', idAttr, 'longText', common.longText, 3) +
+        '<div class="admin-field-group"><label>Balcone</label>' +
+          '<select class="admin-field" ' + idAttr + ' data-field="balcony">' +
+            '<option value="nessuno"' + (common.balcony !== 'presente' ? ' selected' : '') + '>Nessuno</option>' +
+            '<option value="presente"' + (common.balcony === 'presente' ? ' selected' : '') + '>Presente</option>' +
+          '</select>' +
+        '</div>' +
         '<div class="admin-field-group admin-field-group--full"><label>Caratteristiche brevi, separate da virgola (IT), es. Doccia, Specchio ampio</label><input type="text" class="admin-field" ' + idAttr + ' data-field="features.it" value="' + escapeHtml(featuresTextIt) + '"></div>' +
         '<div class="admin-field-group admin-field-group--full"><label>Caratteristiche brevi, separate da virgola (EN)</label><input type="text" class="admin-field" ' + idAttr + ' data-field="features.en" value="' + escapeHtml(featuresTextEn) + '"></div>' +
         photoSlotsHtml('common', commonId, common) +
@@ -691,11 +711,93 @@
   }
 
   /* ==========================================================================
+     Monopoli in pochi scatti (carosello foto/testo homepage)
+     ========================================================================== */
+  function monoSlideAdminCardHtml(slideId, slide) {
+    var idAttr = 'data-mono-field data-mono-id="' + slideId + '"';
+    return (
+      '<div class="admin-room-card" data-mono-id="' + slideId + '">' +
+        '<div class="admin-room-head">' +
+          '<span class="admin-room-slug" title="Nome file per la foto: images/' + slideId + '-1.jpg">' + slideId + '</span>' +
+          '<button type="button" class="dash-delete-btn" data-delete-mono data-mono-id="' + slideId + '">Elimina</button>' +
+        '</div>' +
+        biRowHtml('input', 'Etichetta breve (badge sopra il titolo, es. "Mare")', idAttr, 'eyebrow', slide.eyebrow, null) +
+        biRowHtml('input', 'Titolo', idAttr, 'title', slide.title, null) +
+        biRowHtml('textarea', 'Testo', idAttr, 'text', slide.text, 3) +
+        biRowHtml('input', 'Didascalia foto (breve, minuscola, es. "vista sul mare")', idAttr, 'caption', slide.caption, null) +
+        photoSlotsHtml('mono', slideId, slide, 1) +
+      '</div>'
+    );
+  }
+  function renderMonopoliTab(content) {
+    var ids = Object.keys(state.monoSlidesData).sort(function (a, b) {
+      var oa = state.monoSlidesData[a].order != null ? state.monoSlidesData[a].order : 999999;
+      var ob = state.monoSlidesData[b].order != null ? state.monoSlidesData[b].order : 999999;
+      return oa - ob;
+    });
+    var cards = ids.map(function (id) { return monoSlideAdminCardHtml(id, state.monoSlidesData[id]); }).join('');
+
+    content.innerHTML =
+      '<button type="button" class="dash-seed-btn" id="seed-mono-btn">Inizializza il carosello con i valori di esempio (solo se il database è vuoto)</button>' +
+      '<div class="dash-room-rows">' + cards + '</div>' +
+      '<button type="button" class="dash-add-room-btn" id="add-mono-btn">+ Aggiungi uno scatto</button>' +
+      '<div class="admin-note">Questi scatti scorrono nel carosello "Monopoli in pochi scatti" della home page. Le modifiche si salvano automaticamente e si aggiornano subito sul sito pubblico.</div>';
+
+    content.querySelectorAll('[data-mono-field]').forEach(function (el) {
+      var slideId = el.getAttribute('data-mono-id');
+      var field = el.getAttribute('data-field');
+      el.addEventListener('change', function (e) {
+        var patch = {};
+        patch[field] = e.target.value;
+        window.CasaCelesteDB.setMonoSlide(slideId, patch);
+      });
+    });
+
+    content.querySelectorAll('[data-delete-mono]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var slideId = el.getAttribute('data-mono-id');
+        if (window.confirm('Eliminare definitivamente questo scatto dal carosello?')) {
+          window.CasaCelesteDB.deleteMonoSlide(slideId);
+        }
+      });
+    });
+
+    document.getElementById('seed-mono-btn').addEventListener('click', function () {
+      window.CasaCelesteDB.seedMonoSlidesIfEmpty(window.CASA_CELESTE_DATA.SEED_MONO_SLIDES).then(function () {
+        window.alert('Fatto: se il database era vuoto, ora contiene i 3 scatti di esempio.');
+      });
+    });
+
+    document.getElementById('add-mono-btn').addEventListener('click', function () {
+      var name = window.prompt('Nome breve dello scatto (es. "Porto"), usato anche come nome file foto:');
+      if (!name) return;
+      var id = uniqueMonoSlideId(slugify(name));
+      var maxOrder = Object.keys(state.monoSlidesData).reduce(function (m, k) { return Math.max(m, state.monoSlidesData[k].order || 0); }, 0);
+      window.CasaCelesteDB.createMonoSlide(id, {
+        order: maxOrder + 1, eyebrow: { it: name, en: '' }, caption: { it: name.toLowerCase(), en: '' }, title: { it: '', en: '' }, text: { it: '', en: '' }
+      }).then(function () {
+        window.alert('Scatto "' + name + '" creato. Ricordati di caricare la foto come images/' + id + '-1.jpg (vedi GUIDA-PUBBLICAZIONE.md).');
+      });
+    });
+
+    bindPhotoUploadEvents(content);
+  }
+
+  /* ==========================================================================
      Impostazioni tab (Virtual Tour, ecc.)
      ========================================================================== */
   function renderSettingsTab(content) {
     var s = state.settings || {};
+    var phoneVal = s.phone || '393381567389';
     content.innerHTML =
+      '<div class="admin-room-card">' +
+        '<div class="admin-field-group admin-field-group--full">' +
+          '<label>Numero WhatsApp di contatto (prefisso internazionale senza "+" o spazi, es. 39 per l\'Italia)</label>' +
+          '<input type="text" class="admin-field" id="settings-phone" placeholder="393381567389" value="' + escapeHtml(phoneVal) + '">' +
+          '<div class="admin-field-error" id="settings-phone-error" style="display:none;"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="admin-note">Si aggiorna automaticamente su tutti i bottoni WhatsApp del sito: card e dettaglio stanze, footer, pulsante flottante, ecc.</div>' +
       '<div class="admin-room-card">' +
         '<div class="admin-field-group"><label><input type="checkbox" id="virtual-tour-enabled"' + (s.virtualTourEnabled ? ' checked' : '') + '> Mostra il bottone "Virtual Tour" sul sito pubblico</label></div>' +
         '<div class="admin-field-group admin-field-group--full"><label>Link del virtual tour (es. Matterport)</label><input type="text" class="admin-field" id="virtual-tour-url" placeholder="https://my.matterport.com/show/?m=..." value="' + escapeHtml(s.virtualTourUrl || '') + '"></div>' +
@@ -707,6 +809,18 @@
       '</div>' +
       '<div class="admin-note">Queste foto scorrono nel carosello della home page. Puoi caricarne da 1 a 6; se non carichi nulla resta il placeholder.</div>';
 
+    document.getElementById('settings-phone').addEventListener('change', function (e) {
+      var digits = e.target.value.replace(/\D/g, '');
+      var errorEl = document.getElementById('settings-phone-error');
+      if (digits.length < 8 || digits.length > 15) {
+        errorEl.textContent = 'Numero non valido: servono solo cifre (prefisso incluso), tra 8 e 15 in tutto.';
+        errorEl.style.display = '';
+        return;
+      }
+      errorEl.style.display = 'none';
+      e.target.value = digits;
+      window.CasaCelesteDB.setSettings({ phone: digits });
+    });
     document.getElementById('virtual-tour-enabled').addEventListener('change', function (e) {
       window.CasaCelesteDB.setSettings({ virtualTourEnabled: e.target.checked });
     });
@@ -724,6 +838,7 @@
     if (state.unsubRooms) state.unsubRooms();
     if (state.unsubCommons) state.unsubCommons();
     if (state.unsubReviews) state.unsubReviews();
+    if (state.unsubMonoSlides) state.unsubMonoSlides();
     if (state.unsubSettings) state.unsubSettings();
     state.unsubBookings = window.CasaCelesteDB.subscribeBookings(function (items) {
       state.bookings = items;
@@ -741,6 +856,10 @@
     });
     state.unsubReviews = window.CasaCelesteDB.subscribeReviews(function (reviewsFromDb) {
       state.reviewsData = reviewsFromDb;
+      if (state.user) renderTabContent();
+    });
+    state.unsubMonoSlides = window.CasaCelesteDB.subscribeMonoSlides(function (slidesFromDb) {
+      state.monoSlidesData = slidesFromDb;
       if (state.user) renderTabContent();
     });
     state.unsubSettings = window.CasaCelesteDB.subscribeSettings(function (settingsFromDb) {

@@ -103,7 +103,7 @@ window.CASA_CELESTE_DATA = {
 
   SEED_COMMONS: {
     cucina: {
-      order: 1, name: { it: 'Cucina', en: 'Kitchen' },
+      order: 1, name: { it: 'Cucina', en: 'Kitchen' }, balcony: 'presente',
       shortText: {
         it: 'Ampia e luminosa, pensata per cucinare insieme, condividere un pasto o godersi un momento tranquillo.',
         en: 'Bright and spacious, made for cooking together, sharing a meal, or enjoying a quiet moment.'
@@ -185,6 +185,30 @@ window.CASA_CELESTE_DATA = {
         { label: { it: 'Lavatrici', en: 'Washing machines' }, value: { it: '1', en: '1' } },
         { label: { it: 'Accesso', en: 'Access' }, value: { it: 'H24', en: '24/7' } }
       ]
+    }
+  },
+
+  SEED_MONO_SLIDES: {
+    'centro-storico': {
+      order: 1,
+      eyebrow: { it: 'Centro storico', en: 'Historic centre' },
+      caption: { it: 'centro storico', en: 'historic centre' },
+      title: { it: 'Il centro storico', en: 'The historic centre' },
+      text: { it: "Vicoli bianchi, piazzette e locali a due passi da casa: la vita universitaria, i bar e le uscite serali sono sempre dietro l'angolo.", en: "Whitewashed alleys, small squares and bars just steps from home: university life, cafés and evenings out are always around the corner." }
+    },
+    mare: {
+      order: 2,
+      eyebrow: { it: 'Mare', en: 'The sea' },
+      caption: { it: 'mare', en: 'sea' },
+      title: { it: 'Il mare', en: 'The sea' },
+      text: { it: 'Cale e scogliere a portata di bici: la pausa studio perfetta è un tuffo, non un viaggio.', en: 'Coves and rocky shores just a bike ride away: the perfect study break is a swim, not a journey.' }
+    },
+    'vita-pugliese': {
+      order: 3,
+      eyebrow: { it: 'Vita pugliese', en: 'Puglia life' },
+      caption: { it: 'vita pugliese', en: 'Puglia life' },
+      title: { it: 'La vita pugliese', en: 'Local life in Puglia' },
+      text: { it: 'Mercati, cucina tipica e ritmi lenti: Monopoli ti accoglie con la sua ospitalità, senza mai sentirti fuori posto.', en: 'Markets, local food and a slower pace: Monopoli welcomes you with its hospitality, so you never feel out of place.' }
     }
   },
 

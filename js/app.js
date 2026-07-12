@@ -7,18 +7,7 @@
   var SEED_ROOMS = window.CASA_CELESTE_DATA.SEED_ROOMS;
   var SEED_COMMONS = window.CASA_CELESTE_DATA.SEED_COMMONS;
   var SEED_REVIEWS = window.CASA_CELESTE_DATA.SEED_REVIEWS;
-
-  var MONO_SLIDES = [
-    { eyebrow: { it: 'Centro storico', en: 'Historic centre' }, tagBg: '#EAF6FC', caption: { it: 'centro storico', en: 'historic centre' }, img: 'images/centro-storico.jpg',
-      title: { it: 'Il centro storico', en: 'The historic centre' },
-      text: { it: "Vicoli bianchi, piazzette e locali a due passi da casa: la vita universitaria, i bar e le uscite serali sono sempre dietro l'angolo.", en: "Whitewashed alleys, small squares and bars just steps from home: university life, cafés and evenings out are always around the corner." } },
-    { eyebrow: { it: 'Mare', en: 'The sea' }, tagBg: '#FFF6DD', caption: { it: 'mare', en: 'sea' }, img: 'images/mare.jpg',
-      title: { it: 'Il mare', en: 'The sea' },
-      text: { it: 'Cale e scogliere a portata di bici: la pausa studio perfetta è un tuffo, non un viaggio.', en: 'Coves and rocky shores just a bike ride away: the perfect study break is a swim, not a journey.' } },
-    { eyebrow: { it: 'Vita pugliese', en: 'Puglia life' }, tagBg: '#EAF6FC', caption: { it: 'vita pugliese', en: 'Puglia life' }, img: 'images/vita-pugliese.jpg',
-      title: { it: 'La vita pugliese', en: 'Local life in Puglia' },
-      text: { it: 'Mercati, cucina tipica e ritmi lenti: Monopoli ti accoglie con la sua ospitalità, senza mai sentirti fuori posto.', en: 'Markets, local food and a slower pace: Monopoli welcomes you with its hospitality, so you never feel out of place.' } }
-  ];
+  var SEED_MONO_SLIDES = window.CASA_CELESTE_DATA.SEED_MONO_SLIDES;
 
   var FAQ_DEFS = [
     { q: { it: 'Quanto è la cauzione e quando viene restituita?', en: 'How much is the deposit, and when is it refunded?' },
@@ -96,8 +85,21 @@
     it: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
     en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   };
-  var WA_NUMBER = '393381567389';
+  var DEFAULT_WA_NUMBER = '393381567389';
   var TIME_SLOTS = ['10:00', '11:30', '14:00', '15:30', '17:00', '18:30'];
+  // Numero WhatsApp: modificabile dal proprietario in dashboard (Impostazioni)
+  // e propagato automaticamente a tutti i link del sito (vedi applyI18n()).
+  function waNumber() {
+    var raw = (state.settings && state.settings.phone) || DEFAULT_WA_NUMBER;
+    return String(raw).replace(/\D/g, '') || DEFAULT_WA_NUMBER;
+  }
+  function formatPhoneDisplay(raw) {
+    var d = String(raw || '').replace(/\D/g, '');
+    if (d.indexOf('39') === 0 && d.length === 12) {
+      return '+39 ' + d.slice(2, 5) + ' ' + d.slice(5, 8) + ' ' + d.slice(8);
+    }
+    return d ? '+' + d : '';
+  }
 
   /* ==========================================================================
      State
@@ -112,13 +114,12 @@
       } catch (e) {}
       return 'it';
     })(),
-    roomsView: 'home',
     activeRoomId: null,
-    commonView: 'grid',
     activeCommonId: null,
     roomsData: JSON.parse(JSON.stringify(SEED_ROOMS)),
     commonsData: JSON.parse(JSON.stringify(SEED_COMMONS)),
     reviewsData: JSON.parse(JSON.stringify(SEED_REVIEWS)),
+    monoSlidesData: JSON.parse(JSON.stringify(SEED_MONO_SLIDES)),
     settings: {},
     monoIndex: 0,
     faqOpen: {},
@@ -219,7 +220,7 @@
     return main + '<div class="detail-media-grid">' + thumbs + '</div>';
   }
   function waLink(text) {
-    return 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(text);
+    return 'https://wa.me/' + waNumber() + '?text=' + encodeURIComponent(text);
   }
   function tagFor(status, dateText) {
     if (status === 'libera') return { text: t('room.status_libera'), bg: '#E4F7EA', color: '#2E9E5B' };
@@ -388,7 +389,8 @@
       el.classList.toggle('is-active', el.getAttribute('data-lang-set') === state.lang);
     });
 
-    // Link WhatsApp con testo del messaggio precompilato nella lingua attiva.
+    // Link WhatsApp con testo del messaggio precompilato nella lingua attiva
+    // e numero sempre aggiornato da settings.phone (dashboard, vedi waNumber()).
     var cleaningCta = document.getElementById('cleaning-cta');
     if (cleaningCta) cleaningCta.href = waLink(t('cleaning.wa_text'));
     var finalWa = document.getElementById('finalcta-wa');
@@ -397,6 +399,10 @@
     if (footerWa) footerWa.href = waLink(t('finalcta.wa_text'));
     var waFloat = document.getElementById('wa-float');
     if (waFloat) { waFloat.href = waLink(t('finalcta.wa_text')); waFloat.setAttribute('aria-label', t('wa.aria_label')); }
+    var footerWaPlain = document.getElementById('footer-wa-plain');
+    if (footerWaPlain) footerWaPlain.href = 'https://wa.me/' + waNumber();
+    var footerWaNumberText = document.getElementById('footer-wa-number');
+    if (footerWaNumberText) footerWaNumberText.textContent = formatPhoneDisplay(waNumber());
 
     // Blocco di benvenuto per studenti Erasmus/internazionali: visibile solo
     // in inglese (i contenuti in italiano già parlano a un pubblico locale).
@@ -442,16 +448,22 @@
      ========================================================================== */
   function renderMono() {
     var container = document.getElementById('mono-carousel');
-    var slide = MONO_SLIDES[state.monoIndex];
-    var dotsHtml = MONO_SLIDES.map(function (_, i) {
+    var ids = orderedIds(state.monoSlidesData);
+    if (!ids.length) { container.innerHTML = ''; return; }
+    if (state.monoIndex >= ids.length) state.monoIndex = 0;
+    var activeId = ids[state.monoIndex];
+    var slide = state.monoSlidesData[activeId];
+    var tagBg = state.monoIndex % 2 === 0 ? '#EAF6FC' : '#FFF6DD';
+    var img = (slide.photos && slide.photos[0]) || ('images/' + activeId + '-1.jpg');
+    var dotsHtml = ids.map(function (_, i) {
       var active = i === state.monoIndex;
       return '<button type="button" class="carousel-dot" data-mono-dot data-index="' + i + '" style="width:' + (active ? '28px' : '9px') + '; background:' + (active ? '#2C8FC9' : '#D8E3EA') + ';" aria-label="Vai allo scatto ' + (i + 1) + '"></button>';
     }).join('');
     container.innerHTML =
       '<div class="carousel-media">' +
-        '<span class="carousel-tag" style="background:' + slide.tagBg + ';">' + escapeHtml(tf(slide.eyebrow)) + '</span>' +
+        '<span class="carousel-tag" style="background:' + tagBg + ';">' + escapeHtml(tf(slide.eyebrow)) + '</span>' +
         '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(tf(slide.caption)) + '</span>' +
-        photoTag(slide.img, tf(slide.caption)) +
+        photoTag(img, tf(slide.caption)) +
       '</div>' +
       '<div>' +
         '<h3 class="carousel-title">' + escapeHtml(tf(slide.title)) + '</h3>' +
@@ -459,8 +471,8 @@
         '<div class="carousel-dots">' + dotsHtml + '</div>' +
       '</div>';
   }
-  function monoPrev() { state.monoIndex = (state.monoIndex - 1 + MONO_SLIDES.length) % MONO_SLIDES.length; renderMono(); }
-  function monoNext() { state.monoIndex = (state.monoIndex + 1) % MONO_SLIDES.length; renderMono(); }
+  function monoPrev() { var n = orderedIds(state.monoSlidesData).length || 1; state.monoIndex = (state.monoIndex - 1 + n) % n; renderMono(); }
+  function monoNext() { var n = orderedIds(state.monoSlidesData).length || 1; state.monoIndex = (state.monoIndex + 1) % n; renderMono(); }
   function monoGoTo(i) { state.monoIndex = i; renderMono(); }
 
   function bindCarouselSwipe() {
@@ -499,11 +511,13 @@
   function commonCardHtml(id, def) {
     var name = tf(def.name);
     var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip">' + escapeHtml(tf(f)) + '</span>'; }).join('');
+    var balconyBadge = def.balcony === 'presente' ? '<div class="room-card-badges"><span class="room-card-balcony">' + escapeHtml(t('common.balcony_badge')) + '</span></div>' : '';
     return (
       '<div class="card" data-common-card data-common-id="' + id + '">' +
         '<div class="card-media"><span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(name) + '</span>' + photoTag((def.photos && def.photos[0]) || ('images/' + id + '-1.jpg'), name) + '</div>' +
         '<div class="card-body">' +
           '<h3 class="card-title">' + escapeHtml(name) + '</h3>' +
+          balconyBadge +
           '<p class="card-text">' + escapeHtml(tf(def.shortText)) + '</p>' +
           '<div class="chip-row">' + featuresHtml + '</div>' +
         '</div>' +
@@ -517,6 +531,7 @@
       return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(tf(s.label)) + '</div><div class="stat-value">' + escapeHtml(tf(s.value)) + '</div></div>';
     }).join('');
     var featuresHtml = (def.features || []).map(function (f) { return '<span class="chip chip--lg">' + escapeHtml(tf(f)) + '</span>'; }).join('');
+    var balconyHtml = def.balcony === 'presente' ? '<div class="balcony-callout">' + t('common.balcony_callout') + '</div>' : '';
     return (
       '<button type="button" class="back-link" data-go-home-common>' + escapeHtml(t('common.back_to_all')) + '</button>' +
       '<div class="detail-grid">' +
@@ -527,6 +542,7 @@
           '<h2 class="detail-title">' + escapeHtml(name) + '</h2>' +
           '<p class="detail-text">' + escapeHtml(tf(def.longText)) + '</p>' +
           '<div class="stats-grid">' + statsHtml + '</div>' +
+          balconyHtml +
           '<div class="chip-row" style="margin-bottom:28px;">' + featuresHtml + '</div>' +
           '<div class="detail-ctas">' +
             '<button type="button" class="btn btn-primary" data-open-booking data-room-label="Casa Celeste">' + escapeHtml(t('common.prenota_tour')) + '</button>' +
@@ -540,20 +556,21 @@
     var container = document.getElementById('common-section');
     var commons = state.commonsData;
     var ids = orderedIds(commons);
-    if (state.commonView === 'detail') {
-      var activeId = commons[state.activeCommonId] ? state.activeCommonId : ids[0];
-      if (!activeId) { container.innerHTML = ''; return; }
-      container.innerHTML = commonDetailHtml(activeId, commons[activeId]);
-      return;
-    }
+    var activeId = (state.activeCommonId && commons[state.activeCommonId]) ? state.activeCommonId : null;
+    var otherIds = activeId ? ids.filter(function (id) { return id !== activeId; }) : ids;
     var intro =
       '<div class="section-intro">' +
         '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('common.eyebrow')) + '</div>' +
         '<h2 class="h2" style="margin:0 0 14px;">' + escapeHtml(t('common.title')) + '</h2>' +
         '<p>' + escapeHtml(t('common.text')) + '</p>' +
       '</div>';
-    var cardsHtml = ids.map(function (id) { return commonCardHtml(id, commons[id]); }).join('');
-    container.innerHTML = intro + '<div class="cards-grid">' + cardsHtml + '</div>';
+    // Accordion: al massimo una card aperta per volta — quella attiva si
+    // espande a piena larghezza sopra, le altre restano sotto come card
+    // compatte (invece di sparire del tutto), cliccarne un'altra chiude
+    // quella corrente e apre la nuova.
+    var detailHtml = activeId ? '<div class="detail-expanded">' + commonDetailHtml(activeId, commons[activeId]) + '</div>' : '';
+    var cardsHtml = otherIds.map(function (id) { return commonCardHtml(id, commons[id]); }).join('');
+    container.innerHTML = intro + detailHtml + '<div class="cards-grid">' + cardsHtml + '</div>';
   }
   // Dopo aver aperto/chiuso una card, riporta la vista in cima alla sezione
   // (sotto l'header fisso) così le foto e le info sono subito visibili,
@@ -562,8 +579,8 @@
     var el = document.getElementById(sectionId);
     if (el) el.scrollIntoView({ block: 'start' });
   }
-  function goToCommon(id) { state.commonView = 'detail'; state.activeCommonId = id; renderCommon(); scrollSectionIntoView('spazi-comuni-anchor'); }
-  function goHomeCommon() { state.commonView = 'grid'; renderCommon(); scrollSectionIntoView('spazi-comuni-anchor'); }
+  function goToCommon(id) { state.activeCommonId = id; renderCommon(); scrollSectionIntoView('spazi-comuni-anchor'); }
+  function goHomeCommon() { state.activeCommonId = null; renderCommon(); scrollSectionIntoView('spazi-comuni-anchor'); }
 
   /* ==========================================================================
      Render: Rooms
@@ -574,7 +591,7 @@
     if (view.isOccupata) {
       statusHtml = '<div class="room-card-status room-card-status--occupied">' + view.occupantText + '</div>';
     } else if (view.isDisponibile) {
-      statusHtml = '<div class="room-card-status room-card-status--available-from">' + escapeHtml(t('room.available_from')) + ' ' + view.availableFromText + '</div>';
+      statusHtml = '<div class="room-card-status room-card-status--available-from">' + escapeHtml(t('room.available_from')) + ' ' + view.availableFromText + '<br><i>' + escapeHtml(t('room.available_soon_note')) + '</i></div>';
     } else if (view.isLibera) {
       statusHtml = '<div class="room-card-status room-card-status--free">' + escapeHtml(t('room.free_now')) + '<br><i>' + escapeHtml(t('room.free_now_note')) + '</i></div>';
     }
@@ -738,16 +755,19 @@
     var ids = orderedIds(rooms);
     updateRoomsJsonLd();
 
-    if (state.roomsView === 'detail') {
-      var activeId = rooms[state.activeRoomId] ? state.activeRoomId : ids[0];
-      if (!activeId) { container.innerHTML = ''; return; }
+    var activeId = (state.activeRoomId && rooms[state.activeRoomId]) ? state.activeRoomId : null;
+    var otherIds = activeId ? ids.filter(function (id) { return id !== activeId; }) : ids;
+    // Accordion: al massimo una card aperta per volta — quella attiva si
+    // espande a piena larghezza sopra, le altre restano sotto come card
+    // compatte (invece di sparire del tutto), cliccarne un'altra chiude
+    // quella corrente e apre la nuova.
+    var detailHtml = '';
+    if (activeId) {
       var room = rooms[activeId];
       var view = buildRoomView(activeId, room);
-      container.innerHTML = roomDetailHtml(activeId, room, view);
-      return;
+      detailHtml = '<div class="detail-expanded">' + roomDetailHtml(activeId, room, view) + '</div>';
     }
-
-    var cardsHtml = ids.map(function (id) { return roomCardHtml(buildRoomView(id, rooms[id])); }).join('');
+    var cardsHtml = otherIds.map(function (id) { return roomCardHtml(buildRoomView(id, rooms[id])); }).join('');
 
     container.innerHTML =
       '<div class="admin-toggle-row">' +
@@ -757,6 +777,7 @@
           '<p style="font-size:15.5px; line-height:1.65; color:var(--text-body); margin:0;">' + t('stanze.text') + '</p>' +
         '</div>' +
       '</div>' +
+      detailHtml +
       '<div class="cards-grid cards-grid--rooms">' + cardsHtml + '</div>' +
       '<div class="urgency-banner">' +
         '<div class="urgency-copy">' +
@@ -766,8 +787,8 @@
         '<a href="' + waLink(t('urgency.wa_block')) + '" target="_blank" rel="noopener" class="btn btn-urgency">' + escapeHtml(t('urgency.rooms_cta')) + '</a>' +
       '</div>';
   }
-  function goToRoom(id) { state.roomsView = 'detail'; state.activeRoomId = id; renderRooms(); scrollSectionIntoView('stanze'); }
-  function goHomeRooms() { state.roomsView = 'home'; renderRooms(); scrollSectionIntoView('stanze'); }
+  function goToRoom(id) { state.activeRoomId = id; renderRooms(); scrollSectionIntoView('stanze'); }
+  function goHomeRooms() { state.activeRoomId = null; renderRooms(); scrollSectionIntoView('stanze'); }
 
   /* ==========================================================================
      Render: Testimonianze
@@ -881,7 +902,9 @@
       '<div class="contact-form">' +
         '<input type="text" placeholder="' + escapeHtml(t('booking.nome_cognome')) + '" id="contact-name-input">' +
         '<input type="email" placeholder="' + escapeHtml(t('booking.email')) + '" id="contact-email-input">' +
+        '<div class="field-error" id="contact-email-error" style="display:none;"></div>' +
         '<input type="tel" placeholder="' + escapeHtml(t('booking.telefono')) + '" id="contact-phone-input">' +
+        '<div class="field-error" id="contact-phone-error" style="display:none;"></div>' +
       '</div>' +
       '<button type="button" class="btn confirm-btn" data-confirm-booking id="confirm-booking-btn">' + escapeHtml(t('booking.conferma_prenotazione')) + '</button>' +
       '<button type="button" class="link-btn link-btn--centered" data-back-to-times>' + escapeHtml(t('booking.cambia_orario')) + '</button>'
@@ -934,22 +957,47 @@
     if (state.bookingStep === 3) bindContactInputs();
     updateBodyScrollLock();
   }
+  // Validazione base ma reale dei contatti: un'email deve avere la forma
+  // "qualcosa@qualcosa.qualcosa" e un telefono deve avere un numero di
+  // cifre plausibile (nessun numero incompleto) — finché non sono entrambi
+  // validi il bottone di conferma resta disabilitato e l'errore è segnalato
+  // sotto al campo, così chi prenota se ne accorge subito.
+  function isValidEmail(v) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '').trim());
+  }
+  function isValidPhone(v) {
+    var digits = String(v || '').replace(/\D/g, '');
+    return digits.length >= 8 && digits.length <= 15;
+  }
   function bindContactInputs() {
     var nameEl = document.getElementById('contact-name-input');
     var emailEl = document.getElementById('contact-email-input');
     var phoneEl = document.getElementById('contact-phone-input');
+    var emailErrorEl = document.getElementById('contact-email-error');
+    var phoneErrorEl = document.getElementById('contact-phone-error');
     var confirmBtn = document.getElementById('confirm-booking-btn');
     nameEl.value = state.contactName;
     emailEl.value = state.contactEmail;
     phoneEl.value = state.contactPhone;
     function updateConfirmState() {
-      var enabled = state.contactName && state.contactEmail;
+      var nameOk = !!state.contactName.trim();
+      var emailOk = isValidEmail(state.contactEmail);
+      var phoneOk = isValidPhone(state.contactPhone);
+      var emailShowError = state.contactEmail && !emailOk;
+      var phoneShowError = state.contactPhone && !phoneOk;
+      emailErrorEl.style.display = emailShowError ? '' : 'none';
+      emailErrorEl.textContent = t('booking.email_invalid');
+      emailEl.classList.toggle('field-invalid', !!emailShowError);
+      phoneErrorEl.style.display = phoneShowError ? '' : 'none';
+      phoneErrorEl.textContent = t('booking.phone_invalid');
+      phoneEl.classList.toggle('field-invalid', !!phoneShowError);
+      var enabled = nameOk && emailOk && phoneOk;
       confirmBtn.disabled = !enabled;
       confirmBtn.style.opacity = enabled ? '1' : '0.5';
     }
     nameEl.addEventListener('input', function (e) { state.contactName = e.target.value; updateConfirmState(); });
     emailEl.addEventListener('input', function (e) { state.contactEmail = e.target.value; updateConfirmState(); });
-    phoneEl.addEventListener('input', function (e) { state.contactPhone = e.target.value; });
+    phoneEl.addEventListener('input', function (e) { state.contactPhone = e.target.value; updateConfirmState(); });
     updateConfirmState();
   }
   function openBooking(roomLabel) {
@@ -995,7 +1043,7 @@
     }
   }
   function confirmBooking() {
-    if (!state.contactName || !state.contactEmail) return;
+    if (!state.contactName || !isValidEmail(state.contactEmail) || !isValidPhone(state.contactPhone)) return;
 
     var bookingData = {
       roomLabel: state.bookingRoomLabel || 'Casa Celeste',
@@ -1181,13 +1229,18 @@
       // eliminata dalla dashboard sparisce davvero dal sito pubblico.
       window.CasaCelesteDB.subscribeRooms(function (roomsFromDb) {
         state.roomsData = roomsFromDb;
-        if (state.activeRoomId && !roomsFromDb[state.activeRoomId]) { state.roomsView = 'home'; state.activeRoomId = null; }
+        if (state.activeRoomId && !roomsFromDb[state.activeRoomId]) { state.activeRoomId = null; }
         renderRooms();
       });
       window.CasaCelesteDB.subscribeCommons(function (commonsFromDb) {
         state.commonsData = commonsFromDb;
-        if (state.activeCommonId && !commonsFromDb[state.activeCommonId]) { state.commonView = 'grid'; state.activeCommonId = null; }
+        if (state.activeCommonId && !commonsFromDb[state.activeCommonId]) { state.activeCommonId = null; }
         renderCommon();
+      });
+      window.CasaCelesteDB.subscribeMonoSlides(function (slidesFromDb) {
+        state.monoSlidesData = slidesFromDb;
+        state.monoIndex = 0;
+        renderMono();
       });
       window.CasaCelesteDB.subscribeReviews(function (reviewsFromDb) {
         state.reviewsData = reviewsFromDb;
@@ -1197,6 +1250,13 @@
         state.settings = settingsFromDb || {};
         renderVirtualTourCta();
         renderHeroMedia();
+        applyI18n();
+        // Il numero WhatsApp (waNumber()) è incorporato nei link generati da
+        // renderRooms/renderCommon: ri-renderizzarli assicura che un cambio
+        // di numero da dashboard si rifletta subito anche lì, non solo nei
+        // link statici già gestiti da applyI18n().
+        renderRooms();
+        renderCommon();
       });
     }
   }

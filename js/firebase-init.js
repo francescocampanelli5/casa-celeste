@@ -97,6 +97,46 @@ window.CasaCelesteDB = {
     });
   },
 
+  // ---- Monopoli in pochi scatti (carosello foto/testo homepage) ----
+  subscribeMonoSlides: function (callback) {
+    if (!configured) return function () {};
+    var ref = collection(requireDb(), 'monoSlides');
+    return onSnapshot(ref, function (snap) {
+      var slides = {};
+      snap.forEach(function (d) { slides[d.id] = d.data(); });
+      callback(slides);
+    });
+  },
+  setMonoSlide: function (slideId, data) {
+    return setDoc(doc(requireDb(), 'monoSlides', slideId), data, { merge: true });
+  },
+  createMonoSlide: function (slideId, data) {
+    return setDoc(doc(requireDb(), 'monoSlides', slideId), data);
+  },
+  deleteMonoSlide: function (slideId) {
+    return deleteDoc(doc(requireDb(), 'monoSlides', slideId));
+  },
+  seedMonoSlidesIfEmpty: function (defaults) {
+    var db_ = requireDb();
+    return getDocs(collection(db_, 'monoSlides')).then(function (snap) {
+      if (!snap.empty) return;
+      var writes = Object.keys(defaults).map(function (id) {
+        return setDoc(doc(db_, 'monoSlides', id), defaults[id]);
+      });
+      return Promise.all(writes);
+    });
+  },
+  uploadMonoSlidePhoto: function (slideId, slotIndex, file) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    if (!storage) return Promise.reject(new Error('Firebase Storage non disponibile'));
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    var path = 'monoSlides/' + slideId + '/slot' + slotIndex + '.' + ext;
+    var fileRef = storageRef(storage, path);
+    return uploadBytes(fileRef, file).then(function () {
+      return getDownloadURL(fileRef);
+    });
+  },
+
   // ---- reviews (testimonianze) ----
   subscribeReviews: function (callback) {
     if (!configured) return function () {};

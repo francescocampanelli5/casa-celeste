@@ -405,6 +405,13 @@ button { font-family: inherit; }
 .back-link { background: none; border: none; cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--blue); padding: 0; margin-bottom: 24px; }
 .back-link:hover { color: var(--navy); }
 
+/* Card espansa in stile "accordion": mostrata sopra alla griglia, che nel
+   frattempo contiene solo le card non aperte (mai un'intera sezione vuota). */
+.detail-expanded {
+  background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-xl);
+  padding: clamp(20px,4vw,36px); margin-bottom: 28px;
+}
+
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: clamp(32px,5vw,56px); align-items: start; }
 .detail-media-main {
   aspect-ratio: 4/3; border-radius: var(--radius-md); background: var(--panel-bg);
@@ -580,9 +587,10 @@ button { font-family: inherit; }
   display: inline-block; font-size: 11.5px; font-weight: 800; color: var(--yellow-text-dark);
   background: var(--yellow-bg-soft); border-radius: var(--radius-pill); padding: 4px 11px;
 }
-.room-card-status { font-size: 12.5px; font-weight: 700; }
+.room-card-status { font-size: 12.5px; font-weight: 700; line-height: 1.5; margin-bottom: 16px; }
 .room-card-status--occupied { color: var(--text-faintest); }
 .room-card-status--available-from { color: var(--yellow-deep); }
+.room-card-status--available-from i { font-style: italic; opacity: 0.8; }
 .room-card-status--free { color: var(--green); }
 .room-card-status--free i { color: var(--text-faintest); font-style: italic; text-decoration: underline; }
 .room-card-cta {
@@ -715,6 +723,8 @@ button { font-family: inherit; }
 
 .contact-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
 .contact-form input { border: 1px solid var(--border-strong); border-radius: var(--radius-xxs); padding: 13px 15px; font-size: 14px; width: 100%; }
+.contact-form input.field-invalid { border-color: #B3261E; }
+.field-error { color: #B3261E; font-size: 12.5px; font-weight: 600; margin-top: -6px; }
 
 .confirm-btn { width: 100%; background: var(--blue); color: var(--white); border: none; padding: 15px; border-radius: var(--radius-pill); font-weight: 700; font-size: 14.5px; cursor: pointer; margin-bottom: 10px; }
 .confirm-btn:disabled { cursor: default; }
@@ -759,6 +769,7 @@ button { font-family: inherit; }
 .dash-field label { font-size: 12.5px; font-weight: 700; color: var(--text-body-alt); }
 .dash-field input { border: 1px solid var(--border-strong); border-radius: var(--radius-xxs); padding: 12px 14px; font-size: 14px; }
 .dash-error { background: #FDECEC; color: #B3261E; font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; }
+.admin-field-error { color: #B3261E; font-size: 12.5px; font-weight: 600; margin-top: 6px; }
 .dash-notice { background: var(--blue-bg-soft); color: var(--blue-deep); font-size: 13px; font-weight: 600; padding: 14px 16px; border-radius: var(--radius-xxs); margin: 0 0 20px; line-height: 1.6; }
 
 .dash-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--border-hairline); }
