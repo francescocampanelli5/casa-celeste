@@ -614,7 +614,15 @@
     var el = document.getElementById(sectionId);
     if (el) el.scrollIntoView({ block: 'start' });
   }
-  function goToCommon(id) { state.activeCommonId = id; state.commonMediaIndex = 0; renderCommon(); scrollSectionIntoView('spazi-comuni-anchor'); }
+  // Quando si apre una card, la vista deve andare dritta alla foto grande
+  // del dettaglio appena espanso (non al titolo della sezione, che
+  // lascerebbe l'utente a dover scorrere per vedere qualcosa).
+  function scrollToOpenedDetail(fallbackSectionId) {
+    var el = document.querySelector('.detail-expanded');
+    if (el) el.scrollIntoView({ block: 'start' });
+    else scrollSectionIntoView(fallbackSectionId);
+  }
+  function goToCommon(id) { state.activeCommonId = id; state.commonMediaIndex = 0; renderCommon(); scrollToOpenedDetail('spazi-comuni-anchor'); }
   function goHomeCommon() { state.activeCommonId = null; renderCommon(); scrollSectionIntoView('spazi-comuni-anchor'); }
 
   /* ==========================================================================
@@ -826,7 +834,7 @@
         '<a href="' + waLink(t('urgency.wa_block')) + '" target="_blank" rel="noopener" class="btn btn-urgency">' + escapeHtml(t('urgency.rooms_cta')) + '</a>' +
       '</div>';
   }
-  function goToRoom(id) { state.activeRoomId = id; state.roomMediaIndex = 0; renderRooms(); scrollSectionIntoView('stanze'); }
+  function goToRoom(id) { state.activeRoomId = id; state.roomMediaIndex = 0; renderRooms(); scrollToOpenedDetail('stanze'); }
   function goHomeRooms() { state.activeRoomId = null; renderRooms(); scrollSectionIntoView('stanze'); }
 
   /* ==========================================================================

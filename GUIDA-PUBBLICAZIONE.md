@@ -9,6 +9,16 @@ gestisci le stanze senza mai toccare il codice.
 > copia-incolla manuali di questa guida. Le Parti 1-7 restano come
 > riferimento/spiegazione di cosa succede dietro le quinte.
 
+> **Non vedi subito una modifica dopo la pubblicazione?** GitHub Pages
+> serve il sito attraverso una rete di distribuzione (CDN) che tiene i
+> file `css/styles.css` e `js/*.js` in cache fino a 10 minuti — anche un
+> refresh forzato (Ctrl+F5) può non bastare, perché il browser chiede
+> comunque la stessa versione già in cache sui server intermedi. Aspetta
+> qualche minuto, oppure — se hai chiesto una modifica a Claude Code —
+> chiedigli di aggiornare il numero di versione (`?v=2`, `?v=3`, ...) nei
+> tag `<link>`/`<script>` di `index.html` e `dashboard.html`: forza il
+> download della versione nuova subito, senza aspettare.
+
 ---
 
 ## Parte 0 — Con Claude Code in VS Code

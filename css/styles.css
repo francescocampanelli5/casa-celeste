@@ -651,14 +651,7 @@ button { font-family: inherit; }
 .room-card-status--occupied { display: flex; flex-direction: column; gap: 3px; }
 .room-card-status-title { color: #B3261E; font-weight: 800; }
 .room-card-status-sub { color: var(--text-faintest); font-weight: 500; }
-/* Badge invece di testo giallo puro: stesso trattamento (sfondo tenue +
-   testo scuro leggibile) già usato nella pagina di dettaglio, più coerente
-   con lo stile del sito e comunque ben visibile. */
-.room-card-status--available-from {
-  background: var(--yellow-bg-soft); color: var(--yellow-text-dark);
-  padding: 9px 12px; border-radius: 10px;
-}
-.room-card-status--available-from i { font-style: italic; opacity: 0.85; }
+.room-card-status--available-from { color: var(--yellow-text); text-decoration: none; }
 .room-card-status--free { color: var(--green); }
 .room-card-status--free i { color: var(--text-faintest); font-style: italic; text-decoration: underline; }
 .room-card-cta {
