@@ -667,7 +667,6 @@ button { font-family: inherit; }
   display: flex; align-items: center; gap: 10px; background: var(--yellow-bg-soft); color: var(--yellow-text-darker);
   border-radius: 12px; padding: 14px 16px; font-size: 13.5px; line-height: 1.55; margin-bottom: 18px;
 }
-.balcony-callout--card { font-size: 12.5px; line-height: 1.5; padding: 12px 14px; margin: 4px 0 14px; }
 .urgency-inline {
   display: flex; align-items: center; gap: 10px; background: var(--yellow-bg-soft); color: var(--yellow-text-darker);
   border-radius: 12px; padding: 12px 16px; font-size: 13px; font-weight: 600; margin-bottom: 18px;
