@@ -71,6 +71,15 @@ function parseItalianDate(s) {
 function rangeContainsDay(ranges, iso) {
   return (ranges || []).some((r) => iso >= r.start && iso < r.end);
 }
+// Stessa condizione di sovrapposizione di functions/booking-logic.js
+// (rangesOverlap) — serve perché un giorno di check-out non bloccato di
+// per sé può comunque "scavalcare" un intervallo occupato nel mezzo.
+function rangeOverlapsBlocked(ranges, checkIn, checkOut) {
+  return (ranges || []).some((r) => checkIn < r.end && r.start < checkOut);
+}
+function nightsBetween(checkIn, checkOut) {
+  return Math.round((new Date(checkOut + 'T00:00:00Z') - new Date(checkIn + 'T00:00:00Z')) / 86400000);
+}
 
 /* ==========================================================================
    Wrapper API Telegram — un solo posto dove costruire le chiamate REST.
@@ -257,14 +266,21 @@ function roomsKeyboard(rooms) {
   rows.push([{ text: '❌ Annulla', callback_data: 'cancel' }]);
   return { inline_keyboard: rows };
 }
-function calendarKeyboard(field, year, month, isDisabled) {
+// Un solo calendario per check-in E check-out, esattamente come sul sito
+// pubblico (affittacamere/js/app.js, pickDate/calendarStepHtml): il primo
+// giorno toccato è il check-in, il secondo (successivo) è il check-out;
+// toccare un giorno prima o uguale al check-in già scelto lo sposta lì
+// (ricomincia la selezione) invece di dare errore.
+function datesCalendarKeyboard(year, month, session) {
+  const draft = session.draft;
+  const today = todayIso();
   const rows = [];
   const prev = addMonths(year, month, -1);
   const next = addMonths(year, month, 1);
   rows.push([
-    { text: '«', callback_data: 'cal:' + field + ':nav:' + prev.y + '-' + pad2(prev.m) },
+    { text: '«', callback_data: 'cal:nav:' + prev.y + '-' + pad2(prev.m) },
     { text: MONTH_NAMES[month] + ' ' + year, callback_data: 'noop' },
-    { text: '»', callback_data: 'cal:' + field + ':nav:' + next.y + '-' + pad2(next.m) }
+    { text: '»', callback_data: 'cal:nav:' + next.y + '-' + pad2(next.m) }
   ]);
   rows.push(WEEKDAY_HEADERS.map((w) => ({ text: w, callback_data: 'noop' })));
 
@@ -274,8 +290,16 @@ function calendarKeyboard(field, year, month, isDisabled) {
   for (let i = 0; i < leading; i++) cells.push({ text: ' ', callback_data: 'noop' });
   for (let d = 1; d <= total; d++) {
     const iso = isoFromParts(year, month, d);
-    const disabled = isDisabled(iso);
-    cells.push({ text: disabled ? '·' : String(d), callback_data: disabled ? 'noop' : 'cal:' + field + ':day:' + iso });
+    const disabled = iso < today || rangeContainsDay(draft.blockedRanges, iso);
+    const isStart = draft.checkIn === iso;
+    const isEnd = draft.checkOut === iso;
+    const inRange = draft.checkIn && draft.checkOut && iso > draft.checkIn && iso < draft.checkOut;
+    let label = String(d);
+    if (disabled) label = '·';
+    else if (isStart) label = '🔵' + d;
+    else if (isEnd) label = '🔴' + d;
+    else if (inRange) label = '-' + d + '-';
+    cells.push({ text: label, callback_data: disabled ? 'noop' : 'cal:day:' + iso });
   }
   while (cells.length % 7 !== 0) cells.push({ text: ' ', callback_data: 'noop' });
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
@@ -376,6 +400,14 @@ async function startWizard(ctx, chatId) {
   await commitStep(ctx, chatId, session, '🏠 Quale stanza?', roomsKeyboard(rooms));
 }
 
+function datesPromptText(session, errorText) {
+  const d = session.draft;
+  const lines = ['📅 ' + d.roomLabel + ' — tocca il check-in, poi il check-out (come sul sito):'];
+  if (errorText) lines.push('⚠️ ' + errorText);
+  lines.push('Check-in: ' + (d.checkIn ? isoToItalian(d.checkIn) : '—') + '   Check-out: ' + (d.checkOut ? isoToItalian(d.checkOut) : '—'));
+  return lines.join('\n');
+}
+
 async function onRoomPick(ctx, chatId, session, roomId) {
   if (session.step !== 'room') return;
   const snap = await ctx.db.collection('tourism_rooms').doc(roomId).get();
@@ -384,52 +416,58 @@ async function onRoomPick(ctx, chatId, session, roomId) {
   session.draft.roomId = roomId;
   session.draft.roomLabel = room.name || roomId;
   session.draft.maxGuests = room.maxGuests || 1;
+  session.draft.minNights = room.minNights || 1;
   session.draft.blockedRanges = room.blockedRanges || [];
-  session.step = 'checkin';
+  session.draft.checkIn = null;
+  session.draft.checkOut = null;
+  session.step = 'dates';
   const today = todayIso();
   const y = Number(today.slice(0, 4)), m = Number(today.slice(5, 7));
   session.calendarCursor = { y: y, m: m };
-  const kb = calendarKeyboard('i', y, m, (iso) => iso < today || rangeContainsDay(session.draft.blockedRanges, iso));
-  await commitStep(ctx, chatId, session, '📅 ' + session.draft.roomLabel + ' — scegli la data di check-in:', kb);
+  await commitStep(ctx, chatId, session, datesPromptText(session), datesCalendarKeyboard(y, m, session));
 }
 
 async function onCalendar(ctx, chatId, session, data) {
-  const parts = data.split(':'); // cal:<field>:<action>:<value>
-  const field = parts[1], action = parts[2], value = parts[3];
-  const expectedStep = field === 'i' ? 'checkin' : 'checkout';
-  if (session.step !== expectedStep) return;
+  if (session.step !== 'dates') return;
+  const parts = data.split(':'); // cal:nav:YYYY-MM oppure cal:day:YYYY-MM-DD
+  const action = parts[1], value = parts[2];
 
   if (action === 'nav') {
     const [y, m] = value.split('-').map(Number);
     session.calendarCursor = { y: y, m: m };
-    const today = todayIso();
-    const isDisabled = field === 'i'
-      ? (iso) => iso < today || rangeContainsDay(session.draft.blockedRanges, iso)
-      : (iso) => iso <= session.draft.checkIn || rangeContainsDay(session.draft.blockedRanges, iso);
-    const label = field === 'i' ? 'check-in' : 'check-out';
-    await commitStep(ctx, chatId, session, '📅 ' + session.draft.roomLabel + ' — scegli la data di ' + label + ':', calendarKeyboard(field, y, m, isDisabled));
+    await commitStep(ctx, chatId, session, datesPromptText(session), datesCalendarKeyboard(y, m, session));
     return;
   }
 
   if (action === 'day') {
-    const today = todayIso();
-    if (field === 'i') {
-      if (value < today || rangeContainsDay(session.draft.blockedRanges, value)) return;
-      session.draft.checkIn = value;
-      session.step = 'checkout';
+    const d = session.draft;
+    // Stessa logica del calendario sul sito pubblico (app.js pickDate): il
+    // primo tocco (o un tocco dopo che entrambe le date erano già scelte)
+    // è il check-in; un tocco su/prima del check-in lo sposta lì
+    // (ricomincia la selezione); altrimenti è il check-out.
+    if (!d.checkIn || (d.checkIn && d.checkOut)) {
+      d.checkIn = value; d.checkOut = null;
       const y = Number(value.slice(0, 4)), m = Number(value.slice(5, 7));
       session.calendarCursor = { y: y, m: m };
-      const kb = calendarKeyboard('o', y, m, (iso) => iso <= session.draft.checkIn || rangeContainsDay(session.draft.blockedRanges, iso));
-      await commitStep(ctx, chatId, session, '📅 Check-in: ' + isoToItalian(value) + '\nOra scegli la data di check-out:', kb);
+      await commitStep(ctx, chatId, session, datesPromptText(session), datesCalendarKeyboard(y, m, session));
       return;
     }
-    if (field === 'o') {
-      if (value <= session.draft.checkIn || rangeContainsDay(session.draft.blockedRanges, value)) return;
-      session.draft.checkOut = value;
-      session.step = 'guests';
-      await commitStep(ctx, chatId, session, '📅 ' + isoToItalian(session.draft.checkIn) + ' → ' + isoToItalian(value) + '\n👥 Quanti ospiti?', guestsKeyboard(session.draft.maxGuests));
+    if (value <= d.checkIn) {
+      d.checkIn = value; d.checkOut = null;
+      await commitStep(ctx, chatId, session, datesPromptText(session), datesCalendarKeyboard(session.calendarCursor.y, session.calendarCursor.m, session));
       return;
     }
+    if (nightsBetween(d.checkIn, value) < d.minNights) {
+      await commitStep(ctx, chatId, session, datesPromptText(session, 'Soggiorno troppo corto (minimo ' + d.minNights + ' nott' + (d.minNights === 1 ? 'e' : 'i') + ').'), datesCalendarKeyboard(session.calendarCursor.y, session.calendarCursor.m, session));
+      return;
+    }
+    if (rangeOverlapsBlocked(d.blockedRanges, d.checkIn, value)) {
+      await commitStep(ctx, chatId, session, datesPromptText(session, 'In quell\'intervallo ci sono notti già occupate.'), datesCalendarKeyboard(session.calendarCursor.y, session.calendarCursor.m, session));
+      return;
+    }
+    d.checkOut = value;
+    session.step = 'guests';
+    await commitStep(ctx, chatId, session, '📅 ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(value) + '\n👥 Quanti ospiti?', guestsKeyboard(d.maxGuests));
   }
 }
 
