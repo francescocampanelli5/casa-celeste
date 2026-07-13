@@ -261,16 +261,11 @@ button { font-family: inherit; }
   background: var(--panel-bg); border: 1px solid rgba(16,35,59,0.05);
   box-shadow: 0 30px 60px -28px rgba(18,58,92,0.25);
 }
-.hero-bookmark-btn {
-  position: absolute; top: 16px; right: 16px; z-index: 2;
-  width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
-  background: rgba(16,35,59,0.35); backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center; color: var(--white);
-  transition: background-color .15s ease, transform .15s ease;
-}
-.hero-bookmark-btn:hover { background: rgba(16,35,59,0.55); transform: scale(1.05); }
-.hero-bookmark-btn svg { pointer-events: none; }
-.hero-bookmark-btn.is-active svg { fill: var(--yellow); stroke: var(--yellow); }
+/* Overlay testo mobile: nascosto su desktop, dove il titolo resta nella
+   colonna di testo (.hero-title-standalone). Su mobile la foto facciata
+   diventa il primo elemento e la scritta appare sopra di essa. */
+.hero-media-scrim { display: none; }
+.hero-media-heading { display: none; }
 .hero-media-scroll {
   display: flex; width: 100%; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -285,6 +280,36 @@ button { font-family: inherit; }
   text-transform: uppercase; color: var(--text-faintest); text-align: center; padding: 0 20px;
 }
 .real-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* Solo mobile: la foto facciata diventa il primo elemento della hero e fa
+   da semi-sfondo alla scritta principale — pannello sfocato (backdrop-filter)
+   + sfumatura scura dietro il testo per leggibilità, invece del testo
+   separato sopra la foto. */
+@media (max-width: 640px) {
+  .hero-grid { gap: 0; }
+  .hero-media {
+    order: -1; margin-bottom: 28px; aspect-ratio: 4/5;
+    width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw);
+  }
+  .hero-media-frame { border-radius: 0 0 28px 28px; }
+  .hero-title-standalone, .hero-badge { display: none; }
+  .hero-media-scrim {
+    display: block; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(to top, rgba(9,20,36,0.92) 0%, rgba(9,20,36,0.6) 40%, rgba(9,20,36,0) 68%);
+  }
+  .hero-media-heading {
+    display: block; position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+    padding: 30px 22px 26px; backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+  }
+  .hero-media-heading .badge {
+    background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.4); color: var(--white);
+    margin-bottom: 16px;
+  }
+  .hero-media-heading .hero-title {
+    color: var(--white); text-shadow: 0 2px 16px rgba(0,0,0,0.35); margin: 0;
+    font-size: clamp(30px,8vw,40px);
+  }
+}
 
 /* ==========================================================================
    Trust strip
@@ -551,6 +576,9 @@ button { font-family: inherit; }
    ========================================================================== */
 .testimonial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 22px; }
 .testimonial-card { background: var(--white); border: 1px solid var(--border-hairline); border-radius: 20px; padding: 26px; display: flex; flex-direction: column; }
+.testimonial-rating { display: flex; gap: 2px; margin-bottom: 12px; }
+.testimonial-star { color: var(--border-hairline); }
+.testimonial-star.is-filled { color: var(--yellow-deep); }
 .testimonial-quote { font-size: 14.5px; line-height: 1.7; color: var(--text-body-alt); margin: 0 0 20px; flex: 1; }
 .testimonial-person { display: flex; align-items: center; gap: 12px; margin-top: auto; }
 .testimonial-avatar {
@@ -561,6 +589,7 @@ button { font-family: inherit; }
 .testimonial-avatar--yellow { background: var(--yellow-bg); color: var(--yellow-text); }
 .testimonial-name { font-weight: 700; font-size: 13.5px; color: var(--navy); }
 .testimonial-role { font-size: 12px; color: #8792A0; }
+.testimonial-more-btn { grid-column: 1 / -1; justify-self: center; margin-top: 6px; }
 
 /* ==========================================================================
    Rooms
@@ -656,20 +685,25 @@ button { font-family: inherit; }
 }
 .room-list-item:hover { transform: translateY(-3px); box-shadow: 0 18px 34px -22px rgba(16,35,59,0.22); border-color: transparent; }
 .room-list-thumb {
-  position: relative; flex: 0 0 clamp(96px,22vw,148px); aspect-ratio: 1; border-radius: var(--radius-sm);
+  position: relative; flex: 0 0 clamp(180px,34vw,280px); aspect-ratio: 1; border-radius: var(--radius-sm);
   overflow: hidden; background: var(--panel-bg);
 }
 .room-list-thumb .photo-placeholder { font-size: 9.5px; padding: 4px; }
-.room-list-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.room-list-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.room-list-name { font-family: var(--font-display); font-weight: 800; font-size: clamp(16.5px,2.4vw,19px); margin: 0; color: var(--navy); }
-.room-fav-btn {
-  background: none; border: none; cursor: pointer; color: var(--text-faintest); flex-shrink: 0;
-  padding: 2px; line-height: 1; transition: color .15s ease, transform .1s ease;
+.room-thumb-actions { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; gap: 8px; }
+.room-fav-btn, .room-share-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer; padding: 0; flex-shrink: 0;
+  background: rgba(16,35,59,0.42); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; color: var(--white);
+  transition: background-color .15s ease, transform .15s ease;
 }
-.room-fav-btn:hover { transform: scale(1.1); }
-.room-fav-btn.is-active { color: #E0574C; }
-.room-fav-btn.is-active svg { fill: #E0574C; }
+.room-fav-btn:hover, .room-share-btn:hover { background: rgba(16,35,59,0.62); transform: scale(1.06); }
+.room-fav-btn svg, .room-share-btn svg { pointer-events: none; }
+.room-fav-btn.is-active { background: var(--white); }
+.room-fav-btn.is-active svg { fill: #E0574C; stroke: #E0574C; }
+.room-share-btn.is-copied { width: auto; padding: 0 12px; border-radius: var(--radius-pill); background: rgba(16,35,59,0.85); }
+.room-share-copied { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.room-list-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.room-list-name { font-family: var(--font-display); font-weight: 800; font-size: clamp(16.5px,2.4vw,19px); margin: 0 0 4px; color: var(--navy); }
 .room-list-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 7px 0 8px; }
 .room-list-meta-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
 .room-list-meta-item svg { color: var(--blue-deep); flex-shrink: 0; }
@@ -690,6 +724,12 @@ button { font-family: inherit; }
 .room-list-cta:hover { background: var(--blue); color: var(--white); }
 .card--disabled { cursor: default; }
 .card--disabled:hover { transform: none; box-shadow: none; }
+/* Solo mobile: informazioni sotto la foto invece che di fianco, con più
+   spazio dedicato alla foto stessa (card in stile Airbnb). */
+@media (max-width: 640px) {
+  .room-list-item { flex-direction: column; }
+  .room-list-thumb { flex-basis: auto; width: 100%; aspect-ratio: 4/3; }
+}
 @media (max-width: 480px) {
   .room-list-item { padding: 10px; gap: 12px; }
   .room-list-meta { gap: 6px 12px; }

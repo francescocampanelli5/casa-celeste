@@ -148,27 +148,6 @@ window.CASA_CELESTE_TOURISM_DATA = {
         { label: { it: 'Accesso', en: 'Access' }, value: { it: 'H24', en: '24/7' } }
       ],
       photos: []
-    },
-    lavanderia: {
-      order: 4, name: { it: 'Lavanderia', en: 'Laundry room' },
-      shortText: {
-        it: 'Zona lavatrice condivisa, utile per soggiorni più lunghi.',
-        en: 'Shared washing machine area, handy for longer stays.'
-      },
-      longText: {
-        it: 'Per i soggiorni più lunghi, la zona lavanderia è disponibile su richiesta — chiedi in accettazione se vuoi usarla durante il tuo soggiorno.',
-        en: 'For longer stays, the laundry area is available on request — just ask us when you check in if you\'d like to use it during your stay.'
-      },
-      features: [
-        { it: 'Lavatrice', en: 'Washing machine' },
-        { it: 'Utensili per pulizie', en: 'Cleaning supplies' }
-      ],
-      stats: [
-        { label: { it: 'Metratura', en: 'Floor area' }, value: { it: '5 m²', en: '5 sqm' } },
-        { label: { it: 'Lavatrici', en: 'Washing machines' }, value: { it: '1', en: '1' } },
-        { label: { it: 'Accesso', en: 'Access' }, value: { it: 'Su richiesta', en: 'On request' } }
-      ],
-      photos: []
     }
   },
 
@@ -198,19 +177,19 @@ window.CASA_CELESTE_TOURISM_DATA = {
 
   SEED_REVIEWS: {
     r1: {
-      order: 1,
+      order: 1, rating: 5,
       name: { it: 'Sara, 29 anni', en: 'Sara, 29' },
       role: { it: 'In viaggio con il compagno', en: 'Travelling with her partner' },
       quote: { it: 'Casa vera, non un residence anonimo: la stanza col balcone è stata la sorpresa più bella del weekend.', en: 'A real home, not an anonymous hotel: the room with the balcony was the nicest surprise of the weekend.' }
     },
     r2: {
-      order: 2,
+      order: 2, rating: 5,
       name: { it: 'Marco, 34 anni', en: 'Marco, 34' },
       role: { it: 'In viaggio da solo', en: 'Solo traveller' },
       quote: { it: 'Posizione perfetta per girare Monopoli a piedi, e il check-in via WhatsApp è stato semplicissimo.', en: 'Perfect location to explore Monopoli on foot, and check-in via WhatsApp was really simple.' }
     },
     r3: {
-      order: 3,
+      order: 3, rating: 4,
       name: { it: 'Julia, 41 anni', en: 'Julia, 41' },
       role: { it: 'In vacanza con un\'amica', en: 'On holiday with a friend' },
       quote: { it: 'Stanza pulita e curata, proprietario disponibile per qualunque domanda. Torneremmo sicuramente.', en: 'Clean, well-kept room, host available for any question. We would definitely come back.' }

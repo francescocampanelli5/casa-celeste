@@ -599,11 +599,16 @@
      ========================================================================== */
   function reviewAdminCardHtml(reviewId, review) {
     var idAttr = 'data-review-field data-review-id="' + reviewId + '"';
+    var rating = review.rating || 5;
+    var ratingOptions = [1, 2, 3, 4, 5].map(function (n) {
+      return '<option value="' + n + '"' + (n === rating ? ' selected' : '') + '>' + n + ' ' + (n === 1 ? 'stella' : 'stelle') + '</option>';
+    }).join('');
     return (
       '<div class="admin-room-card" data-review-id="' + reviewId + '">' +
         '<div class="admin-room-head">' +
           '<input type="text" class="admin-field admin-room-name" placeholder="Nome (IT)" ' + idAttr + ' data-field="name.it" value="' + escapeHtml(biVal(review.name, 'it')) + '">' +
           '<input type="text" class="admin-field admin-room-name" placeholder="Name (EN)" ' + idAttr + ' data-field="name.en" value="' + escapeHtml(biVal(review.name, 'en')) + '">' +
+          '<select class="admin-field" style="max-width:140px;" data-review-rating data-review-id="' + reviewId + '">' + ratingOptions + '</select>' +
           '<button type="button" class="dash-delete-btn" data-delete-review data-review-id="' + reviewId + '">Elimina</button>' +
         '</div>' +
         biRowHtml('input', 'Ruolo', idAttr, 'role', review.role, null) +
@@ -622,6 +627,11 @@
       var reviewId = el.getAttribute('data-review-id'), field = el.getAttribute('data-field');
       el.addEventListener('change', function (e) { var patch = {}; patch[field] = e.target.value; window.CasaCelesteTourismDB.setReview(reviewId, patch); });
     });
+    content.querySelectorAll('[data-review-rating]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        window.CasaCelesteTourismDB.setReview(el.getAttribute('data-review-id'), { rating: Number(e.target.value) });
+      });
+    });
     content.querySelectorAll('[data-delete-review]').forEach(function (el) {
       el.addEventListener('click', function () {
         if (window.confirm('Eliminare questa recensione?')) window.CasaCelesteTourismDB.deleteReview(el.getAttribute('data-review-id'));
@@ -633,7 +643,7 @@
     document.getElementById('add-review-btn').addEventListener('click', function () {
       var id = uniqueReviewId();
       var maxOrder = Object.keys(state.reviewsData).reduce(function (m, k) { return Math.max(m, state.reviewsData[k].order || 0); }, 0);
-      window.CasaCelesteTourismDB.createReview(id, { order: maxOrder + 1, name: { it: '', en: '' }, role: { it: '', en: '' }, quote: { it: '', en: '' } });
+      window.CasaCelesteTourismDB.createReview(id, { order: maxOrder + 1, rating: 5, name: { it: '', en: '' }, role: { it: '', en: '' }, quote: { it: '', en: '' } });
     });
   }
 

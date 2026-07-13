@@ -136,6 +136,8 @@
     settings: {},
     monoIndex: 0,
     faqOpen: {},
+    cardShareCopiedId: null,
+    testimonialsExpanded: false,
 
     // Booking modal
     bookingOpen: false,
@@ -251,13 +253,6 @@
       html += '<div class="hero-media-slide"><img src="' + srcFor(i) + '" alt="Facciata di Casa Celeste, vista ' + i + '" class="real-photo" loading="lazy" onerror="window.__ccHeroSlideError(this)"></div>';
     }
     container.innerHTML = html;
-    updateHeroBookmarkBtn();
-  }
-  function updateHeroBookmarkBtn() {
-    var bookmarkBtn = document.getElementById('hero-bookmark-btn');
-    if (!bookmarkBtn) return;
-    bookmarkBtn.classList.toggle('is-active', !!state.favorites.__hero);
-    bookmarkBtn.setAttribute('aria-label', state.favorites.__hero ? t('hero.fav_saved') : t('hero.fav_save'));
   }
   window.__ccThumbError = function (img) {
     var thumb = img.closest('.detail-media-thumb');
@@ -559,6 +554,7 @@
 
     var bedLabel = roomBedLabel(room);
     var shortDescHtml = bedLabel ? '<div class="room-list-desc">' + escapeHtml(tpl(t('room.short_desc'), { bed: bedLabel })) + '</div>' : '';
+    var justCopied = state.cardShareCopiedId === id;
 
     return (
       '<div class="room-list-item' + (searched && !available ? ' room-list-item--occupied' : '') + '" data-room-card data-room-id="' + id + '">' +
@@ -566,14 +562,18 @@
           tagHtml +
           '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(room.name) + '</span>' +
           photoTag((room.photos && room.photos[0]) || ('images/' + id + '-1.jpg'), room.name) +
-        '</div>' +
-        '<div class="room-list-info">' +
-          '<div class="room-list-top">' +
-            '<h3 class="room-list-name">' + escapeHtml(room.name) + '</h3>' +
+          '<div class="room-thumb-actions">' +
             '<button type="button" class="room-fav-btn' + (isFav ? ' is-active' : '') + '" data-fav-toggle data-room-id="' + id + '" aria-label="' + escapeHtml(isFav ? t('hero.fav_saved') : t('hero.fav_save')) + '">' +
               '<svg width="19" height="19"><use href="#icon-heart"></use></svg>' +
             '</button>' +
+            '<button type="button" class="room-share-btn' + (justCopied ? ' is-copied' : '') + '" data-room-share data-room-id="' + id + '" aria-label="' + escapeHtml(t('roomdetail.share')) + '">' +
+              (justCopied ? '<span class="room-share-copied">' + escapeHtml(t('roomdetail.share_copied')) + '</span>' :
+                '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"></line></svg>') +
+            '</button>' +
           '</div>' +
+        '</div>' +
+        '<div class="room-list-info">' +
+          '<h3 class="room-list-name">' + escapeHtml(room.name) + '</h3>' +
           shortDescHtml +
           '<div class="room-list-meta">' +
             '<span class="room-list-meta-item"><svg width="15" height="15"><use href="#icon-user"></use></svg>' + escapeHtml(guestsLabel) + '</span>' +
@@ -783,12 +783,12 @@
       '</div>'
     );
   }
-  function shareRoomDetail() {
-    var room = state.roomsData[state.roomDetail.roomId];
+  function shareRoom(roomId, onCopied) {
+    var room = state.roomsData[roomId];
     if (!room) return;
     var url;
     try { url = new URL(window.location.href.split('#')[0]); } catch (e) { return; }
-    url.searchParams.set('room', state.roomDetail.roomId);
+    url.searchParams.set('room', roomId);
     if (state.selectedCheckIn) url.searchParams.set('checkin', state.selectedCheckIn); else url.searchParams.delete('checkin');
     if (state.selectedCheckOut) url.searchParams.set('checkout', state.selectedCheckOut); else url.searchParams.delete('checkout');
     url.searchParams.set('adults', state.guestsAdults);
@@ -797,12 +797,22 @@
     var shareUrl = url.toString();
     if (navigator.share) { navigator.share({ title: 'Casa Celeste — ' + room.name, text: t('roomdetail.share_text'), url: shareUrl }).catch(function () {}); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(shareUrl).then(function () {
-        state.roomDetail.shareCopied = true;
-        renderRoomDetail();
-        setTimeout(function () { state.roomDetail.shareCopied = false; renderRoomDetail(); }, 2200);
-      }).catch(function () {});
+      navigator.clipboard.writeText(shareUrl).then(function () { if (onCopied) onCopied(); }).catch(function () {});
     }
+  }
+  function shareRoomDetail() {
+    shareRoom(state.roomDetail.roomId, function () {
+      state.roomDetail.shareCopied = true;
+      renderRoomDetail();
+      setTimeout(function () { state.roomDetail.shareCopied = false; renderRoomDetail(); }, 2200);
+    });
+  }
+  function shareRoomCard(roomId) {
+    shareRoom(roomId, function () {
+      state.cardShareCopiedId = roomId;
+      renderRooms();
+      setTimeout(function () { state.cardShareCopiedId = null; renderRooms(); }, 2200);
+    });
   }
   function continueToBookingFromDetail() {
     var id = state.roomDetail.roomId;
@@ -831,8 +841,7 @@
   function roomDetailAmenitiesHtml() {
     var items = [
       ['icon-kitchen', t('amenities.kitchen')], ['icon-shower', t('amenities.bathroom')], ['icon-wifi', t('amenities.wifi')],
-      ['icon-elevator', t('amenities.elevator')], ['icon-parking', t('amenities.parking')], ['icon-bike', t('amenities.bikes')],
-      ['icon-laundry', t('amenities.laundry')]
+      ['icon-elevator', t('amenities.elevator')], ['icon-parking', t('amenities.parking')], ['icon-bike', t('amenities.bikes')]
     ];
     return '<div class="rd-amenities-grid">' + items.map(function (it) {
       return '<div class="rd-amenity"><span class="rd-amenity-icon"><svg width="17" height="17"><use href="#' + it[0] + '"></use></svg></span>' + escapeHtml(it[1]) + '</div>';
@@ -1587,19 +1596,32 @@
   }
 
   /* ==========================================================================
-     Render: Testimonianze (identico a studentato)
+     Render: Testimonianze — con valutazione a stelle per recensione e
+     possibilità di estendere l'elenco oltre le prime TESTIMONIAL_INITIAL_COUNT
      ========================================================================== */
+  var TESTIMONIAL_INITIAL_COUNT = 6;
+  function starsHtml(rating) {
+    var n = Math.max(0, Math.min(5, Math.round(Number(rating) || 5)));
+    var html = '';
+    for (var i = 1; i <= 5; i++) {
+      html += '<svg width="14" height="14" class="testimonial-star' + (i <= n ? ' is-filled' : '') + '"><use href="#icon-star"></use></svg>';
+    }
+    return '<div class="testimonial-rating" aria-label="' + n + '/5">' + html + '</div>';
+  }
   function renderTestimonials() {
     var container = document.getElementById('testimonial-grid');
     if (!container) return;
-    var ids = orderedIds(state.reviewsData);
-    container.innerHTML = ids.map(function (id, i) {
+    var allIds = orderedIds(state.reviewsData);
+    var showMore = allIds.length > TESTIMONIAL_INITIAL_COUNT && !state.testimonialsExpanded;
+    var ids = showMore ? allIds.slice(0, TESTIMONIAL_INITIAL_COUNT) : allIds;
+    var cardsHtml = ids.map(function (id, i) {
       var r = state.reviewsData[id];
       var name = tf(r.name);
       var letter = (name || '?').trim().charAt(0).toUpperCase() || '?';
       var avatarClass = i % 2 === 0 ? 'testimonial-avatar--blue' : 'testimonial-avatar--yellow';
       return (
         '<div class="testimonial-card">' +
+          starsHtml(r.rating) +
           '<p class="testimonial-quote">"' + escapeHtml(tf(r.quote)) + '"</p>' +
           '<div class="testimonial-person">' +
             '<div class="testimonial-avatar ' + avatarClass + '">' + escapeHtml(letter) + '</div>' +
@@ -1611,6 +1633,12 @@
         '</div>'
       );
     }).join('');
+    var moreBtnHtml = showMore
+      ? '<button type="button" class="btn btn-outline testimonial-more-btn" id="testimonial-more-btn">' + escapeHtml(t('testimonianze.show_more')) + '</button>'
+      : '';
+    container.innerHTML = cardsHtml + moreBtnHtml;
+    var moreBtn = document.getElementById('testimonial-more-btn');
+    if (moreBtn) moreBtn.addEventListener('click', function () { state.testimonialsExpanded = true; renderTestimonials(); });
   }
 
   /* ==========================================================================
@@ -2163,8 +2191,9 @@
 
       el = e.target.closest('[data-fav-toggle]');
       if (el) { toggleFavorite(el.getAttribute('data-room-id')); renderRooms(); return; }
-      el = e.target.closest('#hero-bookmark-btn');
-      if (el) { toggleFavorite('__hero'); updateHeroBookmarkBtn(); return; }
+
+      el = e.target.closest('[data-room-share]');
+      if (el) { shareRoomCard(el.getAttribute('data-room-id')); return; }
 
       el = e.target.closest('[data-open-booking]');
       if (el && !el.disabled) { openBooking(el.getAttribute('data-room-id'), el.getAttribute('data-room-label')); return; }

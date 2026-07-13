@@ -36,7 +36,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=8">
+<link rel="stylesheet" href="css/styles.css?v=9">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
@@ -168,13 +168,6 @@
     <circle cx="18" cy="17" r="3.3"/>
     <path d="M6 17 10 8h4l4 9M10 8l2.5 5H16M9 17h5"/>
   </symbol>
-  <symbol id="icon-laundry" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="4" y="3.5" width="16" height="17" rx="2.5"/>
-    <circle cx="12" cy="13" r="4.6"/>
-    <circle cx="12" cy="13" r="2.2"/>
-    <circle cx="7" cy="6.5" r="0.8" fill="currentColor" stroke="none"/>
-    <circle cx="10" cy="6.5" r="0.8" fill="currentColor" stroke="none"/>
-  </symbol>
   <symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12.5" r="8.5"/>
     <path d="M12 7.5V12.5l4 2.2"/>
@@ -266,9 +259,9 @@
     <div class="hero-blob-1" aria-hidden="true"></div>
     <div class="hero-blob-2" aria-hidden="true"></div>
     <div class="hero-grid">
-      <div>
-        <div class="badge"><svg width="15" height="15"><use href="#icon-suitcase"></use></svg><span data-i18n="hero.badge">Casa vacanze indipendente · Monopoli</span></div>
-        <h1 class="hero-title" data-i18n-html="hero.title_html">
+      <div class="hero-text">
+        <div class="badge hero-badge"><svg width="15" height="15"><use href="#icon-suitcase"></use></svg><span data-i18n="hero.badge">Casa vacanze indipendente · Monopoli</span></div>
+        <h1 class="hero-title hero-title-standalone" data-i18n-html="hero.title_html">
           Monopoli, vissuta<br>come <span class="hero-title-highlight">casa tua<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.
         </h1>
         <p class="hero-lead" data-i18n-html="hero.lead_html">
@@ -278,10 +271,14 @@
       <div class="hero-media">
         <div class="hero-media-frame">
           <div class="hero-media-scroll" id="hero-media-scroll"></div>
+          <div class="hero-media-scrim" aria-hidden="true"></div>
+          <div class="hero-media-heading" aria-hidden="true">
+            <div class="badge"><svg width="15" height="15"><use href="#icon-suitcase"></use></svg><span data-i18n="hero.badge">Casa vacanze indipendente · Monopoli</span></div>
+            <div class="hero-title" data-i18n-html="hero.title_html">
+              Monopoli, vissuta<br>come <span class="hero-title-highlight">casa tua<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.
+            </div>
+          </div>
         </div>
-        <button type="button" class="hero-bookmark-btn" id="hero-bookmark-btn" aria-label="Salva tra i preferiti">
-          <svg width="19" height="19"><use href="#icon-heart"></use></svg>
-        </button>
       </div>
     </div>
     <div class="hero-search-wrap" id="ricerca">
@@ -487,10 +484,10 @@
   <div class="contact-host-bar" id="contact-host-bar"></div>
 
 </div>
-<script src="js/data.js?v=3"></script>
-<script src="js/i18n.js?v=8"></script>
+<script src="js/data.js?v=4"></script>
+<script src="js/i18n.js?v=9"></script>
 <script src="js/firebase-config.js?v=1"></script>
 <script type="module" src="js/firebase-init.js?v=1"></script>
-<script src="js/app.js?v=8" defer></script>
+<script src="js/app.js?v=9" defer></script>
 </body>
 </html>
