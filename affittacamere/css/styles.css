@@ -946,7 +946,11 @@ button { font-family: inherit; }
 .rd-meta-line { font-size: 13.5px; color: var(--text-faint); font-weight: 600; }
 .rd-separator { height: 1px; background: var(--border-hairline); margin: 24px 0; }
 
-.rd-reviews-row { display: flex; align-items: center; justify-content: center; gap: 28px; text-align: center; flex-wrap: wrap; }
+.rd-reviews-row { display: flex; align-items: center; justify-content: center; text-align: center; flex-wrap: wrap; row-gap: 14px; }
+.rd-reviews-row > * { padding: 0 22px; }
+.rd-reviews-row > *:first-child { padding-left: 0; }
+.rd-reviews-row > *:last-child { padding-right: 0; }
+.rd-reviews-row > *:not(:first-child) { border-left: 1px solid var(--border-hairline); }
 .rd-rating-block { display: flex; align-items: center; gap: 6px; font-size: 15px; color: var(--navy); }
 .rd-rating-block svg { color: var(--yellow-deep); }
 .rd-guest-favorite { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 800; color: var(--navy); }
