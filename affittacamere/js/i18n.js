@@ -15,7 +15,6 @@ window.CASA_CELESTE_TOURISM_I18N = {
     'common.chiudi': 'Chiudi',
     'contact.host_cta': 'Contatta l\'host',
 
-    'hero.badge': 'Casa vacanze indipendente · Monopoli',
     'hero.title_html': 'Monopoli, vissuta<br>come <span class="hero-title-highlight">casa tua<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.',
     'hero.lead_html': "Che tu sia in viaggio da solo, in coppia o con un amico, qui trovi una casa vera a pochi passi dal centro di Monopoli: stanze curate, un balcone su cui goderti le serate, e spazi comuni per socializzare, scambiare consigli di viaggio e cucinare insieme.<br>Senza mai perdere la privacy della tua stanza.",
     'hero.fav_save': 'Salva tra i preferiti',
@@ -288,7 +287,6 @@ window.CASA_CELESTE_TOURISM_I18N = {
     'common.chiudi': 'Close',
     'contact.host_cta': 'Contact the host',
 
-    'hero.badge': 'Independent vacation rental · Monopoli, Italy',
     'hero.title_html': 'Monopoli, felt<br>like <span class="hero-title-highlight">home<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.',
     'hero.lead_html': "Whether you're travelling solo, as a couple, or with a friend, this is a real home just steps from the centre of Monopoli: well-kept rooms, a balcony to enjoy in the evening, and shared spaces to socialise, swap travel tips and cook together.<br>Without ever losing the privacy of your own room.",
     'hero.fav_save': 'Save to favourites',
