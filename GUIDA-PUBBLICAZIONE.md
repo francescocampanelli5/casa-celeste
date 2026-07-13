@@ -833,28 +833,53 @@ check-in — senza altre azioni tue. Se salti questo passo, l'email di
 check-in parte comunque, semplicemente senza link video (con una nota che
 ti contatteranno per organizzarla).
 
-### 8.7 Perché videochiamata e non SPID/CIE o riconoscimento biometrico
+### 8.7 Identificazione ospiti: obbligo di legge e come lo automatizziamo
 
-Tre strade erano sul tavolo per "verificare che l'ospite sia davvero chi
-dice di essere", oltre alla semplice raccolta dati/foto documento (già
-obbligatoria per legge e già costruita):
-- **Stripe Identity / AWS Rekognition** (biometria + liveness detection):
-  scartate — sono a pagamento per verifica (non compatibili con budget 0)
-  e trattano una categoria di dati GDPR più delicata (dati biometrici,
-  Art. 9) che la legge italiana non richiede per l'Alloggiati Web
-  (l'obbligo è comunicare i dati del documento, non verificare
-  biometricamente la corrispondenza persona-documento).
-- **SPID/CIE come login ospite**: tecnicamente la strada "più ufficiale",
-  ma richiede che TU (o un intermediario) venga accreditato come
-  **Service Provider** presso AgID/Ministero dell'Interno — un processo
-  formale, non un'integrazione che si aggiunge in una sessione di lavoro,
-  e in alcuni casi con costi se passi da un intermediario privato invece
-  che dall'accreditamento diretto. Resta un'opzione valutabile in futuro
-  se vorrai intraprendere quel percorso — dimmelo quando vuoi approfondire.
-- **Videochiamata Google Meet** (scelta attuale): gratuita, zero dati
-  biometrici elaborati o conservati (è solo una conversazione), disponibile
-  da subito per qualunque nazionalità dell'ospite, e copre lo stesso
-  bisogno pratico — vedi Parte 8.6.
+**Correzione importante rispetto a versioni precedenti di questa guida**:
+la legge italiana (art. 109 T.U.L.P.S.) non si limita a chiedere di
+raccogliere e trasmettere i dati del documento — impone al gestore di
+**identificare** l'ospite, cioè verificare di persona che chi soggiorna
+corrisponda davvero al documento presentato. Raccogliere solo i dati
+(quello che il sito faceva già) non basta da solo ad assolvere l'obbligo:
+serve anche il passaggio di verifica descritto qui sotto.
+
+**Come funziona (già costruito e attivo)**:
+1. **Prima prenotazione di un ospite**: dopo l'invio dei documenti, il
+   sistema genera da solo un link **Google Meet** (vedi Parte 8.6) per una
+   videochiamata programmata **un'ora prima del check-in** — l'ospite deve
+   avere il documento in mano durante la chiamata. In alternativa, se
+   preferite, la verifica può avvenire dal vivo al **videocitofono** al
+   momento dell'arrivo: in quel caso vai su `affittacamere/dashboard.html`
+   → tab Prenotazioni → menu "Segna identità verificata come…" → scegli
+   "Videocitofono all'arrivo".
+2. **Da quella prenotazione in poi**, lo stesso ospite (stesso nome +
+   documento) viene **riconosciuto automaticamente** dal sistema
+   (`functions/guest-verification.js`) alle prenotazioni successive: niente
+   nuova videochiamata, nessun intervento tuo.
+3. **Cittadini italiani con SPID/CIE**: resta un'alternativa valida in
+   teoria, ma richiede che TU (o un intermediario) venga accreditato come
+   **Service Provider** presso AgID/Ministero dell'Interno — un processo
+   formale, non un'integrazione che si aggiunge in una sessione di lavoro,
+   e in alcuni casi con costi se passi da un intermediario privato invece
+   che dall'accreditamento diretto. Nel frattempo, anche gli ospiti
+   italiani passano dal percorso videochiamata/videocitofono sopra — dimmi
+   quando vuoi approfondire l'accreditamento SPID/CIE.
+
+**Cosa NON è (ancora) automatizzato — dipende da un pezzo di hardware che
+non hai ancora**: l'"apertura automatica della porta dalla seconda volta"
+richiede un **citofono/serratura smart con una propria app/API** (es. Nuki,
+Yale Access, Comelit con modulo IP, ecc.) che il sistema possa comandare da
+remoto. Oggi questo hardware non è ancora nella tua struttura, quindi il
+riconoscimento "ospite già verificato" (punto 2 sopra) è pronto lato
+software, ma l'apertura fisica resta manuale finché non mi dici quale
+prodotto acquisti/installi — a quel punto costruisco l'integrazione con la
+sua API reale (ogni marca è diversa, non posso costruirla "in astratto").
+
+**Perché non Stripe Identity / AWS Rekognition (biometria + liveness)**:
+scartate — sono a pagamento per verifica (non compatibili con budget 0) e
+trattano una categoria di dati GDPR più delicata (dati biometrici, Art. 9)
+non necessaria per adempiere all'obbligo di identificazione, che la legge
+non vincola a un metodo biometrico specifico.
 
 ---
 

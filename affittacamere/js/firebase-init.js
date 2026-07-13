@@ -251,6 +251,14 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'getBookingForGuestForm')(data).then(function (res) { return res.data; });
   },
+  // Conferma identificazione ospite (videochiamata 1h prima del check-in con
+  // documento in mano, o videocitofono solo la prima volta) — registra
+  // l'ospite come "già verificato" per riconoscerlo in automatico ai
+  // soggiorni futuri (vedi functions/guest-verification.js).
+  markIdentityVerified: function (bookingId, method) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'markIdentityVerified')({ bookingId: bookingId, method: method }).then(function (res) { return res.data; });
+  },
   subscribeBookings: function (callback) {
     if (!configured) return function () {};
     var q = query(collection(requireDb(), 'tourism_bookings'), orderBy('createdAt', 'desc'));
@@ -262,12 +270,6 @@ window.CasaCelesteTourismDB = {
   },
   updateBookingStatus: function (id, status) {
     return updateDoc(doc(requireDb(), 'tourism_bookings', id), { status: status });
-  },
-  // Aggiornamento libero di campi non sensibili di una prenotazione (es.
-  // identityVerified) — solo il proprietario autenticato può chiamarlo,
-  // stesse regole Firestore di updateBookingStatus.
-  setBookingFields: function (id, patch) {
-    return updateDoc(doc(requireDb(), 'tourism_bookings', id), patch);
   },
   deleteBooking: function (id) {
     return deleteDoc(doc(requireDb(), 'tourism_bookings', id));

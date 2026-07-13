@@ -5,16 +5,19 @@
 // proprietario) se la quota mensile si avvicina al limite, dando priorità
 // alle email operative rispetto al ringraziamento.
 //
-// Perché una videochiamata invece di un servizio di riconoscimento
-// biometrico a pagamento (Stripe Identity/AWS Rekognition): l'obbligo di
-// legge (Alloggiati Web) richiede di raccogliere e comunicare i dati del
-// documento, non una verifica biometrica — una breve videochiamata
-// (gratuita, zero dati biometrici elaborati/salvati) copre lo stesso
-// bisogno pratico di "vedere che la persona coincide col documento" senza
-// costi e senza la categoria di dati GDPR più delicata. SPID/CIE come
-// alternativa per cittadini italiani richiederebbe un accreditamento come
-// Service Provider presso AgID/Ministero dell'Interno — non automatizzabile
-// da qui, eventuale sviluppo futuro se vorrai intraprendere quella strada.
+// La legge italiana impone al gestore di IDENTIFICARE ogni ospite (verifica
+// che la persona coincida col documento presentato), non solo raccogliere e
+// trasmettere i dati ad Alloggiati Web — vedi functions/guest-verification.js.
+// Metodo scelto: videochiamata Google Meet programmata ~1h prima del
+// check-in (l'ospite deve avere il documento in mano), gratuita, zero dati
+// biometrici elaborati/salvati. In alternativa, SOLO la prima volta, la
+// verifica può avvenire dal vivo al videocitofono all'arrivo (segnata a
+// mano dal proprietario in dashboard). Dalla seconda volta, lo stesso
+// ospite (nome+documento) viene riconosciuto in automatico
+// (functions/index.js → submitGuestDocuments) e non deve ripetere la
+// verifica. SPID/CIE come alternativa per cittadini italiani richiederebbe
+// un accreditamento come Service Provider presso AgID/Ministero
+// dell'Interno — non automatizzabile da qui, eventuale sviluppo futuro.
 'use strict';
 var lib = require('./_lib');
 var admin = lib.initAdmin();
@@ -40,18 +43,33 @@ async function sendConfirmation(settings, doc, b) {
 }
 
 async function sendCheckinInstructions(settings, doc, b) {
-  var meetLink = await lib.createGoogleMeetLink(
-    'Casa Celeste — verifica documento, ' + b.roomLabel,
-    'Breve videochiamata per verificare il documento di ' + b.name + ' prima del check-in del ' + b.checkIn + '.',
-    new Date().toISOString()
-  );
+  var checkInTime = settings.checkInTime || '15:00';
+  var alreadyVerified = b.identityVerified && b.identityVerified.method === 'auto_returning';
+
+  var meetLink = null, videoCallNote;
+  if (alreadyVerified) {
+    videoCallNote = 'Ti abbiamo già identificato in un soggiorno precedente: questa volta l\'accesso è automatico, nessuna videochiamata necessaria.';
+  } else {
+    // Programmata 1h prima del check-in (ora Europe/Rome, a prova di cambio
+    // ora legale/solare): l'ospite deve avere il documento in mano.
+    var callStartIso = lib.romeWallTimeToUtcIso(b.checkIn, subtractOneHour(checkInTime));
+    meetLink = await lib.createGoogleMeetLink(
+      'Casa Celeste — verifica documento, ' + b.roomLabel,
+      'Videochiamata per verificare il documento di ' + b.name + ' un\'ora prima del check-in del ' + b.checkIn + '. Tieni il documento in mano durante la chiamata.',
+      callStartIso
+    );
+    videoCallNote = meetLink
+      ? 'La videochiamata è programmata per un\'ora prima del tuo check-in (' + checkInTime + '): tieni il documento d\'identità in mano durante la chiamata. Se preferisci, in alternativa possiamo verificarlo dal vivo al videocitofono al tuo arrivo (solo per questa prima volta).'
+      : 'Ti contatteremo a breve per organizzare una brevissima videochiamata di verifica (documento in mano) un\'ora prima del check-in, oppure la faremo dal vivo al videocitofono al tuo arrivo.';
+  }
+
   var result = await lib.sendGuestEmail(db, settings, TPL_CHECKIN, {
     email: b.email || '', name: b.name || '', roomLabel: b.roomLabel || 'Casa Celeste',
-    checkIn: b.checkIn || '', checkInTime: settings.checkInTime || '15:00',
+    checkIn: b.checkIn || '', checkInTime: checkInTime,
     address: 'Via Giuseppe Can. del Drago 9, Monopoli (BA)',
     checkInInstructions: (settings.checkInInstructionsText && settings.checkInInstructionsText.it) || '',
     wifiName: settings.wifiName || '', wifiPassword: settings.wifiPassword || '',
-    videoCallLink: meetLink || '', videoCallNote: meetLink ? '' : 'Ti contatteremo a breve per organizzare una brevissima videochiamata di verifica.',
+    videoCallLink: meetLink || '', videoCallNote: videoCallNote,
     hostPhone: settings.managerPhone || settings.phone || ''
   }, 1, 'istruzioni check-in (' + doc.id + ')');
   if (result.sent) {
@@ -60,6 +78,11 @@ async function sendCheckinInstructions(settings, doc, b) {
     await doc.ref.update(patch);
   }
   return result.sent;
+}
+function subtractOneHour(hhmm) {
+  var parts = hhmm.split(':');
+  var h = (Number(parts[0]) - 1 + 24) % 24;
+  return (h < 10 ? '0' : '') + h + ':' + (parts[1] || '00');
 }
 
 async function sendThankYou(settings, doc, b) {

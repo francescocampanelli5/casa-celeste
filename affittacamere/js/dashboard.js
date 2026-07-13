@@ -124,6 +124,14 @@
   /* ==========================================================================
      Bookings tab
      ========================================================================== */
+  var IDENTITY_METHOD_LABELS = {
+    video_call: 'videochiamata', door_intercom: 'videocitofono (1ª volta)',
+    auto_returning: 'ospite già verificato in precedenza — accesso automatico', spid_cie: 'SPID/CIE'
+  };
+  function identityVerifiedLabel(iv) {
+    if (!iv) return '⏳ da verificare (obbligo di legge: identificazione documento-persona)';
+    return '✅ verificata (' + (IDENTITY_METHOD_LABELS[iv.method] || iv.method) + ')';
+  }
   function bookingAlertHtml(b) {
     if (b.status === 'annullato') return '';
     var soon = b.checkIn <= addDaysIso(todayISO(), 1);
@@ -142,8 +150,8 @@
           '<div class="booking-when">' + escapeHtml(b.checkIn || '') + ' → ' + escapeHtml(b.checkOut || '') + ' · ' + (b.nights || 0) + ' notti · ' + (b.guests || 0) + ' ospiti</div>' +
           '<div class="booking-contact">' + escapeHtml(b.name || '') + ' — <a href="mailto:' + encodeURIComponent(b.email || '') + '">' + escapeHtml(b.email || '') + '</a>' + (b.phone ? ' — <a href="tel:' + encodeURIComponent(b.phone) + '">' + escapeHtml(b.phone) + '</a>' : '') + '</div>' +
           '<div class="booking-meta">Ricevuta il ' + formatCreatedAt(b.createdAt) + ' · Documenti ospiti: ' + (b.guestDocsComplete ? '✅ completi' : '❌ mancanti') +
-            ' · Identità: ' + (b.identityVerified ? '✅ verificata (' + (b.identityVerified.method === 'video_call' ? 'videochiamata' : b.identityVerified.method) + ')' : '⏳ non ancora') + '</div>' +
-          (b.videoCallLink ? '<div class="booking-meta"><a href="' + escapeHtml(b.videoCallLink) + '" target="_blank" rel="noopener">🎥 Link videochiamata verifica documento</a></div>' : '') +
+            ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + '</div>' +
+          (b.videoCallLink ? '<div class="booking-meta"><a href="' + escapeHtml(b.videoCallLink) + '" target="_blank" rel="noopener">🎥 Link videochiamata (verifica documento, ~1h prima del check-in)</a></div>' : '') +
           bookingAlertHtml(b) +
         '</div>' +
         '<div class="booking-actions">' +
@@ -153,7 +161,13 @@
             '<option value="confermato"' + (b.status === 'confermato' ? ' selected' : '') + '>Confermata</option>' +
             '<option value="annullato"' + (b.status === 'annullato' ? ' selected' : '') + '>Annullata (libera le notti)</option>' +
           '</select>' +
-          (!b.identityVerified ? '<button type="button" class="dash-delete-btn" data-mark-verified data-id="' + b.id + '">Segna identità verificata</button>' : '') +
+          (!b.identityVerified && b.guestDocsComplete ? (
+            '<select class="dash-select" data-mark-verified-select data-id="' + b.id + '">' +
+              '<option value="">Segna identità verificata come…</option>' +
+              '<option value="video_call">✅ Videochiamata (documento in mano)</option>' +
+              '<option value="door_intercom">✅ Videocitofono all\'arrivo (solo 1ª volta)</option>' +
+            '</select>'
+          ) : '') +
           '<button type="button" class="dash-delete-btn" data-copy-alloggiati data-id="' + b.id + '">Copia dati Alloggiati Web</button>' +
           '<button type="button" class="dash-delete-btn" data-delete-booking data-id="' + b.id + '">Elimina</button>' +
         '</div>' +
@@ -231,10 +245,15 @@
     content.querySelectorAll('[data-copy-alloggiati]').forEach(function (el) {
       el.addEventListener('click', function () { copyAlloggiatiData(el.getAttribute('data-id')); });
     });
-    content.querySelectorAll('[data-mark-verified]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        window.CasaCelesteTourismDB.setBookingFields(el.getAttribute('data-id'), {
-          identityVerified: { method: 'video_call', verifiedAt: new Date().toISOString() }
+    content.querySelectorAll('[data-mark-verified-select]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var method = e.target.value;
+        if (!method) return;
+        var id = el.getAttribute('data-id');
+        el.disabled = true;
+        window.CasaCelesteTourismDB.markIdentityVerified(id, method).catch(function (err) {
+          window.alert('Errore: ' + (err && err.message ? err.message : err));
+          el.disabled = false;
         });
       });
     });

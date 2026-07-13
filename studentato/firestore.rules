@@ -90,5 +90,14 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
+
+    // Ospiti già identificati in un soggiorno precedente (chiave hash, mai
+    // il documento in chiaro) — riconosciuti in automatico dalla Cloud
+    // Function submitGuestDocuments/markIdentityVerified, mai scritti dal
+    // client direttamente.
+    match /tourism_verifiedGuests/{guestKey} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

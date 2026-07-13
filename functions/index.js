@@ -24,6 +24,7 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { createBookingCore } = require('./booking-logic');
+const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-verification');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -197,8 +198,42 @@ exports.submitGuestDocuments = onCall(async (request) => {
     guests: movedGuests,
     submittedAt: admin.firestore.FieldValue.serverTimestamp()
   });
-  await bookingRef.update({ guestDocsComplete: true });
+  const patch = { guestDocsComplete: true };
 
+  // Identificazione: la legge impone di verificare che l'ospite corrisponda
+  // al documento (non solo raccogliere/trasmettere i dati) — vedi
+  // functions/guest-verification.js. Se OGNI ospite di questa prenotazione
+  // risulta già verificato in un soggiorno precedente, lo riconosciamo qui
+  // in automatico: dalla seconda volta niente nuova videochiamata/citofono.
+  const alreadyVerified = await findAlreadyVerifiedGuests(db, guests).catch(() => false);
+  if (alreadyVerified) {
+    patch.identityVerified = { method: 'auto_returning', verifiedAt: admin.firestore.FieldValue.serverTimestamp() };
+  }
+  await bookingRef.update(patch);
+
+  return { ok: true, identityAlreadyVerified: alreadyVerified };
+});
+
+/* ==========================================================================
+   markIdentityVerified — il proprietario conferma l'identità di un ospite
+   (videochiamata 1h prima del check-in con documento in mano, oppure
+   videocitofono solo la prima volta) e registra l'ospite come "già
+   verificato" per i soggiorni futuri. Solo owner autenticato.
+   ========================================================================== */
+exports.markIdentityVerified = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('permission-denied', 'Solo il proprietario può confermare la verifica.');
+  const data = request.data || {};
+  const bookingId = data.bookingId;
+  const method = data.method === 'door_intercom' ? 'door_intercom' : 'video_call';
+  if (!isNonEmptyString(bookingId, 100)) throw new HttpsError('invalid-argument', 'Prenotazione non valida.');
+
+  const bookingRef = db.collection('tourism_bookings').doc(bookingId);
+  const docsSnap = await db.collection('tourism_guestDocuments').doc(bookingId).get();
+  if (!docsSnap.exists) throw new HttpsError('failed-precondition', 'Documenti ospiti non ancora inviati per questa prenotazione.');
+  const guests = docsSnap.data().guests || [];
+
+  await recordVerifiedGuests(db, admin, guests, bookingId, method);
+  await bookingRef.update({ identityVerified: { method: method, verifiedAt: admin.firestore.FieldValue.serverTimestamp() } });
   return { ok: true };
 });
 

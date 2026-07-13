@@ -24,6 +24,26 @@ function romeNow() {
   fmt.formatToParts(new Date()).forEach(function (p) { parts[p.type] = p.value; });
   return { hour: Number(parts.hour), dateISO: parts.year + '-' + parts.month + '-' + parts.day };
 }
+// Converte un orario "muro" Europe/Rome (es. 14:00 del 2026-08-01) nell'
+// istante UTC corrispondente — serve per programmare la videochiamata "1h
+// prima del check-in" con l'ora giusta indipendentemente da ora
+// solare/legale (offset calcolato dal mezzogiorno UTC dello stesso giorno,
+// sempre lontano dagli orari di cambio ora che avvengono di notte).
+function romeOffsetMinutes(dateISO) {
+  var ref = new Date(dateISO + 'T12:00:00Z');
+  var fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Rome', hour: '2-digit', hour12: false, timeZoneName: 'shortOffset' });
+  var part = fmt.formatToParts(ref).find(function (p) { return p.type === 'timeZoneName'; });
+  var m = part && /GMT([+-]\d+)/.exec(part.value);
+  return m ? Number(m[1]) * 60 : 60;
+}
+function romeWallTimeToUtcIso(dateISO, hhmm) {
+  var offsetMin = romeOffsetMinutes(dateISO);
+  var parts = String(hhmm || '00:00').split(':');
+  var d = new Date(dateISO + 'T00:00:00Z');
+  d.setUTCHours(Number(parts[0]) || 0, Number(parts[1]) || 0, 0, 0);
+  d.setUTCMinutes(d.getUTCMinutes() - offsetMin);
+  return d.toISOString();
+}
 function addDaysIso(iso, days) {
   var d = new Date(iso + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + days);
@@ -157,7 +177,7 @@ async function createGoogleMeetLink(summary, description, startISO) {
 }
 
 module.exports = {
-  initAdmin: initAdmin, romeNow: romeNow, addDaysIso: addDaysIso,
+  initAdmin: initAdmin, romeNow: romeNow, addDaysIso: addDaysIso, romeWallTimeToUtcIso: romeWallTimeToUtcIso,
   telegramSend: telegramSend, telegramConfigured: telegramConfigured, telegramBroadcast: telegramBroadcast,
   checkEmailQuota: checkEmailQuota, recordEmailSent: recordEmailSent, sendGuestEmail: sendGuestEmail,
   googleMeetConfigured: googleMeetConfigured, createGoogleMeetLink: createGoogleMeetLink
