@@ -841,6 +841,10 @@ button { font-family: inherit; }
 .flex-result-chip:hover { border-color: var(--blue); background: var(--blue-bg); }
 .flex-result-chip span { font-size: 11px; font-weight: 600; color: var(--text-faint); }
 
+.search-extrabed-choice { background: var(--blue-bg, #EAF4FB); border-radius: var(--radius-xs); padding: 12px 14px; margin: 4px 0 14px; }
+.search-extrabed-choice-text { font-size: 13px; color: var(--navy); margin-bottom: 10px; }
+.search-extrabed-choice-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
 .search-results-bar {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
   background: var(--blue-bg); color: var(--blue-deep); border-radius: var(--radius-xs);
@@ -965,6 +969,11 @@ button { font-family: inherit; }
   padding: 12px 0; border-top: 1px solid var(--border-hairline);
 }
 .rd-option-title { font-size: 13.5px; font-weight: 700; color: var(--navy); }
+.rd-recommended-tag {
+  display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase;
+  color: var(--blue-deep, #1E5F8C); background: var(--blue-bg, #EAF4FB); border-radius: var(--radius-pill);
+  padding: 2px 8px; margin-left: 6px; vertical-align: middle;
+}
 .rd-option-sub { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
 .rd-option-row .search-stepper { width: 96px; flex-shrink: 0; }
 .rd-location-grid { grid-template-columns: 1fr; gap: 18px; }
