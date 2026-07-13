@@ -79,6 +79,33 @@ async function handleNuovaCommand(chatId, text) {
   }
 }
 
+// Istruzioni d'uso, richiamabili in ogni momento con /start, /aiuto o
+// /help — includono il chat-id di chi scrive, il dato più utile per farsi
+// autorizzare dal proprietario (altrimenti richiederebbe di lanciare a
+// parte il workflow "recupera chat-id Telegram").
+function helpText(isAuthorized, chatId) {
+  return [
+    '👋 Ciao! Sono il bot di Casa Celeste.',
+    '',
+    'Cosa faccio automaticamente, se sei autorizzato:',
+    '• ti avviso appena arriva una nuova prenotazione dal sito;',
+    '• ti avviso la sera prima e la mattina del check-out quando c\'è da fare le pulizie;',
+    '• ti avviso se qualcosa richiede attenzione (email in esaurimento, invii falliti).',
+    '',
+    'Comando che puoi usarmi tu, se sei autorizzato — registra al volo una',
+    'prenotazione arrivata da Airbnb/Booking/telefono, senza aprire la dashboard:',
+    '/nuova <Stanza> <check-in GG/MM/AAAA> <check-out GG/MM/AAAA> <Nome Cognome> <email> <telefono> <ospiti> [canale]',
+    '',
+    'Esempio:',
+    '/nuova Scirocco 01/08/2026 05/08/2026 Mario Rossi mario@email.com 3331234567 2 airbnb',
+    '',
+    'Il tuo chat-id: ' + chatId,
+    isAuthorized
+      ? 'Sei autorizzato: ricevi le notifiche e puoi usare /nuova.'
+      : 'Non sei ancora autorizzato a ricevere notifiche o usare /nuova: manda questo chat-id al proprietario, che deve aggiungerti da dashboard.html → Impostazioni.'
+  ].join('\n');
+}
+
 async function main() {
   if (!lib.telegramConfigured()) { console.log('TELEGRAM_BOT_TOKEN non configurato: esco.'); return; }
 
@@ -98,10 +125,24 @@ async function main() {
     var u = updates[i];
     if (u.update_id > maxId) maxId = u.update_id;
     var msg = u.message;
-    if (!msg || !msg.text || !msg.text.trim().toLowerCase().startsWith('/nuova')) continue;
+    if (!msg || !msg.text) continue;
     var chatId = String(msg.chat.id);
-    if (authorized.indexOf(chatId) === -1) {
-      await replyTo(chatId, 'Non sei autorizzato a creare prenotazioni da qui. Chiedi al proprietario di aggiungerti in Impostazioni.');
+    var text = msg.text.trim();
+    var lower = text.toLowerCase();
+    var isAuthorized = authorized.indexOf(chatId) !== -1;
+
+    if (lower === '/start' || lower === '/aiuto' || lower === '/help') {
+      await replyTo(chatId, helpText(isAuthorized, chatId));
+      continue;
+    }
+    if (!lower.startsWith('/nuova')) {
+      // Mai restare muti su un messaggio non riconosciuto: senza questa
+      // risposta il bot sembra "rotto" a chi non conosce ancora i comandi.
+      await replyTo(chatId, 'Comando non riconosciuto. Scrivi /aiuto per le istruzioni.');
+      continue;
+    }
+    if (!isAuthorized) {
+      await replyTo(chatId, 'Non sei autorizzato a creare prenotazioni da qui (chat-id: ' + chatId + '). Chiedi al proprietario di aggiungerti da dashboard.html → Impostazioni, oppure scrivi /aiuto.');
       continue;
     }
     await handleNuovaCommand(chatId, msg.text);
