@@ -860,12 +860,17 @@
     document.getElementById('manager-email').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerEmail: e.target.value.trim() }); });
 
     function recipientKeyFor(kind) { return kind === 'cleaning' ? 'cleaningRecipients' : 'bookingCommandAuthorized'; }
+    function saveSettingsOrAlert(patch) {
+      window.CasaCelesteTourismDB.setSettings(patch).catch(function (err) {
+        window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err) + '\n\nProva a uscire (bottone "Esci") e rientrare, poi riprova.');
+      });
+    }
     content.querySelectorAll('[data-add-recipient]').forEach(function (el) {
       el.addEventListener('click', function () {
         var kind = el.getAttribute('data-add-recipient'), key = recipientKeyFor(kind);
         var list = (state.settings[key] || []).slice();
         list.push({ label: '', chatId: '', enabled: true });
-        window.CasaCelesteTourismDB.setSettings((function () { var p = {}; p[key] = list; return p; })());
+        saveSettingsOrAlert((function () { var p = {}; p[key] = list; return p; })());
       });
     });
     content.querySelectorAll('[data-recipient-field]').forEach(function (el) {
@@ -873,7 +878,7 @@
         var kind = el.getAttribute('data-recipient-kind'), key = recipientKeyFor(kind), idx = Number(el.getAttribute('data-recipient-index')), part = el.getAttribute('data-recipient-part');
         var list = (state.settings[key] || []).slice();
         list[idx] = Object.assign({}, list[idx]); list[idx][part] = e.target.value;
-        window.CasaCelesteTourismDB.setSettings((function () { var p = {}; p[key] = list; return p; })());
+        saveSettingsOrAlert((function () { var p = {}; p[key] = list; return p; })());
       });
     });
     content.querySelectorAll('[data-recipient-enabled]').forEach(function (el) {
@@ -881,14 +886,14 @@
         var kind = el.getAttribute('data-recipient-kind'), key = recipientKeyFor(kind), idx = Number(el.getAttribute('data-recipient-index'));
         var list = (state.settings[key] || []).slice();
         list[idx] = Object.assign({}, list[idx], { enabled: e.target.checked });
-        window.CasaCelesteTourismDB.setSettings((function () { var p = {}; p[key] = list; return p; })());
+        saveSettingsOrAlert((function () { var p = {}; p[key] = list; return p; })());
       });
     });
     content.querySelectorAll('[data-recipient-remove]').forEach(function (el) {
       el.addEventListener('click', function () {
         var kind = el.getAttribute('data-recipient-kind'), key = recipientKeyFor(kind), idx = Number(el.getAttribute('data-recipient-index'));
         var list = (state.settings[key] || []).slice(); list.splice(idx, 1);
-        window.CasaCelesteTourismDB.setSettings((function () { var p = {}; p[key] = list; return p; })());
+        saveSettingsOrAlert((function () { var p = {}; p[key] = list; return p; })());
       });
     });
     content.querySelectorAll('[data-ical-field]').forEach(function (el) {
