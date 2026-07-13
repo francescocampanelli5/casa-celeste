@@ -678,8 +678,10 @@ query falliscono a runtime):
 firebase deploy --only firestore:rules,firestore:indexes,storage:rules
 ```
 Poi pubblica le Cloud Functions (`createBooking`, `submitGuestDocuments`,
-`getBookingForGuestForm` in `/functions/index.js` — servono per creare
-prenotazioni senza doppie prenotazioni e per validare i documenti ospiti):
+`getBookingForGuestForm`, `telegramWebhook` in `/functions/index.js` —
+servono per creare prenotazioni senza doppie prenotazioni, validare i
+documenti ospiti e far rispondere il bot Telegram in tempo reale, vedi
+Parte 8.2):
 ```
 cd functions && npm install && cd ..
 firebase deploy --only functions
@@ -703,24 +705,82 @@ Firestore/Storage). Se non è una regione UE, fammelo sapere prima di
 raccogliere documenti d'identità veri — potremmo voler isolare quella parte
 sensibile su un progetto Firebase separato in regione UE.
 
-### 8.2 Bot Telegram per pulizie e prenotazioni rapide (gratis, 5 minuti)
+### 8.2 Bot Telegram per pulizie e prenotazioni rapide
 
 1. Apri Telegram, cerca **@BotFather**, manda `/newbot`, segui le istruzioni
    (nome + username che finisce in "bot"). Ti dà un **token**: copialo.
 2. Su GitHub: repo → **Settings → Secrets and variables → Actions → New
    repository secret** → nome `TELEGRAM_BOT_TOKEN`, incolla il token.
-3. Ogni persona da avvisare (tu, la donna delle pulizie, ecc.) apre una chat
-   col bot e manda `/start`.
-4. Vai su GitHub → tab **Actions** → workflow **"Affittacamere — recupera
-   chat-id Telegram (manuale)"** → **Run workflow**. Nel log di quella run
-   trovi il chat-id di ognuno.
+3. Segui subito la Parte 8.2.1 sotto per collegare il webhook — il bot
+   risponde in tempo reale (nessun controllo periodico), quindi finché il
+   webhook non è collegato il bot resta silenzioso anche a `/start`.
+4. Ogni persona da avvisare (tu, la donna delle pulizie, ecc.) apre una chat
+   col bot e manda `/start` (o `/aiuto`): il bot risponde subito con il
+   proprio chat-id, da comunicarti (nessun workflow da lanciare a mano).
 5. Vai su `affittacamere/dashboard.html` → **Impostazioni** → aggiungi ogni
    persona in "Notifiche pulizie" (e, se deve poter creare prenotazioni al
    volo da Airbnb/Booking, anche in "Autorizzati... bot Telegram") con
    etichetta + chat-id.
 
-Da qui in poi i promemoria pulizie (sera prima + mattina del check-out) e il
-comando `/nuova` partono da soli.
+Da qui in poi i promemoria pulizie (sera prima + mattina del check-out)
+partono da soli. Il comando `/nuova` (compilazione guidata passo-passo per
+registrare una prenotazione manuale, con calendario a bottoni e cattura
+foto documento) risponde in tempo reale tramite un **webhook**.
+
+#### 8.2.1 Collegare il webhook (risposta istantanea del bot)
+
+Due secret aggiuntivi, stesso procedimento del `TELEGRAM_BOT_TOKEN`:
+
+1. **`TELEGRAM_WEBHOOK_SECRET`** — una stringa segreta a tua scelta (es.
+   generata con `openssl rand -hex 32`, o qualunque password lunga e
+   casuale): serve a Telegram per dimostrare che le richieste all'endpoint
+   pubblico del bot vengono davvero da Telegram e non da un estraneo che ha
+   indovinato l'URL. Va salvata **due volte, stesso valore**:
+   ```
+   firebase functions:secrets:set TELEGRAM_WEBHOOK_SECRET
+   ```
+   e come **repository secret** su GitHub (stesso posto del punto 2 sopra),
+   nome `TELEGRAM_WEBHOOK_SECRET`.
+2. **`VISION_API_KEY`** — per la lettura automatica (OCR) dei documenti
+   d'identità caricati nel wizard: attiva l'API "Cloud Vision" sul progetto
+   Google Cloud `casa-celeste` (console.cloud.google.com → APIs & Services →
+   Library → cerca "Cloud Vision API" → Enable), poi crea una chiave API
+   (APIs & Services → Credentials → Create credentials → API key) e
+   salvala **solo** come secret Firebase (non serve a GitHub Actions):
+   ```
+   firebase functions:secrets:set VISION_API_KEY
+   ```
+   **Nota sui costi**: è la prima parte del progetto che non è garantita a
+   costo zero — Cloud Vision ha una soglia gratuita mensile ampia, il
+   volume di un B&B (poche prenotazioni al mese, 1-4 ospiti ciascuna)
+   dovrebbe restarci comodamente sotto, ma non è strutturalmente impossibile
+   superarla. Consigliato impostare un avviso di budget su Google Cloud
+   Console (Billing → Budgets & alerts) per essere avvisati via email se
+   mai succedesse.
+3. Deploya (o ri-deploya) le Cloud Functions con i nuovi secret disponibili:
+   ```
+   firebase deploy --only functions
+   ```
+   annota l'URL pubblico stampato per `telegramWebhook` (qualcosa come
+   `https://europe-west1-casa-celeste.cloudfunctions.net/telegramWebhook`).
+4. Vai su GitHub → tab **Actions** → workflow **"Affittacamere — registra
+   webhook bot Telegram (manuale)"** → **Run workflow**, incolla l'URL del
+   punto 3 nel campo richiesto, avvia.
+5. Scrivi `/aiuto` al bot da Telegram: se risponde entro pochi secondi, il
+   webhook è collegato correttamente.
+
+Da questo momento in poi `/nuova` (senza argomenti) avvia la compilazione
+guidata; il formato veloce a riga singola (`/nuova Scirocco 01/08/2026
+05/08/2026 Mario Rossi mario@email.com 3331234567 2 airbnb`) resta
+disponibile invariato per chi preferisce digitare tutto d'un fiato.
+`/annulla` interrompe in qualunque momento una compilazione in corso.
+
+Se qualcosa va storto dopo aver collegato il webhook (il bot non risponde
+più a nessuno), lo si può scollegare subito senza bisogno di un nuovo
+deploy con una singola chiamata:
+```
+curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"
+```
 
 ### 8.3 EmailJS — 4 email automatiche all'ospite, sotto la quota gratuita
 

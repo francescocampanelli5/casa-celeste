@@ -99,5 +99,14 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
+
+    // Sessioni del wizard bot Telegram (functions/telegram-bot.js) — solo
+    // l'Admin SDK della Cloud Function le scrive (bypassa comunque queste
+    // regole); dichiarate qui solo per coerenza/difesa in profondità, come
+    // tourism_guestDocuments/tourism_verifiedGuests sopra.
+    match /tourism_botSessions/{chatId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

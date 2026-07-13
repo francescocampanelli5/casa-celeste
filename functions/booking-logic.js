@@ -1,7 +1,6 @@
 // Logica di creazione prenotazione condivisa tra:
 // - functions/index.js (Cloud Function createBooking, chiamata dal sito)
-// - affittacamere/scripts/telegram-bot-poll.js (comando /nuova via bot,
-//   stesso Admin SDK ma eseguito da GitHub Actions, non da una Function)
+// - functions/telegram-bot.js (comando /nuova via bot, wizard e formato veloce)
 //
 // Tenerla in un solo posto evita che le due strade per creare una
 // prenotazione (sito vs bot) finiscano per avere regole diverse — in

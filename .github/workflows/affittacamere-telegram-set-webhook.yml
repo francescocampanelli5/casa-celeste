@@ -1,0 +1,27 @@
+name: Affittacamere — registra webhook bot Telegram (manuale)
+
+# Solo manuale, da lanciare UNA VOLTA dopo aver deployato
+# functions/telegramWebhook e averla verificata (vedi GUIDA-PUBBLICAZIONE.md
+# Parte 8.2): da quel momento il bot risponde in tempo reale invece che con
+# il vecchio polling ogni 5 minuti.
+on:
+  workflow_dispatch:
+    inputs:
+      functionUrl:
+        description: "URL pubblico della funzione telegramWebhook (da 'firebase deploy --only functions:telegramWebhook')"
+        required: true
+
+jobs:
+  set-webhook:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Registra il webhook su Telegram
+        working-directory: affittacamere/scripts
+        run: node telegram-set-webhook.js "${{ inputs.functionUrl }}"
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}

@@ -81,9 +81,12 @@ Firebase partendo da zero.
     ical/                  file .ics generati per Airbnb/Booking (auto)
   functions/
     index.js               Cloud Functions (createBooking, submitGuestDocuments,
-                           getBookingForGuestForm) — usate solo da affittacamere
+                           getBookingForGuestForm, telegramWebhook) — usate solo
+                           da affittacamere
     booking-logic.js        transazione anti-doppia-prenotazione condivisa
-                           anche con affittacamere/scripts/telegram-bot-poll.js
+                           anche con functions/telegram-bot.js (bot Telegram)
+    telegram-bot.js          webhook bot: wizard /nuova, cattura foto documento
+    mrz-parser.js            lettura OCR/MRZ documenti (passaporti, carte CIE)
 ```
 
 ## Contatti configurati nel sito

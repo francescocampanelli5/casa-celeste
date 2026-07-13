@@ -31,8 +31,7 @@ affittacamere/
     guest-docs-reminder.js     email se mancano ancora i documenti ospiti
     guest-lifecycle-emails.js  email conferma / istruzioni check-in (+ Meet) / ringraziamento
     alloggiati-web-submit.js   SCAFFOLD — completare con WSDL Questura
-    telegram-bot-poll.js       comando /nuova per prenotazioni manuali veloci
-    telegram-fetch-updates.js  recupero chat-id (solo manuale)
+    telegram-set-webhook.js    registrazione UNA TANTUM del webhook bot (solo manuale)
     google-meet-authorize.js   autorizzazione UNA TANTUM (da eseguire in locale)
     ical-export.js / ical-import.js   sync calendario Airbnb/Booking
     cleanup-guest-docs.js      cancellazione foto documento (48h dopo check-out
@@ -42,12 +41,15 @@ affittacamere/
 ```
 
 Le **Cloud Functions** (`createBooking`, `submitGuestDocuments`,
-`getBookingForGuestForm`) vivono in `/functions/` alla radice del repo, non
-qui dentro — sono referenziate dallo stesso `firebase.json` (alla radice
-del repo: un solo progetto Firebase, un solo file di config). Vedi
-`/functions/index.js`
-per il perché: creare una prenotazione ha bisogno di una transazione vera
-(anti-doppia-prenotazione), non di una semplice scrittura validata da regole.
+`getBookingForGuestForm`, `telegramWebhook`) vivono in `/functions/` alla
+radice del repo, non qui dentro — sono referenziate dallo stesso
+`firebase.json` (alla radice del repo: un solo progetto Firebase, un solo
+file di config). Vedi `/functions/index.js` per il perché: creare una
+prenotazione ha bisogno di una transazione vera (anti-doppia-prenotazione),
+non di una semplice scrittura validata da regole. `telegramWebhook`
+(`functions/telegram-bot.js`) gestisce in tempo reale il comando `/nuova`
+del bot (compilazione guidata + cattura foto documento con lettura OCR/MRZ
+da confermare sempre a mano, vedi `functions/mrz-parser.js`).
 
 ## Differenze rispetto a `/studentato`
 

@@ -19,17 +19,21 @@
 // piano gratuito di 2 milioni di invocazioni/mese, per 4 stanze restiamo a
 // poche decine al mese — a costo pratico zero.
 
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { createBookingCore } = require('./booking-logic');
 const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-verification');
+const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString } = require('./guest-documents');
+const { handleTelegramUpdate } = require('./telegram-bot');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
 
 const telegramBotToken = defineSecret('TELEGRAM_BOT_TOKEN');
+const telegramWebhookSecret = defineSecret('TELEGRAM_WEBHOOK_SECRET');
+const visionApiKey = defineSecret('VISION_API_KEY');
 
 async function notifyOwnerNewBooking(result, data) {
   const token = telegramBotToken.value();
@@ -53,24 +57,9 @@ async function notifyOwnerNewBooking(result, data) {
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
 
-const DOC_TYPES = ['carta_identita', 'passaporto', 'patente'];
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-function isValidDateStr(s) {
-  if (typeof s !== 'string' || !DATE_RE.test(s)) return false;
-  const d = new Date(s + 'T00:00:00Z');
-  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
-}
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-function isNonEmptyString(v, maxLen) {
-  return typeof v === 'string' && v.trim().length > 0 && v.trim().length <= (maxLen || 100);
-}
-
 /* ==========================================================================
    createBooking — logica condivisa in booking-logic.js (usata anche dal
-   bot Telegram via affittacamere/scripts/telegram-bot-poll.js).
+   bot Telegram via telegram-bot.js).
    ========================================================================== */
 exports.createBooking = onCall({ secrets: [telegramBotToken] }, async (request) => {
   const data = request.data || {};
@@ -122,24 +111,9 @@ exports.getBookingForGuestForm = onCall(async (request) => {
 });
 
 /* ==========================================================================
-   submitGuestDocuments
+   submitGuestDocuments — validateGuest/movePhotoToPermanent ora in
+   guest-documents.js (condivise con functions/telegram-bot.js).
    ========================================================================== */
-function validateGuest(g) {
-  if (!g || typeof g !== 'object') return 'Dati ospite mancanti.';
-  if (!isNonEmptyString(g.firstName, 80)) return 'Nome non valido.';
-  if (!isNonEmptyString(g.lastName, 80)) return 'Cognome non valido.';
-  if (!isValidDateStr(g.birthDate) || g.birthDate >= todayISO()) return 'Data di nascita non valida.';
-  if (!isNonEmptyString(g.birthPlace, 100)) return 'Luogo di nascita non valido.';
-  if (!isNonEmptyString(g.nationality, 60)) return 'Cittadinanza non valida.';
-  if (DOC_TYPES.indexOf(g.docType) === -1) return 'Tipo documento non valido.';
-  if (!isNonEmptyString(g.docNumber, 30) || g.docNumber.trim().length < 3) return 'Numero documento non valido.';
-  if (!isNonEmptyString(g.docIssuePlace, 100)) return 'Luogo di rilascio non valido.';
-  if (!isNonEmptyString(g.docPhotoUrl, 500) || g.docPhotoUrl.indexOf('tourism-guest-docs-tmp/') === -1) {
-    return 'Foto documento mancante o non caricata correttamente.';
-  }
-  return null;
-}
-
 exports.submitGuestDocuments = onCall(async (request) => {
   const data = request.data || {};
   const bookingId = data.bookingId;
@@ -175,7 +149,7 @@ exports.submitGuestDocuments = onCall(async (request) => {
     const existing = await docRef.get();
     if (existing.exists) {
       const prevGuests = existing.data().guests || [];
-      await Promise.all(prevGuests.map((g, i) => deletePermanentGuestPhoto(bookingId, i).catch(() => {})));
+      await Promise.all(prevGuests.map((g, i) => deletePermanentGuestPhoto(bucket, bookingId, i).catch(() => {})));
     }
     await docRef.delete();
     await bookingRef.update({ guestDocsComplete: false });
@@ -192,7 +166,7 @@ exports.submitGuestDocuments = onCall(async (request) => {
 
   // Sposta ogni foto dall'area temporanea pubblica a quella definitiva
   // (lettura riservata al proprietario, mai pubblica — vedi storage.rules).
-  const movedGuests = await Promise.all(guests.map((g, i) => movePhotoToPermanent(bookingId, i, g)));
+  const movedGuests = await Promise.all(guests.map((g, i) => movePhotoToPermanent(bucket, bookingId, i, g)));
 
   await docRef.set({
     guests: movedGuests,
@@ -237,28 +211,32 @@ exports.markIdentityVerified = onCall(async (request) => {
   return { ok: true };
 });
 
-async function movePhotoToPermanent(bookingId, guestIndex, guest) {
-  const tempPath = storagePathFromUrl(guest.docPhotoUrl);
-  const ext = (tempPath.split('.').pop() || 'jpg').toLowerCase();
-  const destPath = 'tourism-guest-docs/' + bookingId + '/guest' + guestIndex + '.' + ext;
-  try {
-    await bucket.file(tempPath).copy(bucket.file(destPath));
-    await bucket.file(tempPath).delete().catch(() => {});
-  } catch (e) {
-    throw new HttpsError('internal', 'Errore nel salvataggio della foto documento ospite ' + (guestIndex + 1) + '.');
+/* ==========================================================================
+   telegramWebhook — endpoint pubblico che riceve in tempo reale i messaggi
+   del bot (sostituisce il vecchio polling ogni 5 minuti da GitHub Actions).
+   Autenticazione: Telegram rimanda ad ogni chiamata l'header
+   X-Telegram-Bot-Api-Secret-Token impostato in fase di registrazione del
+   webhook (vedi affittacamere/scripts/telegram-set-webhook.js) — qualunque
+   richiesta senza quell'header esatto viene rifiutata prima di toccare
+   Firestore/Telegram. Risponde SEMPRE 200 quando l'header è valido (anche
+   in caso di errore interno, loggato ma non propagato): Telegram rifà
+   retry aggressivi su risposte non-2xx, che duplicherebbero i passi del
+   wizard per l'utente.
+   ========================================================================== */
+exports.telegramWebhook = onRequest({ secrets: [telegramBotToken, telegramWebhookSecret, visionApiKey] }, async (req, res) => {
+  const expectedSecret = telegramWebhookSecret.value();
+  const receivedSecret = req.get('X-Telegram-Bot-Api-Secret-Token');
+  if (!expectedSecret || receivedSecret !== expectedSecret) {
+    res.status(401).send('');
+    return;
   }
-  const clean = Object.assign({}, guest);
-  delete clean.docPhotoUrl;
-  clean.docPhotoPath = destPath;
-  return clean;
-}
-async function deletePermanentGuestPhoto(bookingId, guestIndex) {
-  const [files] = await bucket.getFiles({ prefix: 'tourism-guest-docs/' + bookingId + '/guest' + guestIndex + '.' });
-  await Promise.all(files.map((f) => f.delete().catch(() => {})));
-}
-function storagePathFromUrl(url) {
-  // Le URL di download Firebase Storage contengono il path codificato dopo "/o/".
-  const m = String(url).match(/\/o\/([^?]+)/);
-  if (!m) throw new HttpsError('invalid-argument', 'URL foto documento non valido.');
-  return decodeURIComponent(m[1]);
-}
+  try {
+    await handleTelegramUpdate(
+      { admin, db, bucket, botToken: telegramBotToken.value(), visionApiKey: visionApiKey.value() },
+      req.body || {}
+    );
+  } catch (err) {
+    console.error('Errore telegramWebhook:', err);
+  }
+  res.status(200).send('');
+});

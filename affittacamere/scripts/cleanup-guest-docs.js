@@ -19,6 +19,56 @@ async function deletePhotos(bookingId) {
   return files.length;
 }
 
+// Sessioni abbandonate del wizard bot Telegram (tourism_botSessions, vedi
+// functions/telegram-bot.js) — l'utente può sempre annullare con /annulla,
+// ma se chiude la chat a metà la sessione resterebbe lì per sempre senza
+// questa pulizia quotidiana. Soglia fissa (non è un dato sensibile con una
+// retention decisa dal proprietario come le foto documento sopra).
+var SESSION_STALE_HOURS = 24;
+async function cleanupStaleSessions() {
+  var snap = await db.collection('tourism_botSessions').get();
+  var now = Date.now();
+  var deleted = 0;
+  for (var i = 0; i < snap.docs.length; i++) {
+    var doc = snap.docs[i];
+    var updatedAt = doc.data().updatedAt;
+    var updatedMs = updatedAt && updatedAt.toDate ? updatedAt.toDate().getTime() : 0;
+    if (!updatedMs || (now - updatedMs) / 3600000 >= SESSION_STALE_HOURS) {
+      await doc.ref.delete();
+      deleted++;
+    }
+  }
+  return deleted;
+}
+
+// Foto temporanee orfane in tourism-guest-docs-tmp/ — caricate durante una
+// compilazione (form ospiti.html o wizard bot) mai completata. Non c'è un
+// indice diretto "quali booking hanno ancora una prenotazione valida", ma
+// ogni sottocartella è già nominata con il bookingId: se quel booking non
+// esiste più (o è più vecchio di un giorno), il file è sicuramente orfano.
+var TMP_ORPHAN_HOURS = 24;
+async function cleanupOrphanedTempPhotos() {
+  var files = (await bucket.getFiles({ prefix: 'tourism-guest-docs-tmp/' }))[0];
+  var now = Date.now();
+  var deleted = 0;
+  var checkedBookingIds = {};
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    var ageHours = (now - new Date(f.metadata.timeCreated).getTime()) / 3600000;
+    if (ageHours < TMP_ORPHAN_HOURS) continue;
+    var bookingId = f.name.split('/')[1];
+    if (bookingId && !(bookingId in checkedBookingIds)) {
+      var bsnap = await db.collection('tourism_bookings').doc(bookingId).get();
+      checkedBookingIds[bookingId] = bsnap.exists;
+    }
+    if (!bookingId || !checkedBookingIds[bookingId]) {
+      await f.delete().catch(function () {});
+      deleted++;
+    }
+  }
+  return deleted;
+}
+
 async function main() {
   var settingsSnap = await db.collection('tourism_settings').doc('site').get();
   var settings = settingsSnap.exists ? settingsSnap.data() : {};
@@ -48,6 +98,12 @@ async function main() {
     deleted += n;
   }
   console.log('Pulizia documenti: ' + deleted + ' file eliminati (soglia: inviato + ' + retentionHours + 'h dal check-out).');
+
+  var staleSessions = await cleanupStaleSessions();
+  console.log('Pulizia sessioni bot Telegram: ' + staleSessions + ' sessioni scadute eliminate (soglia: ' + SESSION_STALE_HOURS + 'h di inattività).');
+
+  var orphanedTmp = await cleanupOrphanedTempPhotos();
+  console.log('Pulizia foto temporanee orfane: ' + orphanedTmp + ' file eliminati.');
 }
 
 main().catch(function (err) { console.error(err); process.exit(1); });
