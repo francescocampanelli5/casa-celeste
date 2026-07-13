@@ -38,7 +38,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=2">
+<link rel="stylesheet" href="css/styles.css?v=3">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
@@ -104,6 +104,10 @@
     <rect x="3" y="5" width="18" height="16" rx="3"/>
     <path d="M3 9.5h18M8 3v4M16 3v4"/>
   </symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="10.5" cy="10.5" r="6.5"/>
+    <line x1="15.3" y1="15.3" x2="20.5" y2="20.5"/>
+  </symbol>
 </svg>
 <div class="page">
 
@@ -117,6 +121,7 @@
     <nav class="nav">
       <div class="nav-links">
         <a href="#monopoli" class="nav-link" data-i18n="nav.monopoli">Monopoli</a>
+        <a href="#ricerca" class="nav-link" data-i18n="nav.ricerca">Disponibilità</a>
         <a href="#stanze" class="nav-link" data-i18n="nav.stanze">Stanze</a>
         <a href="#posizione" class="nav-link" data-i18n="nav.posizione">Posizione</a>
         <a href="#testimonianze" class="nav-link" data-i18n="nav.testimonianze">Recensioni</a>
@@ -151,6 +156,7 @@
     </div>
     <nav class="mobile-drawer-links">
       <a href="#monopoli" class="mobile-drawer-link" data-close-drawer data-i18n="nav.monopoli">Monopoli</a>
+      <a href="#ricerca" class="mobile-drawer-link" data-close-drawer data-i18n="nav.ricerca">Disponibilità</a>
       <a href="#stanze" class="mobile-drawer-link" data-close-drawer data-i18n="nav.stanze">Stanze</a>
       <a href="#posizione" class="mobile-drawer-link" data-close-drawer data-i18n="nav.posizione">Posizione</a>
       <a href="#testimonianze" class="mobile-drawer-link" data-close-drawer data-i18n="nav.testimonianze">Recensioni</a>
@@ -176,7 +182,7 @@
         <div class="hero-address" data-i18n-html="hero.address">📍 Via Giuseppe Can. del Drago 9 &nbsp;–&nbsp; Monopoli (BA)</div>
         <div class="hero-ctas">
           <button type="button" class="btn btn-primary" data-open-booking data-room-id="" data-room-label="Casa Celeste" data-i18n="common.prenota_soggiorno">Prenota il soggiorno</button>
-          <a href="#stanze" class="btn btn-outline" data-i18n="hero.cta_rooms">Vedi le stanze →</a>
+          <a href="#ricerca" class="btn btn-outline" data-i18n="hero.cta_rooms">Vedi le stanze →</a>
         </div>
       </div>
       <div class="hero-media">
@@ -201,28 +207,62 @@
     </div>
   </section>
 
-  <!-- STANZE — subito dopo l'hero: le informazioni più importanti (foto,
-       prezzo, disponibilità) a portata di primo scroll, come nei listing
-       Airbnb/Booking, invece che in fondo alla pagina. -->
-  <section id="stanze" class="section">
-    <div class="container" id="rooms-section"><!-- rendered by js/app.js --></div>
-  </section>
-
-  <!-- BENVENUTO -->
+  <!-- BENVENUTO — scritta di benvenuto + framing "spazi condivisi come
+       punto di forza" e "prezzi competitivi", fin da subito come richiesto -->
   <section class="section section--tight">
     <div class="container container--narrow welcome">
       <div class="eyebrow eyebrow--blue" data-i18n="welcome.eyebrow">Benvenuto/a</div>
       <h2 class="h2" data-i18n="welcome.title">Casa Celeste ti dà il benvenuto.</h2>
       <p data-i18n-html="welcome.text_html">Che tu sia in viaggio da solo, in coppia o con un amico, qui trovi una casa vera nel cuore di Monopoli.</p>
+      <div class="welcome-value-row">
+        <div class="welcome-value-chip">
+          <span class="welcome-value-icon">🤝</span>
+          <span data-i18n="welcome.value_shared">Spazi condivisi, il nostro punto di forza: qui si socializza davvero.</span>
+        </div>
+        <div class="welcome-value-chip welcome-value-chip--yellow">
+          <span class="welcome-value-icon">💶</span>
+          <span data-i18n="welcome.value_price">Tra i prezzi più bassi di Monopoli, senza rinunciare al comfort.</span>
+        </div>
+      </div>
     </div>
     <div class="container container--narrow">
       <div class="nav-social nav-social--welcome js-social-slot" id="social-links-slot-welcome"></div>
     </div>
   </section>
 
-  <!-- SPAZI COMUNI -->
+  <!-- MONOPOLI CAROUSEL — immagini e brevi descrizioni su vita, mare, centro -->
+  <section id="monopoli" class="section">
+    <div class="container">
+      <div class="carousel-head">
+        <div style="max-width:600px;">
+          <div class="eyebrow eyebrow--yellow" data-i18n="monopoli.eyebrow">Dove soggiornerai</div>
+          <h2 class="h2" data-i18n="monopoli.title">Monopoli in pochi scatti</h2>
+        </div>
+        <div class="carousel-arrows">
+          <button type="button" class="arrow-btn" id="mono-prev" aria-label="Scatto precedente">←</button>
+          <button type="button" class="arrow-btn" id="mono-next" aria-label="Scatto successivo">→</button>
+        </div>
+      </div>
+      <div class="carousel-body" id="mono-carousel"></div>
+    </div>
+  </section>
+
+  <!-- BARRA DI RICERCA — check-in/check-out, ospiti, stanze (con
+       raccomandazione automatica), date flessibili -->
+  <section id="ricerca" class="section section--tight">
+    <div class="container" id="search-root"><!-- rendered by js/app.js --></div>
+  </section>
+
+  <!-- SPAZI COMUNI — vantaggi/community, "premium" ma con modestia,
+       prima delle stanze come richiesto -->
   <section id="spazi-comuni-anchor" class="section">
     <div class="container" id="common-section"><!-- rendered by js/app.js --></div>
+  </section>
+
+  <!-- STANZE — risultati della ricerca: tag disponibilità, prezzo per
+       notti, ordinate disponibili-prima -->
+  <section id="stanze" class="section">
+    <div class="container" id="rooms-section"><!-- rendered by js/app.js --></div>
   </section>
 
   <!-- MOOD & VIBES + NESSUN SERVIZIO EXTRA (cosa aspettarsi/cosa non offriamo,
@@ -270,23 +310,6 @@
         </div>
         <a href="https://wa.me/393381567389?text=Ciao!%20Avrei%20bisogno%20di%20lenzuola%2Fasciugamani%20puliti%20durante%20il%20mio%20soggiorno." target="_blank" rel="noopener" class="btn btn-navy" id="cleaning-cta" data-i18n="cleaning.cta">Scrivici</a>
       </div>
-    </div>
-  </section>
-
-  <!-- MONOPOLI CAROUSEL -->
-  <section id="monopoli" class="section">
-    <div class="container">
-      <div class="carousel-head">
-        <div style="max-width:600px;">
-          <div class="eyebrow eyebrow--yellow" data-i18n="monopoli.eyebrow">Dove soggiornerai</div>
-          <h2 class="h2" data-i18n="monopoli.title">Monopoli in pochi scatti</h2>
-        </div>
-        <div class="carousel-arrows">
-          <button type="button" class="arrow-btn" id="mono-prev" aria-label="Scatto precedente">←</button>
-          <button type="button" class="arrow-btn" id="mono-next" aria-label="Scatto successivo">→</button>
-        </div>
-      </div>
-      <div class="carousel-body" id="mono-carousel"></div>
     </div>
   </section>
 
@@ -445,9 +468,9 @@
 
 </div>
 <script src="js/data.js?v=1"></script>
-<script src="js/i18n.js?v=2"></script>
+<script src="js/i18n.js?v=3"></script>
 <script src="js/firebase-config.js?v=1"></script>
 <script type="module" src="js/firebase-init.js?v=1"></script>
-<script src="js/app.js?v=2" defer></script>
+<script src="js/app.js?v=3" defer></script>
 </body>
 </html>

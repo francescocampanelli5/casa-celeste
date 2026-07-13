@@ -165,6 +165,24 @@
     activeLegalId: 'privacy',
     showCookieBanner: false,
 
+    search: {
+      checkIn: null,
+      checkOut: null,
+      guests: 2,
+      rooms: 1,
+      roomsManual: false,
+      performed: false,
+      warning: '',
+      error: '',
+      flexOpen: false,
+      flexMode: 'window',
+      flexWindowDays: 3,
+      flexPeriodMonth: '',
+      flexPeriodNights: 2,
+      flexResults: null,
+      flexError: ''
+    },
+
     favorites: (function () {
       try { return JSON.parse(localStorage.getItem('casaceleste_tourism_favorites') || '{}'); } catch (e) { return {}; }
     })()
@@ -366,6 +384,7 @@
   function renderAllDynamic() {
     renderHeroMedia();
     renderMono();
+    renderSearch();
     renderCommon();
     renderRooms();
     renderRecs();
@@ -498,7 +517,7 @@
       '<div class="section-intro">' +
         '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('common.eyebrow')) + '</div>' +
         '<h2 class="h2" style="margin:0 0 14px;">' + escapeHtml(t('common.title')) + '</h2>' +
-        '<p>' + escapeHtml(t('common.text')) + '</p>' +
+        '<p>' + t('common.text_html') + '</p>' +
       '</div>';
     var detailHtml = activeId ? '<div class="detail-expanded">' + commonDetailHtml(activeId, commons[activeId]) + '</div>' : '';
     var cardsHtml = otherIds.map(function (id) { return commonCardHtml(id, commons[id]); }).join('');
@@ -512,12 +531,38 @@
      fisso: la disponibilità dipende dalle date che sceglierà l'ospite nel
      booking modal (vedi calendarStepHtml).
      ========================================================================== */
+  function roomBedLabel(room) {
+    var stats = room.stats || [];
+    for (var i = 0; i < stats.length; i++) {
+      var label = tf(stats[i].label).toLowerCase();
+      if (label.indexOf('letto') !== -1 || label.indexOf('bed') !== -1) return tf(stats[i].value);
+    }
+    return '';
+  }
   function roomCardHtml(id, room) {
     var guestsLabel = room.maxGuests === 1 ? t('room.max_guests_1') : tpl(t('room.max_guests'), { n: room.maxGuests });
     var isFav = !!state.favorites[id];
+    var s = state.search;
+    var searched = !!(s.performed && s.checkIn && s.checkOut);
+    var nights = searched ? daysBetween(s.checkIn, s.checkOut) : 0;
+    var available = searched ? roomIsFreeForSearch(room, s.checkIn, s.checkOut) : null;
+
+    var tagHtml = searched
+      ? '<span class="room-avail-tag ' + (available ? 'room-avail-tag--available' : 'room-avail-tag--occupied') + '">' +
+          escapeHtml(available ? t('search.tag_available') : t('search.tag_occupied')) + '</span>'
+      : '';
+
+    var priceHtml = (searched && nights > 0)
+      ? '<span class="room-list-price">€' + (room.nightlyPrice * nights) + '<span> ' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span></span>'
+      : '<span class="room-list-price">€' + room.nightlyPrice + '<span>' + escapeHtml(t('room.per_night')) + '</span></span>';
+
+    var bedLabel = roomBedLabel(room);
+    var shortDescHtml = bedLabel ? '<div class="room-list-desc">' + escapeHtml(tpl(t('room.short_desc'), { bed: bedLabel })) + '</div>' : '';
+
     return (
-      '<div class="room-list-item" data-room-card data-room-id="' + id + '">' +
+      '<div class="room-list-item' + (searched && !available ? ' room-list-item--occupied' : '') + '" data-room-card data-room-id="' + id + '">' +
         '<div class="room-list-thumb">' +
+          tagHtml +
           '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(room.name) + '</span>' +
           photoTag((room.photos && room.photos[0]) || ('images/' + id + '-1.jpg'), room.name) +
         '</div>' +
@@ -528,14 +573,20 @@
               '<svg width="19" height="19"><use href="#icon-heart"></use></svg>' +
             '</button>' +
           '</div>' +
+          shortDescHtml +
           '<div class="room-list-meta">' +
             '<span class="room-list-meta-item"><svg width="15" height="15"><use href="#icon-user"></use></svg>' + escapeHtml(guestsLabel) + '</span>' +
+            reviewsBadgeHtml() +
           '</div>' +
           (room.balcony && room.balcony !== 'nessuno' ? '<div class="room-list-badges"><span class="room-list-balcony">' + escapeHtml(t('balcony.badge_' + room.balcony)) + '</span></div>' : '') +
+          '<div class="room-list-cancellation">' + escapeHtml(t('search.cancellation_free')) + '</div>' +
           '<div class="room-list-bottom">' +
-            '<span class="room-list-price">€' + room.nightlyPrice + '<span>' + escapeHtml(t('room.per_night')) + '</span></span>' +
+            priceHtml +
             '<button type="button" class="room-list-cta" data-room-card-view>' + escapeHtml(t('room.view_singola')) + '</button>' +
           '</div>' +
+          '<button type="button" class="room-list-calendar-link" data-open-booking data-room-id="' + id + '" data-room-label="' + escapeHtml(room.name) + '">' +
+            '<svg width="13" height="13"><use href="#icon-calendar"></use></svg>' + escapeHtml(t('search.view_calendar')) +
+          '</button>' +
         '</div>' +
       '</div>'
     );
@@ -601,6 +652,33 @@
 
     var activeId = (state.activeRoomId && rooms[state.activeRoomId]) ? state.activeRoomId : null;
     var otherIds = activeId ? ids.filter(function (id) { return id !== activeId; }) : ids;
+
+    var s = state.search;
+    var searched = !!(s.performed && s.checkIn && s.checkOut && !activeId);
+    var summaryHtml = '';
+    var soldOutHtml = '';
+    if (searched) {
+      var nights = daysBetween(s.checkIn, s.checkOut);
+      var availableIds = otherIds.filter(function (id) { return roomIsFreeForSearch(rooms[id], s.checkIn, s.checkOut); });
+      var occupiedIds = otherIds.filter(function (id) { return availableIds.indexOf(id) === -1; });
+      otherIds = availableIds.concat(occupiedIds);
+      summaryHtml =
+        '<div class="search-results-bar">' +
+          '<span>' + escapeHtml(tpl(t('search.results_summary'), {
+            checkin: formatDateLabel(s.checkIn), checkout: formatDateLabel(s.checkOut),
+            n: nights, guests: guestsCountLabel(s.guests), rooms: roomsCountLabel(s.rooms)
+          })) + '</span>' +
+          '<button type="button" class="search-reset-link" data-search-reset>' + escapeHtml(t('search.reset')) + '</button>' +
+        '</div>';
+      if (!availableIds.length) {
+        soldOutHtml =
+          '<div class="sold-out-banner">' +
+            '<div class="sold-out-title">' + escapeHtml(t('search.sold_out_title')) + '</div>' +
+            '<div class="sold-out-text">' + escapeHtml(t('search.sold_out_text')) + '</div>' +
+          '</div>';
+      }
+    }
+
     var detailHtml = activeId ? '<div class="detail-expanded">' + roomDetailHtml(activeId, rooms[activeId]) + '</div>' : '';
     var cardsHtml = otherIds.map(function (id) { return roomCardHtml(id, rooms[id]); }).join('');
 
@@ -608,22 +686,313 @@
       '<div class="admin-toggle-row">' +
         '<div style="max-width:560px;">' +
           '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('stanze.eyebrow')) + '</div>' +
-          '<h2 class="h2" style="margin:0 0 12px;">' + escapeHtml(t('stanze.title')) + '</h2>' +
+          '<h2 class="h2" style="margin:0 0 12px;">' + escapeHtml(searched ? t('search.results_title') : t('stanze.title')) + '</h2>' +
           '<p style="font-size:15.5px; line-height:1.65; color:var(--text-body); margin:0;">' + escapeHtml(t('stanze.text')) + '</p>' +
         '</div>' +
       '</div>' +
+      summaryHtml + soldOutHtml +
       detailHtml +
       '<div class="room-list">' + cardsHtml + '</div>' +
+      (searched ? '' :
       '<div class="urgency-banner">' +
         '<div class="urgency-copy">' +
           '<div class="urgency-icon">⏳</div>' +
           '<div class="urgency-text">' + escapeHtml(t('urgency.rooms_text')) + '</div>' +
         '</div>' +
-        '<a href="#stanze" class="btn btn-urgency">' + escapeHtml(t('urgency.rooms_cta')) + '</a>' +
-      '</div>';
+        '<a href="#ricerca" class="btn btn-urgency">' + escapeHtml(t('urgency.rooms_cta')) + '</a>' +
+      '</div>');
   }
   function goToRoom(id) { state.activeRoomId = id; state.roomMediaIndex = 0; renderRooms(); scrollToOpenedDetail('stanze'); }
   function goHomeRooms() { state.activeRoomId = null; renderRooms(); scrollSectionIntoView('stanze'); }
+
+  /* ==========================================================================
+     Ricerca disponibilità — motore stile hotel/volo: check-in, check-out,
+     ospiti, stanze (raccomandazione automatica ~2 persone/stanza, max 3),
+     più date flessibili (± giorni o periodo ampio). Riusa rangeIsFree /
+     blockedRanges, già sincronizzato con Airbnb/Booking via
+     scripts/ical-import.js, invece di un motore di disponibilità parallelo.
+     ========================================================================== */
+  var MAX_GUESTS_PER_ROOM = 3;
+  var RECOMMENDED_GUESTS_PER_ROOM = 2;
+  function totalRoomsCount() { return orderedIds(state.roomsData).length || 1; }
+  function maxHouseCapacity() { return totalRoomsCount() * MAX_GUESTS_PER_ROOM; }
+  function recommendedRoomsFor(guests) {
+    return Math.min(totalRoomsCount(), Math.max(1, Math.ceil(guests / RECOMMENDED_GUESTS_PER_ROOM)));
+  }
+  function guestsCountLabel(n) { return n === 1 ? t('search.guests_1') : tpl(t('search.guests_n'), { n: n }); }
+  function roomsCountLabel(n) { return n === 1 ? t('search.rooms_1') : tpl(t('search.rooms_n'), { n: n }); }
+  function applyRoomsRecommendation() {
+    state.search.rooms = recommendedRoomsFor(state.search.guests);
+    state.search.roomsManual = false;
+    state.search.warning = '';
+  }
+  function searchGuestInc() {
+    if (state.search.guests >= maxHouseCapacity()) {
+      state.search.warning = tpl(t('search.capacity_exceeded'), { n: maxHouseCapacity() });
+      renderSearch(); return;
+    }
+    state.search.guests++;
+    if (!state.search.roomsManual || state.search.rooms < recommendedRoomsFor(state.search.guests)) applyRoomsRecommendation();
+    renderSearch();
+  }
+  function searchGuestDec() {
+    if (state.search.guests <= 1) return;
+    state.search.guests--;
+    if (!state.search.roomsManual) applyRoomsRecommendation();
+    renderSearch();
+  }
+  function searchRoomsInc() {
+    if (state.search.rooms >= totalRoomsCount()) return;
+    state.search.rooms++;
+    state.search.roomsManual = true;
+    state.search.warning = '';
+    renderSearch();
+  }
+  function searchRoomsDec() {
+    var min = recommendedRoomsFor(state.search.guests);
+    if (state.search.rooms <= min) {
+      state.search.warning = tpl(t('search.rooms_warning'), { guests: guestsCountLabel(state.search.guests), min: roomsCountLabel(min) });
+      state.search.rooms = min;
+      renderSearch();
+      return;
+    }
+    state.search.rooms--;
+    state.search.roomsManual = true;
+    renderSearch();
+  }
+  function onSearchDateChange(field, value) {
+    state.search.error = '';
+    if (field === 'checkin') state.search.checkIn = value || null;
+    else state.search.checkOut = value || null;
+    if (state.search.checkIn && state.search.checkOut && state.search.checkOut <= state.search.checkIn) {
+      state.search.error = t('search.invalid_dates');
+    }
+    state.search.performed = false;
+    state.search.flexResults = null;
+    renderSearch();
+    renderRooms();
+  }
+  function roomIsFreeForSearch(room, checkInIso, checkOutIso) {
+    var nights = daysBetween(checkInIso, checkOutIso);
+    return rangeIsFree(room, checkInIso, checkOutIso) && nights >= (room.minNights || 1);
+  }
+  function countFreeRoomsForRange(checkInIso, checkOutIso) {
+    var ids = orderedIds(state.roomsData);
+    var free = 0;
+    for (var i = 0; i < ids.length; i++) {
+      if (roomIsFreeForSearch(state.roomsData[ids[i]], checkInIso, checkOutIso)) free++;
+    }
+    return free;
+  }
+  function submitSearch() {
+    state.search.error = '';
+    if (!state.search.checkIn || !state.search.checkOut) { state.search.error = t('search.missing_dates'); renderSearch(); return; }
+    if (state.search.checkOut <= state.search.checkIn) { state.search.error = t('search.invalid_dates'); renderSearch(); return; }
+    state.search.performed = true;
+    state.search.flexResults = null;
+    renderSearch();
+    renderRooms();
+    scrollSectionIntoView('stanze');
+  }
+  function resetSearch() {
+    state.search.performed = false;
+    state.search.flexResults = null;
+    renderSearch();
+    renderRooms();
+  }
+  function toggleFlex() { state.search.flexOpen = !state.search.flexOpen; state.search.flexResults = null; state.search.flexError = ''; renderSearch(); }
+  function setFlexMode(mode) { state.search.flexMode = mode; state.search.flexResults = null; state.search.flexError = ''; renderSearch(); }
+  function setFlexWindowDays(n) { state.search.flexWindowDays = n; renderSearch(); }
+  function flexPeriodMonthDate() {
+    if (!state.search.flexPeriodMonth) {
+      var now = new Date();
+      state.search.flexPeriodMonth = now.getFullYear() + '-' + pad2(now.getMonth() + 1);
+    }
+    var p = state.search.flexPeriodMonth.split('-');
+    return new Date(Number(p[0]), Number(p[1]) - 1, 1);
+  }
+  function flexPeriodMonthLabel() {
+    var d = flexPeriodMonthDate();
+    return MONTHS[state.lang][d.getMonth()] + ' ' + d.getFullYear();
+  }
+  function flexPeriodMonthShift(delta) {
+    var d = flexPeriodMonthDate();
+    d.setMonth(d.getMonth() + delta);
+    var floor = new Date(); floor.setDate(1); floor.setHours(0, 0, 0, 0);
+    if (d < floor) d = floor;
+    state.search.flexPeriodMonth = d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+    renderSearch();
+  }
+  function flexNightsInc() { if (state.search.flexPeriodNights < 14) state.search.flexPeriodNights++; renderSearch(); }
+  function flexNightsDec() { if (state.search.flexPeriodNights > 1) state.search.flexPeriodNights--; renderSearch(); }
+  function computeFlexSuggestions() {
+    var neededRooms = state.search.rooms || 1;
+    var results = [];
+    state.search.flexError = '';
+    if (state.search.flexMode === 'window') {
+      if (!state.search.checkIn || !state.search.checkOut) {
+        state.search.flexError = t('search.flex_need_window_dates');
+        state.search.flexResults = [];
+        renderSearch(); return;
+      }
+      var nights = daysBetween(state.search.checkIn, state.search.checkOut);
+      var span = state.search.flexWindowDays;
+      for (var offset = -span; offset <= span; offset++) {
+        if (offset === 0) continue;
+        var ci = isoDate(new Date(dateFromIso(state.search.checkIn).getTime() + offset * 86400000));
+        var co = isoDate(new Date(dateFromIso(ci).getTime() + nights * 86400000));
+        var free = countFreeRoomsForRange(ci, co);
+        if (free >= neededRooms) results.push({ checkIn: ci, checkOut: co, offset: offset });
+      }
+      results.sort(function (a, b) { return Math.abs(a.offset) - Math.abs(b.offset); });
+    } else {
+      var nights2 = state.search.flexPeriodNights;
+      var monthDate = flexPeriodMonthDate();
+      var daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+      var today = new Date(); today.setHours(0, 0, 0, 0);
+      for (var day = 1; day <= daysInMonth; day++) {
+        var start = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
+        if (start < today) continue;
+        var ci2 = isoDate(start);
+        var co2 = isoDate(new Date(start.getTime() + nights2 * 86400000));
+        var free2 = countFreeRoomsForRange(ci2, co2);
+        if (free2 >= neededRooms) results.push({ checkIn: ci2, checkOut: co2 });
+      }
+    }
+    state.search.flexResults = results.slice(0, 8);
+    renderSearch();
+  }
+  function applyFlexSuggestion(checkIn, checkOut) {
+    state.search.checkIn = checkIn;
+    state.search.checkOut = checkOut;
+    state.search.flexOpen = false;
+    state.search.flexResults = null;
+    submitSearch();
+  }
+  function reviewsBadgeHtml() {
+    var n = Object.keys(state.reviewsData || {}).length;
+    var label = n === 0 ? t('hero.reviews_none') : (n === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: n }));
+    return '<span class="room-list-meta-item room-list-reviews"><svg width="14" height="14"><use href="#icon-star"></use></svg>' + escapeHtml(label) + '</span>';
+  }
+  function renderSearch() {
+    var root = document.getElementById('search-root');
+    if (!root) return;
+    var s = state.search;
+    var today = isoDate(new Date());
+    var minCheckout = s.checkIn ? isoDate(new Date(dateFromIso(s.checkIn).getTime() + 86400000)) : today;
+    var recommended = recommendedRoomsFor(s.guests);
+    var maxRooms = totalRoomsCount();
+
+    var flexTabsHtml =
+      '<div class="flex-tabs">' +
+        '<button type="button" class="flex-tab' + (s.flexMode === 'window' ? ' is-active' : '') + '" data-flex-mode="window">' + escapeHtml(t('search.flex_mode_window')) + '</button>' +
+        '<button type="button" class="flex-tab' + (s.flexMode === 'period' ? ' is-active' : '') + '" data-flex-mode="period">' + escapeHtml(t('search.flex_mode_period')) + '</button>' +
+      '</div>';
+
+    var flexBodyHtml;
+    if (s.flexMode === 'window') {
+      var windowOptions = [1, 2, 3, 5, 7].map(function (n) {
+        return '<button type="button" class="flex-chip-option' + (s.flexWindowDays === n ? ' is-active' : '') + '" data-flex-window-set="' + n + '">' + escapeHtml(tpl(t('search.flex_window_n'), { n: n })) + '</button>';
+      }).join('');
+      flexBodyHtml =
+        '<div class="flex-field-label">' + escapeHtml(t('search.flex_window_label')) + '</div>' +
+        '<div class="flex-chip-row">' + windowOptions + '</div>';
+    } else {
+      flexBodyHtml =
+        '<div class="flex-period-row">' +
+          '<div>' +
+            '<div class="flex-field-label">' + escapeHtml(t('search.flex_period_label')) + '</div>' +
+            '<div class="flex-month-nav">' +
+              '<button type="button" class="arrow-btn arrow-btn--sm" data-flex-month-prev aria-label="←">←</button>' +
+              '<span class="flex-month-label">' + escapeHtml(flexPeriodMonthLabel()) + '</span>' +
+              '<button type="button" class="arrow-btn arrow-btn--sm" data-flex-month-next aria-label="→">→</button>' +
+            '</div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="flex-field-label">' + escapeHtml(t('search.flex_period_nights_label')) + '</div>' +
+            '<div class="search-stepper">' +
+              '<button type="button" class="search-stepper-btn" data-flex-nights-dec' + (s.flexPeriodNights <= 1 ? ' disabled' : '') + '>−</button>' +
+              '<span class="search-stepper-value">' + s.flexPeriodNights + '</span>' +
+              '<button type="button" class="search-stepper-btn" data-flex-nights-inc' + (s.flexPeriodNights >= 14 ? ' disabled' : '') + '>+</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    var flexResultsHtml = '';
+    if (s.flexError) {
+      flexResultsHtml = '<div class="search-note search-note--warning">' + escapeHtml(s.flexError) + '</div>';
+    } else if (s.flexResults) {
+      if (!s.flexResults.length) {
+        flexResultsHtml = '<div class="search-note search-note--warning">' + escapeHtml(t('search.flex_no_results')) + '</div>';
+      } else {
+        flexResultsHtml =
+          '<div class="flex-results-title">' + escapeHtml(tpl(t('search.flex_results_title'), { n: s.rooms })) + '</div>' +
+          '<div class="flex-chip-row">' +
+            s.flexResults.map(function (r) {
+              var nights = daysBetween(r.checkIn, r.checkOut);
+              return '<button type="button" class="flex-result-chip" data-flex-apply data-checkin="' + r.checkIn + '" data-checkout="' + r.checkOut + '">' +
+                formatDateLabel(r.checkIn) + ' → ' + formatDateLabel(r.checkOut) +
+                '<span>' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span>' +
+              '</button>';
+            }).join('') +
+          '</div>';
+      }
+    }
+
+    var flexHtml = !s.flexOpen ? '' :
+      '<div class="search-flex-panel">' +
+        flexTabsHtml + flexBodyHtml +
+        '<button type="button" class="btn btn-outline search-flex-cta" data-flex-search>' + escapeHtml(t('search.flex_cta')) + '</button>' +
+        flexResultsHtml +
+      '</div>';
+
+    var warningHtml = s.warning ? '<div class="search-note search-note--warning">' + escapeHtml(s.warning) + '</div>' : '';
+    var errorHtml = s.error ? '<div class="search-note search-note--error">' + escapeHtml(s.error) + '</div>' : '';
+    var recommendHtml = '<div class="search-note">' + escapeHtml(tpl(t('search.recommend_note'), { rooms: roomsCountLabel(recommended), guests: guestsCountLabel(s.guests) })) + '</div>';
+
+    root.innerHTML =
+      '<div class="search-panel">' +
+        '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('search.eyebrow')) + '</div>' +
+        '<h2 class="h2" style="margin:0 0 10px;">' + escapeHtml(t('search.title')) + '</h2>' +
+        '<p class="search-lead">' + escapeHtml(t('search.text')) + '</p>' +
+        '<div class="search-fields">' +
+          '<label class="search-field">' +
+            '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-calendar"></use></svg>' + escapeHtml(t('search.checkin')) + '</span>' +
+            '<input type="date" class="search-date-input" data-search-checkin min="' + today + '" value="' + (s.checkIn || '') + '">' +
+          '</label>' +
+          '<label class="search-field">' +
+            '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-calendar"></use></svg>' + escapeHtml(t('search.checkout')) + '</span>' +
+            '<input type="date" class="search-date-input" data-search-checkout min="' + minCheckout + '" value="' + (s.checkOut || '') + '">' +
+          '</label>' +
+          '<div class="search-field">' +
+            '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-user"></use></svg>' + escapeHtml(t('search.guests')) + '</span>' +
+            '<div class="search-stepper">' +
+              '<button type="button" class="search-stepper-btn" data-search-guest-dec' + (s.guests <= 1 ? ' disabled' : '') + '>−</button>' +
+              '<span class="search-stepper-value">' + escapeHtml(guestsCountLabel(s.guests)) + '</span>' +
+              '<button type="button" class="search-stepper-btn" data-search-guest-inc' + (s.guests >= maxHouseCapacity() ? ' disabled' : '') + '>+</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="search-field">' +
+            '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-bed"></use></svg>' + escapeHtml(t('search.rooms')) + '</span>' +
+            '<div class="search-stepper">' +
+              '<button type="button" class="search-stepper-btn" data-search-rooms-dec' + (s.rooms <= recommended ? ' disabled' : '') + '>−</button>' +
+              '<span class="search-stepper-value">' + escapeHtml(roomsCountLabel(s.rooms)) + '</span>' +
+              '<button type="button" class="search-stepper-btn" data-search-rooms-inc' + (s.rooms >= maxRooms ? ' disabled' : '') + '>+</button>' +
+            '</div>' +
+          '</div>' +
+          '<button type="button" class="btn btn-primary search-cta" data-search-submit>' +
+            '<svg width="16" height="16"><use href="#icon-search"></use></svg>' + escapeHtml(t('search.cta')) +
+          '</button>' +
+        '</div>' +
+        recommendHtml + warningHtml + errorHtml +
+        '<button type="button" class="search-flex-toggle" data-flex-toggle>' +
+          '<svg width="15" height="15"><use href="#icon-calendar"></use></svg>' + escapeHtml(t('search.flex_toggle')) +
+          '<span class="search-flex-toggle-chevron">' + (s.flexOpen ? '▲' : '▼') + '</span>' +
+        '</button>' +
+        flexHtml +
+      '</div>';
+  }
 
   /* ==========================================================================
      Render: Consigli & dintorni (facoltativo, da settings.recommendations)
@@ -970,16 +1339,18 @@
     state.bookingStep = 1;
     state.bookingRoomId = roomId;
     state.bookingRoomLabel = roomLabel || (state.roomsData[roomId] && state.roomsData[roomId].name) || 'Casa Celeste';
-    state.selectedCheckIn = null;
-    state.selectedCheckOut = null;
-    state.guests = 1;
+    var room = state.roomsData[roomId];
+    var searched = state.search.checkIn && state.search.checkOut;
+    state.selectedCheckIn = searched ? state.search.checkIn : null;
+    state.selectedCheckOut = searched ? state.search.checkOut : null;
+    state.guests = searched && room ? Math.min(state.search.guests, room.maxGuests || 1) : 1;
     state.exemptGuests = 0;
     state.contactName = ''; state.contactEmail = ''; state.contactPhone = '';
     state.contractAccepted = false;
     state.bookingError = '';
     state.bookingResult = null;
-    var now = new Date();
-    state.calYear = now.getFullYear(); state.calMonth = now.getMonth();
+    var calBase = searched ? dateFromIso(state.search.checkIn) : new Date();
+    state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
     renderBookingModal();
     updateStickyBarVisibility();
   }
@@ -1164,6 +1535,9 @@
       el = e.target.closest('#hero-bookmark-btn');
       if (el) { toggleFavorite('__hero'); renderHeroFloatingCard(); return; }
 
+      el = e.target.closest('[data-open-booking]');
+      if (el && !el.disabled) { openBooking(el.getAttribute('data-room-id'), el.getAttribute('data-room-label')); return; }
+
       el = e.target.closest('[data-room-card]');
       if (el) { goToRoom(el.getAttribute('data-room-id')); return; }
       el = e.target.closest('[data-go-home-room]');
@@ -1174,8 +1548,37 @@
       el = e.target.closest('[data-go-home-common]');
       if (el) { goHomeCommon(); return; }
 
-      el = e.target.closest('[data-open-booking]');
-      if (el && !el.disabled) { openBooking(el.getAttribute('data-room-id'), el.getAttribute('data-room-label')); return; }
+      el = e.target.closest('[data-search-guest-inc]');
+      if (el && !el.disabled) { searchGuestInc(); return; }
+      el = e.target.closest('[data-search-guest-dec]');
+      if (el && !el.disabled) { searchGuestDec(); return; }
+      el = e.target.closest('[data-search-rooms-inc]');
+      if (el && !el.disabled) { searchRoomsInc(); return; }
+      el = e.target.closest('[data-search-rooms-dec]');
+      if (el && !el.disabled) { searchRoomsDec(); return; }
+      el = e.target.closest('[data-search-submit]');
+      if (el) { submitSearch(); return; }
+      el = e.target.closest('[data-search-reset]');
+      if (el) { resetSearch(); return; }
+      el = e.target.closest('[data-flex-toggle]');
+      if (el) { toggleFlex(); return; }
+      el = e.target.closest('[data-flex-mode]');
+      if (el) { setFlexMode(el.getAttribute('data-flex-mode')); return; }
+      el = e.target.closest('[data-flex-window-set]');
+      if (el) { setFlexWindowDays(Number(el.getAttribute('data-flex-window-set'))); return; }
+      el = e.target.closest('[data-flex-month-prev]');
+      if (el) { flexPeriodMonthShift(-1); return; }
+      el = e.target.closest('[data-flex-month-next]');
+      if (el) { flexPeriodMonthShift(1); return; }
+      el = e.target.closest('[data-flex-nights-inc]');
+      if (el && !el.disabled) { flexNightsInc(); return; }
+      el = e.target.closest('[data-flex-nights-dec]');
+      if (el && !el.disabled) { flexNightsDec(); return; }
+      el = e.target.closest('[data-flex-search]');
+      if (el) { computeFlexSuggestions(); return; }
+      el = e.target.closest('[data-flex-apply]');
+      if (el) { applyFlexSuggestion(el.getAttribute('data-checkin'), el.getAttribute('data-checkout')); return; }
+
       el = e.target.closest('[data-close-booking]');
       if (el) { closeBooking(); return; }
       el = e.target.closest('[data-cal-prev]');
@@ -1226,6 +1629,13 @@
       if (el) { closeMediaZoom(); return; }
     });
 
+    document.addEventListener('change', function (e) {
+      var el = e.target.closest('[data-search-checkin]');
+      if (el) { onSearchDateChange('checkin', el.value); return; }
+      el = e.target.closest('[data-search-checkout]');
+      if (el) { onSearchDateChange('checkout', el.value); return; }
+    });
+
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
         if (state.bookingOpen) closeBooking();
@@ -1272,9 +1682,11 @@
       if (!consent) state.showCookieBanner = true;
     } catch (e) {}
 
+    applyRoomsRecommendation();
     applyI18n();
     renderHeroMedia();
     renderMono();
+    renderSearch();
     renderCommon();
     renderRooms();
     renderRecs();
@@ -1296,6 +1708,7 @@
         state.roomsData = roomsFromDb;
         if (state.activeRoomId && !roomsFromDb[state.activeRoomId]) state.activeRoomId = null;
         renderRooms();
+        renderSearch();
         renderStickyBar();
         renderHeroFloatingCard();
       });
