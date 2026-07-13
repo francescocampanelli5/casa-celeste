@@ -36,7 +36,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=5">
+<link rel="stylesheet" href="css/styles.css?v=6">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
@@ -186,6 +186,17 @@
   <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M5 12.5 10 17.5 19 7"/>
   </symbol>
+  <symbol id="icon-bed-double" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2.5 19V8.5a1.5 1.5 0 0 1 1.5-1.5h16a1.5 1.5 0 0 1 1.5 1.5V19"/>
+    <path d="M2.5 16h19"/>
+    <path d="M4.5 13.5v-3a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v3"/>
+    <path d="M12.5 13.5v-3a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v3"/>
+  </symbol>
+  <symbol id="icon-bed-single" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 19v-8a1.5 1.5 0 0 1 1.5-1.5h15A1.5 1.5 0 0 1 21 11v8"/>
+    <path d="M3 16h18"/>
+    <path d="M6 13v-2a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
+  </symbol>
   <symbol id="icon-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M9 6.5h11M9 12h11M9 17.5h11"/>
     <circle cx="4.5" cy="6.5" r="1.1" fill="currentColor" stroke="none"/>
@@ -287,8 +298,9 @@
     </div>
   </section>
 
-  <!-- BENVENUTO -->
-  <section class="section section--tight">
+  <!-- BENVENUTO + DOVE SOGGIORNERAI — un'unica sezione: benvenuto seguito
+       dal carosello Monopoli, senza uno stacco netto tra i due -->
+  <section id="monopoli" class="section section--tight">
     <div class="container container--narrow welcome">
       <div class="eyebrow eyebrow--blue" data-i18n="welcome.eyebrow">Benvenuto/a</div>
       <h2 class="h2" data-i18n="welcome.title">Casa Celeste ti dà il benvenuto.</h2>
@@ -297,11 +309,7 @@
     <div class="container container--narrow">
       <div class="nav-social nav-social--welcome js-social-slot" id="social-links-slot-welcome"></div>
     </div>
-  </section>
-
-  <!-- MONOPOLI CAROUSEL — immagini e brevi descrizioni su vita, mare, centro -->
-  <section id="monopoli" class="section">
-    <div class="container">
+    <div class="container" style="margin-top:56px;">
       <div class="carousel-head">
         <div style="max-width:600px;">
           <div class="eyebrow eyebrow--yellow" data-i18n="monopoli.eyebrow">Dove soggiornerai</div>
@@ -316,16 +324,15 @@
     </div>
   </section>
 
-  <!-- SPAZI COMUNI — vantaggi/community, "premium" ma con modestia,
-       prima delle stanze come richiesto -->
-  <section id="spazi-comuni-anchor" class="section">
-    <div class="container" id="common-section"><!-- rendered by js/app.js --></div>
-  </section>
-
   <!-- STANZE — risultati della ricerca: tag disponibilità, prezzo per
        notti, ordinate disponibili-prima -->
   <section id="stanze" class="section">
     <div class="container" id="rooms-section"><!-- rendered by js/app.js --></div>
+  </section>
+
+  <!-- SPAZI COMUNI — vantaggi/community, "premium" ma con modestia -->
+  <section id="spazi-comuni-anchor" class="section">
+    <div class="container" id="common-section"><!-- rendered by js/app.js --></div>
   </section>
 
   <!-- POSIZIONE -->
@@ -480,10 +487,10 @@
   <div class="contact-host-bar" id="contact-host-bar"></div>
 
 </div>
-<script src="js/data.js?v=1"></script>
-<script src="js/i18n.js?v=5"></script>
+<script src="js/data.js?v=2"></script>
+<script src="js/i18n.js?v=6"></script>
 <script src="js/firebase-config.js?v=1"></script>
 <script type="module" src="js/firebase-init.js?v=1"></script>
-<script src="js/app.js?v=5" defer></script>
+<script src="js/app.js?v=6" defer></script>
 </body>
 </html>

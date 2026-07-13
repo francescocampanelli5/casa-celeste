@@ -148,6 +148,9 @@
     selectedCheckOut: null,
     guestsAdults: 1,
     guestsChildAges: [],
+    bedType: 'matrimoniale',
+    cribCount: 0,
+    extraBedCount: 0,
     contactName: '',
     contactEmail: '',
     contactPhone: '',
@@ -167,6 +170,7 @@
       calMonth: new Date().getMonth(),
       calendarOpen: false,
       guestsOpen: false,
+      roomsOpen: false,
       adults: 2,
       childAges: [],
       rooms: 1,
@@ -701,6 +705,9 @@
     state.selectedCheckOut = searched ? s.checkOut : null;
     state.guestsAdults = searched ? s.adults : 1;
     state.guestsChildAges = searched ? s.childAges.slice() : [];
+    state.bedType = 'matrimoniale';
+    state.cribCount = 0;
+    state.extraBedCount = 0;
     state.bookingError = '';
     var calBase = searched ? dateFromIso(s.checkIn) : new Date();
     state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
@@ -728,6 +735,40 @@
     renderRoomDetail();
   }
   function toggleRoomDetailDesc() { state.roomDetail.descExpanded = !state.roomDetail.descExpanded; renderRoomDetail(); }
+  function setBedType(type) { state.bedType = (type === 'singolo') ? 'singolo' : 'matrimoniale'; renderRoomDetail(); }
+  function roomDetailCribInc() { if (state.cribCount < CRIB_MAX) { state.cribCount++; renderRoomDetail(); } }
+  function roomDetailCribDec() { if (state.cribCount > 0) { state.cribCount--; renderRoomDetail(); } }
+  function roomDetailExtraBedInc() { if (state.extraBedCount < EXTRA_BED_MAX) { state.extraBedCount++; renderRoomDetail(); } }
+  function roomDetailExtraBedDec() { if (state.extraBedCount > 0) { state.extraBedCount--; renderRoomDetail(); } }
+  function roomDetailOptionsHtml() {
+    return (
+      '<div class="rd-bedtype-row">' +
+        '<button type="button" class="rd-bedtype-btn' + (state.bedType === 'matrimoniale' ? ' is-active' : '') + '" data-rd-bedtype="matrimoniale">' +
+          '<svg width="20" height="20"><use href="#icon-bed-double"></use></svg>' + escapeHtml(t('options.bed_double')) +
+        '</button>' +
+        '<button type="button" class="rd-bedtype-btn' + (state.bedType === 'singolo' ? ' is-active' : '') + '" data-rd-bedtype="singolo">' +
+          '<svg width="20" height="20"><use href="#icon-bed-single"></use></svg>' + escapeHtml(t('options.bed_single')) +
+        '</button>' +
+      '</div>' +
+      '<div class="rd-extra-badge">' + escapeHtml(t('options.extra_service_badge')) + '</div>' +
+      '<div class="rd-option-row">' +
+        '<div><div class="rd-option-title">' + escapeHtml(t('options.crib')) + '</div><div class="rd-option-sub">' + escapeHtml(tpl(t('options.extra_price_note'), { price: CRIB_PRICE_PER_NIGHT })) + '</div></div>' +
+        '<div class="search-stepper">' +
+          '<button type="button" class="search-stepper-btn" data-rd-crib-dec' + (state.cribCount <= 0 ? ' disabled' : '') + '>−</button>' +
+          '<span class="search-stepper-value">' + state.cribCount + '</span>' +
+          '<button type="button" class="search-stepper-btn" data-rd-crib-inc' + (state.cribCount >= CRIB_MAX ? ' disabled' : '') + '>+</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rd-option-row">' +
+        '<div><div class="rd-option-title">' + escapeHtml(t('options.extra_bed')) + '</div><div class="rd-option-sub">' + escapeHtml(tpl(t('options.extra_price_note'), { price: EXTRA_BED_PRICE_PER_NIGHT })) + '</div></div>' +
+        '<div class="search-stepper">' +
+          '<button type="button" class="search-stepper-btn" data-rd-extrabed-dec' + (state.extraBedCount <= 0 ? ' disabled' : '') + '>−</button>' +
+          '<span class="search-stepper-value">' + state.extraBedCount + '</span>' +
+          '<button type="button" class="search-stepper-btn" data-rd-extrabed-inc' + (state.extraBedCount >= EXTRA_BED_MAX ? ' disabled' : '') + '>+</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
   function shareRoomDetail() {
     var room = state.roomsData[state.roomDetail.roomId];
     if (!room) return;
@@ -911,6 +952,12 @@
         roomDetailAmenitiesHtml() +
       '</div>';
 
+    var optionsHtml =
+      '<div class="rd-section">' +
+        '<div class="rd-section-title">' + escapeHtml(t('roomdetail.options_title')) + '</div>' +
+        roomDetailOptionsHtml() +
+      '</div>';
+
     var locationHtml =
       '<div class="rd-section">' +
         '<div class="rd-section-title">' + escapeHtml(t('roomdetail.location_title')) + '</div>' +
@@ -925,6 +972,13 @@
 
     var chatWa = waLink(tpl(t('room.wa_info_room'), { room: room.name }));
     var galleryHtml = state.roomDetail.galleryOpen ? roomDetailGalleryHtml(room, photos) : '';
+
+    // Il contenitore scrollabile viene ricreato a ogni render (innerHTML
+    // completo): senza salvare/ripristinare lo scroll, ogni interazione
+    // nella pagina stanza (toggle letto, stepper culla/letto extra, "leggi
+    // di più"...) farebbe risalire la pagina in cima.
+    var prevScrollEl = root.querySelector('.rd-scroll');
+    var prevScrollTop = prevScrollEl ? prevScrollEl.scrollTop : 0;
 
     root.innerHTML =
       '<div class="rd-overlay" id="rd-overlay">' +
@@ -953,6 +1007,8 @@
             '<div class="rd-separator"></div>' +
             amenitiesHtml +
             '<div class="rd-separator"></div>' +
+            optionsHtml +
+            '<div class="rd-separator"></div>' +
             locationHtml +
             '<div class="rd-separator"></div>' +
             knowHtml +
@@ -961,6 +1017,9 @@
         renderRoomDetailStickyBar(room) +
       '</div>' +
       galleryHtml;
+
+    var newScrollEl = root.querySelector('.rd-scroll');
+    if (newScrollEl && prevScrollTop) newScrollEl.scrollTop = prevScrollTop;
 
     updateBodyScrollLock();
   }
@@ -977,6 +1036,12 @@
   var CHILD_ROOM_COUNT_MIN_AGE = 3;
   var CHILD_TAX_MIN_AGE = 12;
   var CHILD_DEFAULT_AGE = 8;
+  // Opzioni stanza (letto a scelta, culla, letto singolo aggiuntivo): prezzi
+  // fittizi/placeholder da confermare col gestore prima di essere reali.
+  var CRIB_MAX = 1;
+  var EXTRA_BED_MAX = 1;
+  var CRIB_PRICE_PER_NIGHT = 8;
+  var EXTRA_BED_PRICE_PER_NIGHT = 15;
   function totalRoomsCount() { return orderedIds(state.roomsData).length || 1; }
   function maxHouseCapacity() { return totalRoomsCount() * MAX_GUESTS_PER_ROOM; }
   function countedGuests(adults, childAges) {
@@ -1064,6 +1129,7 @@
   function toggleSearchCalendar() {
     state.search.calendarOpen = !state.search.calendarOpen;
     state.search.guestsOpen = false;
+    state.search.roomsOpen = false;
     if (state.search.calendarOpen) {
       var base = state.search.checkIn ? dateFromIso(state.search.checkIn) : new Date();
       state.search.calYear = base.getFullYear();
@@ -1075,9 +1141,17 @@
   function toggleSearchGuestsPopover() {
     state.search.guestsOpen = !state.search.guestsOpen;
     state.search.calendarOpen = false;
+    state.search.roomsOpen = false;
     renderSearch();
   }
   function closeSearchGuestsPopover() { if (state.search.guestsOpen) { state.search.guestsOpen = false; renderSearch(); } }
+  function toggleSearchRoomsPopover() {
+    state.search.roomsOpen = !state.search.roomsOpen;
+    state.search.calendarOpen = false;
+    state.search.guestsOpen = false;
+    renderSearch();
+  }
+  function closeSearchRoomsPopover() { if (state.search.roomsOpen) { state.search.roomsOpen = false; renderSearch(); } }
   function searchCalMonthPrev() {
     var m = state.search.calMonth - 1, y = state.search.calYear;
     if (m < 0) { m = 11; y -= 1; }
@@ -1122,6 +1196,7 @@
     state.search.error = '';
     state.search.calendarOpen = false;
     state.search.guestsOpen = false;
+    state.search.roomsOpen = false;
     if (!state.search.checkIn || !state.search.checkOut) { state.search.error = t('search.missing_dates'); renderSearch(); return; }
     if (state.search.checkOut <= state.search.checkIn) { state.search.error = t('search.invalid_dates'); renderSearch(); return; }
     state.search.performed = true;
@@ -1283,7 +1358,15 @@
           '</div>' +
         '</div>' +
         (childRows ? '<div class="search-child-ages">' + childRows + '</div>' : '') +
-        '<div class="search-guests-divider"></div>' +
+        '<button type="button" class="btn btn-primary search-guests-done" data-search-guests-done>' + escapeHtml(t('search.done')) + '</button>' +
+      '</div>'
+    );
+  }
+  function searchRoomsPopoverHtml() {
+    var s = state.search;
+    var recommended = recommendedRoomsFor(countedGuests(s.adults, s.childAges));
+    return (
+      '<div class="search-rooms-popover">' +
         '<div class="search-guests-row">' +
           '<div><div class="search-guests-row-title">' + escapeHtml(t('search.rooms')) + '</div><div class="search-guests-row-sub">' + escapeHtml(tpl(t('search.recommend_note_short'), { rooms: roomsCountLabel(recommended) })) + '</div></div>' +
           '<div class="search-stepper">' +
@@ -1293,7 +1376,7 @@
           '</div>' +
         '</div>' +
         (s.warning ? '<div class="search-note search-note--warning">' + escapeHtml(s.warning) + '</div>' : '') +
-        '<button type="button" class="btn btn-primary search-guests-done" data-search-guests-done>' + escapeHtml(t('search.done')) + '</button>' +
+        '<button type="button" class="btn btn-primary search-guests-done" data-search-rooms-done>' + escapeHtml(t('search.done')) + '</button>' +
       '</div>'
     );
   }
@@ -1372,12 +1455,10 @@
       ? formatDateLabel(s.checkIn) + ' → ' + formatDateLabel(s.checkOut)
       : (s.checkIn ? formatDateLabel(s.checkIn) + ' → …' : t('search.dates_placeholder'));
     var guestsFieldValue = guestsSummaryLabel(s.adults, s.childAges);
+    var roomsFieldValue = roomsCountLabel(s.rooms);
 
     root.innerHTML =
       '<div class="search-panel">' +
-        '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('search.eyebrow')) + '</div>' +
-        '<h2 class="h2" style="margin:0 0 10px;">' + escapeHtml(t('search.title')) + '</h2>' +
-        '<p class="search-lead">' + escapeHtml(t('search.text')) + '</p>' +
         '<div class="search-fields">' +
           '<div class="search-field search-field--popover">' +
             '<button type="button" class="search-field-btn" data-search-toggle-calendar>' +
@@ -1392,6 +1473,13 @@
               '<span class="search-field-value">' + escapeHtml(guestsFieldValue) + '</span>' +
             '</button>' +
             (s.guestsOpen ? searchGuestsPopoverHtml() : '') +
+          '</div>' +
+          '<div class="search-field search-field--popover">' +
+            '<button type="button" class="search-field-btn" data-search-toggle-rooms>' +
+              '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-house"></use></svg>' + escapeHtml(t('search.rooms')) + '</span>' +
+              '<span class="search-field-value">' + escapeHtml(roomsFieldValue) + '</span>' +
+            '</button>' +
+            (s.roomsOpen ? searchRoomsPopoverHtml() : '') +
           '</div>' +
           '<button type="button" class="btn btn-primary search-cta" data-search-submit>' +
             '<svg width="16" height="16"><use href="#icon-search"></use></svg>' + escapeHtml(t('search.cta')) +
@@ -1624,6 +1712,8 @@
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
+  function cribTotalForNights(nights) { return state.cribCount * CRIB_PRICE_PER_NIGHT * nights; }
+  function extraBedTotalForNights(nights) { return state.extraBedCount * EXTRA_BED_PRICE_PER_NIGHT * nights; }
   function priceSummaryHtml() {
     var room = currentRoom();
     if (!room) return '';
@@ -1632,12 +1722,16 @@
     var taxRate = Number(state.settings && state.settings.touristTaxRate) || 0;
     var taxable = taxablePersons(state.guestsAdults, state.guestsChildAges);
     var tax = Math.round(taxRate * taxable * nights * 100) / 100;
-    var total = roomTotal + tax;
+    var cribTotal = cribTotalForNights(nights);
+    var extraBedTotal = extraBedTotalForNights(nights);
+    var total = roomTotal + tax + cribTotal + extraBedTotal;
     return (
       '<div class="price-summary">' +
         '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_dates')) + '</span><span>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</span></div>' +
         '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: nights, price: room.nightlyPrice })) + '</span><span>€' + roomTotal.toFixed(2) + '</span></div>' +
         (taxRate ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + tax.toFixed(2) + '</span></div>' : '') +
+        (state.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + cribTotal.toFixed(2) + '</span></div>' : '') +
+        (state.extraBedCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_extra_bed')) + '</span><span>€' + extraBedTotal.toFixed(2) + '</span></div>' : '') +
         '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.summary_total')) + '</span><span>€' + total.toFixed(2) + '</span></div>' +
       '</div>'
     );
@@ -1852,6 +1946,9 @@
       checkOut: state.selectedCheckOut,
       guests: totalGuestsForServer,
       exemptGuests: exemptGuestsForServer,
+      bedType: state.bedType,
+      cribCount: state.cribCount,
+      extraBedCount: state.extraBedCount,
       name: state.contactName,
       email: state.contactEmail,
       phone: state.contactPhone,
@@ -2012,6 +2109,8 @@
       if (el) { toggleSearchCalendar(); return; }
       el = e.target.closest('[data-search-toggle-guests]');
       if (el) { toggleSearchGuestsPopover(); return; }
+      el = e.target.closest('[data-search-toggle-rooms]');
+      if (el) { toggleSearchRoomsPopover(); return; }
       el = e.target.closest('[data-search-pick-date]');
       if (el && !el.disabled) { pickSearchDate(el.getAttribute('data-iso')); return; }
       el = e.target.closest('[data-search-cal-prev]');
@@ -2020,6 +2119,8 @@
       if (el) { searchCalMonthNext(); return; }
       el = e.target.closest('[data-search-guests-done]');
       if (el) { closeSearchGuestsPopover(); return; }
+      el = e.target.closest('[data-search-rooms-done]');
+      if (el) { closeSearchRoomsPopover(); return; }
       el = e.target.closest('[data-search-submit]');
       if (el) { submitSearch(); return; }
       el = e.target.closest('[data-search-reset]');
@@ -2104,6 +2205,16 @@
       if (el) { openRoomGallery(Number(el.getAttribute('data-index'))); return; }
       el = e.target.closest('[data-rd-toggle-desc]');
       if (el) { toggleRoomDetailDesc(); return; }
+      el = e.target.closest('[data-rd-bedtype]');
+      if (el) { setBedType(el.getAttribute('data-rd-bedtype')); return; }
+      el = e.target.closest('[data-rd-crib-inc]');
+      if (el && !el.disabled) { roomDetailCribInc(); return; }
+      el = e.target.closest('[data-rd-crib-dec]');
+      if (el && !el.disabled) { roomDetailCribDec(); return; }
+      el = e.target.closest('[data-rd-extrabed-inc]');
+      if (el && !el.disabled) { roomDetailExtraBedInc(); return; }
+      el = e.target.closest('[data-rd-extrabed-dec]');
+      if (el && !el.disabled) { roomDetailExtraBedDec(); return; }
       el = e.target.closest('[data-rd-book]');
       if (el) { continueToBookingFromDetail(); return; }
       el = e.target.closest('[data-rd-gallery-close]');
@@ -2136,6 +2247,7 @@
         if (state.mediaZoomOpen) closeMediaZoom();
         closeSearchCalendar();
         closeSearchGuestsPopover();
+        closeSearchRoomsPopover();
         if (document.getElementById('mobile-drawer').classList.contains('is-open')) closeMobileDrawer();
       }
     });

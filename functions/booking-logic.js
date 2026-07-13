@@ -17,6 +17,16 @@ const crypto = require('crypto');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Opzioni stanza (letto a scelta, culla, letto singolo aggiuntivo) — vedi
+// affittacamere/js/app.js per le stesse costanti lato client (CRIB_MAX,
+// EXTRA_BED_MAX, CRIB_PRICE_PER_NIGHT, EXTRA_BED_PRICE_PER_NIGHT). Prezzi
+// fittizi/placeholder, da tenere allineati manualmente nei due file finché
+// non hanno una sola fonte di verità comune.
+const CRIB_MAX = 1;
+const EXTRA_BED_MAX = 1;
+const CRIB_PRICE_PER_NIGHT = 8;
+const EXTRA_BED_PRICE_PER_NIGHT = 15;
+
 function fail(code, message) {
   const err = new Error(message);
   err.code = code;
@@ -45,6 +55,9 @@ async function createBookingCore(admin, db, data) {
   const phone = data.phone || '';
   const contractAccepted = !!data.contractAccepted;
   const source = data.source === 'site' ? 'site' : (data.source || 'site');
+  const bedType = data.bedType === 'singolo' ? 'singolo' : 'matrimoniale';
+  const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(data.cribCount) || 0));
+  const extraBedCount = Math.max(0, Math.min(EXTRA_BED_MAX, Number(data.extraBedCount) || 0));
 
   if (!isNonEmptyString(roomId, 50)) fail('invalid-argument', 'Stanza mancante.');
   if (!isValidDateStr(checkIn) || !isValidDateStr(checkOut) || checkIn >= checkOut) {
@@ -89,9 +102,23 @@ async function createBookingCore(admin, db, data) {
     };
     const guestFormToken = crypto.randomBytes(24).toString('hex');
 
+    // Prezzo autoritativo: la stanza a notte + tassa di soggiorno + eventuali
+    // opzioni extra (culla, letto singolo aggiuntivo) scelte dall'ospite.
+    const roomTotal = Math.round(nights * (Number(room.nightlyPrice) || 0) * 100) / 100;
+    const cribTotal = Math.round(cribCount * CRIB_PRICE_PER_NIGHT * nights * 100) / 100;
+    const extraBedTotal = Math.round(extraBedCount * EXTRA_BED_PRICE_PER_NIGHT * nights * 100) / 100;
+    const pricing = {
+      roomTotal: roomTotal,
+      crib: { count: cribCount, pricePerNight: CRIB_PRICE_PER_NIGHT, total: cribTotal },
+      extraBed: { count: extraBedCount, pricePerNight: EXTRA_BED_PRICE_PER_NIGHT, total: extraBedTotal },
+      touristTax: touristTax.totalDue,
+      total: Math.round((roomTotal + touristTax.totalDue + cribTotal + extraBedTotal) * 100) / 100
+    };
+
     const bookingData = {
       roomId: roomId, roomLabel: room.name || roomId, checkIn: checkIn, checkOut: checkOut,
       nights: nights, guests: guests, exemptGuests: exemptGuests, name: name, email: email, phone: phone,
+      bedType: bedType, cribCount: cribCount, extraBedCount: extraBedCount, pricing: pricing,
       source: source, status: 'nuovo', touristTax: touristTax,
       contractAcceptedAt: source === 'site' ? admin.firestore.FieldValue.serverTimestamp() : null,
       guestFormToken: guestFormToken, guestDocsComplete: false,
@@ -105,7 +132,7 @@ async function createBookingCore(admin, db, data) {
     const newBlockedRanges = blocked.concat([{ start: checkIn, end: checkOut, source: source === 'site' ? 'booking' : 'manual', bookingId: bookingRef.id }]);
     tx.update(roomRef, { blockedRanges: newBlockedRanges });
 
-    return { id: bookingRef.id, guestFormToken: guestFormToken, nights: nights, touristTax: touristTax, roomLabel: bookingData.roomLabel };
+    return { id: bookingRef.id, guestFormToken: guestFormToken, nights: nights, touristTax: touristTax, pricing: pricing, roomLabel: bookingData.roomLabel };
   });
 }
 

@@ -140,6 +140,16 @@
     }
     return '';
   }
+  function bookingOptionsHtml(b) {
+    if (!b.bedType && !b.pricing) return '';
+    var bedLabel = b.bedType === 'singolo' ? 'Letto singolo' : 'Letto matrimoniale';
+    var extras = [];
+    if (b.cribCount) extras.push('Culla x' + b.cribCount);
+    if (b.extraBedCount) extras.push('Letto extra x' + b.extraBedCount);
+    var extrasStr = extras.length ? ' · ' + extras.join(', ') : '';
+    var totalStr = (b.pricing && b.pricing.total != null) ? ' · Totale: €' + Number(b.pricing.total).toFixed(2) : '';
+    return '<div class="booking-meta">' + escapeHtml(bedLabel) + escapeHtml(extrasStr) + escapeHtml(totalStr) + '</div>';
+  }
   function bookingCardHtml(b) {
     var statusClass = 'dash-status-pill--' + (b.status || 'nuovo');
     var sourceBadge = '<span class="booking-source-badge">' + escapeHtml(SOURCE_LABELS[b.source] || b.source || 'Sito') + '</span>';
@@ -148,6 +158,7 @@
         '<div class="booking-main">' +
           '<div class="booking-room">' + escapeHtml(b.roomLabel || 'Casa Celeste') + sourceBadge + '</div>' +
           '<div class="booking-when">' + escapeHtml(b.checkIn || '') + ' → ' + escapeHtml(b.checkOut || '') + ' · ' + (b.nights || 0) + ' notti · ' + (b.guests || 0) + ' ospiti</div>' +
+          bookingOptionsHtml(b) +
           '<div class="booking-contact">' + escapeHtml(b.name || '') + ' — <a href="mailto:' + encodeURIComponent(b.email || '') + '">' + escapeHtml(b.email || '') + '</a>' + (b.phone ? ' — <a href="tel:' + encodeURIComponent(b.phone) + '">' + escapeHtml(b.phone) + '</a>' : '') + '</div>' +
           '<div class="booking-meta">Ricevuta il ' + formatCreatedAt(b.createdAt) + ' · Documenti ospiti: ' + (b.guestDocsComplete ? '✅ completi' : '❌ mancanti') +
             ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + '</div>' +
