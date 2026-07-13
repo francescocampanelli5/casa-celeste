@@ -1273,6 +1273,7 @@ button { font-family: inherit; }
 .price-summary { background: #F5FAFD; border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
 .price-summary-row { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; color: var(--text-body, #3C4A5C); }
 .price-summary-row.is-total { border-top: 1px solid rgba(16,35,59,0.12); margin-top: 6px; padding-top: 10px; font-weight: 700; font-size: 16px; color: #10233B; }
+.price-summary-note { font-size: 12px; color: var(--text-muted, #6B7A8C); padding: 0 0 6px; margin-top: -2px; }
 .contract-checkbox-row { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; margin: 14px 0; text-align: left; }
 .contract-checkbox-row input { margin-top: 3px; }
 .contract-checkbox-row a { color: #2C8FC9; text-decoration: underline; }

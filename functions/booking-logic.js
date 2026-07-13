@@ -85,7 +85,13 @@ async function createBookingCore(admin, db, data) {
     const room = roomSnap.data();
     const settings = settingsSnap.exists ? settingsSnap.data() : {};
 
-    if (guests > (room.maxGuests || 1)) fail('failed-precondition', 'Troppi ospiti per questa stanza.');
+    // Il letto singolo aggiuntivo alza il limite della stanza di 1 posto
+    // (es. stanza per 2 -> fino a 3 con letto extra) — i bambini sotto i 3
+    // anni non contano MAI in questo limite (vedi CHILD_ROOM_COUNT_MIN_AGE
+    // lato client, affittacamere/js/app.js), quindi il numero "guests" che
+    // arriva qui li ha già esclusi prima dell'invio.
+    const effectiveMaxGuests = (room.maxGuests || 1) + (extraBedCount ? 1 : 0);
+    if (guests > effectiveMaxGuests) fail('failed-precondition', 'Troppi ospiti per questa stanza.');
     const nights = Math.round((new Date(checkOut) - new Date(checkIn)) / 86400000);
     if (nights < (room.minNights || 1)) fail('failed-precondition', 'Soggiorno più corto del minimo richiesto.');
 

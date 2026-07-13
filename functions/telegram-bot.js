@@ -82,6 +82,26 @@ function nightsBetween(checkIn, checkOut) {
 }
 
 /* ==========================================================================
+   Modello ospiti per fascia d'età — IDENTICO a affittacamere/js/app.js
+   (countedGuests/taxablePersons/CHILD_ROOM_COUNT_MIN_AGE/CHILD_TAX_MIN_AGE):
+   i bambini sotto i 3 anni non contano mai nel limite stanza (rientrano
+   anche senza letto extra, con o senza culla), quelli sotto i 12 sono
+   esenti dalla tassa di soggiorno. Il letto singolo aggiuntivo alza il
+   limite della stanza di 1 posto — stessa regola in functions/booking-logic.js.
+   ========================================================================== */
+const CHILD_ROOM_COUNT_MIN_AGE = 3;
+const CHILD_TAX_MIN_AGE = 12;
+function countedGuests(adults, childAges) {
+  return adults + childAges.filter((age) => age >= CHILD_ROOM_COUNT_MIN_AGE).length;
+}
+function taxablePersons(adults, childAges) {
+  return adults + childAges.filter((age) => age >= CHILD_TAX_MIN_AGE).length;
+}
+function effectiveMaxGuests(draft) {
+  return (draft.maxGuests || 1) + (draft.extraBedCount ? 1 : 0);
+}
+
+/* ==========================================================================
    Wrapper API Telegram — un solo posto dove costruire le chiamate REST.
    ========================================================================== */
 function tgApi(token, method) { return 'https://api.telegram.org/bot' + token + '/' + method; }
@@ -307,9 +327,16 @@ function datesCalendarKeyboard(year, month, session) {
   rows.push([{ text: '❌ Annulla', callback_data: 'cancel' }]);
   return { inline_keyboard: rows };
 }
-function guestsKeyboard(maxGuests) {
+function adultsKeyboard(effectiveMax) {
   const row = [];
-  for (let n = 1; n <= Math.max(1, maxGuests || 1); n++) row.push({ text: String(n) + (n === 1 ? ' ospite' : ' ospiti'), callback_data: 'gc:' + n });
+  for (let n = 1; n <= Math.max(1, effectiveMax); n++) row.push({ text: String(n) + (n === 1 ? ' adulto' : ' adulti'), callback_data: 'ga:' + n });
+  return { inline_keyboard: [row, [{ text: '❌ Annulla', callback_data: 'cancel' }]] };
+}
+// I bambini sotto i 3 anni non contano nel limite stanza, quindi il numero
+// di bottoni non dipende strettamente dai posti rimasti — 0..3 copre
+// qualunque caso realistico per una stanza di questa dimensione.
+function childrenCountKeyboard() {
+  const row = [0, 1, 2, 3].map((n) => ({ text: String(n), callback_data: 'gcc:' + n }));
   return { inline_keyboard: [row, [{ text: '❌ Annulla', callback_data: 'cancel' }]] };
 }
 function bedTypeKeyboard() {
@@ -466,17 +493,15 @@ async function onCalendar(ctx, chatId, session, data) {
       return;
     }
     d.checkOut = value;
-    session.step = 'guests';
-    await commitStep(ctx, chatId, session, '📅 ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(value) + '\n👥 Quanti ospiti?', guestsKeyboard(d.maxGuests));
+    // Le Opzioni (letto/culla/letto extra) vengono chieste PRIMA degli
+    // ospiti, come sul sito (dove si scelgono nella pagina stanza prima del
+    // calendario): serve sapere se c'è il letto extra per calcolare il
+    // limite ospiti effettivo nel passo successivo.
+    session.step = 'bedType';
+    await commitStep(ctx, chatId, session, '📅 ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(value) + '\n🛏️ Che tipo di letto?', bedTypeKeyboard());
   }
 }
 
-async function onGuestCount(ctx, chatId, session, data) {
-  if (session.step !== 'guests') return;
-  session.draft.guests = Number(data.split(':')[1]);
-  session.step = 'bedType';
-  await commitStep(ctx, chatId, session, '🛏️ Che tipo di letto?', bedTypeKeyboard());
-}
 async function onBedType(ctx, chatId, session, data) {
   if (session.step !== 'bedType') return;
   session.draft.bedType = data === 'bed:s' ? 'singolo' : 'matrimoniale';
@@ -487,14 +512,69 @@ async function onCrib(ctx, chatId, session, data) {
   if (session.step !== 'crib') return;
   session.draft.cribCount = Number(data.split(':')[1]);
   session.step = 'extraBed';
-  await commitStep(ctx, chatId, session, '🛏️ Serve un letto singolo aggiuntivo?', extraBedKeyboard());
+  await commitStep(ctx, chatId, session, '🛏️ Serve un letto singolo aggiuntivo? (alza di 1 il limite ospiti della stanza — i neonati sotto i 3 anni non ne hanno comunque mai bisogno)', extraBedKeyboard());
 }
 async function onExtraBed(ctx, chatId, session, data) {
   if (session.step !== 'extraBed') return;
   session.draft.extraBedCount = Number(data.split(':')[1]);
+  session.draft.childAges = [];
+  session.guestsChildIndex = 0;
+  session.step = 'guestsAdults';
+  const max = effectiveMaxGuests(session.draft);
+  await commitStep(ctx, chatId, session, '👥 Quanti adulti (18+)? (limite stanza: ' + max + ')', adultsKeyboard(max));
+}
+
+async function onAdultsPick(ctx, chatId, session, data) {
+  if (session.step !== 'guestsAdults') return;
+  session.draft.adults = Number(data.split(':')[1]);
+  session.step = 'guestsChildrenCount';
+  await commitStep(ctx, chatId, session, '👶 Quanti bambini/ragazzi (0-17 anni) oltre agli adulti? (i minori di 3 anni non contano nel limite stanza)', childrenCountKeyboard());
+}
+
+function childAgePromptText(session, errorText) {
+  const idx = (session.guestsChildIndex || 0) + 1;
+  const total = session.draft.childrenCount;
+  const lines = [];
+  if (errorText) lines.push('⚠️ ' + errorText);
+  lines.push('✍️ Età del bambino/ragazzo ' + idx + ' di ' + total + ' (scrivi un numero da 0 a 17):');
+  return lines.join('\n');
+}
+
+async function onChildrenCountPick(ctx, chatId, session, data) {
+  if (session.step !== 'guestsChildrenCount') return;
+  const n = Number(data.split(':')[1]);
+  session.draft.childrenCount = n;
+  session.draft.childAges = [];
+  session.guestsChildIndex = 0;
+  if (n === 0) { await finalizeGuestsCount(ctx, chatId, session); return; }
+  session.step = 'guestsChildAge';
+  await commitStep(ctx, chatId, session, childAgePromptText(session), null);
+}
+
+// Calcola ospiti/esenti dal modello adulti+età bambini (countedGuests/
+// taxablePersons, identico al sito) e passa al canale — se il totale supera
+// il limite effettivo della stanza, spiega perché e fa rifare le età da
+// capo invece di bloccare senza spiegazione.
+async function finalizeGuestsCount(ctx, chatId, session) {
+  const d = session.draft;
+  const counted = countedGuests(d.adults, d.childAges);
+  const max = effectiveMaxGuests(d);
+  if (counted > max) {
+    session.draft.childAges = [];
+    session.guestsChildIndex = 0;
+    session.step = d.childrenCount > 0 ? 'guestsChildAge' : 'guestsChildrenCount';
+    const msg = 'Con queste età si contano ' + counted + ' ospiti nel limite stanza (i minori di 3 anni non contano), ma il massimo qui è ' + max +
+      (d.extraBedCount ? '' : ' — puoi tornare indietro con /annulla e riprovare aggiungendo il letto singolo aggiuntivo, oppure') + '. Reinserisci le età:';
+    if (d.childrenCount > 0) { await commitStep(ctx, chatId, session, childAgePromptText(session, msg), null); return; }
+    await commitStep(ctx, chatId, session, '⚠️ ' + msg, childrenCountKeyboard());
+    return;
+  }
+  d.guests = counted;
+  d.exemptGuests = counted - taxablePersons(d.adults, d.childAges);
   session.step = 'channel';
   await commitStep(ctx, chatId, session, '📱 Da dove arriva la prenotazione?', channelKeyboard());
 }
+
 async function onChannel(ctx, chatId, session, data) {
   if (session.step !== 'channel') return;
   const code = data.split(':')[1];
@@ -503,11 +583,34 @@ async function onChannel(ctx, chatId, session, data) {
   await commitStep(ctx, chatId, session, '✍️ Scrivi nome e cognome dell\'ospite principale (rispondi con un messaggio):', null);
 }
 
+function guestsSummaryLine(d) {
+  const childAges = d.childAges || [];
+  const parts = [d.adults + (d.adults === 1 ? ' adulto' : ' adulti')];
+  if (childAges.length) parts.push(childAges.length + (childAges.length === 1 ? ' bambino/ragazzo' : ' bambini/ragazzi') + ' (' + childAges.join(', ') + ' anni)');
+  return parts.join(' + ') + ' — ' + d.guests + ' nel limite stanza, ' + d.exemptGuests + ' esenti tassa (under 12)';
+}
+
+// Dettaglio prezzo autoritativo già calcolato da createBookingCore
+// (functions/booking-logic.js) — qui solo formattato, nessun ricalcolo.
+function pricingSummaryText(result) {
+  const p = result.pricing || {};
+  const tax = result.touristTax || {};
+  const lines = ['💶 Stanza: €' + (p.roomTotal || 0).toFixed(2)];
+  if (tax.totalDue) {
+    lines.push('Tassa di soggiorno: €' + tax.totalDue.toFixed(2) + ' (€' + tax.perNight + ' a persona a notte, ' + tax.exemptGuests + ' esenti under-12)');
+  }
+  if (p.crib && p.crib.total) lines.push('Culla: €' + p.crib.total.toFixed(2));
+  if (p.extraBed && p.extraBed.total) lines.push('Letto singolo aggiuntivo: €' + p.extraBed.total.toFixed(2));
+  lines.push('Totale: €' + (p.total || 0).toFixed(2));
+  return lines.join('\n');
+}
+
 function bookingSummaryText(d) {
   const lines = [
     '📋 Riepilogo prenotazione:',
     d.roomLabel + ' — ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(d.checkOut),
-    d.guests + ' ospiti, letto ' + (d.bedType === 'singolo' ? 'singolo' : 'matrimoniale'),
+    guestsSummaryLine(d),
+    'Letto ' + (d.bedType === 'singolo' ? 'singolo' : 'matrimoniale'),
     d.cribCount ? 'Culla: sì' : 'Culla: no',
     d.extraBedCount ? 'Letto singolo aggiuntivo: sì' : 'Letto singolo aggiuntivo: no',
     'Canale: ' + (CHANNEL_LABELS[d.channel] || d.channel),
@@ -541,6 +644,22 @@ async function handleWizardTextInput(ctx, chatId, session, text) {
     await commitStep(ctx, chatId, session, bookingSummaryText(session.draft), confirmBookingKeyboard());
     return true;
   }
+  if (step === 'guestsChildAge') {
+    const raw = text.trim();
+    const age = Number(raw);
+    if (!/^\d+$/.test(raw) || age < 0 || age > 17) {
+      await commitStep(ctx, chatId, session, childAgePromptText(session, 'Età non valida: scrivi un numero da 0 a 17.'), null);
+      return true;
+    }
+    session.draft.childAges.push(age);
+    session.guestsChildIndex = (session.guestsChildIndex || 0) + 1;
+    if (session.guestsChildIndex < session.draft.childrenCount) {
+      await commitStep(ctx, chatId, session, childAgePromptText(session), null);
+      return true;
+    }
+    await finalizeGuestsCount(ctx, chatId, session);
+    return true;
+  }
   if (step === 'docConfirm' && session.awaitingFieldInput) {
     const field = session.awaitingFieldInput;
     const raw = text.trim();
@@ -566,7 +685,7 @@ async function onConfirmBooking(ctx, chatId, session) {
   let result;
   try {
     result = await createBookingCore(ctx.admin, ctx.db, {
-      roomId: d.roomId, checkIn: d.checkIn, checkOut: d.checkOut, guests: d.guests, exemptGuests: 0,
+      roomId: d.roomId, checkIn: d.checkIn, checkOut: d.checkOut, guests: d.guests, exemptGuests: d.exemptGuests,
       name: d.name, email: d.email, phone: d.phone, source: 'telegram_wizard',
       bedType: d.bedType, cribCount: d.cribCount, extraBedCount: d.extraBedCount
     });
@@ -583,7 +702,8 @@ async function onConfirmBooking(ctx, chatId, session) {
   session.step = 'docsOffer';
   const origin = 'https://lacasaceleste.it/affittacamere/';
   const link = origin + 'ospiti.html?booking=' + result.id + '&token=' + result.guestFormToken;
-  const text = '✅ Prenotazione creata: ' + result.roomLabel + ' dal ' + isoToItalian(d.checkIn) + ' al ' + isoToItalian(d.checkOut) + ' (' + result.nights + ' notti).\nLink documenti da inoltrare all\'ospite:\n' + link + '\n\nVuoi caricare subito le foto documento degli ospiti?';
+  const text = '✅ Prenotazione creata: ' + result.roomLabel + ' dal ' + isoToItalian(d.checkIn) + ' al ' + isoToItalian(d.checkOut) + ' (' + result.nights + ' notti).\n' +
+    pricingSummaryText(result) + '\nLink documenti da inoltrare all\'ospite:\n' + link + '\n\nVuoi caricare subito le foto documento degli ospiti?';
   await commitStep(ctx, chatId, session, text, docsOfferKeyboard());
 }
 
@@ -708,10 +828,11 @@ async function onDocConfirm(ctx, chatId, session) {
 async function routeCallback(ctx, chatId, session, data) {
   if (data.startsWith('rm:')) return onRoomPick(ctx, chatId, session, data.slice(3));
   if (data.startsWith('cal:')) return onCalendar(ctx, chatId, session, data);
-  if (data.startsWith('gc:')) return onGuestCount(ctx, chatId, session, data);
   if (data.startsWith('bed:')) return onBedType(ctx, chatId, session, data);
   if (data.startsWith('crib:')) return onCrib(ctx, chatId, session, data);
   if (data.startsWith('xbed:')) return onExtraBed(ctx, chatId, session, data);
+  if (data.startsWith('ga:')) return onAdultsPick(ctx, chatId, session, data);
+  if (data.startsWith('gcc:')) return onChildrenCountPick(ctx, chatId, session, data);
   if (data.startsWith('ch:')) return onChannel(ctx, chatId, session, data);
   if (data === 'confirm:booking') return onConfirmBooking(ctx, chatId, session);
   if (data.startsWith('docs:')) return onDocsOffer(ctx, chatId, session, data);

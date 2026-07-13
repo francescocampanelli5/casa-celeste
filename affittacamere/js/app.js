@@ -1047,6 +1047,13 @@
   function countedGuests(adults, childAges) {
     return adults + childAges.filter(function (age) { return age >= CHILD_ROOM_COUNT_MIN_AGE; }).length;
   }
+  // Il letto singolo aggiuntivo alza il limite della stanza di 1 posto (es.
+  // stanza per 2 -> fino a 3 con letto extra); i bambini sotto i 3 anni non
+  // contano mai in questo limite (countedGuests li esclude già), quindi
+  // rientrano anche senza letto extra.
+  function effectiveMaxGuests(room) {
+    return ((room && room.maxGuests) || 1) + (state.extraBedCount ? 1 : 0);
+  }
   function taxablePersons(adults, childAges) {
     return adults + childAges.filter(function (age) { return age >= CHILD_TAX_MIN_AGE; }).length;
   }
@@ -1683,9 +1690,11 @@
   }
   function guestsStepHtml() {
     var room = currentRoom();
-    var max = (room && room.maxGuests) || 1;
+    var baseMax = (room && room.maxGuests) || 1;
+    var max = effectiveMaxGuests(room);
     var counted = countedGuests(state.guestsAdults, state.guestsChildAges);
     var atCapacity = counted >= max;
+    var suggestExtraBed = counted >= baseMax && !state.extraBedCount;
     return (
       '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div></div>' +
       '<div class="slot-label">' + escapeHtml(t('booking.step_guests_title')) + '</div>' +
@@ -1707,6 +1716,7 @@
       '</div>' +
       guestsChildAgesHtml(state.guestsChildAges, 'data-guest-child-age') +
       '<div class="range-hint">' + escapeHtml(tpl(t('room.max_guests'), { n: max })) + '</div>' +
+      (suggestExtraBed ? '<div class="range-hint">' + escapeHtml(t('room.extra_bed_hint')) + '</div>' : '') +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-contact-step>' + escapeHtml(t('common.prenota_soggiorno')) + ' →</button>' +
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
@@ -1730,6 +1740,7 @@
         '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_dates')) + '</span><span>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</span></div>' +
         '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: nights, price: room.nightlyPrice })) + '</span><span>€' + roomTotal.toFixed(2) + '</span></div>' +
         (taxRate ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + tax.toFixed(2) + '</span></div>' : '') +
+        (taxRate ? '<div class="price-summary-note">' + escapeHtml(tpl(t('booking.summary_tourist_tax_note'), { rate: taxRate })) + '</div>' : '') +
         (state.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + cribTotal.toFixed(2) + '</span></div>' : '') +
         (state.extraBedCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_extra_bed')) + '</span><span>€' + extraBedTotal.toFixed(2) + '</span></div>' : '') +
         '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.summary_total')) + '</span><span>€' + total.toFixed(2) + '</span></div>' +
@@ -1909,13 +1920,13 @@
   function backToCalendar() { state.bookingStep = 1; renderBookingModal(); }
   function backToGuests() { state.bookingStep = 2; renderBookingModal(); }
   function guestAdultsInc() {
-    var room = currentRoom(); var max = (room && room.maxGuests) || 1;
+    var room = currentRoom(); var max = effectiveMaxGuests(room);
     if (countedGuests(state.guestsAdults, state.guestsChildAges) < max) state.guestsAdults++;
     renderBookingModal();
   }
   function guestAdultsDec() { if (state.guestsAdults > 1) state.guestsAdults--; renderBookingModal(); }
   function guestChildrenInc() {
-    var room = currentRoom(); var max = (room && room.maxGuests) || 1;
+    var room = currentRoom(); var max = effectiveMaxGuests(room);
     if (countedGuests(state.guestsAdults, state.guestsChildAges.concat([CHILD_DEFAULT_AGE])) <= max) state.guestsChildAges.push(CHILD_DEFAULT_AGE);
     renderBookingModal();
   }

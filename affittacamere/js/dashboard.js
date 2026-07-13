@@ -304,7 +304,7 @@
   }
 
   /* ==========================================================================
-     Rooms tab — nightlyPrice/maxGuests/cleaningFee/minNights + blockedRanges
+     Rooms tab — nightlyPrice/maxGuests/minNights + blockedRanges
      ========================================================================== */
   function statsEditorHtml(kind, ownerId, stats) {
     var rows = (stats || []).map(function (s, i) {
@@ -456,7 +456,6 @@
         statsEditorHtml('room', roomId, room.stats) +
         '<div class="admin-room-type-row">' +
           '<div class="admin-field-group"><label>Prezzo a notte (€)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="nightlyPrice" value="' + (room.nightlyPrice || 0) + '"></div>' +
-          '<div class="admin-field-group"><label>Pulizie finali (€)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="cleaningFee" value="' + (room.cleaningFee || 0) + '"></div>' +
           '<div class="admin-field-group"><label>Ospiti massimi</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="maxGuests" min="1" value="' + (room.maxGuests || 1) + '"></div>' +
           '<div class="admin-field-group"><label>Notti minime</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="minNights" min="1" value="' + (room.minNights || 1) + '"></div>' +
           '<div class="admin-field-group"><label>Balcone</label><select class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="balcony">' +
@@ -481,7 +480,7 @@
       var roomId = el.getAttribute('data-room-id'), field = el.getAttribute('data-field');
       el.addEventListener('change', function (e) {
         var val = e.target.value;
-        if (field === 'nightlyPrice' || field === 'cleaningFee' || field === 'maxGuests' || field === 'minNights') val = Number(val) || 0;
+        if (field === 'nightlyPrice' || field === 'maxGuests' || field === 'minNights') val = Number(val) || 0;
         var patch = {}; patch[field] = val;
         window.CasaCelesteTourismDB.setRoom(roomId, patch);
       });
