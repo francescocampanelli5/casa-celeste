@@ -12,16 +12,12 @@
   var FAQ_DEFS = [
     { q: { it: 'A che ora è il check-in e il check-out?', en: 'What time is check-in and check-out?' },
       a: { it: 'Check-in dalle 15:00, check-out entro le 10:00. Il check-in è autonomo: ti mandiamo tutte le indicazioni su WhatsApp prima del tuo arrivo.', en: 'Check-in from 3pm, check-out by 10am. Check-in is self-service: we send you all the instructions on WhatsApp before you arrive.' } },
-    { q: { it: 'Il bagno è privato o condiviso?', en: 'Is the bathroom private or shared?' },
-      a: { it: 'Il bagno è condiviso tra gli ospiti della casa presenti nello stesso periodo, non è in-suite nella stanza. Viene pulito professionalmente a ogni cambio ospite.', en: 'The bathroom is shared among guests staying at the same time, it is not en-suite in the room. It is professionally cleaned at every guest turnover.' } },
     { q: { it: 'Cosa è incluso nel prezzo?', en: 'What is included in the price?' },
-      a: { it: 'Il prezzo mostrato è tutto incluso (utenze, wifi). Alla prenotazione si aggiungono solo le pulizie finali e la tassa di soggiorno comunale, entrambe mostrate chiaramente prima di confermare.', en: 'The price shown is all-inclusive (utilities, wifi). Only the final cleaning fee and the municipal tourist tax are added, both shown clearly before you confirm.' } },
-    { q: { it: 'Offrite colazione o altri servizi?', en: 'Do you offer breakfast or other services?' },
-      a: { it: 'No: Casa Celeste è una locazione turistica indipendente, non un hotel o un B&B con servizi. Niente colazione, niente navetta, niente pulizie durante il soggiorno.', en: 'No: Casa Celeste is an independent short-term rental, not a hotel or serviced B&B. No breakfast, no shuttle, no cleaning during your stay.' } },
+      a: { it: 'Il prezzo mostrato è tutto incluso (utenze, wifi, pulizie). L\'unico costo che si aggiunge è la tassa di soggiorno comunale (2€ a notte a persona, con esenzioni per i più piccoli), mostrata chiaramente prima di confermare.', en: 'The price shown is all-inclusive (utilities, wifi, cleaning). The only extra cost is the municipal tourist tax (€2 per night per person, with exemptions for younger guests), shown clearly before you confirm.' } },
     { q: { it: 'Serve un documento per prenotare?', en: 'Do I need an ID document to book?' },
-      a: { it: 'Sì: per legge italiana dobbiamo identificare ogni ospite, cioè raccogliere i dati del documento d\'identità E verificare di persona che corrispondano a chi soggiorna (non basta raccoglierli). Dopo la richiesta ricevi un link sicuro per inserire i dati; la verifica avviene con una breve videochiamata programmata un\'ora prima del check-in (documento in mano), oppure — solo la prima volta — dal vivo al videocitofono al tuo arrivo. Dalle prenotazioni successive, se sei già stato nostro ospite, la verifica non si ripete.', en: 'Yes: under Italian law we must identify every guest — collecting ID document details AND verifying in person that they match the guest (collecting the data alone is not enough). After your request you get a secure link to enter the details; verification happens via a short video call scheduled one hour before check-in (with your ID in hand), or — only the first time — live via the entry video-intercom on arrival. From your next booking onward, if you have stayed with us before, verification is not repeated.' } },
+      a: { it: 'Sì, ma è più semplice di quanto sembri: prima del check-in ti mandiamo un link sicuro dove inserire i tuoi dati, poi basta una breve videochiamata di un minuto (o, solo la primissima volta, due parole al videocitofono all\'arrivo) — è la normale prassi italiana per le locazioni turistiche, non un controllo in più. Dalla seconda prenotazione in poi, se sei già stato nostro ospite, salti anche questo passaggio.', en: 'Yes, but it\'s simpler than it sounds: before check-in we send you a secure link to enter your details, then it\'s just a short one-minute video call (or, only the very first time, a quick hello at the entry intercom on arrival) — it\'s standard practice for short-term rentals in Italy, not an extra hurdle. From your second booking onward, if you\'ve stayed with us before, you skip this step too.' } },
     { q: { it: 'Posso cancellare la prenotazione?', en: 'Can I cancel my booking?' },
-      a: { it: 'Le condizioni di cancellazione sono indicate nelle Condizioni di soggiorno, mostrate prima di confermare ogni prenotazione.', en: 'Cancellation terms are shown in the Stay Terms & Conditions, displayed before you confirm any booking.' } }
+      a: { it: 'Cancellazione gratuita fino a 48 ore prima del check-in. Oltre questa soglia si applicano le condizioni indicate nelle Condizioni di soggiorno, mostrate prima di confermare ogni prenotazione.', en: 'Free cancellation up to 48 hours before check-in. After that, the terms in the Stay Terms & Conditions apply, shown before you confirm any booking.' } }
   ];
 
   // Testi legali — vedi Fase B del piano: privacy policy molto più
@@ -77,18 +73,18 @@
       paragraphs: {
         it: [
           'Casa Celeste è una locazione turistica indipendente, non un\'attività alberghiera: check-in autonomo dalle 15:00, check-out entro le 10:00.',
-          'Il prezzo indicato al momento della prenotazione è comprensivo di utenze e wifi; si aggiungono le pulizie finali e la tassa di soggiorno comunale, mostrate entrambe prima di confermare.',
+          'Il prezzo indicato al momento della prenotazione è comprensivo di utenze, wifi e pulizie; si aggiunge solo la tassa di soggiorno comunale (2€ a notte a persona, con le esenzioni di legge per i più piccoli), mostrata prima di confermare.',
           'Ogni ospite che soggiorna deve fornire i propri dati anagrafici e una foto del documento d\'identità prima del check-in, tramite il link ricevuto dopo la richiesta di prenotazione, ED essere identificato di persona (videochiamata circa un\'ora prima del check-in con documento in mano, oppure — solo la prima volta — al videocitofono all\'arrivo): è un obbligo di legge italiano, non facoltativo. Dalle prenotazioni successive alla prima, se già verificato/a, non ripeterai la procedura.',
           'Regole della casa: divieto di animali, divieto di fumo negli spazi interni, rispetto della quiete dopo le 22, cura degli spazi comuni condivisi con altri ospiti.',
-          'La richiesta di prenotazione non è automaticamente confermata: riceverai conferma via WhatsApp/email dal proprietario. Le condizioni di cancellazione ti verranno comunicate in fase di conferma.',
+          'La richiesta di prenotazione non è automaticamente confermata: riceverai conferma via WhatsApp/email dal proprietario. Cancellazione gratuita fino a 48 ore prima del check-in; oltre questa soglia si applicano le condizioni comunicate in fase di conferma.',
           'Nota: questo testo è un modello — si consiglia di farlo revisionare da un consulente legale prima della pubblicazione definitiva.'
         ],
         en: [
           'Casa Celeste is an independent short-term rental, not a hotel business: self-service check-in from 3pm, check-out by 10am.',
-          'The price shown at booking time includes utilities and wifi; the final cleaning fee and municipal tourist tax are added, both shown before you confirm.',
+          'The price shown at booking time includes utilities, wifi and cleaning; the only addition is the municipal tourist tax (€2 per night per person, with statutory exemptions for younger guests), shown before you confirm.',
           'Every guest staying must provide their personal details and a photo of their ID document before check-in, via the link received after the booking request, AND be identified in person (a video call roughly one hour before check-in with the ID in hand, or — only the first time — via the entry video-intercom on arrival): this is an Italian legal obligation, not optional. From your second booking onward, if already verified, you will not repeat the process.',
           'House rules: no pets, no smoking indoors, respect quiet hours after 10pm, take care of shared spaces used by other guests.',
-          'A booking request is not automatically confirmed: you will receive confirmation via WhatsApp/email from the host. Cancellation terms will be communicated at confirmation.',
+          'A booking request is not automatically confirmed: you will receive confirmation via WhatsApp/email from the host. Free cancellation up to 48 hours before check-in; after that, terms communicated at confirmation apply.',
           'Note: this text is a template — we recommend having it reviewed by a legal advisor before final publication.'
         ]
       }
@@ -150,8 +146,8 @@
     calMonth: new Date().getMonth(),
     selectedCheckIn: null,
     selectedCheckOut: null,
-    guests: 1,
-    exemptGuests: 0,
+    guestsAdults: 1,
+    guestsChildAges: [],
     contactName: '',
     contactEmail: '',
     contactPhone: '',
@@ -167,7 +163,12 @@
     search: {
       checkIn: null,
       checkOut: null,
-      guests: 2,
+      calYear: new Date().getFullYear(),
+      calMonth: new Date().getMonth(),
+      calendarOpen: false,
+      guestsOpen: false,
+      adults: 2,
+      childAges: [],
       rooms: 1,
       roomsManual: false,
       performed: false,
@@ -245,24 +246,13 @@
       html += '<div class="hero-media-slide"><img src="' + srcFor(i) + '" alt="Facciata di Casa Celeste, vista ' + i + '" class="real-photo" loading="lazy" onerror="window.__ccHeroSlideError(this)"></div>';
     }
     container.innerHTML = html;
-    renderHeroFloatingCard();
+    updateHeroBookmarkBtn();
   }
-  function renderHeroFloatingCard() {
-    var el = document.getElementById('hero-floating-card');
-    if (!el) return;
-    var prices = Object.keys(state.roomsData).map(function (id) { return Number(state.roomsData[id].nightlyPrice) || 0; }).filter(Boolean);
-    var priceHtml = prices.length
-      ? '<div><div class="hero-floating-price-label">' + escapeHtml(t('room.from')) + '</div><div class="hero-floating-price">€' + Math.min.apply(null, prices) + '<span>' + escapeHtml(t('room.per_night')) + '</span></div></div>'
-      : '';
-    var reviewCount = Object.keys(state.reviewsData || {}).length;
-    var reviewsLabel = reviewCount === 0 ? t('hero.reviews_none') : (reviewCount === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: reviewCount }));
-    el.innerHTML = priceHtml +
-      '<div class="hero-floating-reviews"><svg width="15" height="15"><use href="#icon-star"></use></svg>' + escapeHtml(reviewsLabel) + '</div>';
+  function updateHeroBookmarkBtn() {
     var bookmarkBtn = document.getElementById('hero-bookmark-btn');
-    if (bookmarkBtn) {
-      bookmarkBtn.classList.toggle('is-active', !!state.favorites.__hero);
-      bookmarkBtn.setAttribute('aria-label', state.favorites.__hero ? t('hero.fav_saved') : t('hero.fav_save'));
-    }
+    if (!bookmarkBtn) return;
+    bookmarkBtn.classList.toggle('is-active', !!state.favorites.__hero);
+    bookmarkBtn.setAttribute('aria-label', state.favorites.__hero ? t('hero.fav_saved') : t('hero.fav_save'));
   }
   window.__ccThumbError = function (img) {
     var thumb = img.closest('.detail-media-thumb');
@@ -377,14 +367,10 @@
       el.classList.toggle('is-active', el.getAttribute('data-lang-set') === state.lang);
     });
 
-    var cleaningCta = document.getElementById('cleaning-cta');
-    if (cleaningCta) cleaningCta.href = waLink(t('cleaning.wa_text'));
     var finalWa = document.getElementById('finalcta-wa');
     if (finalWa) finalWa.href = waLink(t('finalcta.wa_text'));
     var footerWa = document.getElementById('footer-wa');
     if (footerWa) footerWa.href = waLink(t('finalcta.wa_text'));
-    var waFloat = document.getElementById('wa-float');
-    if (waFloat) { waFloat.href = waLink(t('finalcta.wa_text')); waFloat.setAttribute('aria-label', t('wa.aria_label')); }
     var footerWaPlain = document.getElementById('footer-wa-plain');
     if (footerWaPlain) footerWaPlain.href = 'https://wa.me/' + waNumber();
     var footerWaNumberText = document.getElementById('footer-wa-number');
@@ -646,7 +632,7 @@
         '<div class="search-results-bar">' +
           '<span>' + escapeHtml(tpl(t('search.results_summary'), {
             checkin: formatDateLabel(s.checkIn), checkout: formatDateLabel(s.checkOut),
-            n: nights, guests: guestsCountLabel(s.guests), rooms: roomsCountLabel(s.rooms)
+            n: nights, guests: guestsSummaryLabel(s.adults, s.childAges), rooms: roomsCountLabel(s.rooms)
           })) + '</span>' +
           '<button type="button" class="search-reset-link" data-search-reset>' + escapeHtml(t('search.reset')) + '</button>' +
         '</div>';
@@ -674,7 +660,7 @@
       (searched ? '' :
       '<div class="urgency-banner">' +
         '<div class="urgency-copy">' +
-          '<div class="urgency-icon">⏳</div>' +
+          '<div class="urgency-icon"><svg width="20" height="20"><use href="#icon-clock"></use></svg></div>' +
           '<div class="urgency-text">' + escapeHtml(t('urgency.rooms_text')) + '</div>' +
         '</div>' +
         '<a href="#ricerca" class="btn btn-urgency">' + escapeHtml(t('urgency.rooms_cta')) + '</a>' +
@@ -713,8 +699,8 @@
     state.bookingRoomLabel = room.name;
     state.selectedCheckIn = searched ? s.checkIn : null;
     state.selectedCheckOut = searched ? s.checkOut : null;
-    state.guests = searched ? Math.min(s.guests, room.maxGuests || 1) : 1;
-    state.exemptGuests = 0;
+    state.guestsAdults = searched ? s.adults : 1;
+    state.guestsChildAges = searched ? s.childAges.slice() : [];
     state.bookingError = '';
     var calBase = searched ? dateFromIso(s.checkIn) : new Date();
     state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
@@ -750,7 +736,8 @@
     url.searchParams.set('room', state.roomDetail.roomId);
     if (state.selectedCheckIn) url.searchParams.set('checkin', state.selectedCheckIn); else url.searchParams.delete('checkin');
     if (state.selectedCheckOut) url.searchParams.set('checkout', state.selectedCheckOut); else url.searchParams.delete('checkout');
-    url.searchParams.set('guests', state.guests);
+    url.searchParams.set('adults', state.guestsAdults);
+    url.searchParams.set('children', state.guestsChildAges.join(','));
     url.searchParams.set('rooms', state.search.rooms);
     var shareUrl = url.toString();
     if (navigator.share) { navigator.share({ title: 'Casa Celeste — ' + room.name, text: t('roomdetail.share_text'), url: shareUrl }).catch(function () {}); return; }
@@ -778,22 +765,22 @@
   }
   function roomDetailFeaturesHtml() {
     var items = [
-      ['🔑', t('roomdetail.feature_checkin_title'), t('roomdetail.feature_checkin_desc')],
-      ['🏠', t('roomdetail.feature_house_title'), t('roomdetail.feature_house_desc')],
-      ['✨', t('roomdetail.feature_cleaning_title'), t('roomdetail.feature_cleaning_desc')]
+      ['icon-key', t('roomdetail.feature_checkin_title'), t('roomdetail.feature_checkin_desc')],
+      ['icon-house', t('roomdetail.feature_house_title'), t('roomdetail.feature_house_desc')],
+      ['icon-sparkle', t('roomdetail.feature_cleaning_title'), t('roomdetail.feature_cleaning_desc')]
     ];
     return '<div class="rd-features">' + items.map(function (it) {
-      return '<div class="rd-feature"><div class="rd-feature-icon">' + it[0] + '</div><div><div class="rd-feature-title">' + escapeHtml(it[1]) + '</div><div class="rd-feature-desc">' + escapeHtml(it[2]) + '</div></div></div>';
+      return '<div class="rd-feature"><div class="rd-feature-icon"><svg width="20" height="20"><use href="#' + it[0] + '"></use></svg></div><div><div class="rd-feature-title">' + escapeHtml(it[1]) + '</div><div class="rd-feature-desc">' + escapeHtml(it[2]) + '</div></div></div>';
     }).join('') + '</div>';
   }
   function roomDetailAmenitiesHtml() {
     var items = [
-      ['🍳', t('amenities.kitchen')], ['🚿', t('amenities.bathroom')], ['📶', t('amenities.wifi')],
-      ['🛗', t('amenities.elevator')], ['🅿️', t('amenities.parking')], ['🚲', t('amenities.bikes')],
-      ['🧺', t('amenities.laundry')]
+      ['icon-kitchen', t('amenities.kitchen')], ['icon-shower', t('amenities.bathroom')], ['icon-wifi', t('amenities.wifi')],
+      ['icon-elevator', t('amenities.elevator')], ['icon-parking', t('amenities.parking')], ['icon-bike', t('amenities.bikes')],
+      ['icon-laundry', t('amenities.laundry')]
     ];
     return '<div class="rd-amenities-grid">' + items.map(function (it) {
-      return '<div class="rd-amenity"><span class="rd-amenity-icon">' + it[0] + '</span>' + escapeHtml(it[1]) + '</div>';
+      return '<div class="rd-amenity"><span class="rd-amenity-icon"><svg width="17" height="17"><use href="#' + it[0] + '"></use></svg></span>' + escapeHtml(it[1]) + '</div>';
     }).join('') + '</div>';
   }
   function roomDetailLocationHtml() {
@@ -801,12 +788,12 @@
       '<div class="location-grid rd-location-grid">' +
         '<div class="map-frame"><iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia&output=embed" loading="lazy"></iframe></div>' +
         '<div class="distance-list">' +
-          '<div class="distance-item"><span class="distance-label">' + escapeHtml(t('dist.centro')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min1')) + '</span></div>' +
-          '<div class="distance-item"><span class="distance-label">' + escapeHtml(t('dist.super')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min2')) + '</span></div>' +
-          '<div class="distance-item"><span class="distance-label">' + escapeHtml(t('dist.stazione')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min3')) + '</span></div>' +
-          '<div class="distance-item"><span class="distance-label">' + escapeHtml(t('dist.conservatorio')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min4')) + '</span></div>' +
+          '<div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.centro')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min1')) + '</span></div>' +
+          '<div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.super')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min2')) + '</span></div>' +
+          '<div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.stazione')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min3')) + '</span></div>' +
+          '<div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.conservatorio')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min4')) + '</span></div>' +
           '<div class="parking-callout">' +
-            '<span class="parking-callout-icon">🅿️🚲</span>' +
+            '<span class="parking-callout-icon"><svg width="20" height="20"><use href="#icon-parking"></use></svg></span>' +
             '<div><div class="parking-callout-title">' + escapeHtml(t('parking.title')) + '</div><div class="parking-callout-desc">' + escapeHtml(t('parking.desc')) + '</div></div>' +
           '</div>' +
         '</div>' +
@@ -818,12 +805,12 @@
     var checkoutTime = (state.settings && state.settings.checkOutTime) || '10:00';
     var guestsLabel = room.maxGuests === 1 ? t('room.max_guests_1') : tpl(t('room.max_guests'), { n: room.maxGuests });
     var items = [
-      ['📅', t('roomdetail.know_cancellation')],
-      ['🕒', tpl(t('booking.checkin_note'), { checkin: checkinTime, checkout: checkoutTime })],
-      ['📋', tpl(t('roomdetail.know_rules'), { n: guestsLabel })]
+      ['icon-shield-check', t('roomdetail.know_cancellation')],
+      ['icon-clock', tpl(t('booking.checkin_note'), { checkin: checkinTime, checkout: checkoutTime })],
+      ['icon-list', tpl(t('roomdetail.know_rules'), { n: guestsLabel })]
     ];
     return '<div class="rd-know-list">' + items.map(function (it) {
-      return '<div class="rd-know-item"><span class="rd-know-icon">' + it[0] + '</span><span>' + escapeHtml(it[1]) + '</span></div>';
+      return '<div class="rd-know-item"><span class="rd-know-icon"><svg width="18" height="18"><use href="#' + it[0] + '"></use></svg></span><span>' + escapeHtml(it[1]) + '</span></div>';
     }).join('') +
     '<button type="button" class="link-btn" data-open-legal="termini">' + escapeHtml(t('booking.contract_link')) + '</button>' +
     '</div>';
@@ -897,7 +884,7 @@
     var reviewsRowHtml =
       '<div class="rd-reviews-row">' +
         ratingHtml +
-        '<div class="rd-guest-favorite"><span class="rd-guest-favorite-icon">🏆</span>' + escapeHtml(t('roomdetail.guest_favorite')) + '</div>' +
+        '<div class="rd-guest-favorite"><span class="rd-guest-favorite-icon"><svg width="20" height="20"><use href="#icon-trophy"></use></svg></span>' + escapeHtml(t('roomdetail.guest_favorite')) + '</div>' +
         '<div class="rd-reviews-count">' + escapeHtml(reviewsLabel) + '</div>' +
       '</div>' +
       '<div class="rd-cancel-tag-row"><span class="rd-cancel-tag">' + escapeHtml(t('roomdetail.free_cancel_short')) + '</span></div>';
@@ -987,31 +974,72 @@
      ========================================================================== */
   var MAX_GUESTS_PER_ROOM = 3;
   var RECOMMENDED_GUESTS_PER_ROOM = 2;
+  var CHILD_ROOM_COUNT_MIN_AGE = 3;
+  var CHILD_TAX_MIN_AGE = 12;
+  var CHILD_DEFAULT_AGE = 8;
   function totalRoomsCount() { return orderedIds(state.roomsData).length || 1; }
   function maxHouseCapacity() { return totalRoomsCount() * MAX_GUESTS_PER_ROOM; }
+  function countedGuests(adults, childAges) {
+    return adults + childAges.filter(function (age) { return age >= CHILD_ROOM_COUNT_MIN_AGE; }).length;
+  }
+  function taxablePersons(adults, childAges) {
+    return adults + childAges.filter(function (age) { return age >= CHILD_TAX_MIN_AGE; }).length;
+  }
   function recommendedRoomsFor(guests) {
     return Math.min(totalRoomsCount(), Math.max(1, Math.ceil(guests / RECOMMENDED_GUESTS_PER_ROOM)));
   }
-  function guestsCountLabel(n) { return n === 1 ? t('search.guests_1') : tpl(t('search.guests_n'), { n: n }); }
+  function adultsCountLabel(n) { return n === 1 ? t('search.adults_1') : tpl(t('search.adults_n'), { n: n }); }
+  function childrenCountLabel(n) { return n === 1 ? t('search.children_1') : tpl(t('search.children_n'), { n: n }); }
+  function guestsSummaryLabel(adults, childAges) {
+    var parts = [adultsCountLabel(adults)];
+    if (childAges.length) parts.push(childrenCountLabel(childAges.length));
+    return parts.join(', ');
+  }
   function roomsCountLabel(n) { return n === 1 ? t('search.rooms_1') : tpl(t('search.rooms_n'), { n: n }); }
   function applyRoomsRecommendation() {
-    state.search.rooms = recommendedRoomsFor(state.search.guests);
+    state.search.rooms = recommendedRoomsFor(countedGuests(state.search.adults, state.search.childAges));
     state.search.roomsManual = false;
     state.search.warning = '';
   }
-  function searchGuestInc() {
-    if (state.search.guests >= maxHouseCapacity()) {
+  function maybeUpdateRoomsRecommendation() {
+    var rec = recommendedRoomsFor(countedGuests(state.search.adults, state.search.childAges));
+    if (!state.search.roomsManual || state.search.rooms < rec) applyRoomsRecommendation();
+  }
+  function searchAdultsInc() {
+    var counted = countedGuests(state.search.adults + 1, state.search.childAges);
+    if (counted > maxHouseCapacity()) {
       state.search.warning = tpl(t('search.capacity_exceeded'), { n: maxHouseCapacity() });
       renderSearch(); return;
     }
-    state.search.guests++;
-    if (!state.search.roomsManual || state.search.rooms < recommendedRoomsFor(state.search.guests)) applyRoomsRecommendation();
+    state.search.adults++;
+    maybeUpdateRoomsRecommendation();
     renderSearch();
   }
-  function searchGuestDec() {
-    if (state.search.guests <= 1) return;
-    state.search.guests--;
-    if (!state.search.roomsManual) applyRoomsRecommendation();
+  function searchAdultsDec() {
+    if (state.search.adults <= 1) return;
+    state.search.adults--;
+    maybeUpdateRoomsRecommendation();
+    renderSearch();
+  }
+  function searchChildrenInc() {
+    var counted = countedGuests(state.search.adults, state.search.childAges.concat([CHILD_DEFAULT_AGE]));
+    if (counted > maxHouseCapacity()) {
+      state.search.warning = tpl(t('search.capacity_exceeded'), { n: maxHouseCapacity() });
+      renderSearch(); return;
+    }
+    state.search.childAges.push(CHILD_DEFAULT_AGE);
+    maybeUpdateRoomsRecommendation();
+    renderSearch();
+  }
+  function searchChildrenDec() {
+    if (!state.search.childAges.length) return;
+    state.search.childAges.pop();
+    maybeUpdateRoomsRecommendation();
+    renderSearch();
+  }
+  function setSearchChildAge(index, age) {
+    state.search.childAges[index] = Math.max(0, Math.min(17, age));
+    maybeUpdateRoomsRecommendation();
     renderSearch();
   }
   function searchRoomsInc() {
@@ -1022,9 +1050,9 @@
     renderSearch();
   }
   function searchRoomsDec() {
-    var min = recommendedRoomsFor(state.search.guests);
+    var min = recommendedRoomsFor(countedGuests(state.search.adults, state.search.childAges));
     if (state.search.rooms <= min) {
-      state.search.warning = tpl(t('search.rooms_warning'), { guests: guestsCountLabel(state.search.guests), min: roomsCountLabel(min) });
+      state.search.warning = tpl(t('search.rooms_warning'), { guests: guestsSummaryLabel(state.search.adults, state.search.childAges), min: roomsCountLabel(min) });
       state.search.rooms = min;
       renderSearch();
       return;
@@ -1033,15 +1061,48 @@
     state.search.roomsManual = true;
     renderSearch();
   }
-  function onSearchDateChange(field, value) {
-    state.search.error = '';
-    if (field === 'checkin') state.search.checkIn = value || null;
-    else state.search.checkOut = value || null;
-    if (state.search.checkIn && state.search.checkOut && state.search.checkOut <= state.search.checkIn) {
-      state.search.error = t('search.invalid_dates');
+  function toggleSearchCalendar() {
+    state.search.calendarOpen = !state.search.calendarOpen;
+    state.search.guestsOpen = false;
+    if (state.search.calendarOpen) {
+      var base = state.search.checkIn ? dateFromIso(state.search.checkIn) : new Date();
+      state.search.calYear = base.getFullYear();
+      state.search.calMonth = base.getMonth();
     }
-    state.search.performed = false;
-    state.search.flexResults = null;
+    renderSearch();
+  }
+  function closeSearchCalendar() { if (state.search.calendarOpen) { state.search.calendarOpen = false; renderSearch(); } }
+  function toggleSearchGuestsPopover() {
+    state.search.guestsOpen = !state.search.guestsOpen;
+    state.search.calendarOpen = false;
+    renderSearch();
+  }
+  function closeSearchGuestsPopover() { if (state.search.guestsOpen) { state.search.guestsOpen = false; renderSearch(); } }
+  function searchCalMonthPrev() {
+    var m = state.search.calMonth - 1, y = state.search.calYear;
+    if (m < 0) { m = 11; y -= 1; }
+    state.search.calMonth = m; state.search.calYear = y;
+    renderSearch();
+  }
+  function searchCalMonthNext() {
+    var m = state.search.calMonth + 1, y = state.search.calYear;
+    if (m > 11) { m = 0; y += 1; }
+    state.search.calMonth = m; state.search.calYear = y;
+    renderSearch();
+  }
+  function pickSearchDate(iso) {
+    var s = state.search;
+    s.error = '';
+    if (!s.checkIn || (s.checkIn && s.checkOut)) {
+      s.checkIn = iso; s.checkOut = null;
+    } else if (iso <= s.checkIn) {
+      s.checkIn = iso; s.checkOut = null;
+    } else {
+      s.checkOut = iso;
+      s.calendarOpen = false;
+    }
+    s.performed = false;
+    s.flexResults = null;
     renderSearch();
     renderRooms();
   }
@@ -1059,6 +1120,8 @@
   }
   function submitSearch() {
     state.search.error = '';
+    state.search.calendarOpen = false;
+    state.search.guestsOpen = false;
     if (!state.search.checkIn || !state.search.checkOut) { state.search.error = t('search.missing_dates'); renderSearch(); return; }
     if (state.search.checkOut <= state.search.checkIn) { state.search.error = t('search.invalid_dates'); renderSearch(); return; }
     state.search.performed = true;
@@ -1147,14 +1210,97 @@
     var label = n === 0 ? t('hero.reviews_none') : (n === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: n }));
     return '<span class="room-list-meta-item room-list-reviews"><svg width="14" height="14"><use href="#icon-star"></use></svg>' + escapeHtml(label) + '</span>';
   }
+  function searchCalendarPopoverHtml() {
+    var s = state.search;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var firstOfMonth = new Date(s.calYear, s.calMonth, 1);
+    var startOffset = firstOfMonth.getDay() - 1; if (startOffset < 0) startOffset = 6;
+    var daysInMonth = new Date(s.calYear, s.calMonth + 1, 0).getDate();
+    var cells = '';
+    for (var i = 0; i < startOffset; i++) cells += '<div></div>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dateObj = new Date(s.calYear, s.calMonth, d);
+      var iso = isoDate(dateObj);
+      var disabled = dateObj < today;
+      var isStart = s.checkIn === iso;
+      var isEnd = s.checkOut === iso;
+      var inRange = s.checkIn && s.checkOut && iso > s.checkIn && iso < s.checkOut;
+      var isSingle = isStart && !s.checkOut;
+      var cls = 'cal-day';
+      if (disabled) cls += ' is-blocked';
+      if (inRange) cls += ' is-in-range';
+      if (isStart && s.checkOut) cls += ' is-in-range is-range-start';
+      if (isEnd) cls += ' is-in-range is-range-end';
+      if (isSingle) cls += ' is-range-single';
+      var bg = (isStart || isEnd) ? '#2C8FC9' : '';
+      var color = (isStart || isEnd) ? '#FFFFFF' : '';
+      cells += '<button type="button" class="' + cls + '" data-search-pick-date data-iso="' + iso + '"' + (disabled ? ' disabled' : '') +
+        (bg ? ' style="background:' + bg + '; color:' + color + ';"' : '') + '>' + d + '</button>';
+    }
+    var dayLabelsHtml = DAY_LABELS[state.lang].map(function (l) { return '<div class="cal-weekday">' + l + '</div>'; }).join('');
+    return (
+      '<div class="search-cal-popover">' +
+        '<div class="cal-header">' +
+          '<button type="button" class="cal-nav-btn" data-search-cal-prev aria-label="' + escapeHtml(t('booking.mese_prec')) + '">‹</button>' +
+          '<div class="cal-month-label">' + MONTHS[state.lang][s.calMonth] + ' ' + s.calYear + '</div>' +
+          '<button type="button" class="cal-nav-btn" data-search-cal-next aria-label="' + escapeHtml(t('booking.mese_succ')) + '">›</button>' +
+        '</div>' +
+        '<div class="cal-weekdays">' + dayLabelsHtml + '</div>' +
+        '<div class="cal-days">' + cells + '</div>' +
+        '<div class="range-hint">' + escapeHtml(t('search.dates_hint')) + '</div>' +
+      '</div>'
+    );
+  }
+  function searchGuestsPopoverHtml() {
+    var s = state.search;
+    var recommended = recommendedRoomsFor(countedGuests(s.adults, s.childAges));
+    var childRows = s.childAges.map(function (age, i) {
+      var options = '';
+      for (var a = 0; a <= 17; a++) {
+        options += '<option value="' + a + '"' + (age === a ? ' selected' : '') + '>' + escapeHtml(a === 0 ? t('search.child_age_0') : tpl(t('search.child_age_n'), { n: a })) + '</option>';
+      }
+      return '<div class="search-child-row">' +
+        '<span>' + escapeHtml(tpl(t('search.child_n_label'), { n: i + 1 })) + '</span>' +
+        '<select class="search-child-select" data-search-child-age data-index="' + i + '">' + options + '</select>' +
+      '</div>';
+    }).join('');
+    return (
+      '<div class="search-guests-popover">' +
+        '<div class="search-guests-row">' +
+          '<div><div class="search-guests-row-title">' + escapeHtml(t('search.adults')) + '</div><div class="search-guests-row-sub">' + escapeHtml(t('search.adults_sub')) + '</div></div>' +
+          '<div class="search-stepper">' +
+            '<button type="button" class="search-stepper-btn" data-search-adults-dec' + (s.adults <= 1 ? ' disabled' : '') + '>−</button>' +
+            '<span class="search-stepper-value">' + s.adults + '</span>' +
+            '<button type="button" class="search-stepper-btn" data-search-adults-inc>+</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="search-guests-row">' +
+          '<div><div class="search-guests-row-title">' + escapeHtml(t('search.children')) + '</div><div class="search-guests-row-sub">' + escapeHtml(t('search.children_sub')) + '</div></div>' +
+          '<div class="search-stepper">' +
+            '<button type="button" class="search-stepper-btn" data-search-children-dec' + (s.childAges.length <= 0 ? ' disabled' : '') + '>−</button>' +
+            '<span class="search-stepper-value">' + s.childAges.length + '</span>' +
+            '<button type="button" class="search-stepper-btn" data-search-children-inc>+</button>' +
+          '</div>' +
+        '</div>' +
+        (childRows ? '<div class="search-child-ages">' + childRows + '</div>' : '') +
+        '<div class="search-guests-divider"></div>' +
+        '<div class="search-guests-row">' +
+          '<div><div class="search-guests-row-title">' + escapeHtml(t('search.rooms')) + '</div><div class="search-guests-row-sub">' + escapeHtml(tpl(t('search.recommend_note_short'), { rooms: roomsCountLabel(recommended) })) + '</div></div>' +
+          '<div class="search-stepper">' +
+            '<button type="button" class="search-stepper-btn" data-search-rooms-dec' + (s.rooms <= recommended ? ' disabled' : '') + '>−</button>' +
+            '<span class="search-stepper-value">' + s.rooms + '</span>' +
+            '<button type="button" class="search-stepper-btn" data-search-rooms-inc' + (s.rooms >= totalRoomsCount() ? ' disabled' : '') + '>+</button>' +
+          '</div>' +
+        '</div>' +
+        (s.warning ? '<div class="search-note search-note--warning">' + escapeHtml(s.warning) + '</div>' : '') +
+        '<button type="button" class="btn btn-primary search-guests-done" data-search-guests-done>' + escapeHtml(t('search.done')) + '</button>' +
+      '</div>'
+    );
+  }
   function renderSearch() {
     var root = document.getElementById('search-root');
     if (!root) return;
     var s = state.search;
-    var today = isoDate(new Date());
-    var minCheckout = s.checkIn ? isoDate(new Date(dateFromIso(s.checkIn).getTime() + 86400000)) : today;
-    var recommended = recommendedRoomsFor(s.guests);
-    var maxRooms = totalRoomsCount();
 
     var flexTabsHtml =
       '<div class="flex-tabs">' +
@@ -1220,9 +1366,12 @@
         flexResultsHtml +
       '</div>';
 
-    var warningHtml = s.warning ? '<div class="search-note search-note--warning">' + escapeHtml(s.warning) + '</div>' : '';
     var errorHtml = s.error ? '<div class="search-note search-note--error">' + escapeHtml(s.error) + '</div>' : '';
-    var recommendHtml = '<div class="search-note">' + escapeHtml(tpl(t('search.recommend_note'), { rooms: roomsCountLabel(recommended), guests: guestsCountLabel(s.guests) })) + '</div>';
+
+    var dateFieldValue = (s.checkIn && s.checkOut)
+      ? formatDateLabel(s.checkIn) + ' → ' + formatDateLabel(s.checkOut)
+      : (s.checkIn ? formatDateLabel(s.checkIn) + ' → …' : t('search.dates_placeholder'));
+    var guestsFieldValue = guestsSummaryLabel(s.adults, s.childAges);
 
     root.innerHTML =
       '<div class="search-panel">' +
@@ -1230,38 +1379,28 @@
         '<h2 class="h2" style="margin:0 0 10px;">' + escapeHtml(t('search.title')) + '</h2>' +
         '<p class="search-lead">' + escapeHtml(t('search.text')) + '</p>' +
         '<div class="search-fields">' +
-          '<label class="search-field">' +
-            '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-calendar"></use></svg>' + escapeHtml(t('search.checkin')) + '</span>' +
-            '<input type="date" class="search-date-input" data-search-checkin min="' + today + '" value="' + (s.checkIn || '') + '">' +
-          '</label>' +
-          '<label class="search-field">' +
-            '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-calendar"></use></svg>' + escapeHtml(t('search.checkout')) + '</span>' +
-            '<input type="date" class="search-date-input" data-search-checkout min="' + minCheckout + '" value="' + (s.checkOut || '') + '">' +
-          '</label>' +
-          '<div class="search-field">' +
-            '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-user"></use></svg>' + escapeHtml(t('search.guests')) + '</span>' +
-            '<div class="search-stepper">' +
-              '<button type="button" class="search-stepper-btn" data-search-guest-dec' + (s.guests <= 1 ? ' disabled' : '') + '>−</button>' +
-              '<span class="search-stepper-value">' + escapeHtml(guestsCountLabel(s.guests)) + '</span>' +
-              '<button type="button" class="search-stepper-btn" data-search-guest-inc' + (s.guests >= maxHouseCapacity() ? ' disabled' : '') + '>+</button>' +
-            '</div>' +
+          '<div class="search-field search-field--popover">' +
+            '<button type="button" class="search-field-btn" data-search-toggle-calendar>' +
+              '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-calendar"></use></svg>' + escapeHtml(t('search.dates_label')) + '</span>' +
+              '<span class="search-field-value">' + escapeHtml(dateFieldValue) + '</span>' +
+            '</button>' +
+            (s.calendarOpen ? searchCalendarPopoverHtml() : '') +
           '</div>' +
-          '<div class="search-field">' +
-            '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-bed"></use></svg>' + escapeHtml(t('search.rooms')) + '</span>' +
-            '<div class="search-stepper">' +
-              '<button type="button" class="search-stepper-btn" data-search-rooms-dec' + (s.rooms <= recommended ? ' disabled' : '') + '>−</button>' +
-              '<span class="search-stepper-value">' + escapeHtml(roomsCountLabel(s.rooms)) + '</span>' +
-              '<button type="button" class="search-stepper-btn" data-search-rooms-inc' + (s.rooms >= maxRooms ? ' disabled' : '') + '>+</button>' +
-            '</div>' +
+          '<div class="search-field search-field--popover">' +
+            '<button type="button" class="search-field-btn" data-search-toggle-guests>' +
+              '<span class="search-field-label"><svg width="15" height="15"><use href="#icon-user"></use></svg>' + escapeHtml(t('search.guests')) + '</span>' +
+              '<span class="search-field-value">' + escapeHtml(guestsFieldValue) + '</span>' +
+            '</button>' +
+            (s.guestsOpen ? searchGuestsPopoverHtml() : '') +
           '</div>' +
           '<button type="button" class="btn btn-primary search-cta" data-search-submit>' +
             '<svg width="16" height="16"><use href="#icon-search"></use></svg>' + escapeHtml(t('search.cta')) +
           '</button>' +
         '</div>' +
-        recommendHtml + warningHtml + errorHtml +
+        errorHtml +
         '<button type="button" class="search-flex-toggle" data-flex-toggle>' +
           '<svg width="15" height="15"><use href="#icon-calendar"></use></svg>' + escapeHtml(t('search.flex_toggle')) +
-          '<span class="search-flex-toggle-chevron">' + (s.flexOpen ? '▲' : '▼') + '</span>' +
+          '<svg width="11" height="11" class="search-flex-toggle-chevron' + (s.flexOpen ? ' is-open' : '') + '"><use href="#icon-chevron-down"></use></svg>' +
         '</button>' +
         flexHtml +
       '</div>';
@@ -1442,22 +1581,45 @@
         : '')
     );
   }
+  function guestsChildAgesHtml(childAges, dataAttr) {
+    return childAges.map(function (age, i) {
+      var options = '';
+      for (var a = 0; a <= 17; a++) {
+        options += '<option value="' + a + '"' + (age === a ? ' selected' : '') + '>' + escapeHtml(a === 0 ? t('search.child_age_0') : tpl(t('search.child_age_n'), { n: a })) + '</option>';
+      }
+      return '<div class="search-child-row">' +
+        '<span>' + escapeHtml(tpl(t('search.child_n_label'), { n: i + 1 })) + '</span>' +
+        '<select class="search-child-select" ' + dataAttr + ' data-index="' + i + '">' + options + '</select>' +
+      '</div>';
+    }).join('');
+  }
   function guestsStepHtml() {
     var room = currentRoom();
     var max = (room && room.maxGuests) || 1;
+    var counted = countedGuests(state.guestsAdults, state.guestsChildAges);
+    var atCapacity = counted >= max;
     return (
       '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div></div>' +
       '<div class="slot-label">' + escapeHtml(t('booking.step_guests_title')) + '</div>' +
-      '<div class="guest-stepper">' +
-        '<button type="button" class="guest-stepper-btn" data-guest-dec' + (state.guests <= 1 ? ' disabled' : '') + '>−</button>' +
-        '<span class="guest-count">' + state.guests + '</span>' +
-        '<button type="button" class="guest-stepper-btn" data-guest-inc' + (state.guests >= max ? ' disabled' : '') + '>+</button>' +
+      '<div class="search-guests-row">' +
+        '<div class="search-guests-row-title">' + escapeHtml(t('search.adults')) + '</div>' +
+        '<div class="search-stepper">' +
+          '<button type="button" class="search-stepper-btn" data-guest-adults-dec' + (state.guestsAdults <= 1 ? ' disabled' : '') + '>−</button>' +
+          '<span class="search-stepper-value">' + state.guestsAdults + '</span>' +
+          '<button type="button" class="search-stepper-btn" data-guest-adults-inc' + (atCapacity ? ' disabled' : '') + '>+</button>' +
+        '</div>' +
       '</div>' +
+      '<div class="search-guests-row">' +
+        '<div class="search-guests-row-title">' + escapeHtml(t('search.children')) + '</div>' +
+        '<div class="search-stepper">' +
+          '<button type="button" class="search-stepper-btn" data-guest-children-dec' + (state.guestsChildAges.length <= 0 ? ' disabled' : '') + '>−</button>' +
+          '<span class="search-stepper-value">' + state.guestsChildAges.length + '</span>' +
+          '<button type="button" class="search-stepper-btn" data-guest-children-inc' + (atCapacity ? ' disabled' : '') + '>+</button>' +
+        '</div>' +
+      '</div>' +
+      guestsChildAgesHtml(state.guestsChildAges, 'data-guest-child-age') +
       '<div class="range-hint">' + escapeHtml(tpl(t('room.max_guests'), { n: max })) + '</div>' +
-      '<div class="guest-exempt-row">' +
-        '<label for="exempt-guests-input">' + escapeHtml(t('booking.exempt_guests_label')) + '</label>' +
-        '<input type="number" id="exempt-guests-input" min="0" max="' + state.guests + '" value="' + state.exemptGuests + '">' +
-      '</div>' +
+      (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-contact-step>' + escapeHtml(t('common.prenota_soggiorno')) + ' →</button>' +
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
@@ -1467,16 +1629,14 @@
     if (!room) return '';
     var nights = daysBetween(state.selectedCheckIn, state.selectedCheckOut);
     var roomTotal = nights * room.nightlyPrice;
-    var cleaningFee = Number(room.cleaningFee) || 0;
     var taxRate = Number(state.settings && state.settings.touristTaxRate) || 0;
-    var taxableGuests = Math.max(0, state.guests - state.exemptGuests);
-    var tax = Math.round(taxRate * taxableGuests * nights * 100) / 100;
-    var total = roomTotal + cleaningFee + tax;
+    var taxable = taxablePersons(state.guestsAdults, state.guestsChildAges);
+    var tax = Math.round(taxRate * taxable * nights * 100) / 100;
+    var total = roomTotal + tax;
     return (
       '<div class="price-summary">' +
         '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_dates')) + '</span><span>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</span></div>' +
         '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: nights, price: room.nightlyPrice })) + '</span><span>€' + roomTotal.toFixed(2) + '</span></div>' +
-        (cleaningFee ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_cleaning_fee')) + '</span><span>€' + cleaningFee.toFixed(2) + '</span></div>' : '') +
         (taxRate ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + tax.toFixed(2) + '</span></div>' : '') +
         '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.summary_total')) + '</span><span>€' + total.toFixed(2) + '</span></div>' +
       '</div>'
@@ -1484,7 +1644,7 @@
   }
   function contactStepHtml() {
     var nights = daysBetween(state.selectedCheckIn, state.selectedCheckOut);
-    var guestsLabel = state.guests === 1 ? t('room.max_guests_1') : tpl(t('booking.guests_count'), { n: state.guests });
+    var guestsLabel = guestsSummaryLabel(state.guestsAdults, state.guestsChildAges);
     return (
       '<div class="checkout-card">' +
         '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' +
@@ -1516,13 +1676,13 @@
       room: state.bookingRoomLabel || 'Casa Celeste',
       checkin: formatDateLabel(state.selectedCheckIn), checkout: formatDateLabel(state.selectedCheckOut),
       nights: res.nights || daysBetween(state.selectedCheckIn, state.selectedCheckOut),
-      guests: state.guests, name: state.contactName, email: state.contactEmail,
+      guests: guestsSummaryLabel(state.guestsAdults, state.guestsChildAges), name: state.contactName, email: state.contactEmail,
       phoneStr: state.contactPhone ? tpl(t('booking.wa_tel'), { phone: state.contactPhone }) : ''
     });
     var link = waLink(msg);
     return (
       '<div class="booking-success">' +
-        '<div class="success-icon">✓</div>' +
+        '<div class="success-icon"><svg width="26" height="26"><use href="#icon-check"></use></svg></div>' +
         '<h4 class="success-title">' + escapeHtml(t('booking.soggiorno_richiesto')) + '</h4>' +
         '<p class="success-text">' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + ' — ' + escapeHtml(t('booking.success_text')) + '</p>' +
         '<a href="' + link + '" target="_blank" rel="noopener" class="success-wa-link">' + escapeHtml(t('booking.conferma_wa')) + '</a>' +
@@ -1566,12 +1726,12 @@
     updateBodyScrollLock();
   }
   function bindGuestsStepInputs() {
-    var input = document.getElementById('exempt-guests-input');
-    if (!input) return;
-    input.addEventListener('change', function (e) {
-      var v = Math.max(0, Math.min(state.guests, Number(e.target.value) || 0));
-      state.exemptGuests = v;
-      e.target.value = v;
+    document.querySelectorAll('[data-guest-child-age]').forEach(function (sel) {
+      sel.addEventListener('change', function (e) {
+        var index = Number(e.target.getAttribute('data-index'));
+        state.guestsChildAges[index] = Math.max(0, Math.min(17, Number(e.target.value) || 0));
+        renderBookingModal();
+      });
     });
   }
   function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '').trim()); }
@@ -1616,8 +1776,8 @@
     var searched = state.search.checkIn && state.search.checkOut;
     state.selectedCheckIn = searched ? state.search.checkIn : null;
     state.selectedCheckOut = searched ? state.search.checkOut : null;
-    state.guests = searched && room ? Math.min(state.search.guests, room.maxGuests || 1) : 1;
-    state.exemptGuests = 0;
+    state.guestsAdults = searched && room ? state.search.adults : 1;
+    state.guestsChildAges = searched && room ? state.search.childAges.slice() : [];
     state.contactName = ''; state.contactEmail = ''; state.contactPhone = '';
     state.contractAccepted = false;
     state.bookingError = '';
@@ -1654,8 +1814,18 @@
   function goContactStep() { state.bookingStep = 3; renderBookingModal(); }
   function backToCalendar() { state.bookingStep = 1; renderBookingModal(); }
   function backToGuests() { state.bookingStep = 2; renderBookingModal(); }
-  function guestInc() { var room = currentRoom(); var max = (room && room.maxGuests) || 1; if (state.guests < max) state.guests++; renderBookingModal(); }
-  function guestDec() { if (state.guests > 1) { state.guests--; if (state.exemptGuests > state.guests) state.exemptGuests = state.guests; } renderBookingModal(); }
+  function guestAdultsInc() {
+    var room = currentRoom(); var max = (room && room.maxGuests) || 1;
+    if (countedGuests(state.guestsAdults, state.guestsChildAges) < max) state.guestsAdults++;
+    renderBookingModal();
+  }
+  function guestAdultsDec() { if (state.guestsAdults > 1) state.guestsAdults--; renderBookingModal(); }
+  function guestChildrenInc() {
+    var room = currentRoom(); var max = (room && room.maxGuests) || 1;
+    if (countedGuests(state.guestsAdults, state.guestsChildAges.concat([CHILD_DEFAULT_AGE])) <= max) state.guestsChildAges.push(CHILD_DEFAULT_AGE);
+    renderBookingModal();
+  }
+  function guestChildrenDec() { if (state.guestsChildAges.length) state.guestsChildAges.pop(); renderBookingModal(); }
 
   // Niente invio EmailJS diretto dal browser qui: per restare sotto la
   // quota gratuita da 200 email/mese (condivisa con lo studentato), tutte
@@ -1670,12 +1840,18 @@
     if (!window.CasaCelesteTourismDB) return;
     state.bookingBusy = true; state.bookingError = '';
     renderBookingModal();
+    // Il Cloud Function createBooking (functions/booking-logic.js) accetta solo
+    // guests/exemptGuests (conteggi semplici): il calcolo per fascia d'età
+    // (bambini 0-2 esclusi dal conteggio stanza, 3-11 esenti tassa) avviene qui
+    // lato client prima dell'invio, così il contratto della funzione non cambia.
+    var totalGuestsForServer = countedGuests(state.guestsAdults, state.guestsChildAges);
+    var exemptGuestsForServer = totalGuestsForServer - taxablePersons(state.guestsAdults, state.guestsChildAges);
     window.CasaCelesteTourismDB.createBooking({
       roomId: state.bookingRoomId,
       checkIn: state.selectedCheckIn,
       checkOut: state.selectedCheckOut,
-      guests: state.guests,
-      exemptGuests: state.exemptGuests,
+      guests: totalGuestsForServer,
+      exemptGuests: exemptGuestsForServer,
       name: state.contactName,
       email: state.contactEmail,
       phone: state.contactPhone,
@@ -1807,7 +1983,7 @@
       el = e.target.closest('[data-fav-toggle]');
       if (el) { toggleFavorite(el.getAttribute('data-room-id')); renderRooms(); return; }
       el = e.target.closest('#hero-bookmark-btn');
-      if (el) { toggleFavorite('__hero'); renderHeroFloatingCard(); return; }
+      if (el) { toggleFavorite('__hero'); updateHeroBookmarkBtn(); return; }
 
       el = e.target.closest('[data-open-booking]');
       if (el && !el.disabled) { openBooking(el.getAttribute('data-room-id'), el.getAttribute('data-room-label')); return; }
@@ -1820,14 +1996,30 @@
       el = e.target.closest('[data-go-home-common]');
       if (el) { goHomeCommon(); return; }
 
-      el = e.target.closest('[data-search-guest-inc]');
-      if (el && !el.disabled) { searchGuestInc(); return; }
-      el = e.target.closest('[data-search-guest-dec]');
-      if (el && !el.disabled) { searchGuestDec(); return; }
+      el = e.target.closest('[data-search-adults-inc]');
+      if (el && !el.disabled) { searchAdultsInc(); return; }
+      el = e.target.closest('[data-search-adults-dec]');
+      if (el && !el.disabled) { searchAdultsDec(); return; }
+      el = e.target.closest('[data-search-children-inc]');
+      if (el && !el.disabled) { searchChildrenInc(); return; }
+      el = e.target.closest('[data-search-children-dec]');
+      if (el && !el.disabled) { searchChildrenDec(); return; }
       el = e.target.closest('[data-search-rooms-inc]');
       if (el && !el.disabled) { searchRoomsInc(); return; }
       el = e.target.closest('[data-search-rooms-dec]');
       if (el && !el.disabled) { searchRoomsDec(); return; }
+      el = e.target.closest('[data-search-toggle-calendar]');
+      if (el) { toggleSearchCalendar(); return; }
+      el = e.target.closest('[data-search-toggle-guests]');
+      if (el) { toggleSearchGuestsPopover(); return; }
+      el = e.target.closest('[data-search-pick-date]');
+      if (el && !el.disabled) { pickSearchDate(el.getAttribute('data-iso')); return; }
+      el = e.target.closest('[data-search-cal-prev]');
+      if (el) { searchCalMonthPrev(); return; }
+      el = e.target.closest('[data-search-cal-next]');
+      if (el) { searchCalMonthNext(); return; }
+      el = e.target.closest('[data-search-guests-done]');
+      if (el) { closeSearchGuestsPopover(); return; }
       el = e.target.closest('[data-search-submit]');
       if (el) { submitSearch(); return; }
       el = e.target.closest('[data-search-reset]');
@@ -1867,10 +2059,14 @@
       if (el) { backToCalendar(); return; }
       el = e.target.closest('[data-back-to-guests]');
       if (el) { backToGuests(); return; }
-      el = e.target.closest('[data-guest-inc]');
-      if (el && !el.disabled) { guestInc(); return; }
-      el = e.target.closest('[data-guest-dec]');
-      if (el && !el.disabled) { guestDec(); return; }
+      el = e.target.closest('[data-guest-adults-inc]');
+      if (el && !el.disabled) { guestAdultsInc(); return; }
+      el = e.target.closest('[data-guest-adults-dec]');
+      if (el && !el.disabled) { guestAdultsDec(); return; }
+      el = e.target.closest('[data-guest-children-inc]');
+      if (el && !el.disabled) { guestChildrenInc(); return; }
+      el = e.target.closest('[data-guest-children-dec]');
+      if (el && !el.disabled) { guestChildrenDec(); return; }
       el = e.target.closest('[data-confirm-booking]');
       if (el && !el.disabled) { confirmBooking(); return; }
 
@@ -1916,13 +2112,19 @@
       if (el) { roomGalleryNav(el.getAttribute('data-rd-gallery-nav')); return; }
       el = e.target.closest('[data-rd-gallery-goto]');
       if (el) { roomDetailGalleryGoTo(Number(el.getAttribute('data-rd-gallery-goto'))); return; }
+
+      if (!e.target.closest('.search-field--popover')) {
+        if (state.search.calendarOpen || state.search.guestsOpen) {
+          state.search.calendarOpen = false;
+          state.search.guestsOpen = false;
+          renderSearch();
+        }
+      }
     });
 
     document.addEventListener('change', function (e) {
-      var el = e.target.closest('[data-search-checkin]');
-      if (el) { onSearchDateChange('checkin', el.value); return; }
-      el = e.target.closest('[data-search-checkout]');
-      if (el) { onSearchDateChange('checkout', el.value); return; }
+      var el = e.target.closest('[data-search-child-age]');
+      if (el) { setSearchChildAge(Number(el.getAttribute('data-index')), Number(el.value)); return; }
     });
 
     document.addEventListener('keydown', function (e) {
@@ -1932,6 +2134,8 @@
         if (state.bookingOpen) closeBooking();
         if (state.legalOpen) closeLegal();
         if (state.mediaZoomOpen) closeMediaZoom();
+        closeSearchCalendar();
+        closeSearchGuestsPopover();
         if (document.getElementById('mobile-drawer').classList.contains('is-open')) closeMobileDrawer();
       }
     });
@@ -1941,21 +2145,20 @@
      Init
      ========================================================================== */
   /* ==========================================================================
-     Sticky mobile booking bar — prezzo minimo + CTA sempre visibili mentre
-     si scorre su telefono (pattern Airbnb), nascosta su desktop via CSS.
+     Barra bassa "Contatta l'host" — sempre visibile mentre si scorre,
+     nascosta quando è aperta la pagina stanza (che ha la propria barra
+     sticky prezzo/Prenota) o un qualunque modale.
      ========================================================================== */
-  function renderStickyBar() {
-    var el = document.getElementById('sticky-book-bar');
+  function renderContactHostBar() {
+    var el = document.getElementById('contact-host-bar');
     if (!el) return;
-    var prices = Object.keys(state.roomsData).map(function (id) { return Number(state.roomsData[id].nightlyPrice) || 0; }).filter(Boolean);
-    if (!prices.length) { el.innerHTML = ''; return; }
-    var minPrice = Math.min.apply(null, prices);
     el.innerHTML =
-      '<span class="sticky-book-bar-price">' + escapeHtml(t('room.from')) + ' <strong>€' + minPrice + '</strong>' + escapeHtml(t('room.per_night')) + '</span>' +
-      '<a href="#stanze" class="btn btn-primary">' + escapeHtml(t('urgency.rooms_cta')) + '</a>';
+      '<a href="' + escapeHtml(waLink(t('finalcta.wa_text'))) + '" target="_blank" rel="noopener" class="btn btn-whatsapp contact-host-btn">' +
+        '<svg width="18" height="18"><use href="#icon-chat"></use></svg>' + escapeHtml(t('contact.host_cta')) +
+      '</a>';
   }
   function updateStickyBarVisibility() {
-    var el = document.getElementById('sticky-book-bar');
+    var el = document.getElementById('contact-host-bar');
     if (!el) return;
     var heroEl = document.getElementById('top');
     var pastHero = heroEl ? window.scrollY > heroEl.offsetHeight * 0.6 : window.scrollY > 200;
@@ -1971,10 +2174,13 @@
     var params;
     try { params = new URLSearchParams(window.location.search); } catch (e) { return; }
     var ci = params.get('checkin'), co = params.get('checkout');
-    var guests = params.get('guests'), rooms = params.get('rooms');
+    var adults = params.get('adults'), children = params.get('children'), rooms = params.get('rooms');
     if (ci) state.search.checkIn = ci;
     if (co) state.search.checkOut = co;
-    if (guests) state.search.guests = Math.max(1, Number(guests) || 1);
+    if (adults) state.search.adults = Math.max(1, Number(adults) || 1);
+    if (children) {
+      state.search.childAges = children.split(',').map(function (a) { return Math.max(0, Math.min(17, Number(a) || 0)); });
+    }
     if (rooms) { state.search.rooms = Math.max(1, Number(rooms) || 1); state.search.roomsManual = true; }
     if (ci && co) state.search.performed = true;
     var roomId = params.get('room');
@@ -2002,7 +2208,7 @@
     renderBookingModal();
     renderLegalModal();
     renderCookieBanner();
-    renderStickyBar();
+    renderContactHostBar();
     bindGlobalEvents();
     bindCarouselSwipe();
     bindMobileDrawer();
@@ -2019,8 +2225,7 @@
         renderRooms();
         renderSearch();
         renderRoomDetail();
-        renderStickyBar();
-        renderHeroFloatingCard();
+        renderContactHostBar();
       });
       window.CasaCelesteTourismDB.subscribeCommons(function (commonsFromDb) {
         state.commonsData = commonsFromDb;
@@ -2031,7 +2236,7 @@
         state.monoSlidesData = slidesFromDb; state.monoIndex = 0; renderMono();
       });
       window.CasaCelesteTourismDB.subscribeReviews(function (reviewsFromDb) {
-        state.reviewsData = reviewsFromDb; renderTestimonials(); renderHeroFloatingCard();
+        state.reviewsData = reviewsFromDb; renderTestimonials();
       });
       window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) {
         state.settings = settingsFromDb || {};

@@ -28,11 +28,9 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"A che ora è il check-in e il check-out?","acceptedAnswer":{"@type":"Answer","text":"Check-in dalle 15:00, check-out entro le 10:00. Il check-in è autonomo, ti mandiamo tutte le indicazioni su WhatsApp prima del tuo arrivo."}},
-{"@type":"Question","name":"Il bagno è privato o condiviso?","acceptedAnswer":{"@type":"Answer","text":"Il bagno è condiviso tra gli ospiti della casa presenti nello stesso periodo, non è in-suite nella stanza. Viene pulito professionalmente a ogni cambio ospite."}},
-{"@type":"Question","name":"Cosa è incluso nel prezzo?","acceptedAnswer":{"@type":"Answer","text":"Il prezzo mostrato è tutto incluso (utenze, wifi). Alla prenotazione si aggiungono solo le pulizie finali e la tassa di soggiorno comunale, entrambe mostrate chiaramente prima di confermare."}},
-{"@type":"Question","name":"Offrite colazione o altri servizi?","acceptedAnswer":{"@type":"Answer","text":"No: Casa Celeste è una locazione turistica indipendente, non un hotel o un B&B con servizi. Niente colazione, niente navetta, niente pulizie durante il soggiorno."}},
-{"@type":"Question","name":"Serve un documento per prenotare?","acceptedAnswer":{"@type":"Answer","text":"Sì: per legge italiana dobbiamo identificare ogni ospite, raccogliendo i dati del documento e verificando di persona che corrispondano a chi soggiorna, tramite una breve videochiamata un'ora prima del check-in (o, solo la prima volta, dal vivo al videocitofono). Dalle prenotazioni successive alla prima la verifica non si ripete."}},
-{"@type":"Question","name":"Posso cancellare la prenotazione?","acceptedAnswer":{"@type":"Answer","text":"Le condizioni di cancellazione sono indicate nelle Condizioni di soggiorno, mostrate prima di confermare ogni prenotazione."}}
+{"@type":"Question","name":"Cosa è incluso nel prezzo?","acceptedAnswer":{"@type":"Answer","text":"Il prezzo mostrato è tutto incluso (utenze, wifi, pulizie). L'unico costo che si aggiunge è la tassa di soggiorno comunale (2€ a notte a persona, con esenzioni per i più piccoli), mostrata chiaramente prima di confermare."}},
+{"@type":"Question","name":"Serve un documento per prenotare?","acceptedAnswer":{"@type":"Answer","text":"Sì, ma è più semplice di quanto sembri: prima del check-in ti mandiamo un link sicuro dove inserire i tuoi dati, poi basta una breve videochiamata di un minuto (o, solo la primissima volta, due parole al videocitofono all'arrivo). Dalla seconda prenotazione in poi, se sei già stato nostro ospite, salti anche questo passaggio."}},
+{"@type":"Question","name":"Posso cancellare la prenotazione?","acceptedAnswer":{"@type":"Answer","text":"Cancellazione gratuita fino a 48 ore prima del check-in. Oltre questa soglia si applicano le condizioni indicate nelle Condizioni di soggiorno."}}
 ]}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -111,6 +109,89 @@
   <symbol id="icon-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
     <path d="M15 5 8 12l7 7"/>
   </symbol>
+  <symbol id="icon-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5.5 8.5 12 15l6.5-6.5"/>
+  </symbol>
+  <symbol id="icon-suitcase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="7.5" width="18" height="12.5" rx="2.5"/>
+    <path d="M9 7.5V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v2"/>
+    <path d="M3 13h18"/>
+  </symbol>
+  <symbol id="icon-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="8" cy="15.5" r="4"/>
+    <path d="M11 12.5 20 3.5M17 6.5l2.5 2.5M14.3 9.2l2 2"/>
+  </symbol>
+  <symbol id="icon-house" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 11.5 12 4l8 7.5"/>
+    <path d="M6 10v9.5h12V10"/>
+    <path d="M10 19.5v-6h4v6"/>
+  </symbol>
+  <symbol id="icon-sparkle" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <path d="M12 2c.6 4.4 2.6 6.4 7 7-4.4.6-6.4 2.6-7 7-.6-4.4-2.6-6.4-7-7 4.4-.6 6.4-2.6 7-7Z"/>
+    <path d="M19.5 15.5c.3 1.8 1.1 2.6 2.9 2.9-1.8.3-2.6 1.1-2.9 2.9-.3-1.8-1.1-2.6-2.9-2.9 1.8-.3 2.6-1.1 2.9-2.9Z"/>
+  </symbol>
+  <symbol id="icon-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"/>
+    <path d="M7 5.5H4a3 3 0 0 0 3 4.5M17 5.5h3a3 3 0 0 1-3 4.5"/>
+    <path d="M12 14v3M9 20.5h6M8.5 20.5v-2a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v2"/>
+  </symbol>
+  <symbol id="icon-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 12a8 6.5 0 1 1 3.2 5.2L4 18.5l1.3-3A6.4 6.4 0 0 1 4 12Z"/>
+  </symbol>
+  <symbol id="icon-kitchen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 10.5h15v7a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-7Z"/>
+    <path d="M4.5 10.5a7.5 5 0 0 1 15 0"/>
+    <path d="M12 3.5v3"/>
+  </symbol>
+  <symbol id="icon-shower" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 8.5a6 6 0 0 1 11.3-2.8"/>
+    <circle cx="17" cy="7" r="2.2"/>
+    <path d="M4.5 12h15"/>
+    <path d="M8 15.5v1.2M12 15.5v2.2M16 15.5v1.2M10 19v.8M14 19v.8"/>
+  </symbol>
+  <symbol id="icon-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 9a12.5 12.5 0 0 1 17 0"/>
+    <path d="M6.7 12.6a8 8 0 0 1 10.6 0"/>
+    <path d="M10 16.2a3.2 3.2 0 0 1 4 0"/>
+    <circle cx="12" cy="19.3" r="0.9" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="icon-elevator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4.5" y="3.5" width="15" height="17" rx="2"/>
+    <path d="M10.5 10 12.5 7.5 14.5 10M10.5 14 12.5 16.5 14.5 14"/>
+  </symbol>
+  <symbol id="icon-parking" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="3.5" width="16" height="17" rx="3"/>
+    <path d="M9.5 16V7.5h3.2a2.7 2.7 0 0 1 0 5.4H9.5"/>
+  </symbol>
+  <symbol id="icon-bike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="6" cy="17" r="3.3"/>
+    <circle cx="18" cy="17" r="3.3"/>
+    <path d="M6 17 10 8h4l4 9M10 8l2.5 5H16M9 17h5"/>
+  </symbol>
+  <symbol id="icon-laundry" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="3.5" width="16" height="17" rx="2.5"/>
+    <circle cx="12" cy="13" r="4.6"/>
+    <circle cx="12" cy="13" r="2.2"/>
+    <circle cx="7" cy="6.5" r="0.8" fill="currentColor" stroke="none"/>
+    <circle cx="10" cy="6.5" r="0.8" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12.5" r="8.5"/>
+    <path d="M12 7.5V12.5l4 2.2"/>
+  </symbol>
+  <symbol id="icon-shield-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3.5 19 6.5v5.5c0 4.6-3 7.4-7 8.5-4-1.1-7-3.9-7-8.5V6.5L12 3.5Z"/>
+    <path d="M9 12.3 11.2 14.5 15.5 10"/>
+  </symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 12.5 10 17.5 19 7"/>
+  </symbol>
+  <symbol id="icon-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 6.5h11M9 12h11M9 17.5h11"/>
+    <circle cx="4.5" cy="6.5" r="1.1" fill="currentColor" stroke="none"/>
+    <circle cx="4.5" cy="12" r="1.1" fill="currentColor" stroke="none"/>
+    <circle cx="4.5" cy="17.5" r="1.1" fill="currentColor" stroke="none"/>
+  </symbol>
 </svg>
 <div class="page">
 
@@ -175,58 +256,43 @@
     <div class="hero-blob-2" aria-hidden="true"></div>
     <div class="hero-grid">
       <div>
-        <div class="badge" data-i18n="hero.badge">🧳 Casa vacanze indipendente · Monopoli</div>
+        <div class="badge"><svg width="15" height="15"><use href="#icon-suitcase"></use></svg><span data-i18n="hero.badge">Casa vacanze indipendente · Monopoli</span></div>
         <h1 class="hero-title" data-i18n-html="hero.title_html">
           Monopoli, vissuta<br>come <span class="hero-title-highlight">casa tua<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.
         </h1>
         <p class="hero-lead" data-i18n-html="hero.lead_html">
-          Un appartamento vero nel cuore di Monopoli, non una stanza d'hotel anonima: stanze curate, un balcone su cui fermarsi la sera, e il centro storico a due passi.<br>Nessun servizio superfluo, solo l'essenziale fatto bene.
+          Che tu sia in viaggio da solo, in coppia o con un amico, qui trovi una casa vera a pochi passi dal centro di Monopoli: stanze curate, un balcone su cui goderti le serate, e spazi comuni per socializzare, scambiare consigli di viaggio e cucinare insieme.<br>Senza mai perdere la privacy della tua stanza.
         </p>
-        <div class="hero-address" data-i18n-html="hero.address">📍 Via Giuseppe Can. del Drago 9 &nbsp;–&nbsp; Monopoli (BA)</div>
-        <div class="hero-ctas">
-          <button type="button" class="btn btn-primary" data-open-booking data-room-id="" data-room-label="Casa Celeste" data-i18n="common.prenota_soggiorno">Prenota il soggiorno</button>
-          <a href="#ricerca" class="btn btn-outline" data-i18n="hero.cta_rooms">Vedi le stanze →</a>
-        </div>
       </div>
       <div class="hero-media">
         <div class="hero-media-frame">
           <div class="hero-media-scroll" id="hero-media-scroll"></div>
-          <div class="hero-media-scrim" aria-hidden="true"></div>
         </div>
         <button type="button" class="hero-bookmark-btn" id="hero-bookmark-btn" aria-label="Salva tra i preferiti">
           <svg width="19" height="19"><use href="#icon-heart"></use></svg>
         </button>
-        <div class="hero-floating-card" id="hero-floating-card"></div>
       </div>
+    </div>
+    <div class="hero-search-wrap" id="ricerca">
+      <div class="container" id="search-root"><!-- rendered by js/app.js --></div>
     </div>
   </section>
 
   <!-- TRUST STRIP -->
   <section class="section section--tight">
     <div class="trust-strip">
-      <div class="trust-item"><span class="check">✓</span> <span data-i18n="trust.1">Check-in autonomo via WhatsApp</span></div>
-      <div class="trust-item"><span class="check">✓</span> <span data-i18n="trust.2">Nessuna spesa nascosta</span></div>
-      <div class="trust-item"><span class="check">✓</span> <span data-i18n="trust.3">Risposta su WhatsApp in giornata</span></div>
+      <div class="trust-item"><svg width="18" height="18"><use href="#icon-key"></use></svg> <span data-i18n="trust.1">Self check-in</span></div>
+      <div class="trust-item"><svg width="18" height="18"><use href="#icon-chat"></use></svg> <span data-i18n="trust.2">Ottima comunicazione con l'host</span></div>
+      <div class="trust-item"><svg width="18" height="18"><use href="#icon-sparkle"></use></svg> <span data-i18n="trust.3">Pulito impeccabile</span></div>
     </div>
   </section>
 
-  <!-- BENVENUTO — scritta di benvenuto + framing "spazi condivisi come
-       punto di forza" e "prezzi competitivi", fin da subito come richiesto -->
+  <!-- BENVENUTO -->
   <section class="section section--tight">
     <div class="container container--narrow welcome">
       <div class="eyebrow eyebrow--blue" data-i18n="welcome.eyebrow">Benvenuto/a</div>
       <h2 class="h2" data-i18n="welcome.title">Casa Celeste ti dà il benvenuto.</h2>
-      <p data-i18n-html="welcome.text_html">Che tu sia in viaggio da solo, in coppia o con un amico, qui trovi una casa vera nel cuore di Monopoli.</p>
-      <div class="welcome-value-row">
-        <div class="welcome-value-chip">
-          <span class="welcome-value-icon">🤝</span>
-          <span data-i18n="welcome.value_shared">Spazi condivisi, il nostro punto di forza: qui si socializza davvero.</span>
-        </div>
-        <div class="welcome-value-chip welcome-value-chip--yellow">
-          <span class="welcome-value-icon">💶</span>
-          <span data-i18n="welcome.value_price">Tra i prezzi più bassi di Monopoli, senza rinunciare al comfort.</span>
-        </div>
-      </div>
+      <p data-i18n-html="welcome.text_html">Qui troverai un luogo accogliente, giovanile e sereno.</p>
     </div>
     <div class="container container--narrow">
       <div class="nav-social nav-social--welcome js-social-slot" id="social-links-slot-welcome"></div>
@@ -250,12 +316,6 @@
     </div>
   </section>
 
-  <!-- BARRA DI RICERCA — check-in/check-out, ospiti, stanze (con
-       raccomandazione automatica), date flessibili -->
-  <section id="ricerca" class="section section--tight">
-    <div class="container" id="search-root"><!-- rendered by js/app.js --></div>
-  </section>
-
   <!-- SPAZI COMUNI — vantaggi/community, "premium" ma con modestia,
        prima delle stanze come richiesto -->
   <section id="spazi-comuni-anchor" class="section">
@@ -266,54 +326,6 @@
        notti, ordinate disponibili-prima -->
   <section id="stanze" class="section">
     <div class="container" id="rooms-section"><!-- rendered by js/app.js --></div>
-  </section>
-
-  <!-- MOOD & VIBES + NESSUN SERVIZIO EXTRA (cosa aspettarsi/cosa non offriamo,
-       stile "Things to know" di Airbnb) -->
-  <section class="section">
-    <div class="mood-panel">
-      <div class="mood-blob-1" aria-hidden="true"></div>
-      <div class="mood-blob-2" aria-hidden="true"></div>
-      <div class="mood-intro">
-        <div class="eyebrow eyebrow--blue" data-i18n="mood.eyebrow">Il mood di casa</div>
-        <h2 class="h2" data-i18n="mood.title">Una casa vera, non una stanza anonima</h2>
-        <p data-i18n-html="mood.text_html">Casa Celeste è una locazione turistica indipendente.</p>
-      </div>
-
-      <div class="rules-grid">
-        <div class="rule-card">
-          <div class="rule-icon">🚫</div>
-          <div class="rule-title" data-i18n="rule1.title">No animali</div>
-          <div class="rule-desc" data-i18n="rule1.desc">Per il rispetto di tutti gli ospiti della casa.</div>
-        </div>
-        <div class="rule-card">
-          <div class="rule-icon">🚭</div>
-          <div class="rule-title" data-i18n="rule2.title">Non si fuma in casa</div>
-          <div class="rule-desc" data-i18n="rule2.desc">Aria pulita per tutti, sempre.</div>
-        </div>
-        <div class="rule-card">
-          <div class="rule-icon">🔇</div>
-          <div class="rule-title" data-i18n="rule3.title">No feste o rumori dopo le 22</div>
-          <div class="rule-desc" data-i18n="rule3.desc">Rispetto per gli altri ospiti e per i vicini.</div>
-        </div>
-      </div>
-
-      <div class="noservices-panel">
-        <strong data-i18n="noservices.title">Cosa NON offriamo (per essere onesti fin da subito)</strong>
-        <span data-i18n="noservices.text">Casa Celeste è una locazione turistica indipendente, non un hotel o un B&amp;B con servizi: niente colazione, niente navetta, niente reception 24h, niente pulizie durante il soggiorno.</span>
-      </div>
-
-      <div class="cleaning-row">
-        <div class="cleaning-copy">
-          <div class="cleaning-icon">🧼</div>
-          <div>
-            <div class="cleaning-title" data-i18n="cleaning.title">Pulizie tra un ospite e l'altro</div>
-            <div class="cleaning-desc" data-i18n-html="cleaning.desc_html">La stanza viene pulita a fondo tra un soggiorno e l'altro, non durante il tuo soggiorno.</div>
-          </div>
-        </div>
-        <a href="https://wa.me/393381567389?text=Ciao!%20Avrei%20bisogno%20di%20lenzuola%2Fasciugamani%20puliti%20durante%20il%20mio%20soggiorno." target="_blank" rel="noopener" class="btn btn-navy" id="cleaning-cta" data-i18n="cleaning.cta">Scrivici</a>
-      </div>
-    </div>
   </section>
 
   <!-- POSIZIONE -->
@@ -329,12 +341,12 @@
           <iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia&output=embed" loading="lazy"></iframe>
         </div>
         <div class="distance-list">
-          <div class="distance-item"><span class="distance-label" data-i18n="dist.centro">🏛️ Centro città</span><span class="distance-value" data-i18n="dist.min1">8 min a piedi</span></div>
-          <div class="distance-item"><span class="distance-label" data-i18n="dist.super">🛒 Supermercato</span><span class="distance-value" data-i18n="dist.min2">5 min a piedi</span></div>
-          <div class="distance-item"><span class="distance-label" data-i18n="dist.stazione">🚂 Stazione</span><span class="distance-value" data-i18n="dist.min3">3 min a piedi</span></div>
-          <div class="distance-item"><span class="distance-label" data-i18n="dist.conservatorio">🎵 Porto e lungomare</span><span class="distance-value" data-i18n="dist.min4">10 min a piedi</span></div>
+          <div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.centro">Centro città</span></span><span class="distance-value" data-i18n="dist.min1">8 min a piedi</span></div>
+          <div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.super">Supermercato</span></span><span class="distance-value" data-i18n="dist.min2">5 min a piedi</span></div>
+          <div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.stazione">Stazione</span></span><span class="distance-value" data-i18n="dist.min3">3 min a piedi</span></div>
+          <div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.conservatorio">Porto e lungomare</span></span><span class="distance-value" data-i18n="dist.min4">10 min a piedi</span></div>
           <div class="parking-callout">
-            <span class="parking-callout-icon">🅿️🚲</span>
+            <span class="parking-callout-icon"><svg width="20" height="20"><use href="#icon-parking"></use></svg></span>
             <div>
               <div class="parking-callout-title" data-i18n="parking.title">Parcheggio gratuito sotto casa</div>
               <div class="parking-callout-desc" data-i18n="parking.desc">Con servizio di noleggio biciclette.</div>
@@ -448,11 +460,6 @@
     </div>
   </footer>
 
-  <!-- WHATSAPP FLOATING BUTTON -->
-  <a href="https://wa.me/393381567389?text=Ciao!%20Vorrei%20avere%20informazioni%20su%20Casa%20Celeste." target="_blank" rel="noopener" class="wa-float" id="wa-float" aria-label="Scrivici su WhatsApp">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.04 3.67C14.25 3.67 16.32 4.53 17.89 6.09C19.45 7.66 20.31 9.73 20.3 11.92C20.3 16.46 16.58 20.17 12.03 20.17C10.56 20.17 9.12 19.78 7.85 19.05L7.55 18.87L4.42 19.7L5.26 16.65L5.06 16.32C4.26 15.01 3.84 13.5 3.84 11.91C3.85 7.37 7.5 3.67 12.04 3.67M8.53 6.83C8.37 6.83 8.1 6.89 7.88 7.13C7.65 7.37 7 7.98 7 9.21C7 10.44 7.89 11.62 8 11.79C8.14 11.96 9.76 14.5 12.29 15.61C14.38 16.53 14.81 16.37 15.26 16.33C15.71 16.29 16.72 15.72 16.94 15.14C17.14 14.55 17.14 14.05 17.08 13.94C17 13.83 16.85 13.77 16.61 13.66C16.38 13.54 15.24 12.97 15.03 12.9C14.81 12.82 14.65 12.78 14.5 13.01C14.34 13.24 13.89 13.77 13.75 13.94C13.61 14.1 13.47 14.12 13.24 14C13 13.88 12.26 13.64 11.38 12.86C10.69 12.25 10.23 11.49 10.09 11.26C9.96 11.03 10.08 10.9 10.19 10.79C10.3 10.68 10.44 10.5 10.56 10.37C10.68 10.24 10.72 10.14 10.8 9.98C10.88 9.82 10.84 9.68 10.78 9.56C10.72 9.45 10.28 8.27 10.08 7.79C9.9 7.35 9.72 7.35 9.55 7.34L8.53 6.83Z"></path></svg>
-  </a>
-
   <!-- ROOM DETAIL (finestra a tutto schermo) -->
   <div id="room-detail-root"></div>
 
@@ -468,9 +475,9 @@
   <!-- COOKIE BANNER -->
   <div id="cookie-banner-root"></div>
 
-  <!-- STICKY MOBILE BOOKING BAR (stile Airbnb: prezzo + CTA sempre a
-       portata di pollice mentre si scorre la pagina su telefono) -->
-  <div class="sticky-book-bar" id="sticky-book-bar"></div>
+  <!-- BARRA BASSA "CONTATTA L'HOST" — nascosta quando è visibile la
+       barra sticky prezzo/prenota della pagina stanza -->
+  <div class="contact-host-bar" id="contact-host-bar"></div>
 
 </div>
 <script src="js/data.js?v=1"></script>
