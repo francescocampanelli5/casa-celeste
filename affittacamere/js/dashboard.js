@@ -774,6 +774,7 @@
         '<div class="admin-field-group"><label>Check-in dalle</label><input type="text" class="admin-field" id="settings-checkin" value="' + escapeHtml(s.checkInTime || '15:00') + '"></div>' +
         '<div class="admin-field-group"><label>Check-out entro</label><input type="text" class="admin-field" id="settings-checkout" value="' + escapeHtml(s.checkOutTime || '10:00') + '"></div>' +
         '<div class="admin-field-group"><label>Tassa di soggiorno (€/notte/persona)</label><input type="number" step="0.5" class="admin-field" id="settings-tax-rate" value="' + (s.touristTaxRate != null ? s.touristTaxRate : 0) + '"></div>' +
+        '<div class="admin-field-group"><label>Valutazione media (facoltativo, es. da Airbnb/Booking) — lascia vuoto finché non hai un voto reale</label><input type="number" step="0.1" min="0" max="5" class="admin-field" id="settings-avg-rating" value="' + (s.avgRating != null ? s.avgRating : '') + '"></div>' +
       '</div>' +
       '<div class="admin-room-card">' +
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Conservazione dati documento ospiti</span></div>' +
@@ -832,6 +833,10 @@
     document.getElementById('settings-checkin').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkInTime: e.target.value }); });
     document.getElementById('settings-checkout').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutTime: e.target.value }); });
     document.getElementById('settings-tax-rate').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ touristTaxRate: Number(e.target.value) || 0 }); });
+    document.getElementById('settings-avg-rating').addEventListener('change', function (e) {
+      var v = e.target.value === '' ? null : Math.max(0, Math.min(5, Number(e.target.value)));
+      window.CasaCelesteTourismDB.setSettings({ avgRating: (v == null || isNaN(v)) ? null : v });
+    });
     document.getElementById('settings-retention-hours').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ guestDocsRetentionHours: Number(e.target.value) || 48 }); });
     document.getElementById('settings-email-budget').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaMonthlyBudget: Number(e.target.value) || 150 }); });
     document.getElementById('settings-email-reserved').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaReservedForStudentato: Number(e.target.value) || 0 }); });
