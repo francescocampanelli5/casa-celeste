@@ -1,0 +1,11 @@
+{
+  "name": "casa-celeste-functions",
+  "private": true,
+  "description": "Cloud Functions per Casa Celeste — Affittacamere (createBooking transazionale, submitGuestDocuments validata). Nessun costo fisso: free tier 2M invocazioni/mese, ampiamente sufficiente per 4 stanze.",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.1.0"
+  }
+}

@@ -1,0 +1,28 @@
+name: Keep-alive repo (mantiene attivi tutti i workflow schedulati)
+
+# GitHub disattiva da solo i workflow schedulati dopo 60 giorni senza commit
+# nel repo — il business qui vive su Firestore, non su git, quindi il repo
+# potrebbe restare "silenzioso" per mesi pur con prenotazioni attive. Questo
+# commit mensile innocuo tiene vivi tutti gli altri cron (studentato e
+# affittacamere) senza bisogno di alcuna azione manuale.
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch: {}
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aggiorna il timestamp di keep-alive
+        run: |
+          mkdir -p .github/keepalive
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/keepalive/last-run.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive/last-run.txt
+          git diff --cached --quiet || git commit -m "Keep-alive mensile [skip ci]"
+          git push

@@ -44,5 +44,51 @@ service cloud.firestore {
                     && request.resource.data.status == 'nuovo';
       allow read, update, delete: if request.auth != null;
     }
+
+    // ======================================================================
+    // Affittacamere (locazione turistica breve termine) — stesso progetto
+    // Firebase, collezioni separate con prefisso tourism_. Vedi
+    // affittacamere/js/firebase-init.js e functions/index.js.
+    // ======================================================================
+
+    match /tourism_rooms/{roomId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /tourism_commons/{commonId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /tourism_monoSlides/{slideId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /tourism_reviews/{reviewId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /tourism_settings/{settingId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // La creazione di una prenotazione passa SOLO dalla Cloud Function
+    // createBooking (transazione anti-doppia-prenotazione + validazione
+    // completa, vedi functions/index.js): l'Admin SDK che usa bypassa
+    // comunque queste regole, quindi qui il client pubblico non può mai
+    // scrivere direttamente — evita di aggirare la transazione.
+    match /tourism_bookings/{bookingId} {
+      allow create: if false;
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // Documenti d'identità degli ospiti — dati sensibili, MAI leggibili né
+    // scrivibili dal client pubblico: la scrittura passa solo dalla Cloud
+    // Function submitGuestDocuments (verifica token + validazione completa
+    // lato server, l'Admin SDK bypassa queste regole).
+    match /tourism_guestDocuments/{bookingId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

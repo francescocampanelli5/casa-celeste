@@ -1,0 +1,55 @@
+<!--
+Subject: ✅ Prenotazione confermata — {{roomLabel}}, Casa Celeste
+
+Variabili usate: email, name, roomLabel, checkIn, checkOut, nights, guests,
+totalDue, docsLink, checkInTime, checkOutTime, hostPhone
+
+Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
+-->
+<div style="background:#F5FAFD; padding:32px 16px; font-family:Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" style="max-width:560px; margin:0 auto; background:#FFFFFF; border-radius:16px; overflow:hidden; border:1px solid rgba(16,35,59,0.08);" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="background:#10233B; padding:24px 32px;">
+        <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2C8FC9; margin-right:2px;"></span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#FFD24C; margin-right:8px;"></span>
+        <span style="color:#FFFFFF; font-size:18px; font-weight:700; vertical-align:middle;">Casa Celeste</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:32px;">
+        <p style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:#2C8FC9; font-weight:700; margin:0 0 8px;">Prenotazione confermata</p>
+        <h1 style="font-size:22px; color:#10233B; margin:0 0 16px;">Ci vediamo a Monopoli, {{name}}!</h1>
+        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 24px;">
+          Abbiamo confermato la tua prenotazione per la stanza <strong>{{roomLabel}}</strong>. Qui sotto trovi tutti i dettagli — le istruzioni per il check-in (accesso, WiFi) ti arriveranno in un'email separata non appena avrai completato il passaggio richiesto qui sotto.
+        </p>
+
+        <table role="presentation" width="100%" style="background:#F5FAFD; border-radius:12px; padding:4px 20px; margin-bottom:24px;" cellpadding="8" cellspacing="0">
+          <tr><td style="color:#6B7A8C; font-size:14px;">Check-in</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{checkIn}}, dalle {{checkInTime}}</td></tr>
+          <tr><td style="color:#6B7A8C; font-size:14px;">Check-out</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{checkOut}}, entro le {{checkOutTime}}</td></tr>
+          <tr><td style="color:#6B7A8C; font-size:14px;">Notti</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{nights}}</td></tr>
+          <tr><td style="color:#6B7A8C; font-size:14px;">Ospiti</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{guests}}</td></tr>
+          <tr><td style="color:#6B7A8C; font-size:14px; border-top:1px solid rgba(16,35,59,0.1); padding-top:12px;">Tassa di soggiorno stimata</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px; border-top:1px solid rgba(16,35,59,0.1); padding-top:12px;">€{{totalDue}}</td></tr>
+        </table>
+
+        <div style="background:#FDF3D9; border-radius:12px; padding:18px 20px; margin-bottom:24px;">
+          <p style="margin:0 0 6px; font-weight:700; color:#7A5E12; font-size:14px;">Un ultimo passo obbligatorio per legge</p>
+          <p style="margin:0; color:#7A5E12; font-size:14px; line-height:1.5;">Dobbiamo raccogliere i dati del documento d'identità di tutti gli ospiti prima del check-in (comunicazione obbligatoria alla Questura). Ti basta un paio di minuti:</p>
+        </div>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+          <tr><td align="center">
+            <a href="{{docsLink}}" style="display:inline-block; background:#2C8FC9; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:15px; padding:14px 32px; border-radius:10px;">Inserisci i documenti ora →</a>
+          </td></tr>
+        </table>
+
+        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0 0 8px;">
+          Domande prima del tuo arrivo? Scrivici pure, rispondiamo in giornata: <a href="tel:+{{hostPhone}}" style="color:#2C8FC9;">+{{hostPhone}}</a>.
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#F5FAFD; padding:20px 32px; text-align:center;">
+        <p style="font-size:12px; color:#6B7A8C; margin:0;">Casa Celeste — Via Giuseppe Can. del Drago 9, Monopoli (BA)</p>
+      </td>
+    </tr>
+  </table>
+</div>

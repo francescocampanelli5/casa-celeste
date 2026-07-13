@@ -9,4 +9,12 @@
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+  <url>
+    <loc>https://lacasaceleste.it/affittacamere/</loc>
+    <xhtml:link rel="alternate" hreflang="it" href="https://lacasaceleste.it/affittacamere/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lacasaceleste.it/affittacamere/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lacasaceleste.it/affittacamere/"/>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
 </urlset>

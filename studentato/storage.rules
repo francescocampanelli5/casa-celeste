@@ -33,5 +33,57 @@ service firebase.storage {
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
+
+    // ======================================================================
+    // Affittacamere — stesso progetto Firebase, path separati (tourism-*).
+    // ======================================================================
+
+    match /tourism-rooms/{roomId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    match /tourism-commons/{commonId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    match /tourism-monoSlides/{slideId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    match /tourism-site/{fileName=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Area TEMPORANEA per la foto del documento d'identità: scrittura
+    // pubblica limitata (dimensione/tipo), ma MAI leggibile pubblicamente —
+    // la Cloud Function submitGuestDocuments la sposta subito nell'area
+    // definitiva sottostante ed elimina l'originale qui. Se un visitatore
+    // carica un file senza mai completare l'invio, resta solo qui (ripulito
+    // periodicamente da scripts/cleanup-guest-docs.js), mai nell'area
+    // definitiva.
+    match /tourism-guest-docs-tmp/{bookingId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.resource.size < 10 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
+    }
+
+    // Area DEFINITIVA dei documenti d'identità ospiti — dati sensibili, MAI
+    // pubblica: solo il proprietario autenticato può leggerla. La scrittura
+    // avviene solo lato server (Cloud Function/Admin SDK, che bypassa
+    // queste regole), mai dal client.
+    match /tourism-guest-docs/{bookingId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

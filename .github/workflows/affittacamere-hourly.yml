@@ -1,0 +1,63 @@
+name: Affittacamere — cron orario (pulizie, scadenze, Alloggiati Web)
+
+on:
+  schedule:
+    # Ogni ora in punto — ogni script calcola da solo l'ora locale
+    # Europe/Rome (a prova di cambio ora legale/solare) invece di fidarsi
+    # dell'orario UTC del cron, vedi affittacamere/scripts/_lib.js.
+    - cron: '0 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Installa dipendenze
+        working-directory: affittacamere/scripts
+        run: npm install
+      - name: Promemoria pulizie (sera prima / mattina stessa)
+        working-directory: affittacamere/scripts
+        run: node cleaning-reminders.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      - name: Libera le prenotazioni scadute (48h senza conferma)
+        working-directory: affittacamere/scripts
+        run: node expire-stale-bookings.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Promemoria documenti mancanti all'ospite
+        working-directory: affittacamere/scripts
+        run: node guest-docs-reminder.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
+          EMAILJS_TOURISM_DOCS_REMINDER_TEMPLATE_ID: ${{ secrets.EMAILJS_TOURISM_DOCS_REMINDER_TEMPLATE_ID }}
+          SITE_ORIGIN: https://lacasaceleste.it/affittacamere/
+      - name: Email ciclo di vita (conferma, istruzioni check-in, ringraziamento)
+        working-directory: affittacamere/scripts
+        run: node guest-lifecycle-emails.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
+          EMAILJS_TOURISM_CONFIRMATION_TEMPLATE_ID: ${{ secrets.EMAILJS_TOURISM_CONFIRMATION_TEMPLATE_ID }}
+          EMAILJS_TOURISM_CHECKIN_TEMPLATE_ID: ${{ secrets.EMAILJS_TOURISM_CHECKIN_TEMPLATE_ID }}
+          EMAILJS_TOURISM_THANKYOU_TEMPLATE_ID: ${{ secrets.EMAILJS_TOURISM_THANKYOU_TEMPLATE_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          SITE_ORIGIN: https://lacasaceleste.it/affittacamere/
+          GOOGLE_CALENDAR_CLIENT_ID: ${{ secrets.GOOGLE_CALENDAR_CLIENT_ID }}
+          GOOGLE_CALENDAR_CLIENT_SECRET: ${{ secrets.GOOGLE_CALENDAR_CLIENT_SECRET }}
+          GOOGLE_CALENDAR_REFRESH_TOKEN: ${{ secrets.GOOGLE_CALENDAR_REFRESH_TOKEN }}
+      - name: Invio Alloggiati Web (scaffold, inattivo finché non configurato)
+        working-directory: affittacamere/scripts
+        run: node alloggiati-web-submit.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ALLOGGIATI_WEB_USER: ${{ secrets.ALLOGGIATI_WEB_USER }}
+          ALLOGGIATI_WEB_PASSWORD: ${{ secrets.ALLOGGIATI_WEB_PASSWORD }}
+          ALLOGGIATI_WEB_WSKEY: ${{ secrets.ALLOGGIATI_WEB_WSKEY }}

@@ -1,0 +1,23 @@
+name: Affittacamere — pulizia foto documenti ospiti
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Installa dipendenze
+        working-directory: affittacamere/scripts
+        run: npm install
+      - name: Elimina le foto documento non più necessarie
+        working-directory: affittacamere/scripts
+        run: node cleanup-guest-docs.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

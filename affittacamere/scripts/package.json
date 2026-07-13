@@ -1,0 +1,10 @@
+{
+  "name": "casa-celeste-affittacamere-scripts",
+  "private": true,
+  "description": "Script di automazione per Affittacamere (promemoria pulizie, bot Telegram, sync iCal, Alloggiati Web, pulizia dati) eseguiti da GitHub Actions — gratuiti su repo pubblico.",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "node-ical": "^0.19.0",
+    "googleapis": "^144.0.0"
+  }
+}

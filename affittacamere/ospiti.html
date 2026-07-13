@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documenti ospiti — Casa Celeste</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232C8FC9'/%3E%3Crect x='14' y='4' width='14' height='14' rx='4' fill='%23FFD24C'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css?v=1">
+</head>
+<body>
+<div class="page">
+  <header class="header">
+    <a href="index.html" class="logo">
+      <span class="logo-dot logo-dot--blue"></span>
+      <span class="logo-dot logo-dot--yellow"></span>
+      <span class="logo-text">Casa Celeste</span>
+    </a>
+  </header>
+
+  <section class="section">
+    <div class="container container--narrow">
+      <div class="eyebrow eyebrow--blue">Documenti ospiti</div>
+      <h1 class="h2" id="guestdoc-title">Prima del check-in</h1>
+      <p id="guestdoc-subtitle" style="color:var(--text-body); margin-bottom:24px;">Caricamento…</p>
+
+      <div id="guestdoc-notice" style="display:none;" class="noservices-panel"></div>
+      <div id="guestdoc-blocks"></div>
+
+      <div id="guestdoc-submit-row" style="display:none;">
+        <div class="field-error" id="guestdoc-error" style="display:none; margin-bottom:14px;"></div>
+        <button type="button" class="btn btn-primary" style="width:100%;" id="guestdoc-submit-btn" disabled>Invia i documenti</button>
+        <p style="font-size:12px; color:var(--text-muted, #6B7A8C); margin-top:14px; text-align:center;">
+          Raccogliamo questi dati solo per adempiere agli obblighi di legge verso Questura e Comune — leggi la
+          <button type="button" class="link-btn" style="display:inline; padding:0;" id="guestdoc-privacy-link">Privacy Policy</button>.
+        </p>
+      </div>
+      <div id="guestdoc-success" style="display:none;" class="booking-success">
+        <div class="success-icon">✓</div>
+        <h4 class="success-title">Documenti inviati</h4>
+        <p class="success-text">Grazie! Puoi tornare su questa pagina fino al giorno del check-in per correggere qualcosa.</p>
+      </div>
+    </div>
+  </section>
+
+  <div id="legal-modal-root"></div>
+</div>
+<script src="js/firebase-config.js?v=1"></script>
+<script type="module" src="js/firebase-init.js?v=1"></script>
+<script src="js/ospiti.js?v=1" defer></script>
+</body>
+</html>

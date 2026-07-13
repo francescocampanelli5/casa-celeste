@@ -14,13 +14,19 @@ sottocartelle separate (stesso hosting, stessa build, costo 0):
   offerte.
 - **`/studentato/`** — il sito per studenti fuori sede (quello attivo oggi):
   stanze singole e doppie, affitto annuale/accademico.
-- **`/affittacamere/`** — riservato per il futuro sito di locazione turistica
-  estiva (stanze tutte singole/matrimoniali, non condivisibili). Non ancora
-  costruito — vedi `affittacamere/README.md`.
+- **`/affittacamere/`** — locazione turistica a breve termine (B&B-style,
+  stesse 4 stanze dello studentato affittate a notte, 4 annunci indipendenti
+  Airbnb/Booking-style). Vedi `affittacamere/README.md`.
 
-Ogni sottosito ha la propria copia completa e indipendente di
-HTML/CSS/JS/regole Firebase (nessun codice condiviso tra le due offerte, per
-restare semplice da mantenere e non introdurre dipendenze incrociate).
+Ogni sottosito ha la propria copia completa e indipendente di HTML/CSS/JS
+(nessun codice frontend condiviso tra le due offerte). **Firebase è invece
+lo stesso progetto per entrambi** (`casa-celeste`, un solo `firebase.json`/
+`firestore.rules`/`storage.rules` in `studentato/`): le collezioni Firestore
+di affittacamere hanno prefisso `tourism_` e i path Storage `tourism-`, così
+non si sovrappongono mai a quelle dello studentato. Le due Cloud Functions
+condivise (`createBooking`, `submitGuestDocuments`, usate solo da
+affittacamere) vivono in `/functions/` alla radice, referenziate dallo
+stesso `studentato/firebase.json`.
 `sitemap.xml`, `robots.txt`, `llms.txt` e `CNAME` restano invece alla radice
 del repository, perché per convenzione del web devono vivere lì.
 
@@ -62,8 +68,22 @@ Firebase partendo da zero.
     images/                foto reali (vuota per ora)
     scripts/               promemoria email automatico (GitHub Actions)
     firebase.json, .firebaserc, firestore.rules, storage.rules
+                           (regole condivise: blocchi rooms/* per lo
+                            studentato + tourism_* per affittacamere)
   affittacamere/
-    README.md              posizione riservata per il futuro sito turistico
+    index.html             sito pubblico locazione turistica (a notte)
+    dashboard.html         area riservata proprietario (separata, tab dedicate)
+    ospiti.html            modulo documenti ospiti (link post-prenotazione)
+    css/styles.css
+    js/*.js                data.js, i18n.js, app.js, dashboard.js, ospiti.js,
+                           firebase-config.js, firebase-init.js
+    scripts/               automazioni (pulizie/Telegram/iCal/Alloggiati Web)
+    ical/                  file .ics generati per Airbnb/Booking (auto)
+  functions/
+    index.js               Cloud Functions (createBooking, submitGuestDocuments,
+                           getBookingForGuestForm) — usate solo da affittacamere
+    booking-logic.js        transazione anti-doppia-prenotazione condivisa
+                           anche con affittacamere/scripts/telegram-bot-poll.js
 ```
 
 ## Contatti configurati nel sito

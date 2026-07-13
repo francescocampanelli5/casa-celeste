@@ -1,0 +1,53 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "tourism_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tourism_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "checkIn", "order": "ASCENDING" },
+        { "fieldPath": "guestDocsComplete", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tourism_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "confirmationEmailSent", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tourism_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "guestDocsComplete", "order": "ASCENDING" },
+        { "fieldPath": "checkinInstructionsEmailSent", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tourism_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "checkOut", "order": "ASCENDING" },
+        { "fieldPath": "thankYouEmailSent", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tourism_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "roomId", "order": "ASCENDING" },
+        { "fieldPath": "checkIn", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -657,6 +657,207 @@ inquilini delle stanze — non serve mai toccare il codice per queste cose.
 
 ---
 
+## Parte 8 — Affittacamere (locazione turistica a breve termine)
+
+Il sito `/affittacamere/` è già scritto e pronto: usa lo **stesso progetto
+Firebase** dello studentato (stesso `firebase-config.js`, valori già
+incollati), quindi la maggior parte del lavoro di questa parte è attivare
+pezzi che oggi sono volutamente inattivi finché non fornisci le credenziali
+reali — esattamente come EmailJS nello studentato.
+
+### 8.1 Pubblicare le regole aggiornate e le Cloud Functions
+
+Le regole Firestore/Storage (`studentato/firestore.rules`,
+`studentato/storage.rules`) sono state estese con i blocchi `tourism_*`: se
+avevi già fatto `firebase deploy --only firestore:rules,storage:rules` per
+lo studentato, ripetilo per pubblicare anche i blocchi nuovi. Nello stesso
+comando pubblichi anche gli **indici compositi** (`studentato/firestore.indexes.json`,
+necessari per le query che incrociano due campi, es. "prenotazioni
+confermate senza email di conferma ancora inviata" — senza indice quelle
+query falliscono a runtime):
+```
+cd studentato
+firebase deploy --only firestore:rules,firestore:indexes,storage:rules
+```
+Poi pubblica le Cloud Functions (`createBooking`, `submitGuestDocuments`,
+`getBookingForGuestForm` in `/functions/index.js` — servono per creare
+prenotazioni senza doppie prenotazioni e per validare i documenti ospiti):
+```
+cd functions && npm install && cd ../studentato
+firebase deploy --only functions
+```
+La prima volta Firebase potrebbe chiederti di abilitare le API Cloud
+Functions/Cloud Build/Artifact Registry sul progetto (un click sulla
+console, restano nel piano gratuito per questi volumi).
+
+Se hai già creato il bot Telegram (Parte 8.2), la Cloud Function
+`createBooking` usa il suo token per avvisarti subito di una nuova
+richiesta dal sito: va salvato anche come **secret di Firebase** (diverso
+dai secrets GitHub, serve apposta per le Cloud Functions):
+```
+firebase functions:secrets:set TELEGRAM_BOT_TOKEN
+```
+(incolla il token quando richiesto, poi rilancia `firebase deploy --only functions`).
+
+**Verifica prima di andare live con documenti ospiti reali**: controlla la
+regione del progetto (Firebase Console → Impostazioni progetto → regione
+Firestore/Storage). Se non è una regione UE, fammelo sapere prima di
+raccogliere documenti d'identità veri — potremmo voler isolare quella parte
+sensibile su un progetto Firebase separato in regione UE.
+
+### 8.2 Bot Telegram per pulizie e prenotazioni rapide (gratis, 5 minuti)
+
+1. Apri Telegram, cerca **@BotFather**, manda `/newbot`, segui le istruzioni
+   (nome + username che finisce in "bot"). Ti dà un **token**: copialo.
+2. Su GitHub: repo → **Settings → Secrets and variables → Actions → New
+   repository secret** → nome `TELEGRAM_BOT_TOKEN`, incolla il token.
+3. Ogni persona da avvisare (tu, la donna delle pulizie, ecc.) apre una chat
+   col bot e manda `/start`.
+4. Vai su GitHub → tab **Actions** → workflow **"Affittacamere — recupera
+   chat-id Telegram (manuale)"** → **Run workflow**. Nel log di quella run
+   trovi il chat-id di ognuno.
+5. Vai su `affittacamere/dashboard.html` → **Impostazioni** → aggiungi ogni
+   persona in "Notifiche pulizie" (e, se deve poter creare prenotazioni al
+   volo da Airbnb/Booking, anche in "Autorizzati... bot Telegram") con
+   etichetta + chat-id.
+
+Da qui in poi i promemoria pulizie (sera prima + mattina del check-out) e il
+comando `/nuova` partono da soli.
+
+### 8.3 EmailJS — 4 email automatiche all'ospite, sotto la quota gratuita
+
+**Perché solo 4 email e non di più**: il piano gratuito EmailJS è 200
+email/mese, **condiviso con lo studentato** (stesso account). Con occupazione
+realistica (non tutte le notti prenotate) e 2-3 email per prenotazione in
+media, si resta comodamente sotto quota — ma il sistema ha comunque una
+guardia automatica che salta le email meno critiche se ci si avvicina al
+limite (vedi Impostazioni → "Quota email" in dashboard), avvisandoti su
+Telegram ogni volta che succede.
+
+Le 4 email (contenuto già scritto, pronto da incollare) sono in
+`affittacamere/email-templates/` — segui il `README.md` lì dentro passo
+per passo. In sintesi, per ognuno dei 4 file: crea un Template EmailJS
+nuovo (stesso Service `service_pgej8ka` dello studentato), incolla
+Subject+Content, e salva l'ID nel secret GitHub indicato:
+
+| Email | Quando parte | Secret GitHub |
+|---|---|---|
+| Conferma prenotazione | Tu confermi in dashboard | `EMAILJS_TOURISM_CONFIRMATION_TEMPLATE_ID` |
+| Promemoria documenti | 24h prima del check-in se mancano | `EMAILJS_TOURISM_DOCS_REMINDER_TEMPLATE_ID` |
+| Istruzioni check-in | Documenti completati | `EMAILJS_TOURISM_CHECKIN_TEMPLATE_ID` |
+| Ringraziamento | Il giorno dopo il check-out | `EMAILJS_TOURISM_THANKYOU_TEMPLATE_ID` |
+
+Serve anche il secret già usato per lo studentato `EMAILJS_PRIVATE_KEY`
+(API REST, diversa dalla Public Key) — se lo studentato è già configurato
+ce l'hai già, riusalo.
+
+**⚠️ Controllo obbligatorio, causa più comune di "le email non arrivano":**
+per OGNI template (anche quelli già esistenti dello studentato) apri
+**Settings** del template su EmailJS e verifica che il campo **"To Email"**
+sia impostato a `{{email}}` — non al valore di esempio precompilato
+(spesso `text@example.com`) e non al tuo indirizzo fisso. Se lo lasci
+sbagliato, l'email parte ma non arriva mai al destinatario giusto.
+
+Se salti questa parte, il sito funziona comunque: le prenotazioni restano
+visibili in dashboard e ricevi comunque l'avviso istantaneo su Telegram,
+semplicemente l'ospite non riceve le email automatiche.
+
+### 8.4 Airbnb/Booking (quando avrai quegli account)
+
+Per ogni stanza, in **Impostazioni** trovi l'URL del file `.ics` da incollare
+su Airbnb/Booking come "importa calendario esterno" — blocca automaticamente
+quella piattaforma quando qualcuno prenota dal sito. Nello stesso posto
+incolli l'URL iCal che Airbnb/Booking ti danno in export, così anche il sito
+vede occupate le loro date. Per i dati ospite di quelle prenotazioni (Airbnb/
+Booking non li condividono mai via iCal): usa "+ Aggiungi prenotazione
+manuale" in dashboard, o il comando `/nuova` al bot Telegram da telefono.
+
+### 8.5 Adempimenti normativi (SCIA, SPID, CIS, CIN, RC, Alloggiati Web, PayTourist)
+
+Questi restano azioni **tue**, non automatizzabili (SPID con OTP live,
+dichiarazioni legali, contratto assicurativo reale — vedi il piano
+condiviso in chat per il dettaglio del perché). Checklist nell'ordine
+giusto:
+1. Registra la struttura su **DMS Puglia** (SPID) → ottieni il **CIS**.
+2. Con il CIS, genera il **CIN** sulla **BDSR** del Ministero del Turismo →
+   esponilo in facciata e su ogni annuncio online.
+3. Presenta **SCIA/CIA** al SUAP di Monopoli (portale Impresainungiorno) —
+   scadenza 30 settembre 2026.
+4. Stipula la **polizza RC** verso i clienti.
+5. Richiedi alla **Questura di Bari** le credenziali **Alloggiati Web**
+   (utente/password/chiave — DIVERSE da SPID: sono quelle che poi vanno nei
+   secrets GitHub `ALLOGGIATI_WEB_USER`/`ALLOGGIATI_WEB_PASSWORD`/
+   `ALLOGGIATI_WEB_WSKEY` per attivare l'invio automatico da
+   `affittacamere/scripts/alloggiati-web-submit.js` — completo la chiamata
+   reale quando mi mandi il WSDL che ti forniranno).
+6. Registra la struttura su **PayTourist** (Comune di Monopoli) per la tassa
+   di soggiorno.
+
+Nel frattempo, la dashboard (tab **Adempimenti**) calcola già la tassa di
+soggiorno dovuta e prepara i dati pronti da copiare per Alloggiati Web.
+
+### 8.6 Google Meet automatico per la verifica documento (gratis, una tantum)
+
+Invece di un servizio biometrico a pagamento (Stripe Identity, AWS
+Rekognition — entrambi a consumo, non gratuiti, e non richiesti dalla
+legge italiana per l'Alloggiati Web), la verifica dell'ospite avviene con
+una breve videochiamata **Google Meet generata automaticamente** per ogni
+prenotazione, zero costo, usando lo stesso account Gmail
+(lacasacelestemonopoli@gmail.com). Richiede un'autorizzazione **una
+tantum** (5-10 minuti):
+
+1. Vai su https://console.cloud.google.com, crea un progetto (o riusa
+   quello Firebase esistente `casa-celeste`) → **API e servizi → Libreria**
+   → cerca **"Google Calendar API"** → **Abilita**.
+2. **Schermata consenso OAuth** → tipo **Esterno** → compila i campi minimi
+   richiesti → **Pubblica in modalità Testing** → in "Utenti di test"
+   aggiungi `lacasacelestemonopoli@gmail.com` (evita la revisione Google,
+   sufficiente per un uso personale/singola struttura).
+3. **Credenziali → Crea credenziali → ID client OAuth** → tipo
+   **applicazione Desktop** → copia **Client ID** e **Client secret**.
+4. Sul tuo computer:
+   ```
+   cd affittacamere/scripts
+   npm install
+   GOOGLE_CALENDAR_CLIENT_ID=... GOOGLE_CALENDAR_CLIENT_SECRET=... node google-meet-authorize.js
+   ```
+   Apri il link stampato, fai login con lacasacelestemonopoli@gmail.com,
+   incolla il codice che Google ti mostra: lo script stampa un **refresh
+   token**.
+5. Salva questi 3 valori come secrets GitHub: `GOOGLE_CALENDAR_CLIENT_ID`,
+   `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_REFRESH_TOKEN`.
+
+Da qui in poi, appena un ospite completa i documenti, il sistema genera da
+solo un link Google Meet univoco e lo include nell'email di istruzioni
+check-in — senza altre azioni tue. Se salti questo passo, l'email di
+check-in parte comunque, semplicemente senza link video (con una nota che
+ti contatteranno per organizzarla).
+
+### 8.7 Perché videochiamata e non SPID/CIE o riconoscimento biometrico
+
+Tre strade erano sul tavolo per "verificare che l'ospite sia davvero chi
+dice di essere", oltre alla semplice raccolta dati/foto documento (già
+obbligatoria per legge e già costruita):
+- **Stripe Identity / AWS Rekognition** (biometria + liveness detection):
+  scartate — sono a pagamento per verifica (non compatibili con budget 0)
+  e trattano una categoria di dati GDPR più delicata (dati biometrici,
+  Art. 9) che la legge italiana non richiede per l'Alloggiati Web
+  (l'obbligo è comunicare i dati del documento, non verificare
+  biometricamente la corrispondenza persona-documento).
+- **SPID/CIE come login ospite**: tecnicamente la strada "più ufficiale",
+  ma richiede che TU (o un intermediario) venga accreditato come
+  **Service Provider** presso AgID/Ministero dell'Interno — un processo
+  formale, non un'integrazione che si aggiunge in una sessione di lavoro,
+  e in alcuni casi con costi se passi da un intermediario privato invece
+  che dall'accreditamento diretto. Resta un'opzione valutabile in futuro
+  se vorrai intraprendere quel percorso — dimmelo quando vuoi approfondire.
+- **Videochiamata Google Meet** (scelta attuale): gratuita, zero dati
+  biometrici elaborati o conservati (è solo una conversazione), disponibile
+  da subito per qualunque nazionalità dell'ospite, e copre lo stesso
+  bisogno pratico — vedi Parte 8.6.
+
+---
+
 ## Domande frequenti
 
 **Devo pagare qualcosa?** L'hosting no: per i volumi di un sito come questo, i
