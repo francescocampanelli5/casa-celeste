@@ -43,8 +43,9 @@ affittacamere/
 
 Le **Cloud Functions** (`createBooking`, `submitGuestDocuments`,
 `getBookingForGuestForm`) vivono in `/functions/` alla radice del repo, non
-qui dentro — sono referenziate dallo stesso `studentato/firebase.json` (un
-solo progetto Firebase, un solo file di config). Vedi `/functions/index.js`
+qui dentro — sono referenziate dallo stesso `firebase.json` (alla radice
+del repo: un solo progetto Firebase, un solo file di config). Vedi
+`/functions/index.js`
 per il perché: creare una prenotazione ha bisogno di una transazione vera
 (anti-doppia-prenotazione), non di una semplice scrittura validata da regole.
 

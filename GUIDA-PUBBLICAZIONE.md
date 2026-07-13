@@ -178,8 +178,7 @@ alto a destra di ogni file) oppure con VS Code — vedi la Parte 7.
 4. Scegli **Avvia in modalità produzione** → **Crea**.
 5. Vai sulla scheda **Regole** (in alto nella pagina di Firestore).
 6. Cancella tutto il contenuto e incolla al suo posto il testo del file
-   `studentato/firestore.rules` (che trovi nella cartella del sito). Clicca
-   **Pubblica**.
+   `firestore.rules` (alla radice del repo). Clicca **Pubblica**.
 
 Queste regole fanno esattamente questo: chiunque visiti il sito può vedere lo
 stato delle stanze e può inviare una nuova prenotazione, ma **solo tu**,
@@ -667,23 +666,22 @@ reali — esattamente come EmailJS nello studentato.
 
 ### 8.1 Pubblicare le regole aggiornate e le Cloud Functions
 
-Le regole Firestore/Storage (`studentato/firestore.rules`,
-`studentato/storage.rules`) sono state estese con i blocchi `tourism_*`: se
-avevi già fatto `firebase deploy --only firestore:rules,storage:rules` per
-lo studentato, ripetilo per pubblicare anche i blocchi nuovi. Nello stesso
-comando pubblichi anche gli **indici compositi** (`studentato/firestore.indexes.json`,
+Le regole Firestore/Storage (`firestore.rules`, `storage.rules`, alla
+radice del repo) sono state estese con i blocchi `tourism_*`: se avevi già
+fatto `firebase deploy --only firestore:rules,storage:rules` per lo
+studentato, ripetilo per pubblicare anche i blocchi nuovi. Nello stesso
+comando pubblichi anche gli **indici compositi** (`firestore.indexes.json`,
 necessari per le query che incrociano due campi, es. "prenotazioni
 confermate senza email di conferma ancora inviata" — senza indice quelle
 query falliscono a runtime):
 ```
-cd studentato
 firebase deploy --only firestore:rules,firestore:indexes,storage:rules
 ```
 Poi pubblica le Cloud Functions (`createBooking`, `submitGuestDocuments`,
 `getBookingForGuestForm` in `/functions/index.js` — servono per creare
 prenotazioni senza doppie prenotazioni e per validare i documenti ospiti):
 ```
-cd functions && npm install && cd ../studentato
+cd functions && npm install && cd ..
 firebase deploy --only functions
 ```
 La prima volta Firebase potrebbe chiederti di abilitare le API Cloud

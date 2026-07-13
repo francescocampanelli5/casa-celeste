@@ -21,12 +21,12 @@ sottocartelle separate (stesso hosting, stessa build, costo 0):
 Ogni sottosito ha la propria copia completa e indipendente di HTML/CSS/JS
 (nessun codice frontend condiviso tra le due offerte). **Firebase è invece
 lo stesso progetto per entrambi** (`casa-celeste`, un solo `firebase.json`/
-`firestore.rules`/`storage.rules` in `studentato/`): le collezioni Firestore
-di affittacamere hanno prefisso `tourism_` e i path Storage `tourism-`, così
-non si sovrappongono mai a quelle dello studentato. Le due Cloud Functions
-condivise (`createBooking`, `submitGuestDocuments`, usate solo da
-affittacamere) vivono in `/functions/` alla radice, referenziate dallo
-stesso `studentato/firebase.json`.
+`firestore.rules`/`storage.rules` alla radice del repo): le collezioni
+Firestore di affittacamere hanno prefisso `tourism_` e i path Storage
+`tourism-`, così non si sovrappongono mai a quelle dello studentato. Le due
+Cloud Functions condivise (`createBooking`, `submitGuestDocuments`, usate
+solo da affittacamere) vivono in `/functions/` alla radice, referenziate
+dallo stesso `firebase.json` (anch'esso alla radice).
 `sitemap.xml`, `robots.txt`, `llms.txt` e `CNAME` restano invece alla radice
 del repository, perché per convenzione del web devono vivere lì.
 
