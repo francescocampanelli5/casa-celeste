@@ -292,7 +292,8 @@
   function updateBodyScrollLock() {
     var drawerEl = document.getElementById('mobile-drawer');
     var drawerOpen = drawerEl && drawerEl.classList.contains('is-open');
-    document.body.style.overflow = (state.bookingOpen || state.legalOpen || state.mediaZoomOpen || state.roomDetail.open || drawerOpen) ? 'hidden' : '';
+    var searchPopoverOpen = state.search.calendarOpen || state.search.guestsOpen || state.search.roomsOpen;
+    document.body.style.overflow = (state.bookingOpen || state.legalOpen || state.mediaZoomOpen || state.roomDetail.open || drawerOpen || searchPopoverOpen) ? 'hidden' : '';
   }
 
   /* ==========================================================================
@@ -797,6 +798,23 @@
     var hasInfant = state.guestsChildAges.some(function (age) { return age < CHILD_ROOM_COUNT_MIN_AGE; });
     if (!hasInfant) state.cribCount = 0;
   }
+  // roomDetailOptionsHtml() è condivisa tra pagina stanza (room = quella
+  // in state.roomDetail) e modale di prenotazione (room = currentRoom()):
+  // questo helper trova quella giusta in entrambi i contesti.
+  function activeOptionsRoom() {
+    return currentRoom() || (state.roomDetail && state.roomsData[state.roomDetail.roomId]) || null;
+  }
+  // A 3 ospiti "grandi" (3-99 anni) in una stanza il letto singolo
+  // aggiuntivo è l'unico modo fisico di ospitarli: non è più una scelta,
+  // va incluso automaticamente e non può essere rimosso finché il gruppo
+  // resta a 3.
+  function extraBedIsMandatory(room) {
+    return countedGuests(state.guestsAdults, state.guestsChildAges) === effectiveMaxGuests(room);
+  }
+  function syncExtraBedToCapacity() {
+    var room = activeOptionsRoom();
+    if (room && extraBedIsMandatory(room)) state.extraBedCount = 1;
+  }
   function roomDetailOptionsHtml() {
     // Un ospite sotto i 3 anni non richiede mai il letto extra (non conta
     // nel limite stanza), ma la culla resta comunque utile: la segnaliamo
@@ -804,6 +822,8 @@
     // scelta di proposito) — cosi' meno frizione senza toccare il prezzo
     // senza consenso.
     var suggestCrib = state.guestsChildAges.some(function (age) { return age < CHILD_ROOM_COUNT_MIN_AGE; }) && !state.cribCount;
+    var optionsRoom = activeOptionsRoom();
+    var extraBedMandatory = optionsRoom ? extraBedIsMandatory(optionsRoom) : false;
     return (
       '<div class="rd-bedtype-row">' +
         '<button type="button" class="rd-bedtype-btn' + (state.bedType === 'matrimoniale' ? ' is-active' : '') + '" data-rd-bedtype="matrimoniale">' +
@@ -823,9 +843,9 @@
         '</div>' +
       '</div>' +
       '<div class="rd-option-row">' +
-        '<div><div class="rd-option-title">' + escapeHtml(t('options.extra_bed')) + '</div><div class="rd-option-sub">' + escapeHtml(tpl(t('options.extra_price_note'), { price: EXTRA_BED_PRICE_PER_NIGHT })) + '</div></div>' +
+        '<div><div class="rd-option-title">' + escapeHtml(t('options.extra_bed')) + (extraBedMandatory ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.extra_bed_required_tag')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(extraBedMandatory ? t('options.extra_bed_required_note') : tpl(t('options.extra_price_note'), { price: EXTRA_BED_PRICE_PER_NIGHT })) + '</div></div>' +
         '<div class="search-stepper">' +
-          '<button type="button" class="search-stepper-btn" data-rd-extrabed-dec' + (state.extraBedCount <= 0 ? ' disabled' : '') + '>−</button>' +
+          '<button type="button" class="search-stepper-btn" data-rd-extrabed-dec' + ((state.extraBedCount <= 0 || extraBedMandatory) ? ' disabled' : '') + '>−</button>' +
           '<span class="search-stepper-value">' + state.extraBedCount + '</span>' +
           '<button type="button" class="search-stepper-btn" data-rd-extrabed-inc' + (state.extraBedCount >= EXTRA_BED_MAX ? ' disabled' : '') + '>+</button>' +
         '</div>' +
@@ -1479,9 +1499,6 @@
     if (counted === 3 && s.extraBedChoice === 'secondRoom') {
       return '<div class="range-hint">' + escapeHtml(tpl(t('search.extrabed_choice_room_confirmed'), { n: recommendedRoomsForGroup(s.adults, s.childAges) })) + '</div>';
     }
-    if (counted >= 4) {
-      return '<div class="range-hint">' + escapeHtml(tpl(t('search.extrabed_too_many'), { n: recommendedRoomsForGroup(s.adults, s.childAges) })) + '</div>';
-    }
     return '';
   }
   // Sempre visibile mentre si scelgono ospiti/bambini: quante stanze
@@ -1642,8 +1659,11 @@
     var guestsFieldValue = guestsSummaryLabel(s.adults, s.childAges);
     var roomsFieldValue = roomsCountLabel(s.rooms);
 
+    var anyPopoverOpen = s.calendarOpen || s.guestsOpen || s.roomsOpen;
+
     root.innerHTML =
       '<div class="search-panel">' +
+        (anyPopoverOpen ? '<div class="search-popover-backdrop" data-search-popover-backdrop></div>' : '') +
         '<div class="search-fields">' +
           '<div class="search-field search-field--popover">' +
             '<button type="button" class="search-field-btn" data-search-toggle-calendar>' +
@@ -1677,6 +1697,7 @@
         '</button>' +
         flexHtml +
       '</div>';
+    updateBodyScrollLock();
   }
 
   /* ==========================================================================
@@ -2027,20 +2048,11 @@
   function successStepHtml() {
     var res = state.bookingResult || {};
     var docsLink = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + 'ospiti.html?booking=' + encodeURIComponent(res.id || '') + '&token=' + encodeURIComponent(res.guestFormToken || '');
-    var msg = tpl(t('booking.wa_prenotato'), {
-      room: state.bookingRoomLabel || 'Casa Celeste',
-      checkin: formatDateLabel(state.selectedCheckIn), checkout: formatDateLabel(state.selectedCheckOut),
-      nights: res.nights || daysBetween(state.selectedCheckIn, state.selectedCheckOut),
-      guests: guestsSummaryLabel(state.guestsAdults, state.guestsChildAges), name: state.contactName, email: state.contactEmail,
-      phoneStr: state.contactPhone ? tpl(t('booking.wa_tel'), { phone: state.contactPhone }) : ''
-    });
-    var link = waLink(msg);
     return (
       '<div class="booking-success">' +
         '<div class="success-icon"><svg width="26" height="26"><use href="#icon-check"></use></svg></div>' +
         '<h4 class="success-title">' + escapeHtml(t('booking.soggiorno_richiesto')) + '</h4>' +
         '<p class="success-text">' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + ' — ' + escapeHtml(t('booking.success_text')) + '</p>' +
-        '<a href="' + link + '" target="_blank" rel="noopener" class="success-wa-link">' + escapeHtml(t('booking.conferma_wa')) + '</a>' +
         '<div class="noservices-panel" style="margin-top:20px; text-align:left;">' +
           '<strong>' + escapeHtml(t('booking.success_docs_title')) + '</strong>' +
           '<span>' + escapeHtml(t('booking.success_docs_text')) + '</span>' +
@@ -2087,6 +2099,7 @@
         var index = Number(e.target.getAttribute('data-index'));
         state.guestsChildAges[index] = Math.max(0, Math.min(17, Number(e.target.value) || 0));
         syncCribToInfants();
+        syncExtraBedToCapacity();
         renderBookingModal();
       });
     });
@@ -2185,17 +2198,24 @@
   function guestAdultsInc() {
     var room = currentRoom(); var max = effectiveMaxGuests(room);
     if (countedGuests(state.guestsAdults, state.guestsChildAges) < max) state.guestsAdults++;
+    syncExtraBedToCapacity();
     renderBookingModal();
   }
-  function guestAdultsDec() { if (state.guestsAdults > 1) state.guestsAdults--; renderBookingModal(); }
+  function guestAdultsDec() {
+    if (state.guestsAdults > 1) state.guestsAdults--;
+    syncExtraBedToCapacity();
+    renderBookingModal();
+  }
   function guestChildrenInc() {
     var room = currentRoom(); var max = effectiveMaxGuests(room);
     if (countedGuests(state.guestsAdults, state.guestsChildAges.concat([CHILD_DEFAULT_AGE])) <= max) state.guestsChildAges.push(CHILD_DEFAULT_AGE);
+    syncExtraBedToCapacity();
     renderBookingModal();
   }
   function guestChildrenDec() {
     if (state.guestsChildAges.length) state.guestsChildAges.pop();
     syncCribToInfants();
+    syncExtraBedToCapacity();
     renderBookingModal();
   }
 
@@ -2391,6 +2411,8 @@
       if (el) { toggleSearchGuestsPopover(); return; }
       el = e.target.closest('[data-search-toggle-rooms]');
       if (el) { toggleSearchRoomsPopover(); return; }
+      el = e.target.closest('[data-search-popover-backdrop]');
+      if (el) { closeSearchCalendar(); closeSearchGuestsPopover(); closeSearchRoomsPopover(); return; }
       el = e.target.closest('[data-search-pick-date]');
       if (el && !el.disabled) { pickSearchDate(el.getAttribute('data-iso')); return; }
       el = e.target.closest('[data-search-cal-prev]');
