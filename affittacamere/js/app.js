@@ -2291,11 +2291,11 @@
         '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.payment_total_label')) + '</span><span id="payment-total-value">…</span></div>' +
       '</div>' +
       '<div class="payment-loading" id="payment-loading"><span class="payment-spinner"></span>' + escapeHtml(t('booking.payment_loading')) + '</div>' +
-      '<div id="payment-express-container" class="payment-express-container" style="display:none;"></div>' +
-      '<div class="payment-divider" id="payment-divider" style="display:none;"><span>' + escapeHtml(t('booking.payment_or_card')) + '</span></div>' +
       '<div id="payment-element-container" class="payment-element-container" style="display:none;"></div>' +
       '<div class="field-error" id="payment-error" style="display:none;"></div>' +
       '<button type="button" class="payment-submit-btn" id="payment-submit-btn" disabled>' + escapeHtml(t('booking.payment_submit_cta')) + '</button>' +
+      '<div class="payment-divider" id="payment-divider" style="display:none;"><span>' + escapeHtml(t('booking.payment_or_wallet')) + '</span></div>' +
+      '<div id="payment-express-container" class="payment-express-container" style="display:none;"></div>' +
       '<div class="payment-secure-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>' + escapeHtml(t('booking.payment_secure_note')) + '</div>' +
       '<button type="button" class="link-btn link-btn--centered" data-back-to-contact>' + escapeHtml(t('booking.cambia_contatti')) + '</button>'
     );
@@ -2315,10 +2315,17 @@
       if (loadingEl) loadingEl.style.display = 'none';
       container.style.display = '';
     }
+    // Nome/email/telefono già raccolti allo step contatti (4): non farli
+    // richiedere di nuovo dal Payment Element (fields:'never' sotto), li
+    // passiamo qui direttamente come billing_details al momento di
+    // confermare, sia dal bottone carta che da Apple Pay/Google Pay.
+    function billingDetails() {
+      return { name: state.contactName, email: state.contactEmail, phone: state.contactPhone };
+    }
     // Pagamento confermato lato Stripe (da bottone carta o da Apple
-    // Pay/Google Pay/Link): ora si crea davvero la prenotazione, con l'id
-    // del PaymentIntent salvato sulla prenotazione stessa (serve più avanti
-    // per un eventuale rimborso se l'ospite cancella, vedi
+    // Pay/Google Pay): ora si crea davvero la prenotazione, con l'id del
+    // PaymentIntent salvato sulla prenotazione stessa (serve più avanti per
+    // un eventuale rimborso se l'ospite cancella, vedi
     // cancella.html/cancelBookingCore).
     function handlePaymentResult(result) {
       if (result.error) {
@@ -2347,11 +2354,25 @@
       // di più la sensazione di attesa.
       stripeElementsRef = stripeClientRef.elements({ clientSecret: res.clientSecret, loader: 'auto' });
 
-      // Bottoni diretti Apple Pay / Google Pay / Link, ben in vista sopra il
-      // form della carta — l'elemento si mostra da solo SOLO se il
-      // browser/dispositivo li supporta davvero (altrimenti resta nascosto,
-      // niente spazio vuoto in una schermata altrimenti vuota).
-      stripeExpressElementRef = stripeElementsRef.create('expressCheckout');
+      stripePaymentElementRef = stripeElementsRef.create('payment', {
+        // Niente campo nome/email/telefono nel modulo carta: già raccolti
+        // allo step precedente, li passiamo noi in confirmPayment sotto.
+        fields: { billingDetails: { name: 'never', email: 'never', phone: 'never', address: 'never' } }
+      });
+      stripePaymentElementRef.mount(container);
+      stripePaymentElementRef.on('ready', function () {
+        hideLoadingSkeleton();
+        submitBtn.disabled = false;
+      });
+
+      // Bottone diretto Apple Pay/Google Pay in fondo, sotto al bottone
+      // "Paga e conferma" — solo questi due (niente Link/Amazon Pay/PayPal):
+      // il browser mostra da sé quello giusto per il dispositivo, quello
+      // sbagliato semplicemente non compare (niente spazio vuoto).
+      stripeExpressElementRef = stripeElementsRef.create('expressCheckout', {
+        paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', amazonPay: 'never', paypal: 'never', klarna: 'never' },
+        emailRequired: false, phoneNumberRequired: false, billingAddressRequired: false
+      });
       stripeExpressElementRef.mount(expressContainer);
       stripeExpressElementRef.on('ready', function (event) {
         if (event.availablePaymentMethods) {
@@ -2361,16 +2382,12 @@
       });
       stripeExpressElementRef.on('confirm', function () {
         errorEl.style.display = 'none';
-        stripeClientRef.confirmPayment({ elements: stripeElementsRef, redirect: 'if_required' }).then(handlePaymentResult).catch(function (err) {
+        stripeClientRef.confirmPayment({
+          elements: stripeElementsRef, redirect: 'if_required',
+          confirmParams: { payment_method_data: { billing_details: billingDetails() } }
+        }).then(handlePaymentResult).catch(function (err) {
           showError((err && err.message) || t('booking.payment_generic_error'));
         });
-      });
-
-      stripePaymentElementRef = stripeElementsRef.create('payment');
-      stripePaymentElementRef.mount(container);
-      stripePaymentElementRef.on('ready', function () {
-        hideLoadingSkeleton();
-        submitBtn.disabled = false;
       });
     }).catch(function (err) {
       if (loadingEl) loadingEl.style.display = 'none';
@@ -2382,7 +2399,10 @@
       submitBtn.disabled = true;
       submitBtn.textContent = '…';
       errorEl.style.display = 'none';
-      stripeClientRef.confirmPayment({ elements: stripeElementsRef, redirect: 'if_required' }).then(handlePaymentResult).catch(function (err) {
+      stripeClientRef.confirmPayment({
+        elements: stripeElementsRef, redirect: 'if_required',
+        confirmParams: { payment_method_data: { billing_details: billingDetails() } }
+      }).then(handlePaymentResult).catch(function (err) {
         showError((err && err.message) || t('booking.payment_generic_error'));
         submitBtn.disabled = false;
         submitBtn.textContent = t('booking.payment_submit_cta');

@@ -192,7 +192,12 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
   const intent = await stripe.paymentIntents.create({
     amount: Math.round(quote.amount * 100),
     currency: 'eur',
-    automatic_payment_methods: { enabled: true },
+    // Solo 'card': con automatic_payment_methods Stripe aggiungeva da solo
+    // tutti i metodi abilitati sull'account (Amazon Pay, Bancontact, MB WAY,
+    // EPS...), quasi tutti irrilevanti per un B&B a Monopoli. Apple Pay e
+    // Google Pay restano disponibili comunque: viaggiano sul metodo 'card',
+    // li mostra l'Express Checkout Element lato client.
+    payment_method_types: ['card'],
     description: 'Casa Celeste — prenotazione stanza',
     metadata: { checkIn: data.checkIn || '', checkOut: data.checkOut || '', roomId: data.roomId || '', groupBooking: Array.isArray(data.rooms) ? 'si' : 'no' }
   });
