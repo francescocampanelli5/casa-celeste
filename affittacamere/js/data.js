@@ -17,7 +17,7 @@ window.CASA_CELESTE_TOURISM_DATA = {
   SEED_ROOMS: {
     maestrale: {
       order: 1, name: 'Maestrale',
-      maxGuests: 2, nightlyPrice: 58, minNights: 2,
+      maxGuests: 3, nightlyPrice: 58, minNights: 2,
       stats: [
         { label: { it: 'Metratura', en: 'Floor area' }, value: { it: '14 m²', en: '14 sqm' } },
         { label: { it: 'Letto', en: 'Bed' }, value: { it: 'Matrimoniale o singolo, a scelta', en: 'Double or single, your choice' } },
@@ -34,7 +34,7 @@ window.CASA_CELESTE_TOURISM_DATA = {
     },
     scirocco: {
       order: 2, name: 'Scirocco',
-      maxGuests: 2, nightlyPrice: 78, minNights: 2,
+      maxGuests: 3, nightlyPrice: 78, minNights: 2,
       stats: [
         { label: { it: 'Metratura', en: 'Floor area' }, value: { it: '16 m²', en: '16 sqm' } },
         { label: { it: 'Letto', en: 'Bed' }, value: { it: 'Matrimoniale o singolo, a scelta', en: 'Double or single, your choice' } },
@@ -51,7 +51,7 @@ window.CASA_CELESTE_TOURISM_DATA = {
     },
     ponente: {
       order: 3, name: 'Ponente',
-      maxGuests: 2, nightlyPrice: 52, minNights: 2,
+      maxGuests: 3, nightlyPrice: 52, minNights: 2,
       stats: [
         { label: { it: 'Metratura', en: 'Floor area' }, value: { it: '13 m²', en: '13 sqm' } },
         { label: { it: 'Letto', en: 'Bed' }, value: { it: 'Matrimoniale o singolo, a scelta', en: 'Double or single, your choice' } },
@@ -68,7 +68,7 @@ window.CASA_CELESTE_TOURISM_DATA = {
     },
     levante: {
       order: 4, name: 'Levante',
-      maxGuests: 2, nightlyPrice: 72, minNights: 2,
+      maxGuests: 3, nightlyPrice: 72, minNights: 2,
       stats: [
         { label: { it: 'Metratura', en: 'Floor area' }, value: { it: '15 m²', en: '15 sqm' } },
         { label: { it: 'Letto', en: 'Bed' }, value: { it: 'Matrimoniale o singolo, a scelta', en: 'Double or single, your choice' } },
