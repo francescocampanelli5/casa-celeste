@@ -178,6 +178,7 @@
       rooms: 1,
       roomsManual: false,
       extraBedChoice: null,
+      cribChoice: null,
       performed: false,
       warning: '',
       error: '',
@@ -197,7 +198,8 @@
       galleryOpen: false,
       galleryIndex: 0,
       descExpanded: false,
-      shareCopied: false
+      shareCopied: false,
+      savedScrollY: 0
     }
   };
 
@@ -535,8 +537,17 @@
     var n = (room && room.maxGuests) || 1;
     return n === 1 ? t('room.max_guests_1') : tpl(t('room.max_guests'), { n: n });
   }
+  // Il numero di recensioni mostrato sul sito è normalmente il conteggio
+  // reale delle recensioni caricate (tab Recensioni in Dashboard), ma può
+  // essere sovrascritto da Dashboard > Impostazioni anche quando non ci
+  // sono ancora recensioni vere e proprie da mostrare per esteso.
+  function effectiveReviewCount() {
+    var override = state.settings && state.settings.reviewCountOverride;
+    if (override !== null && override !== undefined && override !== '') return Number(override) || 0;
+    return Object.keys(state.reviewsData || {}).length;
+  }
   function siteRatingValue() {
-    var reviewCount = Object.keys(state.reviewsData || {}).length;
+    var reviewCount = effectiveReviewCount();
     var avgRating = state.settings && state.settings.avgRating;
     return avgRating ? Number(avgRating).toFixed(1) : String(reviewCount || 0);
   }
@@ -565,6 +576,7 @@
       '<div class="room-list-item' + (searched && !available ? ' room-list-item--occupied' : '') + '" data-room-card data-room-id="' + id + '">' +
         '<div class="room-list-thumb">' +
           tagHtml +
+          (room.balcony === 'comunicante' ? '<span class="room-bestseller-tag">' + escapeHtml(t('room.bestseller_tag')) + '</span>' : '') +
           '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(room.name) + '</span>' +
           photoTag((room.photos && room.photos[0]) || ('images/' + id + '-1.jpg'), room.name) +
           '<div class="room-thumb-actions">' +
@@ -713,7 +725,11 @@
     state.guestsAdults = searched ? s.adults : 1;
     state.guestsChildAges = searched ? s.childAges.slice() : [];
     state.bedType = 'matrimoniale';
-    state.cribCount = 0;
+    // Se in ricerca c'era un bambino sotto i 3 anni e l'ospite ha già
+    // risposto "sì" alla culla, arriva già selezionata qui — coerente con
+    // il letto extra (vedi sotto), niente da rifare da capo.
+    var hasInfant = state.guestsChildAges.some(function (age) { return age < CHILD_ROOM_COUNT_MIN_AGE; });
+    state.cribCount = (searched && s.cribChoice === 'yes' && hasInfant) ? 1 : 0;
     // Se la ricerca portava più ospiti di quanti ne stiano nella stanza
     // base, seleziona subito il letto singolo aggiuntivo (se basta a
     // farceli stare) invece di lasciare l'ospite a scoprirlo da solo più
@@ -725,6 +741,7 @@
     state.bookingError = '';
     var calBase = searched ? dateFromIso(s.checkIn) : new Date();
     state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
+    state.roomDetail.savedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
     renderRoomDetail();
@@ -737,6 +754,7 @@
     renderRoomDetail();
     updateBodyScrollLock();
     updateStickyBarVisibility();
+    window.scrollTo(0, state.roomDetail.savedScrollY || 0);
   }
   function openRoomGallery(index) { state.roomDetail.galleryOpen = true; state.roomDetail.galleryIndex = index || 0; renderRoomDetail(); }
   function closeRoomGallery() { state.roomDetail.galleryOpen = false; renderRoomDetail(); }
@@ -947,7 +965,7 @@
       '</div>';
     }).join('');
 
-    var reviewCount = Object.keys(state.reviewsData || {}).length;
+    var reviewCount = effectiveReviewCount();
     var ratingHtml = '<div class="rd-rating-block"><svg width="16" height="16"><use href="#icon-star"></use></svg><strong>' + escapeHtml(siteRatingValue()) + '</strong></div>';
     var reviewsLabel = reviewCount === 0 ? t('hero.reviews_none') : (reviewCount === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: reviewCount }));
 
@@ -1103,17 +1121,19 @@
     state.search.roomsManual = false;
     state.search.warning = '';
   }
-  // A esattamente 3 adulti senza bambini una stanza sola (con letto extra)
-  // o due stanze sono ENTRAMBE opzioni valide: invece di scegliere da sola
-  // in silenzio (come faceva prima), il sistema si mette in pausa e lo
-  // chiede esplicitamente in searchGuestsPopoverHtml (applySearchExtraBedChoice).
-  // Da 4 adulti in su una stanza sola non basta comunque (nemmeno col
-  // letto extra): lì niente scelta, si torna alla raccomandazione automatica.
-  function isPureAdultsSingleRoomBoundary() {
-    return state.search.childAges.length === 0 && countedGuests(state.search.adults, state.search.childAges) === 3;
+  // A esattamente 3 ospiti "contati" (adulti + bambini dai 3 anni in su,
+  // in qualsiasi combinazione) una stanza sola (con letto extra) o due
+  // stanze sono ENTRAMBE opzioni valide: invece di scegliere da sola in
+  // silenzio (come faceva prima), il sistema si mette in pausa e lo chiede
+  // esplicitamente in searchGuestsPopoverHtml (applySearchExtraBedChoice).
+  // Da 4 ospiti contati in su una stanza sola non basta comunque (nemmeno
+  // col letto extra): lì niente scelta, si torna alla raccomandazione
+  // automatica.
+  function isSingleRoomBoundary() {
+    return countedGuests(state.search.adults, state.search.childAges) === 3;
   }
   function maybeUpdateRoomsRecommendation() {
-    if (isPureAdultsSingleRoomBoundary() && !state.search.extraBedChoice) return;
+    if (isSingleRoomBoundary() && !state.search.extraBedChoice) return;
     var rec = recommendedRoomsFor(countedGuests(state.search.adults, state.search.childAges));
     if (!state.search.roomsManual || state.search.rooms < rec) applyRoomsRecommendation();
   }
@@ -1154,6 +1174,7 @@
     }
     state.search.childAges.push(CHILD_DEFAULT_AGE);
     state.search.extraBedChoice = null;
+    state.search.cribChoice = null;
     maybeUpdateRoomsRecommendation();
     renderSearch();
   }
@@ -1161,11 +1182,14 @@
     if (!state.search.childAges.length) return;
     state.search.childAges.pop();
     state.search.extraBedChoice = null;
+    state.search.cribChoice = null;
     maybeUpdateRoomsRecommendation();
     renderSearch();
   }
   function setSearchChildAge(index, age) {
     state.search.childAges[index] = Math.max(0, Math.min(17, age));
+    state.search.extraBedChoice = null;
+    state.search.cribChoice = null;
     maybeUpdateRoomsRecommendation();
     renderSearch();
   }
@@ -1343,7 +1367,7 @@
     submitSearch();
   }
   function reviewsBadgeHtml() {
-    var n = Object.keys(state.reviewsData || {}).length;
+    var n = effectiveReviewCount();
     var label = n === 0 ? t('hero.reviews_none') : (n === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: n }));
     return '<span class="room-list-meta-item room-list-reviews"><svg width="14" height="14"><use href="#icon-star"></use></svg>' + escapeHtml(label) + '</span>';
   }
@@ -1388,14 +1412,15 @@
       '</div>'
     );
   }
-  // A esattamente 3 adulti (senza bambini) chiede esplicitamente cosa
-  // preferiscono invece di decidere in silenzio (vedi
-  // isPureAdultsSingleRoomBoundary/applySearchExtraBedChoice). Da 4 adulti
-  // in su una stanza sola non basta comunque: solo una nota informativa,
-  // niente scelta finta.
+  // A esattamente 3 ospiti contati (adulti e/o bambini dai 3 anni in su)
+  // chiede esplicitamente cosa preferiscono invece di decidere in silenzio
+  // (vedi isSingleRoomBoundary/applySearchExtraBedChoice) — vale anche per
+  // un bambino tra i 3 e i 17 anni, trattato come un adulto ai fini della
+  // stanza. Da 4 ospiti contati in su una stanza sola non basta comunque:
+  // solo una nota informativa, niente scelta finta.
   function extraBedChoiceHtml(s) {
     var counted = countedGuests(s.adults, s.childAges);
-    if (s.childAges.length > 0 || counted < 3) return '';
+    if (counted < 3) return '';
     if (counted === 3 && !s.extraBedChoice) {
       return (
         '<div class="search-extrabed-choice">' +
@@ -1414,6 +1439,23 @@
       return '<div class="range-hint">' + escapeHtml(tpl(t('search.extrabed_too_many'), { n: recommendedRoomsFor(counted) })) + '</div>';
     }
     return '';
+  }
+  // Un bambino sotto i 3 anni non conta ai fini della stanza (vedi
+  // countedGuests), ma serve comunque chiedere esplicitamente se vuole la
+  // culla invece di lasciarla come opzione nascosta da scoprire solo più
+  // avanti nella pagina della stanza.
+  function searchCribChoiceHtml(s) {
+    var hasInfant = s.childAges.some(function (age) { return age < CHILD_ROOM_COUNT_MIN_AGE; });
+    if (!hasInfant) return '';
+    return (
+      '<div class="search-extrabed-choice">' +
+        '<div class="search-extrabed-choice-text">' + escapeHtml(t('search.crib_choice_text')) + '</div>' +
+        '<div class="search-extrabed-choice-actions">' +
+          '<button type="button" class="flex-result-chip' + (s.cribChoice === 'yes' ? ' is-active' : '') + '" data-search-crib-choice="yes">' + escapeHtml(t('search.crib_choice_yes')) + '</button>' +
+          '<button type="button" class="flex-result-chip' + (s.cribChoice === 'no' ? ' is-active' : '') + '" data-search-crib-choice="no">' + escapeHtml(t('search.crib_choice_no')) + '</button>' +
+        '</div>' +
+      '</div>'
+    );
   }
   function searchGuestsPopoverHtml() {
     var s = state.search;
@@ -1448,6 +1490,7 @@
           '</div>' +
         '</div>' +
         (childRows ? '<div class="search-child-ages">' + childRows + '</div>' : '') +
+        searchCribChoiceHtml(s) +
         '<button type="button" class="btn btn-primary search-guests-done" data-search-guests-done>' + escapeHtml(t('search.done')) + '</button>' +
       '</div>'
     );
@@ -2225,6 +2268,8 @@
 
       el = e.target.closest('[data-search-extrabed-choice]');
       if (el) { applySearchExtraBedChoice(el.getAttribute('data-search-extrabed-choice')); return; }
+      el = e.target.closest('[data-search-crib-choice]');
+      if (el) { state.search.cribChoice = el.getAttribute('data-search-crib-choice'); renderSearch(); return; }
       el = e.target.closest('[data-search-adults-inc]');
       if (el && !el.disabled) { searchAdultsInc(); return; }
       el = e.target.closest('[data-search-adults-dec]');

@@ -16,6 +16,7 @@
     monoSlidesData: JSON.parse(JSON.stringify(window.CASA_CELESTE_TOURISM_DATA.SEED_MONO_SLIDES)),
     settings: {},
     manualBookingOpen: false,
+    rerenderPending: false,
     unsubBookings: null, unsubRooms: null, unsubCommons: null, unsubReviews: null, unsubMonoSlides: null, unsubSettings: null
   };
 
@@ -112,6 +113,19 @@
   function renderTabContent() {
     var content = document.getElementById('dash-content');
     if (!content) return;
+    // Ogni sottoscrizione onSnapshot (prenotazioni, stanze, spazi comuni...)
+    // richiama renderTabContent() a ogni cambiamento remoto, anche se non
+    // riguarda il tab aperto (es. arriva una nuova prenotazione mentre si
+    // scrive un campo nel tab "Stanze"). Senza questo controllo, il
+    // ricalcolo dell'innerHTML distrugge l'input su cui l'admin sta ancora
+    // scrivendo, facendo sparire il testo appena inserito prima ancora che
+    // possa salvarsi. Si rimanda il render a quando il campo perde il focus.
+    var active = document.activeElement;
+    if (active && content.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+      state.rerenderPending = true;
+      return;
+    }
+    state.rerenderPending = false;
     if (state.activeTab === 'bookings') renderBookingsTab(content);
     else if (state.activeTab === 'commons') renderCommonsTab(content);
     else if (state.activeTab === 'reviews') renderReviewsTab(content);
@@ -120,6 +134,12 @@
     else if (state.activeTab === 'settings') renderSettingsTab(content);
     else renderRoomsTab(content);
   }
+  document.addEventListener('focusout', function (e) {
+    var content = document.getElementById('dash-content');
+    if (state.rerenderPending && content && content.contains(e.target)) {
+      setTimeout(function () { if (state.rerenderPending) renderTabContent(); }, 0);
+    }
+  });
 
   /* ==========================================================================
      Bookings tab
@@ -498,7 +518,22 @@
       el.addEventListener('change', function (e) {
         var val = e.target.value;
         if (field === 'nightlyPrice' || field === 'maxGuests' || field === 'minNights') val = Number(val) || 0;
-        var patch = {}; patch[field] = val;
+        var patch = {};
+        // Campi bilingue (es. "description.it", "favoriteBadge.en"): si
+        // scrive l'intero oggetto {it, en} come singolo campo top-level
+        // invece di affidarsi al parsing dei percorsi puntati di
+        // setDoc(...,{merge:true}), che in alcuni casi non crea/aggiorna
+        // correttamente il campo annidato partendo da un valore assente.
+        var dot = field.indexOf('.');
+        if (dot !== -1) {
+          var base = field.slice(0, dot), lang = field.slice(dot + 1);
+          var current = state.roomsData[roomId] && state.roomsData[roomId][base];
+          var obj = (current && typeof current === 'object') ? Object.assign({}, current) : { it: '', en: '' };
+          obj[lang] = val;
+          patch[base] = obj;
+        } else {
+          patch[field] = val;
+        }
         window.CasaCelesteTourismDB.setRoom(roomId, patch);
       });
     });
@@ -828,6 +863,7 @@
         '<div class="admin-field-group"><label>Check-out entro</label><input type="text" class="admin-field" id="settings-checkout" value="' + escapeHtml(s.checkOutTime || '10:00') + '"></div>' +
         '<div class="admin-field-group"><label>Tassa di soggiorno (€/notte/persona)</label><input type="number" step="0.5" class="admin-field" id="settings-tax-rate" value="' + (s.touristTaxRate != null ? s.touristTaxRate : 0) + '"></div>' +
         '<div class="admin-field-group"><label>Valutazione media (facoltativo, es. da Airbnb/Booking) — lascia vuoto finché non hai un voto reale</label><input type="number" step="0.1" min="0" max="5" class="admin-field" id="settings-avg-rating" value="' + (s.avgRating != null ? s.avgRating : '') + '"></div>' +
+        '<div class="admin-field-group"><label>Numero recensioni mostrato sul sito (facoltativo) — lascia vuoto per usare il conteggio reale del tab Recensioni</label><input type="number" step="1" min="0" class="admin-field" id="settings-review-count" value="' + (s.reviewCountOverride != null ? s.reviewCountOverride : '') + '"></div>' +
       '</div>' +
       '<div class="admin-room-card">' +
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Conservazione dati documento ospiti</span></div>' +
@@ -889,6 +925,10 @@
     document.getElementById('settings-avg-rating').addEventListener('change', function (e) {
       var v = e.target.value === '' ? null : Math.max(0, Math.min(5, Number(e.target.value)));
       window.CasaCelesteTourismDB.setSettings({ avgRating: (v == null || isNaN(v)) ? null : v });
+    });
+    document.getElementById('settings-review-count').addEventListener('change', function (e) {
+      var v = e.target.value === '' ? null : Math.max(0, Number(e.target.value));
+      window.CasaCelesteTourismDB.setSettings({ reviewCountOverride: (v == null || isNaN(v)) ? null : Math.round(v) });
     });
     document.getElementById('settings-retention-hours').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ guestDocsRetentionHours: Number(e.target.value) || 48 }); });
     document.getElementById('settings-email-budget').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaMonthlyBudget: Number(e.target.value) || 150 }); });
