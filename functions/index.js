@@ -23,7 +23,7 @@ const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https')
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const { createBookingCore, createGroupBookingCore } = require('./booking-logic');
+const { createBookingCore, createGroupBookingCore, computeQuoteCore } = require('./booking-logic');
 const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-verification');
 const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString } = require('./guest-documents');
 const { handleTelegramUpdate } = require('./telegram-bot');
@@ -34,6 +34,12 @@ setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
 const telegramBotToken = defineSecret('TELEGRAM_BOT_TOKEN');
 const telegramWebhookSecret = defineSecret('TELEGRAM_WEBHOOK_SECRET');
 const visionApiKey = defineSecret('VISION_API_KEY');
+// Chiave segreta Stripe (sk_...) — impostarla con:
+//   firebase functions:secrets:set STRIPE_SECRET_KEY
+// (mai nel codice, stesso pattern di TELEGRAM_BOT_TOKEN). La chiave
+// PUBBLICABILE (pk_...) invece va in affittacamere/js/stripe-config.js,
+// non è un segreto.
+const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
 
 async function notifyOwnerNewBooking(result, data) {
   const token = telegramBotToken.value();
@@ -123,6 +129,48 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken] }, async (requ
   }
   if (source === 'site') await notifyOwnerNewGroupBooking(result, data);
   return result;
+});
+
+/* ==========================================================================
+   createPaymentIntent — pagamento in-page con Stripe Payment Element
+   (niente redirect al Checkout ospitato da Stripe). L'importo NON arriva
+   mai dal client: viene ricalcolato qui da computeQuoteCore a partire da
+   stanza/date/ospiti, così un client malevolo non può far pagare meno del
+   dovuto modificando il totale mostrato in pagina. Richiede STRIPE_SECRET_KEY
+   impostata come secret (vedi sopra) e il pacchetto "stripe" installato in
+   functions/ — require() è dentro la funzione (non in cima al file) apposta,
+   così finché non è installato/configurato solo questa funzione fallisce con
+   un errore chiaro invece di rompere il deploy di tutte le altre.
+   ========================================================================== */
+exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (request) => {
+  const data = request.data || {};
+  const key = stripeSecretKey.value();
+  if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: manca STRIPE_SECRET_KEY.');
+
+  let amountEur;
+  try {
+    amountEur = await computeQuoteCore(db, data);
+  } catch (err) {
+    if (err.code) throw new HttpsError(err.code, err.message);
+    throw new HttpsError('internal', 'Errore nel calcolo del totale.');
+  }
+  if (!(amountEur > 0)) throw new HttpsError('invalid-argument', 'Totale non valido.');
+
+  let stripe;
+  try {
+    stripe = require('stripe')(key);
+  } catch (e) {
+    throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: pacchetto "stripe" mancante (npm install stripe in functions/).');
+  }
+
+  const intent = await stripe.paymentIntents.create({
+    amount: Math.round(amountEur * 100),
+    currency: 'eur',
+    automatic_payment_methods: { enabled: true },
+    description: 'Casa Celeste — prenotazione stanza',
+    metadata: { checkIn: data.checkIn || '', checkOut: data.checkOut || '', roomId: data.roomId || '', groupBooking: Array.isArray(data.rooms) ? 'si' : 'no' }
+  });
+  return { clientSecret: intent.client_secret, amount: amountEur };
 });
 
 /* ==========================================================================

@@ -255,4 +255,50 @@ async function createGroupBookingCore(admin, db, data) {
   });
 }
 
-module.exports = { createBookingCore, createGroupBookingCore };
+// computeQuoteCore — ricalcola il totale autoritativo (in euro) di una
+// prenotazione a stanza singola o di gruppo, a partire dai soli
+// identificativi delle stanze/date/ospiti — MAI dal totale inviato dal
+// client. Usata da createPaymentIntent (functions/index.js) prima di
+// creare l'addebito Stripe: l'importo dell'addebito deve sempre venire da
+// qui, mai da un valore in euro passato dal browser (altrimenti un client
+// malevolo potrebbe far pagare meno del dovuto). Sola lettura, nessuna
+// transazione: qui si sta solo facendo un preventivo, la prenotazione
+// vera e propria (con blocco delle date) resta a createBookingCore/
+// createGroupBookingCore.
+async function computeQuoteCore(db, data) {
+  const checkIn = data.checkIn;
+  const checkOut = data.checkOut;
+  if (!isValidDateStr(checkIn) || !isValidDateStr(checkOut) || checkIn >= checkOut) {
+    fail('invalid-argument', 'Date non valide.');
+  }
+  const nights = Math.round((new Date(checkOut) - new Date(checkIn)) / 86400000);
+  const rooms = Array.isArray(data.rooms) && data.rooms.length
+    ? data.rooms
+    : [{ roomId: data.roomId, guests: data.guests, exemptGuests: data.exemptGuests, cribCount: data.cribCount, extraBedCount: data.extraBedCount }];
+
+  const settingsSnap = await db.collection('tourism_settings').doc('site').get();
+  const settings = settingsSnap.exists ? settingsSnap.data() : {};
+  const taxRate = Number(settings.touristTaxRate) || 0;
+
+  let total = 0;
+  for (let i = 0; i < rooms.length; i++) {
+    const r = rooms[i];
+    if (!isNonEmptyString(r.roomId, 50)) fail('invalid-argument', 'Stanza mancante.');
+    const roomSnap = await db.collection('tourism_rooms').doc(r.roomId).get();
+    if (!roomSnap.exists) fail('not-found', 'Stanza non trovata.');
+    const room = roomSnap.data();
+    const guests = Number(r.guests) || 0;
+    const exemptGuests = Math.max(0, Number(r.exemptGuests) || 0);
+    const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(r.cribCount) || 0));
+    const extraBedCount = Math.max(0, Math.min(EXTRA_BED_MAX, Number(r.extraBedCount) || 0));
+    const roomTotal = nights * (Number(room.nightlyPrice) || 0);
+    const taxableGuests = Math.max(0, guests - exemptGuests);
+    const tax = taxRate * taxableGuests * nights;
+    const cribTotal = cribCount * CRIB_PRICE_PER_NIGHT * nights;
+    const extraBedTotal = extraBedCount * EXTRA_BED_PRICE_PER_NIGHT * nights;
+    total += roomTotal + tax + cribTotal + extraBedTotal;
+  }
+  return Math.round(total * 100) / 100;
+}
+
+module.exports = { createBookingCore, createGroupBookingCore, computeQuoteCore };

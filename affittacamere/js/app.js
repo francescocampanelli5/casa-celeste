@@ -2060,10 +2060,97 @@
         '<label for="contract-checkbox">' + escapeHtml(t('booking.contract_checkbox')) + ' — <button type="button" class="link-btn" style="display:inline; padding:0;" data-open-legal="termini">' + escapeHtml(t('booking.contract_link')) + '</button></label>' +
       '</div>' +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      '<button type="button" class="btn confirm-btn" data-confirm-booking id="confirm-booking-btn">' + escapeHtml(state.bookingBusy ? '…' : t('booking.conferma_prenotazione')) + '</button>' +
+      '<button type="button" class="btn confirm-btn" data-go-payment-step id="confirm-booking-btn">' + escapeHtml(t('booking.continua_pagamento')) + '</button>' +
       '<button type="button" class="link-btn link-btn--centered" data-back-to-options>' + escapeHtml(t('booking.cambia_opzioni')) + '</button>'
     );
   }
+  /* ==========================================================================
+     Step di pagamento (Stripe Payment Element) — unico step condiviso da
+     flusso a stanza singola e di gruppo, mostrato dopo i contatti e prima
+     della conferma vera e propria. IMPORTANTE: a differenza di tutti gli
+     altri step di questo modale (che si ridisegnano da zero a ogni
+     renderBookingModal(), sovrascrivendo l'HTML con innerHTML), l'elemento
+     Stripe montato qui vive nel proprio iframe e andrebbe distrutto da un
+     nuovo innerHTML — per questo bindPaymentStepInputs() NON richiama mai
+     renderBookingModal() per i propri errori/stati di caricamento, li
+     scrive direttamente nel DOM. renderBookingModal() viene richiamato solo
+     per uscire dallo step (indietro, o successo dopo il pagamento).
+     ========================================================================== */
+  var stripeClientRef = null, stripeElementsRef = null, stripePaymentElementRef = null;
+  function paymentQuotePayload() {
+    if (state.groupMode) {
+      var roomsPayload = state.groupAllocations.filter(function (a) { return a.roomId; }).map(function (alloc) {
+        var allocChildAges = alloc.childIdxs.map(function (ci) { return state.guestsChildAges[ci]; });
+        var totalGuestsForServer = countedGuests(alloc.adults, allocChildAges);
+        var exemptGuestsForServer = totalGuestsForServer - taxablePersons(alloc.adults, allocChildAges);
+        return { roomId: alloc.roomId, guests: totalGuestsForServer, exemptGuests: exemptGuestsForServer, cribCount: alloc.cribCount, extraBedCount: alloc.extraBedCount };
+      });
+      return { checkIn: state.selectedCheckIn, checkOut: state.selectedCheckOut, rooms: roomsPayload };
+    }
+    var totalGuestsForServer = countedGuests(state.guestsAdults, state.guestsChildAges);
+    var exemptGuestsForServer = totalGuestsForServer - taxablePersons(state.guestsAdults, state.guestsChildAges);
+    return {
+      checkIn: state.selectedCheckIn, checkOut: state.selectedCheckOut, roomId: state.bookingRoomId,
+      guests: totalGuestsForServer, exemptGuests: exemptGuestsForServer, cribCount: state.cribCount, extraBedCount: state.extraBedCount
+    };
+  }
+  function paymentStepHtml() {
+    stripeClientRef = null; stripeElementsRef = null; stripePaymentElementRef = null;
+    return (
+      '<div class="slot-label">' + escapeHtml(t('booking.payment_step_title')) + '</div>' +
+      '<div class="payment-total-row"><span>' + escapeHtml(t('booking.payment_total_label')) + '</span><span id="payment-total-value">…</span></div>' +
+      '<div id="payment-element-container" class="payment-element-container"></div>' +
+      '<div class="field-error" id="payment-error" style="display:none;"></div>' +
+      '<button type="button" class="payment-submit-btn" id="payment-submit-btn" disabled>' + escapeHtml(t('booking.payment_submit_cta')) + '</button>' +
+      '<button type="button" class="link-btn link-btn--centered" data-back-to-contact>' + escapeHtml(t('booking.cambia_contatti')) + '</button>'
+    );
+  }
+  function bindPaymentStepInputs() {
+    var errorEl = document.getElementById('payment-error');
+    var submitBtn = document.getElementById('payment-submit-btn');
+    var totalEl = document.getElementById('payment-total-value');
+    var container = document.getElementById('payment-element-container');
+    function showError(msg) { errorEl.textContent = msg; errorEl.style.display = ''; }
+    if (!window.Stripe || !window.STRIPE_PUBLISHABLE_KEY || window.STRIPE_PUBLISHABLE_KEY.indexOf('INSERISCI') !== -1) {
+      showError(t('booking.payment_not_configured'));
+      return;
+    }
+    if (!window.CasaCelesteTourismDB) return;
+    window.CasaCelesteTourismDB.createPaymentIntent(paymentQuotePayload()).then(function (res) {
+      totalEl.textContent = '€' + Number(res.amount).toFixed(2);
+      stripeClientRef = window.Stripe(window.STRIPE_PUBLISHABLE_KEY);
+      stripeElementsRef = stripeClientRef.elements({ clientSecret: res.clientSecret });
+      stripePaymentElementRef = stripeElementsRef.create('payment');
+      stripePaymentElementRef.mount(container);
+      submitBtn.disabled = false;
+    }).catch(function (err) {
+      showError((err && err.message) || t('booking.payment_generic_error'));
+    });
+
+    submitBtn.addEventListener('click', function () {
+      if (!stripeClientRef || !stripeElementsRef) return;
+      submitBtn.disabled = true;
+      submitBtn.textContent = '…';
+      errorEl.style.display = 'none';
+      stripeClientRef.confirmPayment({ elements: stripeElementsRef, redirect: 'if_required' }).then(function (result) {
+        if (result.error) {
+          showError(result.error.message || t('booking.payment_generic_error'));
+          submitBtn.disabled = false;
+          submitBtn.textContent = t('booking.payment_submit_cta');
+          return;
+        }
+        // Pagamento confermato lato Stripe: ora si crea davvero la
+        // prenotazione (stessa Cloud Function di prima, invariata).
+        if (state.groupMode) confirmGroupBooking(); else confirmBooking();
+      }).catch(function (err) {
+        showError((err && err.message) || t('booking.payment_generic_error'));
+        submitBtn.disabled = false;
+        submitBtn.textContent = t('booking.payment_submit_cta');
+      });
+    });
+  }
+  function goPaymentStep() { state.bookingStep = 5; renderBookingModal(); }
+  function backToContact() { state.bookingStep = 4; renderBookingModal(); }
   function successStepHtml() {
     var res = state.bookingResult || {};
     var docsLink = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + 'ospiti.html?booking=' + encodeURIComponent(res.id || '') + '&token=' + encodeURIComponent(res.guestFormToken || '');
@@ -2091,13 +2178,15 @@
       else if (state.bookingStep === 2) stepHtml = groupAllocationStepHtml();
       else if (state.bookingStep === 3) stepHtml = groupRoomPickStepHtml();
       else if (state.bookingStep === 4) stepHtml = groupContactStepHtml();
-      else if (state.bookingStep === 5) stepHtml = groupSuccessStepHtml();
+      else if (state.bookingStep === 5) stepHtml = paymentStepHtml();
+      else if (state.bookingStep === 6) stepHtml = groupSuccessStepHtml();
     } else {
       if (state.bookingStep === 1) stepHtml = calendarStepHtml();
       else if (state.bookingStep === 2) stepHtml = guestsStepHtml();
       else if (state.bookingStep === 3) stepHtml = optionsStepHtml();
       else if (state.bookingStep === 4) stepHtml = contactStepHtml();
-      else if (state.bookingStep === 5) stepHtml = successStepHtml();
+      else if (state.bookingStep === 5) stepHtml = paymentStepHtml();
+      else if (state.bookingStep === 6) stepHtml = successStepHtml();
     }
 
     root.innerHTML =
@@ -2118,6 +2207,7 @@
     });
     if (!state.groupMode && state.bookingStep === 2) bindGuestsStepInputs();
     if (state.bookingStep === 4) bindContactInputs();
+    if (state.bookingStep === 5) bindPaymentStepInputs();
     updateBodyScrollLock();
   }
   function bindGuestsStepInputs() {
@@ -2558,7 +2648,7 @@
         '<label for="contract-checkbox">' + escapeHtml(t('booking.contract_checkbox')) + ' — <button type="button" class="link-btn" style="display:inline; padding:0;" data-open-legal="termini">' + escapeHtml(t('booking.contract_link')) + '</button></label>' +
       '</div>' +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      '<button type="button" class="btn confirm-btn" data-confirm-group-booking id="confirm-booking-btn">' + escapeHtml(state.bookingBusy ? '…' : t('booking.conferma_prenotazione')) + '</button>' +
+      '<button type="button" class="btn confirm-btn" data-go-payment-step id="confirm-booking-btn">' + escapeHtml(t('booking.continua_pagamento')) + '</button>' +
       '<button type="button" class="link-btn link-btn--centered" data-back-to-group-rooms>' + escapeHtml(t('booking.cambia_opzioni')) + '</button>'
     );
   }
@@ -2608,7 +2698,7 @@
     }).then(function (res) {
       state.bookingBusy = false;
       state.bookingResult = res;
-      state.bookingStep = 5;
+      state.bookingStep = 6;
       renderBookingModal();
     }).catch(function (err) {
       state.bookingBusy = false;
@@ -2655,7 +2745,7 @@
     }).then(function (res) {
       state.bookingBusy = false;
       state.bookingResult = res;
-      state.bookingStep = 5;
+      state.bookingStep = 6;
       renderBookingModal();
     }).catch(function (err) {
       state.bookingBusy = false;
@@ -2876,8 +2966,10 @@
       if (el && !el.disabled) { guestChildrenInc(); return; }
       el = e.target.closest('[data-guest-children-dec]');
       if (el && !el.disabled) { guestChildrenDec(); return; }
-      el = e.target.closest('[data-confirm-booking]');
-      if (el && !el.disabled) { confirmBooking(); return; }
+      el = e.target.closest('[data-go-payment-step]');
+      if (el && !el.disabled) { goPaymentStep(); return; }
+      el = e.target.closest('[data-back-to-contact]');
+      if (el) { backToContact(); return; }
 
       el = e.target.closest('[data-open-group-booking]');
       if (el) { openGroupBooking(); return; }
@@ -2909,8 +3001,6 @@
       if (el && !el.disabled) { goGroupContactStep(); return; }
       el = e.target.closest('[data-back-to-group-rooms]');
       if (el) { backToGroupRooms(); return; }
-      el = e.target.closest('[data-confirm-group-booking]');
-      if (el && !el.disabled) { confirmGroupBooking(); return; }
 
       el = e.target.closest('[data-open-legal]');
       if (el) { openLegal(el.getAttribute('data-open-legal')); return; }

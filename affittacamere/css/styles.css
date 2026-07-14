@@ -1199,6 +1199,21 @@ button { font-family: inherit; }
 .confirm-btn { width: 100%; background: var(--blue); color: var(--white); border: none; padding: 15px; border-radius: var(--radius-pill); font-weight: 700; font-size: 14.5px; cursor: pointer; margin-bottom: 10px; }
 .confirm-btn:disabled { cursor: default; }
 
+/* Step di pagamento (Stripe Payment Element) */
+.payment-total-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  background: #F5FAFD; border-radius: 12px; padding: 14px 18px; margin: 0 0 16px;
+  font-size: 14px; font-weight: 700; color: #10233B;
+}
+.payment-total-row span:last-child { font-size: 19px; }
+.payment-element-container { margin-bottom: 16px; min-height: 44px; }
+.payment-submit-btn {
+  width: 100%; background: #E0117A; color: var(--white); border: none; padding: 15px;
+  border-radius: var(--radius-pill); font-weight: 700; font-size: 14.5px; cursor: pointer;
+  margin-bottom: 10px; transition: opacity .15s ease;
+}
+.payment-submit-btn:disabled { opacity: 0.55; cursor: default; }
+
 .booking-success { text-align: center; padding: 12px 0 8px; }
 .success-icon { width: 54px; height: 54px; border-radius: 50%; background: var(--green-bg-soft); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 26px; color: var(--green); }
 .success-title { font-family: var(--font-display); font-weight: 800; font-size: 19px; margin: 0 0 10px; color: var(--navy); }

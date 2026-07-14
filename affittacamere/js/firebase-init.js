@@ -255,6 +255,13 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'createGroupBooking')(data).then(function (res) { return res.data; });
   },
+  // Crea il PaymentIntent Stripe (l'importo lo ricalcola il server da
+  // stanza/date/ospiti, vedi computeQuoteCore in functions/booking-logic.js
+  // — qui si manda solo cosa si sta prenotando, mai un totale in euro).
+  createPaymentIntent: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'createPaymentIntent')(data).then(function (res) { return res.data; });
+  },
   submitGuestDocuments: function (data) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'submitGuestDocuments')(data).then(function (res) { return res.data; });
