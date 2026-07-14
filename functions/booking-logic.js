@@ -58,7 +58,36 @@ function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.trim().length <= (maxLen || 100);
 }
 
-async function createBookingCore(admin, db, data) {
+// verifyPaidIntent — non ci si fida MAI del solo fatto che il client abbia
+// mandato un paymentIntentId (potrebbe essere inventato, riciclato da un
+// altro pagamento, o corrispondere a un pagamento non ancora davvero
+// concluso): si ricontrolla qui, direttamente con l'API di Stripe, che quel
+// PaymentIntent sia (1) effettivamente 'succeeded', (2) per l'importo giusto
+// (calcolato server-side da computeQuoteCore, mai da un totale inviato dal
+// client) e (3) non già usato per un'altra prenotazione. Solo se tutti e tre
+// i controlli passano la prenotazione viene creata e le notti bloccate.
+async function verifyPaidIntent(db, stripe, paymentIntentId, expectedAmountEuro) {
+  if (!stripe) fail('failed-precondition', 'Pagamento online non configurato lato server.');
+  let intent;
+  try {
+    intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  } catch (err) {
+    fail('failed-precondition', 'Pagamento non trovato o non valido.');
+  }
+  if (!intent || intent.status !== 'succeeded') {
+    fail('failed-precondition', 'payment_not_confirmed');
+  }
+  const expectedCents = Math.round(expectedAmountEuro * 100);
+  if (intent.currency !== 'eur' || intent.amount !== expectedCents) {
+    fail('failed-precondition', 'payment_amount_mismatch');
+  }
+  const already = await db.collection('tourism_bookings').where('payment.intentId', '==', paymentIntentId).limit(1).get();
+  if (!already.empty) {
+    fail('already-exists', 'payment_already_used');
+  }
+}
+
+async function createBookingCore(admin, db, stripe, data) {
   const roomId = data.roomId;
   const checkIn = data.checkIn;
   const checkOut = data.checkOut;
@@ -97,6 +126,15 @@ async function createBookingCore(admin, db, data) {
   // da Stripe.
   if (source === 'site' && !isNonEmptyString(paymentIntentId, 200)) {
     fail('failed-precondition', 'Pagamento mancante.');
+  }
+  // Non ci si fida del solo id mandato dal client: si riverifica con Stripe
+  // che quel pagamento sia davvero concluso, per l'importo giusto (calcolato
+  // qui allo stesso modo di createPaymentIntent) e non già usato altrove —
+  // vedi verifyPaidIntent sopra. Se una qualunque di queste condizioni non
+  // regge, la prenotazione NON viene creata e le notti restano libere.
+  if (source === 'site') {
+    const quote = await computeQuoteCore(db, data);
+    await verifyPaidIntent(db, stripe, paymentIntentId, quote.amount);
   }
 
   const roomRef = db.collection('tourism_rooms').doc(roomId);
@@ -188,7 +226,7 @@ async function createBookingCore(admin, db, data) {
 // richiama, non la modifica) per non toccare la transazione a singola
 // stanza già in uso — quella resta il percorso più delicato del sistema,
 // vedi commento in testa al file.
-async function createGroupBookingCore(admin, db, data) {
+async function createGroupBookingCore(admin, db, stripe, data) {
   const checkIn = data.checkIn;
   const checkOut = data.checkOut;
   const rooms = Array.isArray(data.rooms) ? data.rooms : [];
@@ -206,6 +244,12 @@ async function createGroupBookingCore(admin, db, data) {
   if (!isNonEmptyString(name, 200) || !isNonEmptyString(email, 200)) fail('invalid-argument', 'Nome o email mancanti.');
   if (source === 'site' && !contractAccepted) fail('failed-precondition', 'Condizioni di soggiorno non accettate.');
   if (source === 'site' && !isNonEmptyString(paymentIntentId, 200)) fail('failed-precondition', 'Pagamento mancante.');
+  // Stesso controllo di createBookingCore, sull'importo complessivo del
+  // gruppo (un solo PaymentIntent copre tutte le stanze insieme).
+  if (source === 'site') {
+    const quote = await computeQuoteCore(db, data);
+    await verifyPaidIntent(db, stripe, paymentIntentId, quote.amount);
+  }
 
   const roomIds = rooms.map((r) => r.roomId);
   if (new Set(roomIds).size !== roomIds.length) fail('invalid-argument', 'Ogni stanza del gruppo deve essere diversa dalle altre.');

@@ -50,4 +50,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add affittacamere/ical/
           git diff --cached --quiet || git commit -m "Aggiorna calendari iCal affittacamere [skip ci]"
-          git push
+          # Se nel frattempo qualcun altro ha pushato su main (es. una modifica
+          # manuale mentre questo run era già in corso), il primo push viene
+          # rifiutato: si riallinea con un rebase e si riprova, invece di far
+          # fallire il run per un semplice sorpasso temporaneo.
+          git push || (git pull --rebase origin main && git push)

@@ -111,17 +111,25 @@ const bucket = admin.storage().bucket();
    createBooking — logica condivisa in booking-logic.js (usata anche dal
    bot Telegram via telegram-bot.js).
    ========================================================================== */
-exports.createBooking = onCall({ secrets: [telegramBotToken] }, async (request) => {
+exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
   const data = request.data || {};
   const source = data.source === 'site' ? 'site' : (data.source || 'site');
   if (source !== 'site' && !request.auth) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
+  // Lo Stripe client serve solo per le richieste dal sito (createBookingCore
+  // ricontrolla lì il pagamento prima di confermare — vedi verifyPaidIntent
+  // in booking-logic.js): le prenotazioni manuali non lo toccano mai.
+  let stripe = null;
+  if (source === 'site') {
+    const key = stripeSecretKey.value();
+    if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato.');
+    try { stripe = require('stripe')(key); } catch (e) { throw new HttpsError('failed-precondition', 'Pacchetto "stripe" mancante lato server.'); }
+  }
   let result;
   try {
-    result = await createBookingCore(admin, db, data);
+    result = await createBookingCore(admin, db, stripe, data);
   } catch (err) {
-    if (err.code === 'already-exists') throw new HttpsError('already-exists', 'dates_taken');
     if (err.code) throw new HttpsError(err.code, err.message);
     throw new HttpsError('internal', 'Errore imprevisto: riprova.');
   }
@@ -136,17 +144,22 @@ exports.createBooking = onCall({ secrets: [telegramBotToken] }, async (request) 
    createGroupBookingCore in booking-logic.js): una sola transazione
    atomica, o tutte le stanze richieste vengono prenotate o nessuna.
    ========================================================================== */
-exports.createGroupBooking = onCall({ secrets: [telegramBotToken] }, async (request) => {
+exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
   const data = request.data || {};
   const source = data.source === 'site' ? 'site' : (data.source || 'site');
   if (source !== 'site' && !request.auth) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
+  let stripe = null;
+  if (source === 'site') {
+    const key = stripeSecretKey.value();
+    if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato.');
+    try { stripe = require('stripe')(key); } catch (e) { throw new HttpsError('failed-precondition', 'Pacchetto "stripe" mancante lato server.'); }
+  }
   let result;
   try {
-    result = await createGroupBookingCore(admin, db, data);
+    result = await createGroupBookingCore(admin, db, stripe, data);
   } catch (err) {
-    if (err.code === 'already-exists') throw new HttpsError('already-exists', 'dates_taken');
     if (err.code) throw new HttpsError(err.code, err.message);
     throw new HttpsError('internal', 'Errore imprevisto: riprova.');
   }

@@ -264,7 +264,7 @@ async function handleLegacyNuovaCommand(ctx, chatId, text) {
   if (!roomId) { await tgSendMessage(ctx, chatId, 'Stanza "' + roomName + '" non trovata.'); return; }
 
   try {
-    const result = await createBookingCore(ctx.admin, ctx.db, {
+    const result = await createBookingCore(ctx.admin, ctx.db, null, {
       roomId: roomId, checkIn: checkIn, checkOut: checkOut, guests: guestsCount, exemptGuests: 0,
       name: name || 'Ospite ' + (SOURCE_MAP[channel] || channel), email: email || 'nessuna@email.non-fornita.invalid',
       phone: phone, source: SOURCE_MAP[channel] || 'manual_other', contractAccepted: true
@@ -684,7 +684,7 @@ async function onConfirmBooking(ctx, chatId, session) {
   const d = session.draft;
   let result;
   try {
-    result = await createBookingCore(ctx.admin, ctx.db, {
+    result = await createBookingCore(ctx.admin, ctx.db, null, {
       roomId: d.roomId, checkIn: d.checkIn, checkOut: d.checkOut, guests: d.guests, exemptGuests: d.exemptGuests,
       name: d.name, email: d.email, phone: d.phone, source: 'telegram_wizard',
       bedType: d.bedType, cribCount: d.cribCount, extraBedCount: d.extraBedCount
