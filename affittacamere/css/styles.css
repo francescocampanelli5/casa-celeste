@@ -63,7 +63,7 @@
    ========================================================================== */
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-section[id] { scroll-margin-top: var(--header-h); }
+section[id], [id] { scroll-margin-top: var(--header-h); }
 body {
   margin: 0;
   background: var(--white);
@@ -549,7 +549,11 @@ button { font-family: inherit; }
 .distance-item {
   background: var(--blue-bg-soft); border-radius: var(--radius-xs); padding: 15px 18px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; border: none; cursor: pointer; text-align: left; font-family: inherit;
+  transition: background-color .15s ease, transform .1s ease;
 }
+.distance-item:hover { background: var(--blue-bg); }
+.distance-item:active { transform: scale(0.98); }
 .distance-label { display: inline-flex; align-items: center; gap: 9px; font-weight: 700; font-size: 14px; color: var(--text-body-alt); }
 .distance-label svg { flex-shrink: 0; color: var(--blue-deep); }
 .distance-value { font-weight: 800; font-size: 14px; color: var(--blue); }
@@ -611,6 +615,7 @@ button { font-family: inherit; }
   padding: 18px; display: flex; flex-direction: column; gap: 12px;
 }
 .admin-room-head { display: flex; align-items: center; gap: 10px; }
+.rec-clicks-hint { font-size: 12px; font-weight: 700; color: var(--blue-deep); background: var(--blue-bg-soft); border-radius: var(--radius-xs); padding: 6px 10px; display: inline-block; width: fit-content; }
 .admin-room-name { font-weight: 700; font-size: 14px; flex: 1; min-width: 0; }
 .admin-room-slug { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-faintest); white-space: nowrap; }
 .admin-field-group { display: flex; flex-direction: column; gap: 4px; }
@@ -1539,7 +1544,7 @@ button { font-family: inherit; }
    menu a tendina: cliccare la foto apre la card stanza completa, il
    bottone sotto seleziona/deseleziona quella stanza per lo slot. */
 .group-room-thumbs {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin-bottom: 14px;
 }
 .group-room-thumb {
   border: 1.5px solid var(--border-hairline); border-radius: var(--radius-sm); overflow: hidden;
@@ -1556,7 +1561,8 @@ button { font-family: inherit; }
 .group-room-thumb-name { font-size: 12.5px; font-weight: 800; color: var(--navy); line-height: 1.2; }
 .group-room-thumb-price { font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
 .group-room-thumb-select {
-  width: 100%; margin-top: 4px; padding: 7px 8px; font-size: 11.5px; font-weight: 700; border-radius: var(--radius-pill);
+  width: 100%; margin-top: 4px; padding: 8px 6px; font-size: 11px; font-weight: 700; border-radius: var(--radius-sm);
+  white-space: normal; line-height: 1.25; text-align: center; min-height: 34px;
 }
 .group-room-thumb-select.is-selected { background: var(--blue); color: var(--white); border-color: var(--blue); }
 .group-price-block { padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid rgba(16,35,59,0.08); }
@@ -1573,6 +1579,16 @@ button { font-family: inherit; }
   font-size: 14px; color: #7A5E12;
 }
 .noservices-panel strong { display: block; margin-bottom: 6px; font-size: 15px; }
+
+/* Codice referral mostrato nella pagina di conferma prenotazione, da far
+   vedere ai locali convenzionati (accordo verbale col proprietario). */
+.referral-code-panel {
+  background: var(--navy); color: var(--white); border-radius: 12px; padding: 18px 22px;
+  margin: 14px 0; text-align: center;
+}
+.referral-code-title { font-size: 12.5px; font-weight: 700; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.04em; }
+.referral-code-value { font-family: var(--font-display); font-size: 26px; font-weight: 800; letter-spacing: 0.06em; margin: 6px 0; color: var(--yellow); }
+.referral-code-text { font-size: 12.5px; opacity: 0.85; line-height: 1.4; }
 
 /* Consigli & dintorni — strip di card verticali scorrevole orizzontalmente,
    come il carosello Monopoli ma con più card visibili insieme. */
@@ -1591,6 +1607,12 @@ button { font-family: inherit; }
 .recs-card-photo { position: relative; aspect-ratio: 3/4; background: var(--panel-bg); }
 .recs-card-photo .real-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .recs-card-photo .photo-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 14px; }
+.recs-card-price {
+  position: absolute; right: 8px; bottom: 8px; z-index: 1;
+  background: var(--white); color: var(--blue-deep); font-family: var(--font-display);
+  font-weight: 800; font-size: 15px; padding: 5px 12px; border-radius: var(--radius-pill);
+  box-shadow: 0 4px 14px rgba(16,35,59,0.28);
+}
 .recs-card-body { padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 4px; }
 .recs-card-meta { font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--blue-deep); }
 .recs-card-title { font-weight: 700; font-size: 14px; color: var(--navy); }

@@ -826,6 +826,31 @@
      scelte qui.
      ========================================================================== */
   var HOUSE_ADDRESS = 'Via Giuseppe Can. del Drago 9, Monopoli (BA)';
+  // Destinazione reale per ciascun punto d'interesse elencato in "Posizione"
+  // (voce cliccabile -> conferma -> Google Maps con il percorso a piedi
+  // dalla casa). Chiave = lo stesso data-map-poi usato sia nell'HTML
+  // statico della home (index.html) sia in roomDetailLocationHtml().
+  var MAP_POI_DESTINATIONS = {
+    centro: 'Piazza Vittorio Emanuele II, Monopoli BA',
+    super: 'Supermercato, Monopoli BA',
+    stazione: 'Stazione di Monopoli, Monopoli BA',
+    conservatorio: 'Porto di Monopoli, Monopoli BA'
+  };
+  // Codice referral per i locali convenzionati (accordo verbale col
+  // proprietario, nessuna piattaforma di affiliazione reale collegata):
+  // derivato dall'id prenotazione stesso, niente da salvare in più — il
+  // proprietario può risalire alla prenotazione dagli ultimi caratteri
+  // dell'id se un locale gli riporta questo codice.
+  function referralCodeForBooking(id) {
+    return 'CC-' + String(id || '').slice(-6).toUpperCase();
+  }
+  function openMapsDirectionsToPoi(poiKey, label) {
+    var dest = MAP_POI_DESTINATIONS[poiKey];
+    if (!dest) return;
+    if (!window.confirm(tpl(t('roomdetail.maps_confirm'), { place: label || dest }))) return;
+    var url = 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(HOUSE_ADDRESS) + '&destination=' + encodeURIComponent(dest) + '&travelmode=walking';
+    window.open(url, '_blank', 'noopener');
+  }
   function roomPhotos(id, room) {
     var uploaded = room.photos || [];
     var list = [];
@@ -1129,10 +1154,10 @@
       '<div class="location-grid rd-location-grid">' +
         '<div class="map-frame"><iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia&output=embed" loading="lazy"></iframe></div>' +
         '<div class="distance-list">' +
-          '<div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.centro')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min1')) + '</span></div>' +
-          '<div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.super')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min2')) + '</span></div>' +
-          '<div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.stazione')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min3')) + '</span></div>' +
-          '<div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.conservatorio')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min4')) + '</span></div>' +
+          '<button type="button" class="distance-item" data-map-poi="centro"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.centro')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min1')) + '</span></button>' +
+          '<button type="button" class="distance-item" data-map-poi="super"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.super')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min2')) + '</span></button>' +
+          '<button type="button" class="distance-item" data-map-poi="stazione"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.stazione')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min3')) + '</span></button>' +
+          '<button type="button" class="distance-item" data-map-poi="conservatorio"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.conservatorio')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min4')) + '</span></button>' +
           '<div class="parking-callout">' +
             '<span class="parking-callout-icon"><svg width="20" height="20"><use href="#icon-parking"></use></svg></span>' +
             '<div><div class="parking-callout-title">' + escapeHtml(t('parking.title')) + '</div><div class="parking-callout-desc">' + escapeHtml(t('parking.desc')) + '</div></div>' +
@@ -1991,13 +2016,13 @@
     if (!recs.length) { if (section) section.style.display = 'none'; return; }
     if (section) section.style.display = '';
     container.innerHTML = recs.map(function (r) {
-      var metaBits = [r.category, r.cost].filter(Boolean);
-      return '<a class="recs-card" href="' + escapeHtml(r.url || '#') + '" target="_blank" rel="noopener sponsored">' +
+      return '<a class="recs-card" href="' + escapeHtml(r.url || '#') + '" target="_blank" rel="noopener sponsored" data-recs-track="' + escapeHtml(r.id || r.title || '') + '">' +
         '<div class="recs-card-photo">' +
           (r.photo ? photoTag(r.photo, r.title || '') : '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(r.title || '') + '</span>') +
+          (r.cost ? '<span class="recs-card-price">' + escapeHtml(r.cost) + '</span>' : '') +
         '</div>' +
         '<div class="recs-card-body">' +
-          (metaBits.length ? '<div class="recs-card-meta">' + metaBits.map(escapeHtml).join(' · ') + '</div>' : '') +
+          (r.category ? '<div class="recs-card-meta">' + escapeHtml(r.category) + '</div>' : '') +
           '<div class="recs-card-title">' + escapeHtml(r.title || '') + '</div>' +
           (r.text ? '<div class="card-text">' + escapeHtml(r.text) + '</div>' : '') +
         '</div>' +
@@ -2277,7 +2302,14 @@
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       (blocked ?
         '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.switch_to_group_cta')) + '</button>' :
-        '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step>' + escapeHtml(t('booking.step_options_title')) + ' →</button>') +
+        (
+          // Stanza già al completo (non "over", solo piena): il "+" resta
+          // disabilitato, ma senza questo suggerimento cliccarlo non faceva
+          // proprio nulla — l'ospite non scopriva mai che può aggiungere
+          // un'altra stanza per il resto del gruppo mantenendo questa.
+          (atCapacity ? '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.add_room_hint_cta')) + '</button>' : '') +
+          '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step>' + escapeHtml(t('booking.step_options_title')) + ' →</button>'
+        )) +
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
@@ -2463,7 +2495,12 @@
       stripePaymentElementRef = stripeElementsRef.create('payment', {
         // Niente campo nome/email/telefono nel modulo carta: già raccolti
         // allo step precedente, li passiamo noi in confirmPayment sotto.
-        fields: { billingDetails: { name: 'never', email: 'never', phone: 'never', address: 'never' } }
+        fields: { billingDetails: { name: 'never', email: 'never', phone: 'never', address: 'never' } },
+        // wallets.link:'never' toglie il riquadro "Salva le mie
+        // informazioni per un completamento più veloce" (creazione account
+        // Stripe Link con email/telefono/nome) — un modulo separato dai
+        // billingDetails sopra, che altrimenti compare comunque.
+        wallets: { link: 'never', applePay: 'never', googlePay: 'never' }
       });
       stripePaymentElementRef.mount(container);
       stripePaymentElementRef.on('ready', function () {
@@ -2538,9 +2575,20 @@
           '<strong>' + escapeHtml(t('booking.success_docs_title')) + '</strong>' +
           '<span>' + escapeHtml(t('booking.success_docs_text')) + '</span>' +
         '</div>' +
+        referralCodePanelHtml(res.id) +
         '<a href="' + escapeHtml(docsLink) + '" class="btn btn-primary" style="width:100%; margin-top:14px;">' + escapeHtml(t('booking.success_docs_cta')) + '</a>' +
         '<a href="' + escapeHtml(cancelLink) + '" class="link-btn" style="margin-top:10px;">' + escapeHtml(t('booking.success_cancel_cta')) + '</a>' +
         '<button type="button" class="link-btn" data-close-booking style="margin-top:10px;">' + escapeHtml(t('common.chiudi')) + '</button>' +
+      '</div>'
+    );
+  }
+  function referralCodePanelHtml(bookingId) {
+    if (!bookingId) return '';
+    return (
+      '<div class="referral-code-panel">' +
+        '<div class="referral-code-title">' + escapeHtml(t('booking.referral_title')) + '</div>' +
+        '<div class="referral-code-value">' + escapeHtml(referralCodeForBooking(bookingId)) + '</div>' +
+        '<div class="referral-code-text">' + escapeHtml(t('booking.referral_text')) + '</div>' +
       '</div>'
     );
   }
@@ -2694,7 +2742,10 @@
     }
     refreshCalendarConsumers();
   }
-  function goGuestsStep() { state.bookingStep = 2; renderBookingModal(); }
+  function goGuestsStep() {
+    if (state.groupMode) syncGroupRoomsCountToAvailability();
+    state.bookingStep = 2; renderBookingModal();
+  }
   function editGuestsStep() { state.bookingGuestsEditing = true; renderBookingModal(); }
   function goOptionsStep() { state.bookingStep = 3; renderBookingModal(); }
   function goContactStep() { state.bookingStep = 4; renderBookingModal(); }
@@ -2741,18 +2792,77 @@
   function neededGroupRooms() {
     return Math.max(2, recommendedRoomsForGroup(state.guestsAdults, state.guestsChildAges));
   }
+  // Quante stanze sono REALMENTE libere per le date scelte (non solo quante
+  // esistono in casa): senza questo, con 4 stanze totali ma solo 3 libere
+  // per quelle date, il sistema proponeva comunque una "Stanza 4" senza
+  // nessuna opzione selezionabile — inutile e confusionario.
+  function availableRoomsCountForDates(checkIn, checkOut) {
+    if (!checkIn || !checkOut) return totalRoomsCount();
+    return orderedIds(state.roomsData).filter(function (id) {
+      return rangeIsFree(state.roomsData[id], checkIn, checkOut);
+    }).length;
+  }
   function buildGroupAllocations(n) {
     var arr = [];
     for (var i = 0; i < n; i++) arr.push({ adults: 0, childIdxs: [], roomId: null, bedType: 'matrimoniale', cribCount: 0, extraBedCount: 0 });
     return arr;
   }
+  // Ultimo slot con qualcosa già dentro (stanza scelta o ospiti assegnati):
+  // usato per non cancellare mai dati già inseriti quando si ricalcola
+  // quante "Stanza N" servono davvero.
+  function groupFilledSlotsCount() {
+    var last = 0;
+    state.groupAllocations.forEach(function (a, i) { if (a.roomId || a.adults > 0 || a.childIdxs.length > 0) last = i + 1; });
+    return last;
+  }
+  // Richiamata quando si conoscono le date (apertura gruppo o ritorno dal
+  // calendario): allinea il numero di "Stanza N" mostrate alle stanze
+  // davvero disponibili per quelle date, senza mai perdere uno slot già
+  // compilato dall'ospite.
+  function syncGroupRoomsCountToAvailability() {
+    var avail = availableRoomsCountForDates(state.selectedCheckIn, state.selectedCheckOut);
+    var needed = neededGroupRooms();
+    var filled = groupFilledSlotsCount();
+    var target = Math.max(filled, Math.min(needed, avail || filled || 1));
+    while (state.groupAllocations.length < target) state.groupAllocations.push({ adults: 0, childIdxs: [], roomId: null, bedType: 'matrimoniale', cribCount: 0, extraBedCount: 0 });
+    while (state.groupAllocations.length > target && state.groupAllocations.length > filled) state.groupAllocations.pop();
+    state.groupRoomsCount = state.groupAllocations.length;
+  }
+  // Capienza totale che il gruppo può davvero occupare in questo momento
+  // (solo le stanze già scelte contano: uno slot senza stanza vale 0), vs
+  // quante persone "grandi" servono ospitare — se la seconda supera la
+  // prima, il gruppo non entra per intero nelle stanze disponibili.
+  function groupTotalChosenCapacity() {
+    return state.groupAllocations.reduce(function (sum, a) {
+      var room = a.roomId ? state.roomsData[a.roomId] : null;
+      return sum + (room ? effectiveMaxGuests(room) : 0);
+    }, 0);
+  }
+  function groupMaxPossibleCapacity(checkIn, checkOut) {
+    return availableRoomsCountForDates(checkIn, checkOut) * MAX_BIG_GUESTS_PER_ROOM;
+  }
+  function groupPartySize() { return countedGuests(state.guestsAdults, state.guestsChildAges); }
+  function groupHasCapacityShortfall() {
+    return groupMaxPossibleCapacity(state.selectedCheckIn, state.selectedCheckOut) < groupPartySize();
+  }
   function openGroupBooking() {
     var s = state.search;
-    var searched = !!(s.checkIn && s.checkOut);
     // Se si arriva da una card stanza (prenotazione a stanza singola
     // diventata di gruppo perché gli ospiti non ci stanno), quella stanza
-    // resta "Stanza 1": non va rifatta scegliere da capo.
+    // resta "Stanza 1": non va rifatta scegliere da capo. E soprattutto: si
+    // riprendono gli ospiti/le date già inseriti nel form di quella
+    // prenotazione (state.guestsAdults/selectedCheckIn), NON quelli della
+    // barra di ricerca in alto — che potrebbe essere vuota/diversa se la
+    // stanza è stata aperta direttamente dalla card, senza passare dalla
+    // ricerca. Senza questo, il tentativo di aggiungere ospiti oltre il
+    // limite veniva silenziosamente perso passando al gruppo.
     var originRoomId = state.bookingRoomId;
+    var fromSingleRoomOverflow = !!originRoomId;
+    var adults = fromSingleRoomOverflow ? state.guestsAdults : s.adults;
+    var childAges = fromSingleRoomOverflow ? state.guestsChildAges.slice() : s.childAges.slice();
+    var checkIn = fromSingleRoomOverflow ? state.selectedCheckIn : (s.checkIn || null);
+    var checkOut = fromSingleRoomOverflow ? state.selectedCheckOut : (s.checkOut || null);
+    var searched = !!(checkIn && checkOut);
     // Se il modale è già aperto (es. si passa qui dalla prenotazione a
     // stanza singola perché gli ospiti non ci stanno), non pushare un
     // secondo stato nella cronologia: ce n'è già uno per il modale stesso.
@@ -2762,17 +2872,18 @@
     state.bookingStep = searched ? 2 : 1;
     state.bookingRoomId = null;
     state.bookingRoomLabel = t('booking.group_modal_title');
-    state.guestsAdults = s.adults;
-    state.guestsChildAges = s.childAges.slice();
-    state.selectedCheckIn = searched ? s.checkIn : null;
-    state.selectedCheckOut = searched ? s.checkOut : null;
+    state.guestsAdults = adults;
+    state.guestsChildAges = childAges;
+    state.selectedCheckIn = checkIn;
+    state.selectedCheckOut = checkOut;
     state.groupRoomsCount = Math.max(s.rooms || 2, neededGroupRooms());
     state.groupAllocations = buildGroupAllocations(state.groupRoomsCount);
     if (originRoomId && state.roomsData[originRoomId]) state.groupAllocations[0].roomId = originRoomId;
+    if (searched) syncGroupRoomsCountToAvailability();
     state.contactName = ''; state.contactEmail = ''; state.contactPhone = '';
     state.contractAccepted = false;
     state.bookingError = ''; state.bookingResult = null;
-    var calBase = searched ? dateFromIso(s.checkIn) : new Date();
+    var calBase = searched ? dateFromIso(checkIn) : new Date();
     state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
     renderBookingModal();
     updateStickyBarVisibility();
@@ -2797,8 +2908,25 @@
     return map;
   }
   function groupAllComplete() {
-    if (groupUnallocatedAdults() !== 0) return false;
-    if (groupChildAllocationMap().indexOf(-1) !== -1) return false;
+    // Se le stanze disponibili non bastano per tutto il gruppo (vedi
+    // groupHasCapacityShortfall), non si potrà MAI arrivare a "zero
+    // ospiti da assegnare" — pretenderlo bloccherebbe il bottone per
+    // sempre, anche a stanze scelte e riempite al massimo. In quel caso
+    // "completo" vuol dire: ogni stanza scelta è piena alla sua capienza
+    // massima (non si spreca posto disponibile).
+    if (groupHasCapacityShortfall()) {
+      var anyRoomChosen = state.groupAllocations.some(function (a) { return a.roomId; });
+      if (!anyRoomChosen) return false;
+      var allChosenFull = state.groupAllocations.every(function (a) {
+        if (!a.roomId) return true;
+        var room = state.roomsData[a.roomId];
+        return groupAllocBigCount(a) >= effectiveMaxGuests(room);
+      });
+      if (!allChosenFull) return false;
+    } else {
+      if (groupUnallocatedAdults() !== 0) return false;
+      if (groupChildAllocationMap().indexOf(-1) !== -1) return false;
+    }
     return state.groupAllocations.every(function (a) { return groupAllocBigCount(a) <= MAX_BIG_GUESTS_PER_ROOM && groupAllocInfantCount(a) <= MAX_INFANTS_PER_ROOM; });
   }
   // A 3 ospiti "grandi" in una stanza del gruppo il letto extra è
@@ -2808,7 +2936,8 @@
     if (groupAllocBigCount(alloc) === MAX_BIG_GUESTS_PER_ROOM) alloc.extraBedCount = 1;
   }
   function groupRoomsInc() {
-    if (state.groupAllocations.length >= totalRoomsCount()) return;
+    var avail = availableRoomsCountForDates(state.selectedCheckIn, state.selectedCheckOut);
+    if (state.groupAllocations.length >= Math.min(totalRoomsCount(), avail || totalRoomsCount())) return;
     state.groupAllocations.push({ adults: 0, childIdxs: [], roomId: null, bedType: 'matrimoniale', cribCount: 0, extraBedCount: 0 });
     renderBookingModal();
   }
@@ -2925,6 +3054,8 @@
     var unallocAdults = groupUnallocatedAdults();
     var unallocChildren = map.filter(function (m) { return m === -1; }).length;
     var chosenIds = state.groupAllocations.map(function (a) { return a.roomId; }).filter(Boolean);
+    var availForDates = availableRoomsCountForDates(state.selectedCheckIn, state.selectedCheckOut);
+    var hasShortfall = groupHasCapacityShortfall();
     var cardsHtml = state.groupAllocations.map(function (alloc, ri) {
       var big = groupAllocBigCount(alloc), infants = groupAllocInfantCount(alloc);
       var incDisabled = big >= groupAllocBigCap(alloc) || unallocAdults <= 0;
@@ -2981,27 +3112,38 @@
         '</div>'
       );
     }).join('');
-    var poolHint = (unallocAdults > 0 || unallocChildren > 0)
+    var poolHint = hasShortfall ? '' : ((unallocAdults > 0 || unallocChildren > 0)
       ? '<div class="booking-alert">' + escapeHtml(tpl(t('booking.group_unallocated_hint'), { adults: unallocAdults, children: unallocChildren })) + '</div>'
-      : '<div class="range-hint range-hint--ok">' + escapeHtml(t('booking.group_all_allocated')) + '</div>';
+      : '<div class="range-hint range-hint--ok">' + escapeHtml(t('booking.group_all_allocated')) + '</div>');
     var allRoomsPicked = state.groupAllocations.every(function (a) { return (groupAllocBigCount(a) + groupAllocInfantCount(a)) === 0 || !!a.roomId; });
     var complete = groupAllComplete() && allRoomsPicked;
+    // Il gruppo non entra per intero nelle stanze disponibili per queste
+    // date: avvisiamo subito (invece di far scoprire il problema dopo aver
+    // già compilato tutto) e proponiamo di procedere comunque con le
+    // stanze che ci sono, lasciando il resto del gruppo da gestire a parte.
+    var shortfallHtml = hasShortfall ? (
+      '<div class="booking-alert group-shortfall-alert">' +
+        escapeHtml(tpl(t('booking.group_shortfall_warning'), { party: groupPartySize(), rooms: availForDates, capacity: availForDates * MAX_BIG_GUESTS_PER_ROOM })) +
+      '</div>'
+    ) : '';
+    var ctaLabel = hasShortfall ? tpl(t('booking.group_cta_partial'), { n: groupTotalChosenCapacity() }) : t('common.prenota_soggiorno');
     return (
       '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div></div>' +
       '<div class="slot-label">' + escapeHtml(t('booking.group_step_title')) + '</div>' +
       '<p class="range-hint">' + escapeHtml(tpl(t('booking.group_step_intro'), { adults: state.guestsAdults, children: state.guestsChildAges.length })) + '</p>' +
+      shortfallHtml +
       '<div class="search-guests-row">' +
         '<div class="search-guests-row-title">' + escapeHtml(t('search.rooms')) + '</div>' +
         '<div class="search-stepper">' +
           '<button type="button" class="search-stepper-btn" data-group-rooms-dec' + (state.groupAllocations.length <= neededGroupRooms() ? ' disabled' : '') + '>−</button>' +
           '<span class="search-stepper-value">' + state.groupAllocations.length + '</span>' +
-          '<button type="button" class="search-stepper-btn" data-group-rooms-inc' + (state.groupAllocations.length >= totalRoomsCount() ? ' disabled' : '') + '>+</button>' +
+          '<button type="button" class="search-stepper-btn" data-group-rooms-inc' + (state.groupAllocations.length >= Math.min(totalRoomsCount(), availForDates || totalRoomsCount()) ? ' disabled' : '') + '>+</button>' +
         '</div>' +
       '</div>' +
       '<div class="group-room-cards">' + cardsHtml + '</div>' +
       poolHint +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-group-contact-step' + (complete ? '' : ' disabled') + '>' + escapeHtml(t('common.prenota_soggiorno')) + ' →</button>' +
+      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-group-contact-step' + (complete ? '' : ' disabled') + '>' + escapeHtml(ctaLabel) + ' →</button>' +
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
@@ -3094,6 +3236,7 @@
           '<strong>' + escapeHtml(t('booking.success_docs_title')) + '</strong>' +
           '<span>' + escapeHtml(t('booking.group_success_docs_text')) + '</span>' +
         '</div>' +
+        referralCodePanelHtml(firstBooking && firstBooking.id) +
         linksHtml +
         (cancelLink ? '<a href="' + escapeHtml(cancelLink) + '" class="link-btn" style="margin-top:10px;">' + escapeHtml(t('booking.success_cancel_cta')) + '</a>' : '') +
         '<button type="button" class="link-btn" data-close-booking style="margin-top:10px;">' + escapeHtml(t('common.chiudi')) + '</button>' +
@@ -3445,6 +3588,11 @@
 
   function renderCookieBanner() {
     var root = document.getElementById('cookie-banner-root');
+    // Se Cookiebot è configurato (CBID reale in index.html) e si è
+    // caricato, è lui a gestire consenso/banner con la propria UI: questo
+    // banner "fatto in casa" resta solo come rete di sicurezza per il
+    // periodo in cui Cookiebot non è ancora configurato (placeholder CBID).
+    if (window.Cookiebot) { root.innerHTML = ''; return; }
     if (!state.showCookieBanner) { root.innerHTML = ''; return; }
     root.innerHTML =
       '<div class="cookie-banner">' +
@@ -3643,6 +3791,13 @@
       el = e.target.closest('[data-back-to-group-rooms]');
       if (el) { backToGroupRooms(); return; }
 
+      el = e.target.closest('[data-map-poi]');
+      if (el) { var poiKey = el.getAttribute('data-map-poi'); openMapsDirectionsToPoi(poiKey, t('dist.' + poiKey)); return; }
+      el = e.target.closest('[data-recs-track]');
+      // Non blocca l'apertura del link (niente preventDefault): il click
+      // sul contatore è "fire and forget", serve solo a contare l'interesse
+      // per confrontarlo con quanto riportano a voce i locali convenzionati.
+      if (el && window.CasaCelesteTourismDB) { window.CasaCelesteTourismDB.logRecClick({ recId: el.getAttribute('data-recs-track'), title: el.getAttribute('data-recs-track') }); }
       el = e.target.closest('[data-open-legal]');
       if (el) { openLegal(el.getAttribute('data-open-legal')); return; }
       el = e.target.closest('[data-close-legal]');

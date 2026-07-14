@@ -292,6 +292,13 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'submitAssistMessage')(data).then(function (res) { return res.data; });
   },
+  // Click su una card "Consigli & dintorni" — solo un contatore d'interesse
+  // (nessuna prenotazione reale collegata), vedi functions/recs-clicks.js.
+  // Fire-and-forget: non deve mai bloccare l'apertura del link esterno.
+  logRecClick: function (data) {
+    if (!configured) return Promise.resolve();
+    return httpsCallable(functions, 'logRecClick')(data).then(function (res) { return res.data; }).catch(function () {});
+  },
   // Conferma identificazione ospite (videochiamata 1h prima del check-in con
   // documento in mano, o videocitofono solo la prima volta) — registra
   // l'ospite come "già verificato" per riconoscerlo in automatico ai
@@ -338,6 +345,26 @@ window.CasaCelesteTourismDB = {
   getGuestDocuments: function (bookingId) {
     return getDoc(doc(requireDb(), 'tourism_guestDocuments', bookingId)).then(function (snap) {
       return snap.exists() ? snap.data() : null;
+    });
+  },
+  // Lettura on-demand (owner autenticato) dei click sulle card "Consigli &
+  // dintorni" — aggregati qui lato client per numero totale e per gli
+  // ultimi 30 giorni, raggruppati per recId/titolo. Volumi bassi attesi
+  // (un B&B, non migliaia di click/mese): niente indice o Cloud Function
+  // di aggregazione dedicata, un fetch unico basta.
+  getRecsClickCounts: function () {
+    return getDocs(collection(requireDb(), 'tourism_recsClicks')).then(function (snap) {
+      var counts = {};
+      var thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      snap.forEach(function (d) {
+        var data = d.data();
+        var key = data.recId || data.title || 'sconosciuto';
+        if (!counts[key]) counts[key] = { total: 0, last30: 0 };
+        counts[key].total++;
+        var ts = data.createdAt && typeof data.createdAt.toMillis === 'function' ? data.createdAt.toMillis() : 0;
+        if (ts >= thirtyDaysAgo) counts[key].last30++;
+      });
+      return counts;
     });
   },
   // Prenotazione manuale (Airbnb/Booking/telefono) creata dalla dashboard:

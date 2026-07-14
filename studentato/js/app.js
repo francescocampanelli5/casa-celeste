@@ -1252,6 +1252,11 @@
 
   function renderCookieBanner() {
     var root = document.getElementById('cookie-banner-root');
+    // Se Cookiebot è configurato (CBID reale in index.html) e si è
+    // caricato, è lui a gestire consenso/banner con la propria UI: questo
+    // banner "fatto in casa" resta solo come rete di sicurezza per il
+    // periodo in cui Cookiebot non è ancora configurato (placeholder CBID).
+    if (window.Cookiebot) { root.innerHTML = ''; return; }
     if (!state.showCookieBanner) { root.innerHTML = ''; return; }
     root.innerHTML =
       '<div class="cookie-banner">' +

@@ -18,6 +18,8 @@
     assistMessages: [],
     manualBookingOpen: false,
     bookingsFilter: { roomId: '', source: '', status: '', from: '', to: '' },
+    recsClickCounts: null,
+    recsClickCountsLoading: false,
     rerenderPending: false,
     unsubBookings: null, unsubRooms: null, unsubCommons: null, unsubReviews: null, unsubMonoSlides: null, unsubSettings: null, unsubAssistMessages: null
   };
@@ -185,7 +187,7 @@
           bookingOptionsHtml(b) +
           '<div class="booking-contact">' + escapeHtml(b.name || '') + ' — <a href="mailto:' + encodeURIComponent(b.email || '') + '">' + escapeHtml(b.email || '') + '</a>' + (b.phone ? ' — <a href="tel:' + encodeURIComponent(b.phone) + '">' + escapeHtml(b.phone) + '</a>' : '') + '</div>' +
           '<div class="booking-meta">Ricevuta il ' + formatCreatedAt(b.createdAt) + ' · Documenti ospiti: ' + (b.guestDocsComplete ? '✅ completi' : '❌ mancanti') +
-            ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + '</div>' +
+            ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + ' · Codice referral: <strong>CC-' + escapeHtml(String(b.id || '').slice(-6).toUpperCase()) + '</strong></div>' +
           (b.videoCallLink ? '<div class="booking-meta"><a href="' + escapeHtml(b.videoCallLink) + '" target="_blank" rel="noopener">🎥 Link videochiamata (verifica documento, ~1h prima del check-in)</a></div>' : '') +
           bookingAlertHtml(b) +
         '</div>' +
@@ -1053,15 +1055,26 @@
     });
   }
   function recommendationsEditorHtml(recs) {
+    var clickCounts = state.recsClickCounts;
     var rows = recs.map(function (r, i) {
       var recId = r.id || ('rec' + i);
       var idAttr = 'data-rec-field data-rec-index="' + i + '"';
+      // Il contatore usa la stessa chiave (id o titolo) con cui il sito
+      // pubblico registra il click (vedi affittacamere/js/app.js renderRecs):
+      // se il titolo cambia dopo che sono già arrivati click, i vecchi
+      // click restano sotto il titolo precedente — è un contatore di
+      // interesse indicativo, non un log formale, coerente con l'accordo
+      // verbale coi locali (nessuna piattaforma di affiliazione reale).
+      var counts = clickCounts ? (clickCounts[r.id || r.title] || { total: 0, last30: 0 }) : null;
+      var clicksHtml = !clickCounts ? '<div class="rec-clicks-hint">Click: caricamento…</div>' :
+        '<div class="rec-clicks-hint"><strong>' + counts.total + '</strong> click totali · <strong>' + counts.last30 + '</strong> negli ultimi 30 giorni</div>';
       return (
         '<div class="admin-room-card" data-rec-row-index="' + i + '">' +
           '<div class="admin-room-head">' +
             '<input type="text" class="admin-field admin-room-name" placeholder="Titolo (es. Trattoria da Mimì)" ' + idAttr + ' data-rec-part="title" value="' + escapeHtml(r.title || '') + '">' +
             '<button type="button" class="dash-delete-btn" data-rec-remove data-rec-index="' + i + '">Elimina</button>' +
           '</div>' +
+          clicksHtml +
           '<div class="admin-room-type-row">' +
             '<div class="admin-field-group"><label>Tipo di attività</label><input type="text" class="admin-field" ' + idAttr + ' data-rec-part="category" placeholder="Ristorante, Spiaggia, Attività…" value="' + escapeHtml(r.category || '') + '"></div>' +
             '<div class="admin-field-group"><label>Costo</label><input type="text" class="admin-field" ' + idAttr + ' data-rec-part="cost" placeholder="€€, Gratis, Su prenotazione…" value="' + escapeHtml(r.cost || '') + '"></div>' +
@@ -1079,6 +1092,18 @@
     );
   }
   function renderSettingsTab(content) {
+    // Conteggio click "Consigli & dintorni": lettura on-demand, una volta
+    // sola per sessione (non un subscribe live, i numeri non cambiano così
+    // in fretta da giustificarlo) — riaprendo la tab dopo il primo fetch
+    // si vede subito il dato già in cache.
+    if (!state.recsClickCounts && !state.recsClickCountsLoading) {
+      state.recsClickCountsLoading = true;
+      window.CasaCelesteTourismDB.getRecsClickCounts().then(function (counts) {
+        state.recsClickCounts = counts;
+        state.recsClickCountsLoading = false;
+        if (state.activeTab === 'settings') renderSettingsTab(content);
+      }).catch(function () { state.recsClickCountsLoading = false; });
+    }
     var s = state.settings || {};
     var phoneVal = s.phone || '393381567389';
     var recipients = s.cleaningRecipients || [];

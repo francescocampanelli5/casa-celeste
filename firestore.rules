@@ -91,6 +91,15 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null;
     }
 
+    // Contatore di click sulle card "Consigli & dintorni" — la scrittura
+    // passa SOLO dalla Cloud Function logRecClick (l'Admin SDK bypassa
+    // comunque queste regole); il client pubblico non deve mai poter
+    // leggere né alterare i contatori.
+    match /tourism_recsClicks/{clickId} {
+      allow create: if false;
+      allow read, update, delete: if request.auth != null;
+    }
+
     // Documenti d'identità degli ospiti — dati sensibili, MAI leggibili né
     // scrivibili dal client pubblico: la scrittura passa solo dalla Cloud
     // Function submitGuestDocuments (verifica token + validazione completa

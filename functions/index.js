@@ -28,6 +28,7 @@ const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-ver
 const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString } = require('./guest-documents');
 const { handleTelegramUpdate } = require('./telegram-bot');
 const { submitAssistMessageCore } = require('./assist-messages');
+const { logRecClickCore } = require('./recs-clicks');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -280,6 +281,21 @@ exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (req
   }
   await notifyOwnerNewAssistMessage(result, data);
   return result;
+});
+
+/* ==========================================================================
+   logRecClick — un click su una card "Consigli & dintorni" (nessuna
+   notifica Telegram: sarebbe rumore, il proprietario guarda i totali in
+   dashboard quando vuole, non evento per evento).
+   ========================================================================== */
+exports.logRecClick = onCall({}, async (request) => {
+  const data = request.data || {};
+  try {
+    return await logRecClickCore(admin, db, data);
+  } catch (err) {
+    if (err.code) throw new HttpsError(err.code, err.message);
+    throw new HttpsError('internal', 'Errore imprevisto: riprova.');
+  }
 });
 
 /* ==========================================================================

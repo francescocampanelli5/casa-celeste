@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+<!-- Cookiebot — DEVE restare il primo script del documento (blocca
+     automaticamente cookie/script di terze parti finché l'ospite non dà il
+     consenso). Sostituisci data-cbid con il tuo Domain Group ID reale:
+     account Cookiebot (cookiebot.com) → Impostazioni → il tuo dominio →
+     "Your Cookiebot ID". Finché resta il placeholder qui sotto, Cookiebot
+     non si attiva e resta in uso il vecchio banner semplice. -->
+<script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="INSERISCI-QUI-IL-TUO-DOMAIN-GROUP-ID-COOKIEBOT" data-blockingmode="auto" type="text/javascript"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Casa Celeste | Affittacamere e Locazione Turistica a Monopoli — Stanze in Affitto a Notte</title>
@@ -23,7 +30,7 @@
 <meta name="theme-color" content="#10233B">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232C8FC9'/%3E%3Crect x='14' y='4' width='14' height='14' rx='4' fill='%23FFD24C'/%3E%3C/svg%3E">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"LodgingBusiness","name":"Casa Celeste","alternateName":["Affittacamere Casa Celeste Monopoli","Casa vacanze Monopoli","Locazione turistica Monopoli"],"description":"Locazione turistica indipendente a Monopoli, stanze in affitto a notte a pochi passi dal centro storico e dal mare.","keywords":"affittacamere Monopoli, casa vacanze Monopoli, locazione turistica Monopoli, stanze in affitto a notte Monopoli","url":"https://lacasaceleste.it/affittacamere/","image":"https://lacasaceleste.it/affittacamere/images/facciata-1.jpg","address":{"@type":"PostalAddress","streetAddress":"Via Giuseppe Can. del Drago 9","addressLocality":"Monopoli","addressRegion":"BA","postalCode":"70043","addressCountry":"IT"},"geo":{"@type":"GeoCoordinates","latitude":40.9539631,"longitude":17.2950498},"telephone":"+393381567389","checkinTime":"15:00","checkoutTime":"10:00","petsAllowed":false,"smokingAllowed":false}
+{"@context":"https://schema.org","@type":"LodgingBusiness","name":"Casa Celeste","alternateName":["Affittacamere Casa Celeste Monopoli","Casa vacanze Monopoli","Locazione turistica Monopoli"],"description":"Locazione turistica indipendente a Monopoli, stanze in affitto a notte a pochi passi dal centro storico e dal mare.","keywords":"affittacamere Monopoli, casa vacanze Monopoli, locazione turistica Monopoli, stanze in affitto a notte Monopoli","url":"https://lacasaceleste.it/affittacamere/","image":"https://lacasaceleste.it/affittacamere/images/facciata-1.jpg","priceRange":"€50-€80","currenciesAccepted":"EUR","paymentAccepted":"Cash, Credit Card, Apple Pay, Google Pay","address":{"@type":"PostalAddress","streetAddress":"Via Giuseppe Can. del Drago 9","addressLocality":"Monopoli","addressRegion":"BA","postalCode":"70043","addressCountry":"IT"},"geo":{"@type":"GeoCoordinates","latitude":40.9539631,"longitude":17.2950498},"telephone":"+393381567389","checkinTime":"15:00","checkoutTime":"10:00","petsAllowed":false,"smokingAllowed":false,"amenityFeature":[{"@type":"LocationFeatureSpecification","name":"Wi-Fi gratuito","value":true},{"@type":"LocationFeatureSpecification","name":"Cucina","value":true},{"@type":"LocationFeatureSpecification","name":"Parcheggio","value":true},{"@type":"LocationFeatureSpecification","name":"Ascensore","value":true},{"@type":"LocationFeatureSpecification","name":"Biciclette","value":true}]}
 </script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
@@ -43,7 +50,7 @@
 <link rel="preconnect" href="https://js.stripe.com">
 <link rel="preconnect" href="https://api.stripe.com">
 <link rel="preconnect" href="https://m.stripe.network">
-<link rel="stylesheet" href="css/styles.css?v=22">
+<link rel="stylesheet" href="css/styles.css?v=23">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
@@ -339,10 +346,10 @@
           <iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia&output=embed" loading="lazy"></iframe>
         </div>
         <div class="distance-list">
-          <div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.centro">Centro città</span></span><span class="distance-value" data-i18n="dist.min1">8 min a piedi</span></div>
-          <div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.super">Supermercato</span></span><span class="distance-value" data-i18n="dist.min2">5 min a piedi</span></div>
-          <div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.stazione">Stazione</span></span><span class="distance-value" data-i18n="dist.min3">3 min a piedi</span></div>
-          <div class="distance-item"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.conservatorio">Porto e lungomare</span></span><span class="distance-value" data-i18n="dist.min4">10 min a piedi</span></div>
+          <button type="button" class="distance-item" data-map-poi="centro"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.centro">Centro città</span></span><span class="distance-value" data-i18n="dist.min1">8 min a piedi</span></button>
+          <button type="button" class="distance-item" data-map-poi="super"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.super">Supermercato</span></span><span class="distance-value" data-i18n="dist.min2">5 min a piedi</span></button>
+          <button type="button" class="distance-item" data-map-poi="stazione"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.stazione">Stazione</span></span><span class="distance-value" data-i18n="dist.min3">3 min a piedi</span></button>
+          <button type="button" class="distance-item" data-map-poi="conservatorio"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.conservatorio">Porto e lungomare</span></span><span class="distance-value" data-i18n="dist.min4">10 min a piedi</span></button>
           <div class="parking-callout">
             <span class="parking-callout-icon"><svg width="20" height="20"><use href="#icon-parking"></use></svg></span>
             <div>
@@ -427,6 +434,7 @@
         <div class="footer-col-title" data-i18n="footer.esplora">Esplora</div>
         <div class="footer-links">
           <a href="#monopoli" class="footer-link" data-i18n="nav.monopoli">Monopoli</a>
+          <a href="#ricerca" class="footer-link" data-i18n="nav.ricerca">Disponibilità</a>
           <a href="#stanze" class="footer-link" data-i18n="nav.stanze">Stanze</a>
           <a href="#posizione" class="footer-link" data-i18n="nav.posizione">Posizione</a>
           <a href="#testimonianze" class="footer-link" data-i18n="nav.testimonianze">Recensioni</a>
@@ -488,11 +496,11 @@
 
 </div>
 <script src="js/data.js?v=5"></script>
-<script src="js/i18n.js?v=21"></script>
+<script src="js/i18n.js?v=22"></script>
 <script src="js/firebase-config.js?v=1"></script>
-<script type="module" src="js/firebase-init.js?v=6"></script>
+<script type="module" src="js/firebase-init.js?v=7"></script>
 <script src="js/stripe-config.js?v=1"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="js/app.js?v=21" defer></script>
+<script src="js/app.js?v=22" defer></script>
 </body>
 </html>
