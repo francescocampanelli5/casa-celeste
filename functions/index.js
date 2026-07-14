@@ -27,6 +27,7 @@ const { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBooki
 const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-verification');
 const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString } = require('./guest-documents');
 const { handleTelegramUpdate } = require('./telegram-bot');
+const { submitAssistMessageCore } = require('./assist-messages');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -78,6 +79,28 @@ async function notifyOwnerNewGroupBooking(result, data) {
     }).catch(() => {})));
   } catch (e) {
     // Notifica best-effort: non deve mai far fallire la creazione della prenotazione.
+  }
+}
+
+async function notifyOwnerNewAssistMessage(result, data) {
+  const token = telegramBotToken.value();
+  if (!token) return;
+  try {
+    const settingsSnap = await db.collection('tourism_settings').doc('site').get();
+    const recipients = ((settingsSnap.exists ? settingsSnap.data() : {}).bookingCommandAuthorized || [])
+      .filter((r) => r.enabled && r.chatId);
+    const contactLabel = data.contactMethod === 'email' ? 'email' : 'WhatsApp';
+    const text = '💬 Nuovo messaggio dal widget di assistenza' +
+      (data.topic ? '\nArgomento: ' + data.topic : '') +
+      '\n' + data.name + ' — vuole essere ricontattato su ' + contactLabel + ': ' + data.contactValue +
+      '\n"' + data.message + '"' +
+      '\nRispondi dalla dashboard (tab Assistenza) o scrivigli direttamente.';
+    await Promise.all(recipients.map((r) => fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: r.chatId, text: text })
+    }).catch(() => {})));
+  } catch (e) {
+    // Notifica best-effort: non deve mai far fallire il salvataggio del messaggio.
   }
 }
 
@@ -218,6 +241,27 @@ exports.lookupBookingForCancellation = onCall(async (request) => {
     if (err.code) throw new HttpsError(err.code, err.message);
     throw new HttpsError('internal', 'Errore imprevisto: riprova.');
   }
+});
+
+/* ==========================================================================
+   submitAssistMessage — widget di assistenza (affittacamere/js/app.js),
+   nodo "message": l'ospite lascia nome + testo + un contatto dove essere
+   ricontattato (WhatsApp o email), niente WhatsApp aperto in automatico.
+   Salva su tourism_assistMessages (letto/gestito dalla dashboard, tab
+   Assistenza) e avvisa subito il proprietario su Telegram — stesso canale
+   già usato per le nuove prenotazioni, nessuna quota EmailJS consumata.
+   ========================================================================== */
+exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (request) => {
+  const data = request.data || {};
+  let result;
+  try {
+    result = await submitAssistMessageCore(admin, db, data);
+  } catch (err) {
+    if (err.code) throw new HttpsError(err.code, err.message);
+    throw new HttpsError('internal', 'Errore imprevisto: riprova.');
+  }
+  await notifyOwnerNewAssistMessage(result, data);
+  return result;
 });
 
 /* ==========================================================================

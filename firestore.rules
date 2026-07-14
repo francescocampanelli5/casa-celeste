@@ -82,6 +82,15 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null;
     }
 
+    // Messaggi lasciati dal widget di assistenza — la scrittura passa SOLO
+    // dalla Cloud Function submitAssistMessage (validazione completa lato
+    // server, l'Admin SDK bypassa comunque queste regole); la dashboard
+    // (proprietario autenticato) legge/aggiorna/cancella direttamente.
+    match /tourism_assistMessages/{messageId} {
+      allow create: if false;
+      allow read, update, delete: if request.auth != null;
+    }
+
     // Documenti d'identità degli ospiti — dati sensibili, MAI leggibili né
     // scrivibili dal client pubblico: la scrittura passa solo dalla Cloud
     // Function submitGuestDocuments (verifica token + validazione completa

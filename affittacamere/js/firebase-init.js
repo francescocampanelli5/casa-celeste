@@ -284,6 +284,14 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'lookupBookingForCancellation')(data).then(function (res) { return res.data; });
   },
+  // Messaggio lasciato dal widget di assistenza (nodo "message") — niente
+  // scrittura diretta client→Firestore, passa dalla Cloud Function
+  // submitAssistMessage (validazione + notifica Telegram al proprietario,
+  // vedi functions/assist-messages.js e functions/index.js).
+  submitAssistMessage: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'submitAssistMessage')(data).then(function (res) { return res.data; });
+  },
   // Conferma identificazione ospite (videochiamata 1h prima del check-in con
   // documento in mano, o videocitofono solo la prima volta) — registra
   // l'ospite come "già verificato" per riconoscerlo in automatico ai
@@ -306,6 +314,23 @@ window.CasaCelesteTourismDB = {
   },
   deleteBooking: function (id) {
     return deleteDoc(doc(requireDb(), 'tourism_bookings', id));
+  },
+
+  // ---- messaggi widget di assistenza (dashboard, tab Assistenza) ----
+  subscribeAssistMessages: function (callback) {
+    if (!configured) return function () {};
+    var q = query(collection(requireDb(), 'tourism_assistMessages'), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, function (snap) {
+      var items = [];
+      snap.forEach(function (d) { items.push(Object.assign({ id: d.id }, d.data())); });
+      callback(items);
+    });
+  },
+  updateAssistMessageStatus: function (id, status) {
+    return updateDoc(doc(requireDb(), 'tourism_assistMessages', id), { status: status });
+  },
+  deleteAssistMessage: function (id) {
+    return deleteDoc(doc(requireDb(), 'tourism_assistMessages', id));
   },
   // Lettura on-demand (owner autenticato) dei documenti ospiti di UNA
   // prenotazione — usata dal pulsante "Copia dati Alloggiati Web" in

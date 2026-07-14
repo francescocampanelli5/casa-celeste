@@ -20,52 +20,37 @@
       a: { it: 'Cancellazione gratuita fino a 48 ore prima dell\'orario di check-in, con rimborso automatico. Oltre questa soglia la cancellazione non è più valida e non è possibile alcun rimborso, come indicato nelle Condizioni di soggiorno.', en: 'Free cancellation up to 48 hours before check-in time, with automatic refund. After that, cancellation is no longer possible and no refund can be issued, as stated in the Stay Terms & Conditions.' } }
   ];
 
-  // Widget di assistenza: albero di opzioni preimpostate, l'ospite non
-  // scrive mai testo libero (unica eccezione: il messaggio da inoltrare via
-  // WhatsApp nel nodo "message", che è l'unico posto pensato apposta per
-  // scrivere). Ogni nodo ha un testo e, a scelta, una lista di sotto-opzioni
-  // (options) e/o un'azione con bottone dedicato (action/actionLabel).
-  // "root" è la schermata iniziale. Il link "Non hai trovato quello che
-  // cercavi?" è sempre visibile (tranne dentro al nodo contact/message
-  // stesso, per non fare un giro su se stesso) e porta al nodo "contact":
-  // scegliere se lasciare un messaggio (poi inoltrato via WhatsApp) o
-  // aprire subito la chat WhatsApp diretta — con gli orari di disponibilità
-  // sempre mostrati prima.
-  var ASSIST_CHAT_TREE = {
-    root: {
-      text: 'assist.root_text',
-      options: ['rooms', 'price', 'document', 'cancel', 'checkin', 'location']
-    },
-    rooms: { text: 'assist.rooms_text', action: 'scrollRooms', actionLabel: 'assist.rooms_cta' },
-    price: { text: 'assist.price_text' },
-    document: { text: 'assist.document_text' },
-    cancel: { text: 'assist.cancel_text', action: 'openCancelLookup', actionLabel: 'assist.cancel_cta' },
-    checkin: {
-      text: 'assist.checkin_text',
-      textDynamic: function () {
-        var checkinTime = (state.settings && state.settings.checkInTime) || '15:00';
-        var checkoutTime = (state.settings && state.settings.checkOutTime) || '10:00';
-        return tpl(t('assist.checkin_text'), { checkin: checkinTime, checkout: checkoutTime });
-      }
-    },
-    location: { text: 'assist.location_text', action: 'scrollLocation', actionLabel: 'assist.location_cta' },
-    contact: {
-      text: 'assist.contact_text',
-      options: ['message'],
-      action: 'openWhatsappDirect',
-      actionLabel: 'assist.contact_wa_cta'
-    },
-    message: { text: 'assist.message_text', isMessageForm: true }
-  };
-  var ASSIST_CHAT_OPTION_LABELS = {
-    rooms: 'assist.opt_rooms',
-    price: 'assist.opt_price',
-    document: 'assist.opt_document',
-    cancel: 'assist.opt_cancel',
-    checkin: 'assist.opt_checkin',
-    location: 'assist.opt_location',
-    message: 'assist.opt_message'
-  };
+  // Widget di assistenza: opzioni preimpostate, l'ospite non scrive mai
+  // testo libero (unica eccezione: il messaggio nel nodo "message" —
+  // finisce in dashboard + notifica Telegram al proprietario, non più
+  // aperto in automatico su WhatsApp). Le domande/risposte del menu
+  // principale sono modificabili dalla dashboard (tab Assistenza, salvate
+  // in tourism_settings.site.assistTopics): finché il proprietario non le
+  // personalizza si usano questi valori di default (assistDefaultTopics).
+  // Dopo ogni risposta si chiede se è stata utile: se sì la chat si chiude,
+  // se no si passa al nodo "contact" (orari + WhatsApp diretto o lasciare
+  // un messaggio con un contatto per essere ricontattati).
+  function assistDefaultTopics() {
+    var checkinTime = (state.settings && state.settings.checkInTime) || '15:00';
+    var checkoutTime = (state.settings && state.settings.checkOutTime) || '10:00';
+    return [
+      { id: 'rooms', question: t('assist.opt_rooms'), answer: t('assist.rooms_text'), actionType: 'scrollRooms', actionLabel: t('assist.rooms_cta') },
+      { id: 'price', question: t('assist.opt_price'), answer: t('assist.price_text'), actionType: 'none', actionLabel: '' },
+      { id: 'document', question: t('assist.opt_document'), answer: t('assist.document_text'), actionType: 'none', actionLabel: '' },
+      { id: 'cancel', question: t('assist.opt_cancel'), answer: t('assist.cancel_text'), actionType: 'openCancelLookup', actionLabel: t('assist.cancel_cta') },
+      { id: 'checkin', question: t('assist.opt_checkin'), answer: tpl(t('assist.checkin_text'), { checkin: checkinTime, checkout: checkoutTime }), actionType: 'none', actionLabel: '' },
+      { id: 'location', question: t('assist.opt_location'), answer: t('assist.location_text'), actionType: 'scrollLocation', actionLabel: t('assist.location_cta') }
+    ];
+  }
+  function assistTopics() {
+    var custom = state.settings && state.settings.assistTopics;
+    return (custom && custom.length) ? custom : assistDefaultTopics();
+  }
+  function assistTopicById(id) {
+    var list = assistTopics();
+    for (var i = 0; i < list.length; i++) { if (list[i].id === id) return list[i]; }
+    return null;
+  }
 
   // Testi legali — vedi Fase B del piano: privacy policy molto più
   // dettagliata dello studentato (dati documento d'identità = categoria
@@ -217,9 +202,15 @@
     showCookieBanner: false,
 
     // Assistenza: chat a opzioni preimpostate, l'ospite sceglie solo tra i
-    // bottoni proposti, non scrive mai testo libero.
+    // bottoni proposti (unica eccezione: il testo del messaggio nel nodo
+    // "message"). assistChatTopicLabel tiene traccia dell'ultimo argomento
+    // visitato prima di eventualmente lasciare un messaggio, per dare
+    // contesto al proprietario in dashboard.
     assistChatOpen: false,
     assistChatNode: 'root',
+    assistChatTopicLabel: null,
+    assistChatMessageText: '',
+    assistChatContactMethod: null,
 
     search: {
       checkIn: null,
@@ -3019,9 +3010,15 @@
      pushOverlayHistoryState sopra) perché è un widget leggero sempre
      accessibile, non un overlay a schermo intero come gli altri.
      ========================================================================== */
+  function assistChatReset() {
+    state.assistChatNode = 'root';
+    state.assistChatTopicLabel = null;
+    state.assistChatMessageText = '';
+    state.assistChatContactMethod = null;
+  }
   function toggleAssistChat() {
     state.assistChatOpen = !state.assistChatOpen;
-    if (state.assistChatOpen) state.assistChatNode = 'root';
+    if (state.assistChatOpen) assistChatReset();
     renderAssistChat();
   }
   // Forza l'apertura (a differenza di toggleAssistChat) — usata da tutti i
@@ -3029,36 +3026,60 @@
   // l'ospite passa sempre da qui.
   function openAssistChat() {
     state.assistChatOpen = true;
-    state.assistChatNode = 'root';
+    assistChatReset();
+    renderAssistChat();
+  }
+  // Chat "temporanea": si azzera sempre alla chiusura, nessuno stato
+  // (messaggio scritto, contatto scelto) resta in memoria da una apertura
+  // all'altra.
+  function assistChatClose() {
+    state.assistChatOpen = false;
+    assistChatReset();
     renderAssistChat();
   }
   function assistChatGoto(nodeKey) {
-    if (!ASSIST_CHAT_TREE[nodeKey]) return;
+    var isFixedNode = nodeKey === 'contact' || nodeKey === 'message';
+    var topic = assistTopicById(nodeKey);
+    if (!isFixedNode && !topic) return;
     state.assistChatNode = nodeKey;
+    if (topic) state.assistChatTopicLabel = topic.question;
     renderAssistChat();
   }
   function assistChatBack() {
     state.assistChatNode = 'root';
     renderAssistChat();
   }
+  // L'ospite conferma se la risposta preimpostata gli è bastata: se sì la
+  // chat si chiude qui, se no passa al nodo "contact" (escalation).
+  function assistChatSatisfied() {
+    assistChatClose();
+  }
   function runAssistChatAction(action) {
-    if (action === 'scrollRooms') {
-      state.assistChatOpen = false; renderAssistChat();
-      scrollSectionIntoView('stanze');
-    } else if (action === 'scrollLocation') {
-      state.assistChatOpen = false; renderAssistChat();
-      scrollSectionIntoView('posizione');
-    } else if (action === 'openWhatsappDirect') {
+    if (action === 'openWhatsappDirect') {
       window.open(waLink(t('assist.whatsapp_prefill')), '_blank', 'noopener');
-    } else if (action === 'openCancelLookup') {
-      window.open('cancella.html', '_blank', 'noopener');
     }
   }
-  // Unica eccezione al "niente testo libero": il messaggio da inoltrare via
-  // WhatsApp. Non si rilegge lo stato a ogni tasto (evitando di dover
-  // ricostruire l'innerHTML e perdere il focus/cursore): si legge il valore
-  // dal DOM solo al momento dell'invio.
-  function sendAssistMessage() {
+  // Azione opzionale associata a un argomento del menu (modificabile dalla
+  // dashboard insieme a domanda/risposta) — 'link' apre un URL a scelta del
+  // proprietario, le altre sono le stesse scorciatoie di sempre.
+  function runAssistTopicAction(actionType, actionUrl) {
+    if (actionType === 'scrollRooms') {
+      assistChatClose();
+      scrollSectionIntoView('stanze');
+    } else if (actionType === 'scrollLocation') {
+      assistChatClose();
+      scrollSectionIntoView('posizione');
+    } else if (actionType === 'openCancelLookup') {
+      window.open('cancella.html', '_blank', 'noopener');
+    } else if (actionType === 'link' && actionUrl) {
+      window.open(actionUrl, '_blank', 'noopener');
+    }
+  }
+  // Unica eccezione al "niente testo libero": il testo del messaggio. Non si
+  // rilegge lo stato a ogni tasto (evitando di dover ricostruire l'innerHTML
+  // e perdere il focus/cursore): si legge il valore dal DOM solo qui, al
+  // passaggio al passo successivo (scelta del contatto).
+  function assistChatGoToContactChoice() {
     var inputEl = document.getElementById('assist-chat-message-input');
     var text = inputEl ? inputEl.value.trim() : '';
     var errEl = document.getElementById('assist-chat-message-error');
@@ -3066,31 +3087,118 @@
       if (errEl) { errEl.textContent = t('assist.message_empty_error'); errEl.style.display = ''; }
       return;
     }
-    window.open(waLink(tpl(t('assist.message_wa_prefix'), { message: text })), '_blank', 'noopener');
-    // Chat "temporanea": si chiude e si azzera subito, nessuna traccia
-    // salvata del messaggio da nessuna parte oltre al link WhatsApp appena
-    // aperto (che l'ospite deve comunque confermare di suo pugno).
-    state.assistChatOpen = false;
-    state.assistChatNode = 'root';
+    state.assistChatMessageText = text;
+    state.assistChatNode = 'message_contact_choice';
     renderAssistChat();
+  }
+  function chooseAssistContactMethod(method) {
+    state.assistChatContactMethod = method === 'email' ? 'email' : 'whatsapp';
+    state.assistChatNode = 'message_contact_form';
+    renderAssistChat();
+  }
+  // Ultimo passo del messaggio: nome + contatto (telefono o email a seconda
+  // della scelta precedente). Niente apertura di WhatsApp qui — il messaggio
+  // finisce su tourism_assistMessages (dashboard, tab Assistenza) e il
+  // proprietario riceve subito una notifica Telegram (vedi
+  // functions/assist-messages.js). Bottone disabilitato via DOM diretto
+  // durante l'invio, non tramite re-render, per non perdere i valori
+  // digitati se la chiamata fallisce e l'ospite deve ritentare.
+  function submitAssistContactForm() {
+    var nameEl = document.getElementById('assist-chat-name-input');
+    var contactEl = document.getElementById('assist-chat-contact-input');
+    var btnEl = document.querySelector('[data-assist-submit-message]');
+    var errEl = document.getElementById('assist-chat-contact-form-error');
+    var name = nameEl ? nameEl.value.trim() : '';
+    var contactValue = contactEl ? contactEl.value.trim() : '';
+    var method = state.assistChatContactMethod;
+    function showErr(msg) { if (errEl) { errEl.textContent = msg; errEl.style.display = ''; } }
+    if (errEl) errEl.style.display = 'none';
+    if (!name) { showErr(t('assist.contact_form_name_error')); return; }
+    var validContact = method === 'email'
+      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactValue)
+      : contactValue.replace(/\D/g, '').length >= 8;
+    if (!validContact) { showErr(method === 'email' ? t('assist.contact_form_email_error') : t('assist.contact_form_phone_error')); return; }
+    if (btnEl) { btnEl.disabled = true; btnEl.textContent = t('assist.contact_form_sending'); }
+    window.CasaCelesteTourismDB.submitAssistMessage({
+      name: name, contactMethod: method, contactValue: contactValue,
+      message: state.assistChatMessageText, topic: state.assistChatTopicLabel, lang: state.lang
+    }).then(function () {
+      state.assistChatNode = 'message_success';
+      renderAssistChat();
+    }).catch(function (err) {
+      if (btnEl) { btnEl.disabled = false; btnEl.textContent = t('assist.contact_form_send_cta'); }
+      showErr((err && err.message) ? err.message : t('assist.contact_form_generic_error'));
+    });
   }
   function renderAssistChat() {
     var root = document.getElementById('assist-chat-root');
     if (!root) return;
     var open = state.assistChatOpen;
-    var node = ASSIST_CHAT_TREE[state.assistChatNode] || ASSIST_CHAT_TREE.root;
-    var isRoot = state.assistChatNode === 'root';
-    var isMessageForm = !!node.isMessageForm;
-    var showEscalate = state.assistChatNode !== 'contact' && state.assistChatNode !== 'message';
-    var optionsHtml = (node.options || []).map(function (key) {
-      return '<button type="button" class="assist-chat-option" data-assist-goto="' + key + '">' + escapeHtml(t(ASSIST_CHAT_OPTION_LABELS[key])) + '</button>';
-    }).join('');
-    var actionHtml = node.action ? '<button type="button" class="assist-chat-cta" data-assist-action="' + node.action + '">' + escapeHtml(t(node.actionLabel)) + '</button>' : '';
-    var messageFormHtml = isMessageForm
-      ? '<textarea class="assist-chat-textarea" id="assist-chat-message-input" placeholder="' + escapeHtml(t('assist.message_placeholder')) + '" rows="4"></textarea>' +
+    var nodeKey = state.assistChatNode;
+    var isRoot = nodeKey === 'root';
+    var topic = isRoot ? null : assistTopicById(nodeKey);
+    var backHtml = (!isRoot && nodeKey !== 'message_success') ? '<button type="button" class="assist-chat-back" data-assist-back>' + escapeHtml(t('assist.back')) + '</button>' : '';
+    var bodyHtml;
+
+    if (isRoot) {
+      var rootOptionsHtml = assistTopics().map(function (item) {
+        return '<button type="button" class="assist-chat-option" data-assist-goto="' + escapeHtml(item.id) + '">' + escapeHtml(item.question) + '</button>';
+      }).join('');
+      bodyHtml =
+        '<div class="assist-chat-bubble">' + escapeHtml(t('assist.root_text')) + '</div>' +
+        '<div class="assist-chat-options">' + rootOptionsHtml + '</div>' +
+        '<button type="button" class="assist-chat-escalate" data-assist-goto="contact">' + escapeHtml(t('assist.escalate_cta')) + '</button>';
+    } else if (topic) {
+      var topicActionHtml = (topic.actionType && topic.actionType !== 'none')
+        ? '<div class="assist-chat-actions-inline"><button type="button" class="assist-chat-cta" data-assist-topic-action="' + escapeHtml(topic.actionType) + '" data-assist-topic-action-url="' + escapeHtml(topic.actionUrl || '') + '">' + escapeHtml(topic.actionLabel || '') + '</button></div>'
+        : '';
+      bodyHtml =
+        '<div class="assist-chat-bubble">' + escapeHtml(topic.answer) + '</div>' +
+        topicActionHtml +
+        '<div class="assist-chat-satisfaction">' +
+          '<div class="assist-chat-satisfaction-label">' + escapeHtml(t('assist.satisfied_question')) + '</div>' +
+          '<button type="button" class="assist-chat-option" data-assist-satisfied="yes">' + escapeHtml(t('assist.satisfied_yes')) + '</button>' +
+          '<button type="button" class="assist-chat-option" data-assist-goto="contact">' + escapeHtml(t('assist.satisfied_no')) + '</button>' +
+        '</div>';
+    } else if (nodeKey === 'contact') {
+      bodyHtml =
+        '<div class="assist-chat-bubble">' + escapeHtml(t('assist.contact_text')) + '</div>' +
+        '<div class="assist-chat-actions-inline"><button type="button" class="assist-chat-cta" data-assist-action="openWhatsappDirect">' + escapeHtml(t('assist.contact_wa_cta')) + '</button></div>' +
+        '<div class="assist-chat-options"><button type="button" class="assist-chat-option" data-assist-goto="message">' + escapeHtml(t('assist.opt_message')) + '</button></div>';
+    } else if (nodeKey === 'message') {
+      bodyHtml =
+        '<div class="assist-chat-bubble">' + escapeHtml(t('assist.message_text')) + '</div>' +
+        '<textarea class="assist-chat-textarea" id="assist-chat-message-input" placeholder="' + escapeHtml(t('assist.message_placeholder')) + '" rows="4">' + escapeHtml(state.assistChatMessageText) + '</textarea>' +
         '<div class="field-error" id="assist-chat-message-error" style="display:none;"></div>' +
-        '<button type="button" class="assist-chat-cta" data-assist-send-message>' + escapeHtml(t('assist.message_send_cta')) + '</button>'
-      : '';
+        '<button type="button" class="assist-chat-cta" data-assist-send-message>' + escapeHtml(t('assist.message_next_cta')) + '</button>';
+    } else if (nodeKey === 'message_contact_choice') {
+      bodyHtml =
+        '<div class="assist-chat-bubble">' + escapeHtml(t('assist.contact_method_question')) + '</div>' +
+        '<div class="assist-chat-options">' +
+          '<button type="button" class="assist-chat-option" data-assist-contact-method="whatsapp">' + escapeHtml(t('assist.contact_method_whatsapp')) + '</button>' +
+          '<button type="button" class="assist-chat-option" data-assist-contact-method="email">' + escapeHtml(t('assist.contact_method_email')) + '</button>' +
+        '</div>';
+    } else if (nodeKey === 'message_contact_form') {
+      var isEmailMethod = state.assistChatContactMethod === 'email';
+      bodyHtml =
+        '<div class="assist-chat-bubble">' + escapeHtml(t('assist.contact_form_intro')) + '</div>' +
+        '<input type="text" class="assist-chat-input" id="assist-chat-name-input" placeholder="' + escapeHtml(t('assist.contact_form_name_placeholder')) + '">' +
+        '<input type="' + (isEmailMethod ? 'email' : 'tel') + '" class="assist-chat-input" id="assist-chat-contact-input" placeholder="' + escapeHtml(isEmailMethod ? t('assist.contact_form_email_placeholder') : t('assist.contact_form_phone_placeholder')) + '">' +
+        '<div class="field-error" id="assist-chat-contact-form-error" style="display:none;"></div>' +
+        '<button type="button" class="assist-chat-cta" data-assist-submit-message>' + escapeHtml(t('assist.contact_form_send_cta')) + '</button>';
+    } else if (nodeKey === 'message_success') {
+      var methodLabel = state.assistChatContactMethod === 'email' ? t('assist.contact_method_email_inline') : t('assist.contact_method_whatsapp_inline');
+      bodyHtml =
+        '<div class="assist-chat-bubble">' + escapeHtml(tpl(t('assist.message_success_text'), { method: methodLabel })) + '</div>' +
+        '<button type="button" class="assist-chat-cta" data-assist-close-chat>' + escapeHtml(t('common.chiudi')) + '</button>';
+    } else {
+      // Nodo sconosciuto (es. un argomento cancellato dalla dashboard mentre
+      // la chat era aperta su quel nodo): torna al menu principale.
+      state.assistChatNode = 'root';
+      renderAssistChat();
+      return;
+    }
+
     root.innerHTML =
       '<button type="button" class="assist-chat-toggle' + (open ? ' is-open' : '') + '" data-assist-toggle aria-label="' + escapeHtml(t(open ? 'common.chiudi' : 'assist.toggle_aria')) + '">' +
         (open
@@ -3100,14 +3208,8 @@
       (open ?
         '<div class="assist-chat-panel">' +
           '<div class="assist-chat-header">' + escapeHtml(t('assist.header')) + '</div>' +
-          '<div class="assist-chat-body">' +
-            '<div class="assist-chat-bubble">' + escapeHtml(node.textDynamic ? node.textDynamic() : t(node.text)) + '</div>' +
-            (actionHtml ? '<div class="assist-chat-actions-inline">' + actionHtml + '</div>' : '') +
-            (optionsHtml ? '<div class="assist-chat-options">' + optionsHtml + '</div>' : '') +
-            messageFormHtml +
-            (showEscalate ? '<button type="button" class="assist-chat-escalate" data-assist-goto="contact">' + escapeHtml(t('assist.escalate_cta')) + '</button>' : '') +
-          '</div>' +
-          (!isRoot ? '<button type="button" class="assist-chat-back" data-assist-back>' + escapeHtml(t('assist.back')) + '</button>' : '') +
+          '<div class="assist-chat-body">' + bodyHtml + '</div>' +
+          backHtml +
         '</div>'
       : '');
   }
@@ -3362,8 +3464,18 @@
       if (el) { assistChatBack(); return; }
       el = e.target.closest('[data-assist-action]');
       if (el) { runAssistChatAction(el.getAttribute('data-assist-action')); return; }
+      el = e.target.closest('[data-assist-topic-action]');
+      if (el) { runAssistTopicAction(el.getAttribute('data-assist-topic-action'), el.getAttribute('data-assist-topic-action-url')); return; }
+      el = e.target.closest('[data-assist-satisfied]');
+      if (el) { assistChatSatisfied(); return; }
       el = e.target.closest('[data-assist-send-message]');
-      if (el) { sendAssistMessage(); return; }
+      if (el) { assistChatGoToContactChoice(); return; }
+      el = e.target.closest('[data-assist-contact-method]');
+      if (el) { chooseAssistContactMethod(el.getAttribute('data-assist-contact-method')); return; }
+      el = e.target.closest('[data-assist-submit-message]');
+      if (el) { submitAssistContactForm(); return; }
+      el = e.target.closest('[data-assist-close-chat]');
+      if (el) { assistChatClose(); return; }
 
       el = e.target.closest('#mono-prev');
       if (el) { monoPrev(); return; }

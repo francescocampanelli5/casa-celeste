@@ -15,9 +15,10 @@
     reviewsData: JSON.parse(JSON.stringify(window.CASA_CELESTE_TOURISM_DATA.SEED_REVIEWS)),
     monoSlidesData: JSON.parse(JSON.stringify(window.CASA_CELESTE_TOURISM_DATA.SEED_MONO_SLIDES)),
     settings: {},
+    assistMessages: [],
     manualBookingOpen: false,
     rerenderPending: false,
-    unsubBookings: null, unsubRooms: null, unsubCommons: null, unsubReviews: null, unsubMonoSlides: null, unsubSettings: null
+    unsubBookings: null, unsubRooms: null, unsubCommons: null, unsubReviews: null, unsubMonoSlides: null, unsubSettings: null, unsubAssistMessages: null
   };
 
   function slugify(str) {
@@ -98,6 +99,7 @@
           '<button type="button" class="dash-tab' + (state.activeTab === 'rooms' ? ' is-active' : '') + '" data-tab="rooms">Stanze</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'commons' ? ' is-active' : '') + '" data-tab="commons">Spazi comuni</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'reviews' ? ' is-active' : '') + '" data-tab="reviews">Recensioni</button>' +
+          '<button type="button" class="dash-tab' + (state.activeTab === 'assist' ? ' is-active' : '') + '" data-tab="assist">Assistenza' + (assistUnreadCount() ? ' <span class="dash-tab-badge">' + assistUnreadCount() + '</span>' : '') + '</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'monopoli' ? ' is-active' : '') + '" data-tab="monopoli">Monopoli</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'compliance' ? ' is-active' : '') + '" data-tab="compliance">Adempimenti</button>' +
           '<button type="button" class="dash-tab' + (state.activeTab === 'settings' ? ' is-active' : '') + '" data-tab="settings">Impostazioni</button>' +
@@ -129,6 +131,7 @@
     if (state.activeTab === 'bookings') renderBookingsTab(content);
     else if (state.activeTab === 'commons') renderCommonsTab(content);
     else if (state.activeTab === 'reviews') renderReviewsTab(content);
+    else if (state.activeTab === 'assist') renderAssistTab(content);
     else if (state.activeTab === 'monopoli') renderMonopoliTab(content);
     else if (state.activeTab === 'compliance') renderComplianceTab(content);
     else if (state.activeTab === 'settings') renderSettingsTab(content);
@@ -725,6 +728,134 @@
   }
 
   /* ==========================================================================
+     Assistenza tab — messaggi ricevuti dal widget (tourism_assistMessages) +
+     editor delle domande/risposte del menu principale della chat, salvate in
+     tourism_settings.site.assistTopics (vedi affittacamere/js/app.js,
+     assistTopics()/assistDefaultTopics() — finché il proprietario non
+     personalizza nulla la chat pubblica usa i suoi default bilingue, qui in
+     dashboard si parte comunque da un default in italiano già compilato,
+     pronto da modificare).
+     ========================================================================== */
+  var ASSIST_MSG_STATUS_LABELS = { new: 'Nuovo', read: 'Letto', replied: 'Risposto' };
+  var ASSIST_TOPIC_ACTION_LABELS = {
+    none: 'Nessuna azione',
+    scrollRooms: 'Vai alle stanze (scorre alla sezione Stanze)',
+    scrollLocation: 'Vedi la posizione (scorre alla sezione Posizione)',
+    openCancelLookup: 'Apri la pagina di cancellazione',
+    link: 'Apri un link a scelta'
+  };
+  var DEFAULT_ASSIST_TOPICS_DASH = [
+    { id: 'rooms', question: 'Stanze e disponibilità', answer: 'Qui sotto trovi tutte le stanze con prezzi e disponibilità: scegli le date per vedere subito cosa è libero.', actionType: 'scrollRooms', actionLabel: 'Vai alle stanze', actionUrl: '' },
+    { id: 'price', question: 'Prezzo e cosa è incluso', answer: 'Il prezzo mostrato è tutto incluso (utenze, wifi, pulizie). L\'unico costo che si aggiunge è la tassa di soggiorno comunale (2€ a notte a persona, con esenzioni per i più piccoli), mostrata chiaramente prima di confermare.', actionType: 'none', actionLabel: '', actionUrl: '' },
+    { id: 'document', question: 'Documento d\'identità per il check-in', answer: 'Sì, ma è più semplice di quanto sembri: prima del check-in ti mandiamo un link sicuro dove inserire i tuoi dati, poi basta una breve videochiamata di un minuto (o, solo la primissima volta, due parole al videocitofono all\'arrivo).', actionType: 'none', actionLabel: '', actionUrl: '' },
+    { id: 'cancel', question: 'Cancellazione o rimborso', answer: 'Cancellazione gratuita fino a 48 ore prima del check-in, con rimborso automatico del costo del soggiorno. Trova la tua prenotazione per procedere.', actionType: 'openCancelLookup', actionLabel: 'Cerca la mia prenotazione', actionUrl: '' },
+    { id: 'checkin', question: 'Check-in e check-out', answer: 'Check-in dalle 15:00, check-out entro le 10:00. Il check-in è autonomo: ti mandiamo tutte le indicazioni su WhatsApp prima del tuo arrivo.', actionType: 'none', actionLabel: '', actionUrl: '' },
+    { id: 'location', question: 'Dove siamo e come arrivare', answer: 'Siamo a Monopoli (BA), a pochi minuti a piedi dal centro storico e dal mare. Qui sotto trovi l\'indirizzo esatto e le distanze.', actionType: 'scrollLocation', actionLabel: 'Vedi la posizione', actionUrl: '' }
+  ];
+  function currentAssistTopics() {
+    var custom = state.settings && state.settings.assistTopics;
+    return (custom && custom.length) ? custom : DEFAULT_ASSIST_TOPICS_DASH;
+  }
+  function uniqueAssistTopicId() {
+    var n = 1, existing = currentAssistTopics();
+    while (existing.some(function (item) { return item.id === 'argomento-' + n; })) n += 1;
+    return 'argomento-' + n;
+  }
+  function assistUnreadCount() {
+    return (state.assistMessages || []).filter(function (m) { return !m.status || m.status === 'new'; }).length;
+  }
+  function assistMessageCardHtml(m) {
+    var statusClass = 'dash-status-pill--' + (m.status || 'new');
+    var contactHtml = m.contactMethod === 'email'
+      ? '<a href="mailto:' + encodeURIComponent(m.contactValue || '') + '">' + escapeHtml(m.contactValue || '') + '</a> (email)'
+      : '<a href="https://wa.me/' + encodeURIComponent(String(m.contactValue || '').replace(/\D/g, '')) + '" target="_blank" rel="noopener">' + escapeHtml(m.contactValue || '') + '</a> (WhatsApp)';
+    return (
+      '<div class="assist-msg-card">' +
+        '<div class="assist-msg-main">' +
+          '<div class="assist-msg-name">' + escapeHtml(m.name || '') + '</div>' +
+          (m.topic ? '<div class="assist-msg-topic">Argomento: ' + escapeHtml(m.topic) + '</div>' : '') +
+          '<div class="assist-msg-text">"' + escapeHtml(m.message || '') + '"</div>' +
+          '<div class="assist-msg-contact">Rispondere su: ' + contactHtml + '</div>' +
+          '<div class="assist-msg-meta">Ricevuto il ' + formatCreatedAt(m.createdAt) + '</div>' +
+        '</div>' +
+        '<div class="assist-msg-actions">' +
+          '<span class="dash-status-pill ' + statusClass + '">' + (ASSIST_MSG_STATUS_LABELS[m.status] || 'Nuovo') + '</span>' +
+          '<select class="dash-select" data-assist-msg-status data-msg-id="' + m.id + '">' +
+            Object.keys(ASSIST_MSG_STATUS_LABELS).map(function (s) { return '<option value="' + s + '"' + (m.status === s ? ' selected' : '') + '>' + ASSIST_MSG_STATUS_LABELS[s] + '</option>'; }).join('') +
+          '</select>' +
+          '<button type="button" class="dash-delete-btn" data-delete-assist-msg data-msg-id="' + m.id + '">Elimina</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+  function assistTopicEditorCardHtml(topicItem, i) {
+    var idAttr = 'data-assist-topic-field data-topic-index="' + i + '"';
+    return (
+      '<div class="admin-room-card" data-topic-row-index="' + i + '">' +
+        '<div class="admin-room-head">' +
+          '<input type="text" class="admin-field admin-room-name" placeholder="Domanda (es. Prezzo e cosa è incluso)" ' + idAttr + ' data-topic-part="question" value="' + escapeHtml(topicItem.question || '') + '">' +
+          '<button type="button" class="dash-delete-btn" data-remove-assist-topic data-topic-index="' + i + '">Elimina</button>' +
+        '</div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Risposta</label><textarea class="admin-field" ' + idAttr + ' data-topic-part="answer" rows="3">' + escapeHtml(topicItem.answer || '') + '</textarea></div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Azione del bottone (facoltativa)</label>' +
+            '<select class="admin-field" ' + idAttr + ' data-topic-part="actionType">' +
+              Object.keys(ASSIST_TOPIC_ACTION_LABELS).map(function (k) { return '<option value="' + k + '"' + ((topicItem.actionType || 'none') === k ? ' selected' : '') + '>' + ASSIST_TOPIC_ACTION_LABELS[k] + '</option>'; }).join('') +
+            '</select>' +
+          '</div>' +
+          '<div class="admin-field-group"><label>Testo del bottone</label><input type="text" class="admin-field" ' + idAttr + ' data-topic-part="actionLabel" value="' + escapeHtml(topicItem.actionLabel || '') + '"></div>' +
+        '</div>' +
+        (topicItem.actionType === 'link' ? '<div class="admin-field-group admin-field-group--full"><label>URL del link</label><input type="text" class="admin-field" ' + idAttr + ' data-topic-part="actionUrl" value="' + escapeHtml(topicItem.actionUrl || '') + '"></div>' : '') +
+      '</div>'
+    );
+  }
+  function renderAssistTab(content) {
+    var topics = currentAssistTopics();
+    var messages = state.assistMessages || [];
+    content.innerHTML =
+      '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Messaggi ricevuti' + (assistUnreadCount() ? ' — ' + assistUnreadCount() + ' da leggere' : '') + '</span></div>' +
+      '<div class="assist-msg-list">' + (messages.length ? messages.map(assistMessageCardHtml).join('') : '<div class="dash-empty">Nessun messaggio ricevuto per ora.</div>') + '</div>' +
+      '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Domande e risposte del menu principale della chat</span></div>' +
+      '<div class="admin-note">Queste sono le opzioni che l\'ospite vede aprendo il bottone "Assistenza" sul sito. Modifica domanda/risposta, aggiungi nuovi argomenti o eliminali — le modifiche sono visibili subito dopo il salvataggio, senza bisogno di ripubblicare il sito.</div>' +
+      '<div class="dash-room-rows">' + topics.map(assistTopicEditorCardHtml).join('') + '</div>' +
+      '<button type="button" class="dash-add-room-btn" id="add-assist-topic-btn">+ Aggiungi un argomento</button>';
+
+    content.querySelectorAll('[data-assist-msg-status]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        window.CasaCelesteTourismDB.updateAssistMessageStatus(el.getAttribute('data-msg-id'), e.target.value);
+      });
+    });
+    content.querySelectorAll('[data-delete-assist-msg]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        if (window.confirm('Eliminare questo messaggio?')) window.CasaCelesteTourismDB.deleteAssistMessage(el.getAttribute('data-msg-id'));
+      });
+    });
+
+    function saveTopics(list) { window.CasaCelesteTourismDB.setSettings({ assistTopics: list }); }
+    content.querySelectorAll('[data-assist-topic-field]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var idx = Number(el.getAttribute('data-topic-index')), part = el.getAttribute('data-topic-part');
+        var list = topics.map(function (x) { return Object.assign({}, x); });
+        list[idx][part] = e.target.value;
+        saveTopics(list);
+      });
+    });
+    content.querySelectorAll('[data-remove-assist-topic]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var idx = Number(el.getAttribute('data-topic-index'));
+        var list = topics.slice(); list.splice(idx, 1);
+        saveTopics(list);
+      });
+    });
+    var addTopicBtn = document.getElementById('add-assist-topic-btn');
+    if (addTopicBtn) addTopicBtn.addEventListener('click', function () {
+      var list = topics.slice();
+      list.push({ id: uniqueAssistTopicId(), question: '', answer: '', actionType: 'none', actionLabel: '', actionUrl: '' });
+      saveTopics(list);
+    });
+  }
+
+  /* ==========================================================================
      Monopoli tab (identico a studentato)
      ========================================================================== */
   function monoSlideAdminCardHtml(slideId, slide) {
@@ -1046,6 +1177,7 @@
     if (state.unsubReviews) state.unsubReviews();
     if (state.unsubMonoSlides) state.unsubMonoSlides();
     if (state.unsubSettings) state.unsubSettings();
+    if (state.unsubAssistMessages) state.unsubAssistMessages();
     state.unsubBookings = window.CasaCelesteTourismDB.subscribeBookings(function (items) {
       state.bookings = items;
       // Precarica i documenti ospiti delle prenotazioni con check-in vicino,
@@ -1057,6 +1189,7 @@
     state.unsubReviews = window.CasaCelesteTourismDB.subscribeReviews(function (reviewsFromDb) { state.reviewsData = reviewsFromDb; if (state.user) renderTabContent(); });
     state.unsubMonoSlides = window.CasaCelesteTourismDB.subscribeMonoSlides(function (slidesFromDb) { state.monoSlidesData = slidesFromDb; if (state.user) renderTabContent(); });
     state.unsubSettings = window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) { state.settings = settingsFromDb || {}; if (state.user) renderTabContent(); });
+    state.unsubAssistMessages = window.CasaCelesteTourismDB.subscribeAssistMessages(function (items) { state.assistMessages = items; if (state.user) renderTabContent(); });
   }
   function init() {
     if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) { renderNotConfigured(); return; }
