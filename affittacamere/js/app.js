@@ -142,6 +142,8 @@
     // Booking modal
     bookingOpen: false,
     bookingStep: 1,
+    bookingFromSearch: false,
+    bookingGuestsEditing: true,
     bookingRoomId: null,
     bookingRoomLabel: 'Casa Celeste',
     calYear: new Date().getFullYear(),
@@ -724,20 +726,27 @@
     state.selectedCheckOut = searched ? s.checkOut : null;
     state.guestsAdults = searched ? s.adults : 1;
     state.guestsChildAges = searched ? s.childAges.slice() : [];
+    // Se la ricerca è già stata fatta, gli ospiti arrivano precompilati e
+    // il passo "ospiti" del flusso di prenotazione parte come riepilogo
+    // (con "Modifica" per aprire il form); altrimenti si parte già con il
+    // form aperto, visto che non c'è nulla da riassumere.
+    state.bookingFromSearch = searched;
+    state.bookingGuestsEditing = !searched;
     state.bedType = 'matrimoniale';
     // Se in ricerca c'era un bambino sotto i 3 anni e l'ospite ha già
     // risposto "sì" alla culla, arriva già selezionata qui — coerente con
     // il letto extra (vedi sotto), niente da rifare da capo.
     var hasInfant = state.guestsChildAges.some(function (age) { return age < CHILD_ROOM_COUNT_MIN_AGE; });
     state.cribCount = (searched && s.cribChoice === 'yes' && hasInfant) ? 1 : 0;
-    // Se la ricerca portava più ospiti di quanti ne stiano nella stanza
-    // base, seleziona subito il letto singolo aggiuntivo (se basta a
-    // farceli stare) invece di lasciare l'ospite a scoprirlo da solo più
-    // avanti — coerente con la scelta fatta in ricerca (extraBedChoice) se
-    // presente, altrimenti calcolato al volo qui.
+    // Se la ricerca portava esattamente il 3° ospite "grande" per questa
+    // stanza, il letto singolo aggiuntivo serve per forza: lo pre-seleziona
+    // invece di lasciare l'ospite a scoprirlo da solo più avanti — coerente
+    // con la scelta fatta in ricerca (extraBedChoice) se presente,
+    // altrimenti calcolato al volo qui. Il tetto per stanza resta comunque
+    // fisso a 3 grandi (+1 neonato): oltre, serve un'altra stanza.
     var neededCounted = countedGuests(state.guestsAdults, state.guestsChildAges);
-    var baseMax = room.maxGuests || 1;
-    state.extraBedCount = (searched && neededCounted > baseMax && neededCounted <= baseMax + 1) ? 1 : 0;
+    var baseMax = room.maxGuests || MAX_BIG_GUESTS_PER_ROOM;
+    state.extraBedCount = (searched && neededCounted === baseMax) ? 1 : 0;
     state.bookingError = '';
     var calBase = searched ? dateFromIso(s.checkIn) : new Date();
     state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
@@ -767,11 +776,27 @@
     renderRoomDetail();
   }
   function toggleRoomDetailDesc() { state.roomDetail.descExpanded = !state.roomDetail.descExpanded; renderRoomDetail(); }
-  function setBedType(type) { state.bedType = (type === 'singolo') ? 'singolo' : 'matrimoniale'; renderRoomDetail(); }
-  function roomDetailCribInc() { if (state.cribCount < CRIB_MAX) { state.cribCount++; renderRoomDetail(); } }
-  function roomDetailCribDec() { if (state.cribCount > 0) { state.cribCount--; renderRoomDetail(); } }
-  function roomDetailExtraBedInc() { if (state.extraBedCount < EXTRA_BED_MAX) { state.extraBedCount++; renderRoomDetail(); } }
-  function roomDetailExtraBedDec() { if (state.extraBedCount > 0) { state.extraBedCount--; renderRoomDetail(); } }
+  // roomDetailOptionsHtml() è condivisa tra la pagina stanza e il passo
+  // "Opzioni" del modale di prenotazione: chi la modifica deve aggiornare
+  // qualunque dei due sia aperto in quel momento (l'altro è già a riposo,
+  // renderRoomDetail()/renderBookingModal() non fanno nulla se il relativo
+  // pannello non è aperto).
+  function refreshOptionsConsumers() { renderRoomDetail(); renderBookingModal(); }
+  function setBedType(type) { state.bedType = (type === 'singolo') ? 'singolo' : 'matrimoniale'; refreshOptionsConsumers(); }
+  function roomDetailCribInc() { if (state.cribCount < CRIB_MAX) { state.cribCount++; refreshOptionsConsumers(); } }
+  function roomDetailCribDec() { if (state.cribCount > 0) { state.cribCount--; refreshOptionsConsumers(); } }
+  function roomDetailExtraBedInc() { if (state.extraBedCount < EXTRA_BED_MAX) { state.extraBedCount++; refreshOptionsConsumers(); } }
+  function roomDetailExtraBedDec() { if (state.extraBedCount > 0) { state.extraBedCount--; refreshOptionsConsumers(); } }
+  // Bug corretto: la culla è legata al fatto che ci sia un neonato (0-2)
+  // tra gli ospiti selezionati, non è un valore indipendente. Se l'età di
+  // un bambino viene cambiata (o il bambino rimosso) e non resta più
+  // nessun neonato nel gruppo, la culla richiesta va tolta automaticamente
+  // — altrimenti resterebbe "prenotata" per un ospite che non è più un
+  // neonato.
+  function syncCribToInfants() {
+    var hasInfant = state.guestsChildAges.some(function (age) { return age < CHILD_ROOM_COUNT_MIN_AGE; });
+    if (!hasInfant) state.cribCount = 0;
+  }
   function roomDetailOptionsHtml() {
     // Un ospite sotto i 3 anni non richiede mai il letto extra (non conta
     // nel limite stanza), ma la culla resta comunque utile: la segnaliamo
@@ -1079,8 +1104,14 @@
      blockedRanges, già sincronizzato con Airbnb/Booking via
      scripts/ical-import.js, invece di un motore di disponibilità parallelo.
      ========================================================================== */
-  var MAX_GUESTS_PER_ROOM = 3;
-  var RECOMMENDED_GUESTS_PER_ROOM = 2;
+  // Regola di capienza (definita col gestore): ogni stanza ospita al
+  // massimo 3 ospiti "grandi" (età 3-99, adulti o bambini indifferentemente)
+  // + al massimo 1 neonato (età 0-2) in aggiunta, che non conta mai nel
+  // limite dei 3. Il letto singolo aggiuntivo è l'allestimento fisico che
+  // serve per il 3° ospite grande (la stanza di base è pensata per 2), non
+  // un modo per superare il tetto dei 3 — quel tetto è fisso.
+  var MAX_BIG_GUESTS_PER_ROOM = 3;
+  var MAX_INFANTS_PER_ROOM = 1;
   var CHILD_ROOM_COUNT_MIN_AGE = 3;
   var CHILD_TAX_MIN_AGE = 12;
   var CHILD_DEFAULT_AGE = 8;
@@ -1091,22 +1122,32 @@
   var CRIB_PRICE_PER_NIGHT = 8;
   var EXTRA_BED_PRICE_PER_NIGHT = 15;
   function totalRoomsCount() { return orderedIds(state.roomsData).length || 1; }
-  function maxHouseCapacity() { return totalRoomsCount() * MAX_GUESTS_PER_ROOM; }
+  function maxHouseCapacity() { return totalRoomsCount() * MAX_BIG_GUESTS_PER_ROOM; }
   function countedGuests(adults, childAges) {
     return adults + childAges.filter(function (age) { return age >= CHILD_ROOM_COUNT_MIN_AGE; }).length;
   }
-  // Il letto singolo aggiuntivo alza il limite della stanza di 1 posto (es.
-  // stanza per 2 -> fino a 3 con letto extra); i bambini sotto i 3 anni non
-  // contano mai in questo limite (countedGuests li esclude già), quindi
-  // rientrano anche senza letto extra.
+  function infantsCount(childAges) {
+    return childAges.filter(function (age) { return age < CHILD_ROOM_COUNT_MIN_AGE; }).length;
+  }
+  // Il tetto per stanza è fisso a 3 ospiti grandi (vedi nota sopra): il
+  // letto singolo aggiuntivo è solo l'allestimento per arrivarci comodi,
+  // non alza ulteriormente il limite.
   function effectiveMaxGuests(room) {
-    return ((room && room.maxGuests) || 1) + (state.extraBedCount ? 1 : 0);
+    return (room && room.maxGuests) || MAX_BIG_GUESTS_PER_ROOM;
   }
   function taxablePersons(adults, childAges) {
     return adults + childAges.filter(function (age) { return age >= CHILD_TAX_MIN_AGE; }).length;
   }
-  function recommendedRoomsFor(guests) {
-    return Math.min(totalRoomsCount(), Math.max(1, Math.ceil(guests / RECOMMENDED_GUESTS_PER_ROOM)));
+  // Stanze necessarie per un certo gruppo: la divisione più efficiente dei
+  // "grandi" (max 3 a stanza) messa a confronto con quante ne servono solo
+  // per ospitare i neonati (max 1 a stanza) — vince chi dei due chiede di più.
+  function recommendedRoomsFor(bigGuests, infants) {
+    var roomsForBig = Math.ceil(bigGuests / MAX_BIG_GUESTS_PER_ROOM);
+    var roomsForInfants = infants || 0;
+    return Math.min(totalRoomsCount(), Math.max(1, roomsForBig, roomsForInfants));
+  }
+  function recommendedRoomsForGroup(adults, childAges) {
+    return recommendedRoomsFor(countedGuests(adults, childAges), infantsCount(childAges));
   }
   function adultsCountLabel(n) { return n === 1 ? t('search.adults_1') : tpl(t('search.adults_n'), { n: n }); }
   function childrenCountLabel(n) { return n === 1 ? t('search.children_1') : tpl(t('search.children_n'), { n: n }); }
@@ -1117,7 +1158,7 @@
   }
   function roomsCountLabel(n) { return n === 1 ? t('search.rooms_1') : tpl(t('search.rooms_n'), { n: n }); }
   function applyRoomsRecommendation() {
-    state.search.rooms = recommendedRoomsFor(countedGuests(state.search.adults, state.search.childAges));
+    state.search.rooms = recommendedRoomsForGroup(state.search.adults, state.search.childAges);
     state.search.roomsManual = false;
     state.search.warning = '';
   }
@@ -1134,7 +1175,7 @@
   }
   function maybeUpdateRoomsRecommendation() {
     if (isSingleRoomBoundary() && !state.search.extraBedChoice) return;
-    var rec = recommendedRoomsFor(countedGuests(state.search.adults, state.search.childAges));
+    var rec = recommendedRoomsForGroup(state.search.adults, state.search.childAges);
     if (!state.search.roomsManual || state.search.rooms < rec) applyRoomsRecommendation();
   }
   function applySearchExtraBedChoice(choice) {
@@ -1201,7 +1242,7 @@
     renderSearch();
   }
   function searchRoomsDec() {
-    var min = recommendedRoomsFor(countedGuests(state.search.adults, state.search.childAges));
+    var min = recommendedRoomsForGroup(state.search.adults, state.search.childAges);
     if (state.search.rooms <= min) {
       state.search.warning = tpl(t('search.rooms_warning'), { guests: guestsSummaryLabel(state.search.adults, state.search.childAges), min: roomsCountLabel(min) });
       state.search.rooms = min;
@@ -1435,10 +1476,20 @@
     if (counted === 3 && s.extraBedChoice === 'extraBed') {
       return '<div class="range-hint">' + escapeHtml(t('search.extrabed_choice_confirmed')) + '</div>';
     }
+    if (counted === 3 && s.extraBedChoice === 'secondRoom') {
+      return '<div class="range-hint">' + escapeHtml(tpl(t('search.extrabed_choice_room_confirmed'), { n: recommendedRoomsForGroup(s.adults, s.childAges) })) + '</div>';
+    }
     if (counted >= 4) {
-      return '<div class="range-hint">' + escapeHtml(tpl(t('search.extrabed_too_many'), { n: recommendedRoomsFor(counted) })) + '</div>';
+      return '<div class="range-hint">' + escapeHtml(tpl(t('search.extrabed_too_many'), { n: recommendedRoomsForGroup(s.adults, s.childAges) })) + '</div>';
     }
     return '';
+  }
+  // Sempre visibile mentre si scelgono ospiti/bambini: quante stanze
+  // servono per questo gruppo, in chiaro — non solo nei casi limite.
+  function roomsNeededHintHtml(s) {
+    var n = recommendedRoomsForGroup(s.adults, s.childAges);
+    var key = n === 1 ? 'search.rooms_needed_hint_1' : 'search.rooms_needed_hint_n';
+    return '<div class="range-hint">' + escapeHtml(tpl(t(key), { rooms: roomsCountLabel(n) })) + '</div>';
   }
   // Un bambino sotto i 3 anni non conta ai fini della stanza (vedi
   // countedGuests), ma serve comunque chiedere esplicitamente se vuole la
@@ -1459,7 +1510,7 @@
   }
   function searchGuestsPopoverHtml() {
     var s = state.search;
-    var recommended = recommendedRoomsFor(countedGuests(s.adults, s.childAges));
+    var recommended = recommendedRoomsForGroup(s.adults, s.childAges);
     var childRows = s.childAges.map(function (age, i) {
       var options = '';
       for (var a = 0; a <= 17; a++) {
@@ -1491,13 +1542,14 @@
         '</div>' +
         (childRows ? '<div class="search-child-ages">' + childRows + '</div>' : '') +
         searchCribChoiceHtml(s) +
+        roomsNeededHintHtml(s) +
         '<button type="button" class="btn btn-primary search-guests-done" data-search-guests-done>' + escapeHtml(t('search.done')) + '</button>' +
       '</div>'
     );
   }
   function searchRoomsPopoverHtml() {
     var s = state.search;
-    var recommended = recommendedRoomsFor(countedGuests(s.adults, s.childAges));
+    var recommended = recommendedRoomsForGroup(s.adults, s.childAges);
     return (
       '<div class="search-rooms-popover">' +
         '<div class="search-guests-row">' +
@@ -1846,18 +1898,35 @@
       '</div>';
     }).join('');
   }
-  function guestsStepHtml() {
+  // Riepilogo compatto quando si arriva da una ricerca già fatta: gli
+  // ospiti sono già precompilati, non serve richiederli da capo. Si può
+  // sempre aprire il form completo con "Modifica".
+  function guestsSummaryCardHtml() {
+    var nights = daysBetween(state.selectedCheckIn, state.selectedCheckOut);
+    var guestsLabel = guestsSummaryLabel(state.guestsAdults, state.guestsChildAges);
+    return (
+      '<div class="checkout-card">' +
+        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' +
+          formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) +
+          ' · ' + escapeHtml(tpl(t('booking.summary_nights_n'), { n: nights })) + '</div>' +
+        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsLabel) + '</div>' +
+      '</div>' +
+      '<div class="range-hint">' + escapeHtml(t('booking.guests_from_search_note')) + '</div>' +
+      '<button type="button" class="link-btn" data-guests-edit>' + escapeHtml(t('booking.modifica_ospiti')) + '</button>' +
+      (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
+      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step>' + escapeHtml(t('booking.step_options_title')) + ' →</button>' +
+      '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
+    );
+  }
+  function guestsEditFormHtml() {
     var room = currentRoom();
-    var baseMax = (room && room.maxGuests) || 1;
-    var max = effectiveMaxGuests(room);
+    var baseMax = effectiveMaxGuests(room);
     var counted = countedGuests(state.guestsAdults, state.guestsChildAges);
-    var atCapacity = counted >= max;
-    var suggestExtraBed = counted >= baseMax && !state.extraBedCount;
-    // Nemmeno il letto extra (al massimo +1) basta: capita se si arriva qui
-    // con un numero di ospiti gia' impostato dalla ricerca troppo alto per
-    // questa stanza — meglio bloccare subito con una spiegazione chiara
-    // che lasciar proseguire fino a un rifiuto tardivo in fase di conferma.
-    var overCapacityEvenWithExtraBed = counted > baseMax + 1;
+    var infants = infantsCount(state.guestsChildAges);
+    var atCapacity = counted >= baseMax;
+    var overCapacity = counted > baseMax;
+    var tooManyInfants = infants > MAX_INFANTS_PER_ROOM;
+    var blocked = overCapacity || tooManyInfants;
     return (
       '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div></div>' +
       '<div class="slot-label">' + escapeHtml(t('booking.step_guests_title')) + '</div>' +
@@ -1878,12 +1947,28 @@
         '</div>' +
       '</div>' +
       guestsChildAgesHtml(state.guestsChildAges, 'data-guest-child-age') +
-      '<div class="range-hint">' + escapeHtml(tpl(t('room.max_guests'), { n: max })) + '</div>' +
-      (suggestExtraBed && !overCapacityEvenWithExtraBed ? '<div class="range-hint">' + escapeHtml(t('room.extra_bed_hint')) + '</div>' : '') +
-      (overCapacityEvenWithExtraBed ? '<div class="booking-alert">' + escapeHtml(t('room.over_capacity_hint')) + '</div>' : '') +
+      '<div class="range-hint">' + escapeHtml(tpl(t('room.max_guests'), { n: baseMax })) + '</div>' +
+      (counted === baseMax && !overCapacity ? '<div class="range-hint">' + escapeHtml(t('room.extra_bed_hint')) + '</div>' : '') +
+      (infants >= 1 && !tooManyInfants ? '<div class="range-hint">' + escapeHtml(t('room.crib_hint')) + '</div>' : '') +
+      (tooManyInfants ? '<div class="booking-alert">' + escapeHtml(t('room.too_many_infants_hint')) + '</div>' : '') +
+      (overCapacity ? '<div class="booking-alert">' + escapeHtml(t('room.over_capacity_hint')) + '</div>' : '') +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-contact-step' + (overCapacityEvenWithExtraBed ? ' disabled' : '') + '>' + escapeHtml(t('common.prenota_soggiorno')) + ' →</button>' +
+      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step' + (blocked ? ' disabled' : '') + '>' + escapeHtml(t('booking.step_options_title')) + ' →</button>' +
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
+    );
+  }
+  function guestsStepHtml() {
+    if (state.bookingFromSearch && !state.bookingGuestsEditing) return guestsSummaryCardHtml();
+    return guestsEditFormHtml();
+  }
+  function optionsStepHtml() {
+    return (
+      '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsSummaryLabel(state.guestsAdults, state.guestsChildAges)) + '</div></div>' +
+      '<div class="slot-label">' + escapeHtml(t('booking.step_options_title')) + '</div>' +
+      roomDetailOptionsHtml() +
+      (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
+      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-contact-step>' + escapeHtml(t('common.prenota_soggiorno')) + ' →</button>' +
+      '<button type="button" class="link-btn" data-back-to-guests>' + escapeHtml(t('booking.cambia_ospiti')) + '</button>'
     );
   }
   function cribTotalForNights(nights) { return state.cribCount * CRIB_PRICE_PER_NIGHT * nights; }
@@ -1920,6 +2005,7 @@
           formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) +
           ' · ' + escapeHtml(tpl(t('booking.summary_nights_n'), { n: nights })) + '</div>' +
         '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsLabel) + '</div>' +
+        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(HOUSE_ADDRESS) + '</div>' +
       '</div>' +
       priceSummaryHtml() +
       '<div class="contact-form">' +
@@ -1935,7 +2021,7 @@
       '</div>' +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       '<button type="button" class="btn confirm-btn" data-confirm-booking id="confirm-booking-btn">' + escapeHtml(state.bookingBusy ? '…' : t('booking.conferma_prenotazione')) + '</button>' +
-      '<button type="button" class="link-btn link-btn--centered" data-back-to-guests>' + escapeHtml(t('booking.cambia_ospiti')) + '</button>'
+      '<button type="button" class="link-btn link-btn--centered" data-back-to-options>' + escapeHtml(t('booking.cambia_opzioni')) + '</button>'
     );
   }
   function successStepHtml() {
@@ -1971,8 +2057,9 @@
     var stepHtml = '';
     if (state.bookingStep === 1) stepHtml = calendarStepHtml();
     else if (state.bookingStep === 2) stepHtml = guestsStepHtml();
-    else if (state.bookingStep === 3) stepHtml = contactStepHtml();
-    else if (state.bookingStep === 4) stepHtml = successStepHtml();
+    else if (state.bookingStep === 3) stepHtml = optionsStepHtml();
+    else if (state.bookingStep === 4) stepHtml = contactStepHtml();
+    else if (state.bookingStep === 5) stepHtml = successStepHtml();
 
     root.innerHTML =
       '<div class="modal-overlay" id="booking-overlay">' +
@@ -1991,7 +2078,7 @@
       if (e.target.id === 'booking-overlay') closeBooking();
     });
     if (state.bookingStep === 2) bindGuestsStepInputs();
-    if (state.bookingStep === 3) bindContactInputs();
+    if (state.bookingStep === 4) bindContactInputs();
     updateBodyScrollLock();
   }
   function bindGuestsStepInputs() {
@@ -1999,6 +2086,7 @@
       sel.addEventListener('change', function (e) {
         var index = Number(e.target.getAttribute('data-index'));
         state.guestsChildAges[index] = Math.max(0, Math.min(17, Number(e.target.value) || 0));
+        syncCribToInfants();
         renderBookingModal();
       });
     });
@@ -2047,6 +2135,14 @@
     state.selectedCheckOut = searched ? state.search.checkOut : null;
     state.guestsAdults = searched && room ? state.search.adults : 1;
     state.guestsChildAges = searched && room ? state.search.childAges.slice() : [];
+    state.bookingFromSearch = !!(searched && room);
+    state.bookingGuestsEditing = !(searched && room);
+    state.bedType = 'matrimoniale';
+    var hasInfant = state.guestsChildAges.some(function (age) { return age < CHILD_ROOM_COUNT_MIN_AGE; });
+    state.cribCount = (searched && room && state.search.cribChoice === 'yes' && hasInfant) ? 1 : 0;
+    var neededCounted = countedGuests(state.guestsAdults, state.guestsChildAges);
+    var baseMax = (room && room.maxGuests) || MAX_BIG_GUESTS_PER_ROOM;
+    state.extraBedCount = (searched && room && neededCounted === baseMax) ? 1 : 0;
     state.contactName = ''; state.contactEmail = ''; state.contactPhone = '';
     state.contractAccepted = false;
     state.bookingError = '';
@@ -2080,9 +2176,12 @@
     refreshCalendarConsumers();
   }
   function goGuestsStep() { state.bookingStep = 2; renderBookingModal(); }
-  function goContactStep() { state.bookingStep = 3; renderBookingModal(); }
+  function editGuestsStep() { state.bookingGuestsEditing = true; renderBookingModal(); }
+  function goOptionsStep() { state.bookingStep = 3; renderBookingModal(); }
+  function goContactStep() { state.bookingStep = 4; renderBookingModal(); }
   function backToCalendar() { state.bookingStep = 1; renderBookingModal(); }
   function backToGuests() { state.bookingStep = 2; renderBookingModal(); }
+  function backToOptions() { state.bookingStep = 3; renderBookingModal(); }
   function guestAdultsInc() {
     var room = currentRoom(); var max = effectiveMaxGuests(room);
     if (countedGuests(state.guestsAdults, state.guestsChildAges) < max) state.guestsAdults++;
@@ -2094,7 +2193,11 @@
     if (countedGuests(state.guestsAdults, state.guestsChildAges.concat([CHILD_DEFAULT_AGE])) <= max) state.guestsChildAges.push(CHILD_DEFAULT_AGE);
     renderBookingModal();
   }
-  function guestChildrenDec() { if (state.guestsChildAges.length) state.guestsChildAges.pop(); renderBookingModal(); }
+  function guestChildrenDec() {
+    if (state.guestsChildAges.length) state.guestsChildAges.pop();
+    syncCribToInfants();
+    renderBookingModal();
+  }
 
   // Niente invio EmailJS diretto dal browser qui: per restare sotto la
   // quota gratuita da 200 email/mese (condivisa con lo studentato), tutte
@@ -2132,7 +2235,7 @@
     }).then(function (res) {
       state.bookingBusy = false;
       state.bookingResult = res;
-      state.bookingStep = 4;
+      state.bookingStep = 5;
       renderBookingModal();
     }).catch(function (err) {
       state.bookingBusy = false;
@@ -2331,12 +2434,18 @@
       if (el && !el.disabled) { pickDate(el.getAttribute('data-iso')); return; }
       el = e.target.closest('[data-go-guests-step]');
       if (el) { goGuestsStep(); return; }
+      el = e.target.closest('[data-guests-edit]');
+      if (el) { editGuestsStep(); return; }
+      el = e.target.closest('[data-go-options-step]');
+      if (el && !el.disabled) { goOptionsStep(); return; }
       el = e.target.closest('[data-go-contact-step]');
       if (el && !el.disabled) { goContactStep(); return; }
       el = e.target.closest('[data-back-to-calendar]');
       if (el) { backToCalendar(); return; }
       el = e.target.closest('[data-back-to-guests]');
       if (el) { backToGuests(); return; }
+      el = e.target.closest('[data-back-to-options]');
+      if (el) { backToOptions(); return; }
       el = e.target.closest('[data-guest-adults-inc]');
       if (el && !el.disabled) { guestAdultsInc(); return; }
       el = e.target.closest('[data-guest-adults-dec]');
