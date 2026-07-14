@@ -17,7 +17,7 @@
     { q: { it: 'Serve un documento per prenotare?', en: 'Do I need an ID document to book?' },
       a: { it: 'Sì, ma è più semplice di quanto sembri: prima del check-in ti mandiamo un link sicuro dove inserire i tuoi dati, poi basta una breve videochiamata di un minuto (o, solo la primissima volta, due parole al videocitofono all\'arrivo) — è la normale prassi italiana per le locazioni turistiche, non un controllo in più. Dalla seconda prenotazione in poi, se sei già stato nostro ospite, salti anche questo passaggio.', en: 'Yes, but it\'s simpler than it sounds: before check-in we send you a secure link to enter your details, then it\'s just a short one-minute video call (or, only the very first time, a quick hello at the entry intercom on arrival) — it\'s standard practice for short-term rentals in Italy, not an extra hurdle. From your second booking onward, if you\'ve stayed with us before, you skip this step too.' } },
     { q: { it: 'Posso cancellare la prenotazione?', en: 'Can I cancel my booking?' },
-      a: { it: 'Cancellazione gratuita fino a 48 ore prima del check-in. Oltre questa soglia si applicano le condizioni indicate nelle Condizioni di soggiorno, mostrate prima di confermare ogni prenotazione.', en: 'Free cancellation up to 48 hours before check-in. After that, the terms in the Stay Terms & Conditions apply, shown before you confirm any booking.' } }
+      a: { it: 'Cancellazione gratuita fino a 48 ore prima dell\'orario di check-in, con rimborso automatico. Oltre questa soglia la cancellazione non è più valida e non è possibile alcun rimborso, come indicato nelle Condizioni di soggiorno.', en: 'Free cancellation up to 48 hours before check-in time, with automatic refund. After that, cancellation is no longer possible and no refund can be issued, as stated in the Stay Terms & Conditions.' } }
   ];
 
   // Testi legali — vedi Fase B del piano: privacy policy molto più
@@ -74,18 +74,16 @@
         it: [
           'Casa Celeste è una locazione turistica indipendente, non un\'attività alberghiera: check-in autonomo dalle 15:00, check-out entro le 10:00.',
           'Il prezzo indicato al momento della prenotazione è comprensivo di utenze, wifi e pulizie; si aggiunge solo la tassa di soggiorno comunale (2€ a notte a persona, con le esenzioni di legge per i più piccoli), mostrata prima di confermare.',
-          'Ogni ospite che soggiorna deve fornire i propri dati anagrafici e una foto del documento d\'identità prima del check-in, tramite il link ricevuto dopo la richiesta di prenotazione, ED essere identificato di persona (videochiamata circa un\'ora prima del check-in con documento in mano, oppure — solo la prima volta — al videocitofono all\'arrivo): è un obbligo di legge italiano, non facoltativo. Dalle prenotazioni successive alla prima, se già verificato/a, non ripeterai la procedura.',
+          'Ogni ospite che soggiorna deve fornire i propri dati anagrafici e una foto del documento d\'identità prima del check-in, tramite il link ricevuto dopo la richiesta di prenotazione, ED essere identificato di persona (videochiamata circa un\'ora prima del check-in con documento in mano, oppure — solo la prima volta — al videocitofono all\'arrivo): è un obbligo di legge italiano, non facoltativo.',
           'Regole della casa: divieto di animali, divieto di fumo negli spazi interni, rispetto della quiete dopo le 22, cura degli spazi comuni condivisi con altri ospiti.',
-          'La richiesta di prenotazione non è automaticamente confermata: riceverai conferma via WhatsApp/email dal proprietario. Cancellazione gratuita fino a 48 ore prima del check-in; oltre questa soglia si applicano le condizioni comunicate in fase di conferma.',
-          'Nota: questo testo è un modello — si consiglia di farlo revisionare da un consulente legale prima della pubblicazione definitiva.'
+          'La prenotazione è confermata automaticamente al completamento del pagamento. Cancellazione gratuita fino a 48 ore prima dell\'orario di check-in, con rimborso automatico. Oltre questa soglia la cancellazione non è più valida e non è possibile alcun rimborso.'
         ],
         en: [
           'Casa Celeste is an independent short-term rental, not a hotel business: self-service check-in from 3pm, check-out by 10am.',
           'The price shown at booking time includes utilities, wifi and cleaning; the only addition is the municipal tourist tax (€2 per night per person, with statutory exemptions for younger guests), shown before you confirm.',
-          'Every guest staying must provide their personal details and a photo of their ID document before check-in, via the link received after the booking request, AND be identified in person (a video call roughly one hour before check-in with the ID in hand, or — only the first time — via the entry video-intercom on arrival): this is an Italian legal obligation, not optional. From your second booking onward, if already verified, you will not repeat the process.',
+          'Every guest staying must provide their personal details and a photo of their ID document before check-in, via the link received after the booking request, AND be identified in person (a video call roughly one hour before check-in with the ID in hand, or — only the first time — via the entry video-intercom on arrival): this is an Italian legal obligation, not optional.',
           'House rules: no pets, no smoking indoors, respect quiet hours after 10pm, take care of shared spaces used by other guests.',
-          'A booking request is not automatically confirmed: you will receive confirmation via WhatsApp/email from the host. Free cancellation up to 48 hours before check-in; after that, terms communicated at confirmation apply.',
-          'Note: this text is a template — we recommend having it reviewed by a legal advisor before final publication.'
+          'The booking is automatically confirmed once payment is completed. Free cancellation up to 48 hours before check-in time, with automatic refund. After that, cancellation is no longer possible and no refund can be issued.'
         ]
       }
     }
@@ -298,6 +296,42 @@
     var drawerOpen = drawerEl && drawerEl.classList.contains('is-open');
     var searchPopoverOpen = state.search.calendarOpen || state.search.guestsOpen || state.search.roomsOpen;
     document.body.style.overflow = (state.bookingOpen || state.legalOpen || state.mediaZoomOpen || state.roomDetail.open || drawerOpen || searchPopoverOpen) ? 'hidden' : '';
+  }
+
+  /* ==========================================================================
+     Tasto/gesto "indietro" del telefono per gli overlay a schermo intero
+     (pagina stanza, galleria, modale prenotazione, legale, zoom foto,
+     drawer mobile): senza questo, il back nativo del browser esce
+     direttamente dal sito o atterra a uno scroll casuale invece di
+     chiudere solo l'overlay aperto. Ogni openX() spinge una voce di
+     history "vuota"; popstate chiude il livello più in cima invece di
+     lasciare che il browser navighi altrove. inPopStateHandler evita che
+     un close() richiamato DA popstate provi a consumare un'altra voce di
+     history con un secondo history.back() (loop).
+     ========================================================================== */
+  var inPopStateHandler = false;
+  function pushOverlayHistoryState() {
+    if (inPopStateHandler) return;
+    try { history.pushState({ ccOverlay: true }, ''); } catch (e) {}
+  }
+  function closeOverlayHistoryState() {
+    if (inPopStateHandler) return;
+    if (history.state && history.state.ccOverlay) { try { history.back(); } catch (e) {} }
+  }
+  function bindOverlayBackButton() {
+    window.addEventListener('popstate', function () {
+      inPopStateHandler = true;
+      if (state.roomDetail.galleryOpen) closeRoomGallery();
+      else if (state.mediaZoomOpen) closeMediaZoom();
+      else if (state.legalOpen) closeLegal();
+      else if (state.bookingOpen) closeBooking();
+      else if (state.roomDetail.open) closeRoomDetail();
+      else {
+        var drawer = document.getElementById('mobile-drawer');
+        if (drawer && drawer.classList.contains('is-open')) closeMobileDrawer();
+      }
+      inPopStateHandler = false;
+    });
   }
 
   /* ==========================================================================
@@ -553,6 +587,14 @@
     if (override !== null && override !== undefined && override !== '') return Number(override) || 0;
     return Object.keys(state.reviewsData || {}).length;
   }
+  // Numero di recensioni per una singola stanza: se in Dashboard è stato
+  // impostato un numero scelto apposta per quella stanza, ha la priorità
+  // sul conteggio (reale o sovrascritto) valido per tutto il sito.
+  function effectiveReviewCountForRoom(room) {
+    var override = room && room.reviewCountOverride;
+    if (override !== null && override !== undefined && override !== '') return Number(override) || 0;
+    return effectiveReviewCount();
+  }
   function siteRatingValue() {
     var reviewCount = effectiveReviewCount();
     var avgRating = state.settings && state.settings.avgRating;
@@ -596,21 +638,21 @@
         '<div class="room-list-info">' +
           '<div class="room-list-top">' +
             '<h3 class="room-list-name">' + escapeHtml(room.name) + '</h3>' +
-            '<div class="room-list-rating"><svg width="14" height="14"><use href="#icon-star"></use></svg><strong>' + escapeHtml(siteRatingValue()) + '</strong></div>' +
+            '<button type="button" class="room-list-rating" data-scroll-to-reviews aria-label="' + escapeHtml(t('room.view_reviews_aria')) + '"><svg width="15" height="15"><use href="#icon-star"></use></svg><strong>' + escapeHtml(siteRatingValue()) + '</strong></button>' +
           '</div>' +
           shortDescHtml +
           '<div class="room-list-meta">' +
             '<span class="room-list-meta-item"><svg width="15" height="15"><use href="#icon-user"></use></svg>' + escapeHtml(guestsLabel) + '</span>' +
-            reviewsBadgeHtml() +
+            reviewsBadgeHtml(room) +
             (areaLabel ? '<span class="room-list-meta-item">' + escapeHtml(areaLabel) + '</span>' : '') +
           '</div>' +
           (room.balcony && room.balcony !== 'nessuno' ? '<div class="room-list-badges"><span class="room-list-balcony">' + escapeHtml(t('balcony.badge_' + room.balcony)) + '</span></div>' : '') +
           '<div class="room-list-cancellation">' + escapeHtml(t('search.cancellation_free')) + '</div>' +
           '<div class="room-list-bottom">' +
             priceHtml +
-            '<button type="button" class="room-list-cta" data-room-card-view>' + escapeHtml(t('room.view_singola')) + '</button>' +
+            '<button type="button" class="room-list-cta" data-room-card-view data-room-id="' + id + '"' + (searched && !available ? ' data-occupied' : '') + '>' + escapeHtml(t('room.view_singola')) + '</button>' +
           '</div>' +
-          '<button type="button" class="room-list-calendar-link">' +
+          '<button type="button" class="room-list-calendar-link" data-room-calendar-link data-room-id="' + id + '">' +
             '<svg width="13" height="13"><use href="#icon-calendar"></use></svg>' + escapeHtml(t('search.view_calendar')) +
           '</button>' +
         '</div>' +
@@ -692,7 +734,7 @@
       '<div class="admin-toggle-row">' +
         '<div style="max-width:560px;">' +
           '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('stanze.eyebrow')) + '</div>' +
-          '<h2 class="h2" style="margin:0 0 12px;">' + escapeHtml(searched ? t('search.results_title') : t('stanze.title')) + '</h2>' +
+          '<h2 class="h2" style="margin:0 0 12px;">' + escapeHtml(t('stanze.title')) + '</h2>' +
           '<p style="font-size:15.5px; line-height:1.65; color:var(--text-body); margin:0;">' + escapeHtml(t('stanze.text')) + '</p>' +
         '</div>' +
       '</div>' +
@@ -724,7 +766,7 @@
     for (var i = 1; i <= DETAIL_MAX_PHOTOS; i++) list.push(uploaded[i - 1] || ('images/' + id + '-' + i + '.jpg'));
     return list;
   }
-  function openRoomDetail(id) {
+  function openRoomDetail(id, scrollToCalendar) {
     if (!id || !state.roomsData[id]) return;
     var room = state.roomsData[id];
     state.roomDetail.open = true;
@@ -773,8 +815,14 @@
     renderRoomDetail();
     updateBodyScrollLock();
     updateStickyBarVisibility();
+    pushOverlayHistoryState();
+    if (scrollToCalendar) {
+      var datesEl = document.getElementById('rd-dates-section');
+      if (datesEl) datesEl.scrollIntoView({ block: 'start' });
+    }
   }
   function closeRoomDetail() {
+    closeOverlayHistoryState();
     state.roomDetail.open = false;
     state.roomDetail.galleryOpen = false;
     renderRoomDetail();
@@ -782,8 +830,8 @@
     updateStickyBarVisibility();
     window.scrollTo(0, state.roomDetail.savedScrollY || 0);
   }
-  function openRoomGallery(index) { state.roomDetail.galleryOpen = true; state.roomDetail.galleryIndex = index || 0; renderRoomDetail(); }
-  function closeRoomGallery() { state.roomDetail.galleryOpen = false; renderRoomDetail(); }
+  function openRoomGallery(index) { state.roomDetail.galleryOpen = true; state.roomDetail.galleryIndex = index || 0; renderRoomDetail(); pushOverlayHistoryState(); }
+  function closeRoomGallery() { closeOverlayHistoryState(); state.roomDetail.galleryOpen = false; renderRoomDetail(); }
   function roomDetailGalleryGoTo(index) { state.roomDetail.galleryIndex = index; renderRoomDetail(); }
   function roomGalleryNav(dir) {
     var room = state.roomsData[state.roomDetail.roomId];
@@ -851,7 +899,7 @@
       '</div>' +
       '<div class="rd-extra-badge">' + escapeHtml(t('options.extra_service_badge')) + '</div>' +
       '<div class="rd-option-row">' +
-        '<div><div class="rd-option-title">' + escapeHtml(t('options.crib')) + (suggestCrib ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.crib_recommended')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(tpl(t('options.extra_price_note'), { price: CRIB_PRICE_PER_NIGHT })) + '</div></div>' +
+        '<div><div class="rd-option-title">' + escapeHtml(t('options.crib')) + (suggestCrib ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.crib_recommended')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(tpl(t('options.extra_price_note'), { price: CRIB_PRICE })) + '</div></div>' +
         '<div class="search-stepper">' +
           '<button type="button" class="search-stepper-btn" data-rd-crib-dec' + (state.cribCount <= 0 ? ' disabled' : '') + '>−</button>' +
           '<span class="search-stepper-value">' + state.cribCount + '</span>' +
@@ -859,7 +907,7 @@
         '</div>' +
       '</div>' +
       '<div class="rd-option-row">' +
-        '<div><div class="rd-option-title">' + escapeHtml(t('options.extra_bed')) + (extraBedMandatory ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.extra_bed_required_tag')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(extraBedMandatory ? t('options.extra_bed_required_note') : tpl(t('options.extra_price_note'), { price: EXTRA_BED_PRICE_PER_NIGHT })) + '</div></div>' +
+        '<div><div class="rd-option-title">' + escapeHtml(t('options.extra_bed')) + (extraBedMandatory ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.extra_bed_required_tag')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(extraBedMandatory ? t('options.extra_bed_required_note') : tpl(t('options.extra_price_note'), { price: EXTRA_BED_PRICE })) + '</div></div>' +
         '<div class="search-stepper">' +
           '<button type="button" class="search-stepper-btn" data-rd-extrabed-dec' + ((state.extraBedCount <= 0 || extraBedMandatory) ? ' disabled' : '') + '>−</button>' +
           '<span class="search-stepper-value">' + state.extraBedCount + '</span>' +
@@ -1017,17 +1065,28 @@
 
     var photos = roomPhotos(id, room);
     var guestsLabel = roomGuestsLabel(room);
-    var bedLabel = roomBedLabel(room);
-    var metaLine = [guestsLabel, bedLabel, t('roomdetail.shared_bathroom')].filter(Boolean).join(' · ');
+    var balconyClause = room.balcony === 'privato' ? t('room.balcony_private_clause')
+      : (room.balcony === 'comunicante' ? t('room.balcony_shared_clause') : '');
+    var metaLine = [guestsLabel, t('room.private_room_beds_clause'), t('roomdetail.shared_bathroom'), balconyClause].filter(Boolean).join(' - ');
 
-    var stripHtml = photos.map(function (src, i) {
-      return '<div class="rd-photo-slide" data-rd-photo data-index="' + i + '">' +
+    // Collage: tutte le foto visibili insieme in una sola schermata (non
+    // una alla volta come un carosello) — la principale grande in alto, le
+    // altre in una griglia sotto, tutte cliccabili per aprire la galleria
+    // a schermo intero su quella singola foto (data-rd-photo/openRoomGallery,
+    // invariati). Si scorre verticalmente con il resto della pagina, non
+    // serve uno scroll orizzontale dedicato.
+    var collageSlideHtml = function (src, i, extraClass) {
+      return '<div class="rd-collage-tile' + (extraClass ? ' ' + extraClass : '') + '" data-rd-photo data-index="' + i + '">' +
         '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(room.name) + '</span>' +
         photoTag(src, room.name + ' — ' + (i + 1)) +
       '</div>';
-    }).join('');
+    };
+    var stripHtml = collageSlideHtml(photos[0], 0, 'rd-collage-main') +
+      '<div class="rd-collage-grid">' +
+        photos.slice(1).map(function (src, i) { return collageSlideHtml(src, i + 1); }).join('') +
+      '</div>';
 
-    var reviewCount = effectiveReviewCount();
+    var reviewCount = effectiveReviewCountForRoom(room);
     var ratingHtml = '<div class="rd-rating-block"><svg width="16" height="16"><use href="#icon-star"></use></svg><strong>' + escapeHtml(siteRatingValue()) + '</strong></div>';
     var reviewsLabel = reviewCount === 0 ? t('hero.reviews_none') : (reviewCount === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: reviewCount }));
 
@@ -1099,13 +1158,14 @@
         '</button>' +
         '<div class="rd-scroll">' +
           '<div class="rd-photos">' +
-            '<div class="rd-photo-strip">' + stripHtml + '</div>' +
+            '<div class="rd-collage">' + stripHtml + '</div>' +
           '</div>' +
           '<div class="rd-body">' +
             '<a href="' + escapeHtml(chatWa) + '" target="_blank" rel="noopener" class="btn btn-whatsapp rd-chat-btn">' + escapeHtml(t('roomdetail.chat_host')) + '</a>' +
             '<h1 class="rd-room-name">' + escapeHtml(room.name) + '</h1>' +
             '<div class="rd-address"><svg width="14" height="14"><use href="#icon-pin"></use></svg>' + escapeHtml(HOUSE_ADDRESS) + '</div>' +
             '<div class="rd-meta-line">' + escapeHtml(metaLine) + '</div>' +
+            '<div class="rd-meta-line">' + escapeHtml(t('roomdetail.crib_extrabed_available')) + '</div>' +
             '<div class="rd-separator"></div>' +
             reviewsRowHtml +
             '<div class="rd-separator"></div>' +
@@ -1156,8 +1216,18 @@
   // fittizi/placeholder da confermare col gestore prima di essere reali.
   var CRIB_MAX = 1;
   var EXTRA_BED_MAX = 1;
-  var CRIB_PRICE_PER_NIGHT = 8;
-  var EXTRA_BED_PRICE_PER_NIGHT = 15;
+  // Prezzo forfettario per l'intera durata del soggiorno, non a notte.
+  var CRIB_PRICE = 8;
+  var EXTRA_BED_PRICE = 15;
+  // Stessa aliquota di computePaymentFee in functions/booking-logic.js —
+  // va tenuta allineata a mano. Mostrata sempre esplicitamente prima del
+  // pagamento: se l'ospite cancella entro i termini viene rimborsato solo
+  // il costo del soggiorno, mai questa commissione.
+  var PAYMENT_FEE_PERCENT = 1.5;
+  var PAYMENT_FEE_FIXED = 0.25;
+  function computePaymentFee(baseTotal) {
+    return Math.round((baseTotal * PAYMENT_FEE_PERCENT / 100 + PAYMENT_FEE_FIXED) * 100) / 100;
+  }
   function totalRoomsCount() { return orderedIds(state.roomsData).length || 1; }
   function maxHouseCapacity() { return totalRoomsCount() * MAX_BIG_GUESTS_PER_ROOM; }
   function countedGuests(adults, childAges) {
@@ -1444,8 +1514,8 @@
     state.search.flexResults = null;
     submitSearch();
   }
-  function reviewsBadgeHtml() {
-    var n = effectiveReviewCount();
+  function reviewsBadgeHtml(room) {
+    var n = effectiveReviewCountForRoom(room);
     var label = n === 0 ? t('hero.reviews_none') : (n === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: n }));
     return '<span class="room-list-meta-item room-list-reviews"><svg width="14" height="14"><use href="#icon-star"></use></svg>' + escapeHtml(label) + '</span>';
   }
@@ -2009,10 +2079,12 @@
       '<button type="button" class="link-btn" data-back-to-guests>' + escapeHtml(t('booking.cambia_ospiti')) + '</button>'
     );
   }
-  function cribTotalForNights(nights) { return state.cribCount * CRIB_PRICE_PER_NIGHT * nights; }
-  function extraBedTotalForNights(nights) { return state.extraBedCount * EXTRA_BED_PRICE_PER_NIGHT * nights; }
-  function cribTotalForNightsN(count, nights) { return count * CRIB_PRICE_PER_NIGHT * nights; }
-  function extraBedTotalForNightsN(count, nights) { return count * EXTRA_BED_PRICE_PER_NIGHT * nights; }
+  // Culla e letto extra sono un costo forfettario per l'intero soggiorno,
+  // non moltiplicato per le notti.
+  function cribTotal() { return state.cribCount * CRIB_PRICE; }
+  function extraBedTotal() { return state.extraBedCount * EXTRA_BED_PRICE; }
+  function cribTotalN(count) { return count * CRIB_PRICE; }
+  function extraBedTotalN(count) { return count * EXTRA_BED_PRICE; }
   function priceSummaryHtml() {
     var room = currentRoom();
     if (!room) return '';
@@ -2021,18 +2093,23 @@
     var taxRate = Number(state.settings && state.settings.touristTaxRate) || 0;
     var taxable = taxablePersons(state.guestsAdults, state.guestsChildAges);
     var tax = Math.round(taxRate * taxable * nights * 100) / 100;
-    var cribTotal = cribTotalForNights(nights);
-    var extraBedTotal = extraBedTotalForNights(nights);
-    var total = roomTotal + tax + cribTotal + extraBedTotal;
+    var cribAmount = cribTotal();
+    var extraBedAmount = extraBedTotal();
+    var stayTotal = roomTotal + tax + cribAmount + extraBedAmount;
+    var fee = computePaymentFee(stayTotal);
+    var grandTotal = stayTotal + fee;
     return (
       '<div class="price-summary">' +
         '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_dates')) + '</span><span>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</span></div>' +
         '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: nights, price: room.nightlyPrice })) + '</span><span>€' + roomTotal.toFixed(2) + '</span></div>' +
         (taxRate ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + tax.toFixed(2) + '</span></div>' : '') +
         (taxRate ? '<div class="price-summary-note">' + escapeHtml(tpl(t('booking.summary_tourist_tax_note'), { rate: taxRate })) + '</div>' : '') +
-        (state.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + cribTotal.toFixed(2) + '</span></div>' : '') +
-        (state.extraBedCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_extra_bed')) + '</span><span>€' + extraBedTotal.toFixed(2) + '</span></div>' : '') +
-        '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.summary_total')) + '</span><span>€' + total.toFixed(2) + '</span></div>' +
+        (state.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + cribAmount.toFixed(2) + '</span></div>' : '') +
+        (state.extraBedCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_extra_bed')) + '</span><span>€' + extraBedAmount.toFixed(2) + '</span></div>' : '') +
+        '<div class="price-summary-row is-subtotal"><span>' + escapeHtml(t('booking.summary_stay_subtotal')) + '</span><span>€' + stayTotal.toFixed(2) + '</span></div>' +
+        '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_payment_fee')) + '</span><span>€' + fee.toFixed(2) + '</span></div>' +
+        '<div class="price-summary-note">' + escapeHtml(t('booking.summary_payment_fee_note')) + '</div>' +
+        '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.summary_total')) + '</span><span>€' + grandTotal.toFixed(2) + '</span></div>' +
       '</div>'
     );
   }
@@ -2098,7 +2175,11 @@
     stripeClientRef = null; stripeElementsRef = null; stripePaymentElementRef = null;
     return (
       '<div class="slot-label">' + escapeHtml(t('booking.payment_step_title')) + '</div>' +
-      '<div class="payment-total-row"><span>' + escapeHtml(t('booking.payment_total_label')) + '</span><span id="payment-total-value">…</span></div>' +
+      '<div class="price-summary" id="payment-fee-breakdown">' +
+        '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_stay_subtotal')) + '</span><span id="payment-base-value">…</span></div>' +
+        '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_payment_fee')) + '</span><span id="payment-fee-value">…</span></div>' +
+        '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.payment_total_label')) + '</span><span id="payment-total-value">…</span></div>' +
+      '</div>' +
       '<div id="payment-element-container" class="payment-element-container"></div>' +
       '<div class="field-error" id="payment-error" style="display:none;"></div>' +
       '<button type="button" class="payment-submit-btn" id="payment-submit-btn" disabled>' + escapeHtml(t('booking.payment_submit_cta')) + '</button>' +
@@ -2109,6 +2190,8 @@
     var errorEl = document.getElementById('payment-error');
     var submitBtn = document.getElementById('payment-submit-btn');
     var totalEl = document.getElementById('payment-total-value');
+    var baseEl = document.getElementById('payment-base-value');
+    var feeEl = document.getElementById('payment-fee-value');
     var container = document.getElementById('payment-element-container');
     function showError(msg) { errorEl.textContent = msg; errorEl.style.display = ''; }
     if (!window.Stripe || !window.STRIPE_PUBLISHABLE_KEY || window.STRIPE_PUBLISHABLE_KEY.indexOf('INSERISCI') !== -1) {
@@ -2117,6 +2200,8 @@
     }
     if (!window.CasaCelesteTourismDB) return;
     window.CasaCelesteTourismDB.createPaymentIntent(paymentQuotePayload()).then(function (res) {
+      baseEl.textContent = '€' + Number(res.baseTotal).toFixed(2);
+      feeEl.textContent = '€' + Number(res.fee).toFixed(2);
       totalEl.textContent = '€' + Number(res.amount).toFixed(2);
       stripeClientRef = window.Stripe(window.STRIPE_PUBLISHABLE_KEY);
       stripeElementsRef = stripeClientRef.elements({ clientSecret: res.clientSecret });
@@ -2140,8 +2225,11 @@
           return;
         }
         // Pagamento confermato lato Stripe: ora si crea davvero la
-        // prenotazione (stessa Cloud Function di prima, invariata).
-        if (state.groupMode) confirmGroupBooking(); else confirmBooking();
+        // prenotazione, con l'id del PaymentIntent salvato sulla
+        // prenotazione stessa (serve più avanti per un eventuale rimborso
+        // se l'ospite cancella, vedi cancella.html/cancelBookingCore).
+        var paymentIntentId = result.paymentIntent && result.paymentIntent.id;
+        if (state.groupMode) confirmGroupBooking(paymentIntentId); else confirmBooking(paymentIntentId);
       }).catch(function (err) {
         showError((err && err.message) || t('booking.payment_generic_error'));
         submitBtn.disabled = false;
@@ -2151,9 +2239,13 @@
   }
   function goPaymentStep() { state.bookingStep = 5; renderBookingModal(); }
   function backToContact() { state.bookingStep = 4; renderBookingModal(); }
+  function guestLinkUrl(page, bookingId, token) {
+    return window.location.origin + window.location.pathname.replace(/index\.html$/, '') + page + '?booking=' + encodeURIComponent(bookingId || '') + '&token=' + encodeURIComponent(token || '');
+  }
   function successStepHtml() {
     var res = state.bookingResult || {};
-    var docsLink = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + 'ospiti.html?booking=' + encodeURIComponent(res.id || '') + '&token=' + encodeURIComponent(res.guestFormToken || '');
+    var docsLink = guestLinkUrl('ospiti.html', res.id, res.guestFormToken);
+    var cancelLink = guestLinkUrl('cancella.html', res.id, res.guestFormToken);
     return (
       '<div class="booking-success">' +
         '<div class="success-icon"><svg width="26" height="26"><use href="#icon-check"></use></svg></div>' +
@@ -2164,6 +2256,7 @@
           '<span>' + escapeHtml(t('booking.success_docs_text')) + '</span>' +
         '</div>' +
         '<a href="' + escapeHtml(docsLink) + '" class="btn btn-primary" style="width:100%; margin-top:14px;">' + escapeHtml(t('booking.success_docs_cta')) + '</a>' +
+        '<a href="' + escapeHtml(cancelLink) + '" class="link-btn" style="margin-top:10px;">' + escapeHtml(t('booking.success_cancel_cta')) + '</a>' +
         '<button type="button" class="link-btn" data-close-booking style="margin-top:10px;">' + escapeHtml(t('common.chiudi')) + '</button>' +
       '</div>'
     );
@@ -2282,8 +2375,9 @@
     state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
     renderBookingModal();
     updateStickyBarVisibility();
+    pushOverlayHistoryState();
   }
-  function closeBooking() { state.bookingOpen = false; state.groupMode = false; renderBookingModal(); updateStickyBarVisibility(); }
+  function closeBooking() { closeOverlayHistoryState(); state.bookingOpen = false; state.groupMode = false; renderBookingModal(); updateStickyBarVisibility(); }
   function refreshCalendarConsumers() { renderBookingModal(); renderRoomDetail(); updateStickyBarVisibility(); }
   function calMonthPrev() { var m = state.calMonth - 1, y = state.calYear; if (m < 0) { m = 11; y -= 1; } state.calMonth = m; state.calYear = y; refreshCalendarConsumers(); }
   function calMonthNext() { var m = state.calMonth + 1, y = state.calYear; if (m > 11) { m = 0; y += 1; } state.calMonth = m; state.calYear = y; refreshCalendarConsumers(); }
@@ -2378,6 +2472,7 @@
     state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
     renderBookingModal();
     updateStickyBarVisibility();
+    pushOverlayHistoryState();
   }
   function groupAllocBigCount(alloc) {
     return alloc.adults + alloc.childIdxs.filter(function (ci) { return state.guestsChildAges[ci] >= CHILD_ROOM_COUNT_MIN_AGE; }).length;
@@ -2551,7 +2646,7 @@
           '<button type="button" class="rd-bedtype-btn' + (alloc.bedType === 'singolo' ? ' is-active' : '') + '" data-group-bedtype="singolo" data-room-index="' + ri + '"><svg width="20" height="20"><use href="#icon-bed-single"></use></svg>' + escapeHtml(t('options.bed_single')) + '</button>' +
         '</div>' +
         (infants > 0 ? (
-          '<div class="rd-option-row"><div><div class="rd-option-title">' + escapeHtml(t('options.crib')) + (suggestCrib ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.crib_recommended')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(tpl(t('options.extra_price_note'), { price: CRIB_PRICE_PER_NIGHT })) + '</div></div>' +
+          '<div class="rd-option-row"><div><div class="rd-option-title">' + escapeHtml(t('options.crib')) + (suggestCrib ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.crib_recommended')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(tpl(t('options.extra_price_note'), { price: CRIB_PRICE })) + '</div></div>' +
             '<div class="search-stepper">' +
               '<button type="button" class="search-stepper-btn" data-group-crib-dec data-room-index="' + ri + '"' + (alloc.cribCount <= 0 ? ' disabled' : '') + '>−</button>' +
               '<span class="search-stepper-value">' + alloc.cribCount + '</span>' +
@@ -2559,7 +2654,7 @@
             '</div>' +
           '</div>'
         ) : '') +
-        '<div class="rd-option-row"><div><div class="rd-option-title">' + escapeHtml(t('options.extra_bed')) + (extraBedMandatory ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.extra_bed_required_tag')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(extraBedMandatory ? t('options.extra_bed_required_note') : tpl(t('options.extra_price_note'), { price: EXTRA_BED_PRICE_PER_NIGHT })) + '</div></div>' +
+        '<div class="rd-option-row"><div><div class="rd-option-title">' + escapeHtml(t('options.extra_bed')) + (extraBedMandatory ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.extra_bed_required_tag')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(extraBedMandatory ? t('options.extra_bed_required_note') : tpl(t('options.extra_price_note'), { price: EXTRA_BED_PRICE })) + '</div></div>' +
           '<div class="search-stepper">' +
             '<button type="button" class="search-stepper-btn" data-group-extrabed-dec data-room-index="' + ri + '"' + ((alloc.extraBedCount <= 0 || extraBedMandatory) ? ' disabled' : '') + '>−</button>' +
             '<span class="search-stepper-value">' + alloc.extraBedCount + '</span>' +
@@ -2599,8 +2694,8 @@
     var allocChildAges = alloc.childIdxs.map(function (ci) { return state.guestsChildAges[ci]; });
     var taxable = taxablePersons(alloc.adults, allocChildAges);
     var tax = Math.round(taxRate * taxable * nights * 100) / 100;
-    var cribTotal = cribTotalForNightsN(alloc.cribCount, nights);
-    var extraBedTotal = extraBedTotalForNightsN(alloc.extraBedCount, nights);
+    var cribTotal = cribTotalN(alloc.cribCount);
+    var extraBedTotal = extraBedTotalN(alloc.extraBedCount);
     var total = roomTotal + tax + cribTotal + extraBedTotal;
     return { room: room, nights: nights, roomTotal: roomTotal, tax: tax, cribTotal: cribTotal, extraBedTotal: extraBedTotal, total: total };
   }
@@ -2621,7 +2716,13 @@
           '<div class="price-summary-row is-subtotal"><span>' + escapeHtml(t('booking.group_room_subtotal')) + '</span><span>€' + p.total.toFixed(2) + '</span></div>' +
         '</div>';
     });
-    return '<div class="price-summary">' + rows + '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.summary_total')) + '</span><span>€' + grandTotal.toFixed(2) + '</span></div></div>';
+    var fee = computePaymentFee(grandTotal);
+    var withFee = grandTotal + fee;
+    return '<div class="price-summary">' + rows +
+      '<div class="price-summary-row is-subtotal"><span>' + escapeHtml(t('booking.summary_stay_subtotal')) + '</span><span>€' + grandTotal.toFixed(2) + '</span></div>' +
+      '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_payment_fee')) + '</span><span>€' + fee.toFixed(2) + '</span></div>' +
+      '<div class="price-summary-note">' + escapeHtml(t('booking.summary_payment_fee_note')) + '</div>' +
+      '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.summary_total')) + '</span><span>€' + withFee.toFixed(2) + '</span></div></div>';
   }
   function groupContactStepHtml() {
     var nights = groupNights();
@@ -2655,9 +2756,14 @@
   function groupSuccessStepHtml() {
     var res = state.bookingResult || { bookings: [] };
     var linksHtml = (res.bookings || []).map(function (b) {
-      var docsLink = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + 'ospiti.html?booking=' + encodeURIComponent(b.id || '') + '&token=' + encodeURIComponent(b.guestFormToken || '');
+      var docsLink = guestLinkUrl('ospiti.html', b.id, b.guestFormToken);
       return '<a href="' + escapeHtml(docsLink) + '" class="btn btn-primary" style="width:100%; margin-top:10px;">' + escapeHtml(tpl(t('booking.group_success_docs_cta'), { room: b.roomLabel })) + '</a>';
     }).join('');
+    // Le stanze del gruppo condividono lo stesso PaymentIntent e groupId:
+    // basta il link di una qualunque per cancellare tutto il gruppo insieme
+    // (vedi cancelBookingCore in functions/booking-logic.js).
+    var firstBooking = (res.bookings || [])[0];
+    var cancelLink = firstBooking ? guestLinkUrl('cancella.html', firstBooking.id, firstBooking.guestFormToken) : '';
     return (
       '<div class="booking-success">' +
         '<div class="success-icon"><svg width="26" height="26"><use href="#icon-check"></use></svg></div>' +
@@ -2668,6 +2774,7 @@
           '<span>' + escapeHtml(t('booking.group_success_docs_text')) + '</span>' +
         '</div>' +
         linksHtml +
+        (cancelLink ? '<a href="' + escapeHtml(cancelLink) + '" class="link-btn" style="margin-top:10px;">' + escapeHtml(t('booking.success_cancel_cta')) + '</a>' : '') +
         '<button type="button" class="link-btn" data-close-booking style="margin-top:10px;">' + escapeHtml(t('common.chiudi')) + '</button>' +
       '</div>'
     );
@@ -2676,7 +2783,7 @@
   function goGroupContactStep() { state.bookingStep = 4; renderBookingModal(); }
   function backToGroupAlloc() { state.bookingStep = 2; renderBookingModal(); }
   function backToGroupRooms() { state.bookingStep = 3; renderBookingModal(); }
-  function confirmGroupBooking() {
+  function confirmGroupBooking(paymentIntentId) {
     if (!state.contactName || !isValidEmail(state.contactEmail) || !isValidPhone(state.contactPhone) || !state.contractAccepted) return;
     if (!window.CasaCelesteTourismDB) return;
     state.bookingBusy = true; state.bookingError = '';
@@ -2694,7 +2801,7 @@
       checkIn: state.selectedCheckIn, checkOut: state.selectedCheckOut,
       rooms: roomsPayload,
       name: state.contactName, email: state.contactEmail, phone: state.contactPhone,
-      contractAccepted: state.contractAccepted, source: 'site'
+      contractAccepted: state.contractAccepted, source: 'site', paymentIntentId: paymentIntentId || null
     }).then(function (res) {
       state.bookingBusy = false;
       state.bookingResult = res;
@@ -2717,7 +2824,7 @@
   // richiesta — niente email doppia "richiesta ricevuta" + "confermata".
   // Il proprietario viene avvisato subito via Telegram (gratis, illimitato,
   // vedi functions/index.js) invece che via email.
-  function confirmBooking() {
+  function confirmBooking(paymentIntentId) {
     if (!state.contactName || !isValidEmail(state.contactEmail) || !isValidPhone(state.contactPhone) || !state.contractAccepted) return;
     if (!window.CasaCelesteTourismDB) return;
     state.bookingBusy = true; state.bookingError = '';
@@ -2741,7 +2848,8 @@
       email: state.contactEmail,
       phone: state.contactPhone,
       contractAccepted: state.contractAccepted,
-      source: 'site'
+      source: 'site',
+      paymentIntentId: paymentIntentId || null
     }).then(function (res) {
       state.bookingBusy = false;
       state.bookingResult = res;
@@ -2777,8 +2885,8 @@
     });
     updateBodyScrollLock();
   }
-  function openLegal(id) { state.legalOpen = true; state.activeLegalId = id; renderLegalModal(); updateStickyBarVisibility(); }
-  function closeLegal() { state.legalOpen = false; renderLegalModal(); updateStickyBarVisibility(); }
+  function openLegal(id) { state.legalOpen = true; state.activeLegalId = id; renderLegalModal(); updateStickyBarVisibility(); pushOverlayHistoryState(); }
+  function closeLegal() { closeOverlayHistoryState(); state.legalOpen = false; renderLegalModal(); updateStickyBarVisibility(); }
 
   function renderMediaZoomModal() {
     var root = document.getElementById('media-zoom-root');
@@ -2800,8 +2908,9 @@
   function openMediaZoom(src, alt) {
     state.mediaZoomOpen = true; state.mediaZoomSrc = src; state.mediaZoomAlt = alt; state.mediaZoomScaled = false;
     renderMediaZoomModal();
+    pushOverlayHistoryState();
   }
-  function closeMediaZoom() { state.mediaZoomOpen = false; renderMediaZoomModal(); }
+  function closeMediaZoom() { closeOverlayHistoryState(); state.mediaZoomOpen = false; renderMediaZoomModal(); }
   function mediaGoTo(kind, index) {
     if (kind === 'common') { state.commonMediaIndex = index; renderCommon(); }
     else { state.roomMediaIndex = index; renderRooms(); }
@@ -2835,8 +2944,10 @@
     document.getElementById('mobile-drawer').setAttribute('aria-hidden', 'false');
     document.getElementById('hamburger-btn').setAttribute('aria-expanded', 'true');
     updateBodyScrollLock();
+    pushOverlayHistoryState();
   }
   function closeMobileDrawer() {
+    closeOverlayHistoryState();
     document.getElementById('mobile-drawer').classList.remove('is-open');
     document.getElementById('mobile-drawer-overlay').classList.remove('is-open');
     document.getElementById('mobile-drawer').setAttribute('aria-hidden', 'true');
@@ -2871,6 +2982,12 @@
       el = e.target.closest('[data-open-booking]');
       if (el && !el.disabled) { openBooking(el.getAttribute('data-room-id'), el.getAttribute('data-room-label')); return; }
 
+      el = e.target.closest('[data-scroll-to-reviews]');
+      if (el) { scrollSectionIntoView('testimonianze'); return; }
+      el = e.target.closest('[data-room-card-view]');
+      if (el) { openRoomDetail(el.getAttribute('data-room-id'), el.hasAttribute('data-occupied')); return; }
+      el = e.target.closest('[data-room-calendar-link]');
+      if (el) { openRoomDetail(el.getAttribute('data-room-id'), true); return; }
       el = e.target.closest('[data-room-card]');
       if (el) { openRoomDetail(el.getAttribute('data-room-id')); return; }
 
@@ -3163,6 +3280,7 @@
     bindCarouselSwipe();
     bindMobileDrawer();
     bindStickyBarScroll();
+    bindOverlayBackButton();
 
     if (state.__deepLinkRoomId && state.roomsData[state.__deepLinkRoomId]) {
       openRoomDetail(state.__deepLinkRoomId);

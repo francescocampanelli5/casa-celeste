@@ -23,7 +23,7 @@ const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https')
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const { createBookingCore, createGroupBookingCore, computeQuoteCore } = require('./booking-logic');
+const { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBookingCore } = require('./booking-logic');
 const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-verification');
 const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString } = require('./guest-documents');
 const { handleTelegramUpdate } = require('./telegram-bot');
@@ -147,14 +147,14 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
   const key = stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: manca STRIPE_SECRET_KEY.');
 
-  let amountEur;
+  let quote;
   try {
-    amountEur = await computeQuoteCore(db, data);
+    quote = await computeQuoteCore(db, data);
   } catch (err) {
     if (err.code) throw new HttpsError(err.code, err.message);
     throw new HttpsError('internal', 'Errore nel calcolo del totale.');
   }
-  if (!(amountEur > 0)) throw new HttpsError('invalid-argument', 'Totale non valido.');
+  if (!(quote.amount > 0)) throw new HttpsError('invalid-argument', 'Totale non valido.');
 
   let stripe;
   try {
@@ -163,14 +163,42 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
     throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: pacchetto "stripe" mancante (npm install stripe in functions/).');
   }
 
+  // L'addebito include la commissione di elaborazione (quote.fee), mostrata
+  // esplicitamente all'ospite nel riepilogo prima di pagare — se poi
+  // cancella entro i termini, viene rimborsato solo quote.baseTotal.
   const intent = await stripe.paymentIntents.create({
-    amount: Math.round(amountEur * 100),
+    amount: Math.round(quote.amount * 100),
     currency: 'eur',
     automatic_payment_methods: { enabled: true },
     description: 'Casa Celeste — prenotazione stanza',
     metadata: { checkIn: data.checkIn || '', checkOut: data.checkOut || '', roomId: data.roomId || '', groupBooking: Array.isArray(data.rooms) ? 'si' : 'no' }
   });
-  return { clientSecret: intent.client_secret, amount: amountEur };
+  return { clientSecret: intent.client_secret, amount: quote.amount, baseTotal: quote.baseTotal, fee: quote.fee, paymentIntentId: intent.id };
+});
+
+/* ==========================================================================
+   cancelBooking — cancellazione self-service dell'ospite (nessun login: il
+   guestFormToken è la stessa chiave d'accesso già usata per ospiti.html).
+   Rimborsa solo il costo del soggiorno (mai la commissione di pagamento) e
+   solo entro il termine di 48 ore prima del check-in — vedi
+   cancelBookingCore in booking-logic.js.
+   ========================================================================== */
+exports.cancelBooking = onCall({ secrets: [stripeSecretKey] }, async (request) => {
+  const data = request.data || {};
+  const key = stripeSecretKey.value();
+  if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato.');
+  let stripe;
+  try {
+    stripe = require('stripe')(key);
+  } catch (e) {
+    throw new HttpsError('failed-precondition', 'Pacchetto "stripe" mancante lato server.');
+  }
+  try {
+    return await cancelBookingCore(admin, db, stripe, data);
+  } catch (err) {
+    if (err.code) throw new HttpsError(err.code, err.message);
+    throw new HttpsError('internal', 'Errore imprevisto: riprova.');
+  }
 });
 
 /* ==========================================================================
@@ -198,7 +226,8 @@ exports.getBookingForGuestForm = onCall(async (request) => {
   return {
     roomLabel: b.roomLabel, guests: b.guests, checkIn: b.checkIn, checkOut: b.checkOut,
     checkInPassed: todayISO() > b.checkIn,
-    existingGuests: existing.exists ? (existing.data().guests || []).map((g) => Object.assign({}, g, { docPhotoUrl: undefined })) : null
+    existingGuests: existing.exists ? (existing.data().guests || []).map((g) => Object.assign({}, g, { docPhotoUrl: undefined })) : null,
+    status: b.status, source: b.source, payment: b.payment || null, groupId: b.groupId || null
   };
 });
 

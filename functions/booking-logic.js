@@ -18,13 +18,28 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Opzioni stanza (letto a scelta, culla, letto singolo aggiuntivo) — vedi
 // affittacamere/js/app.js per le stesse costanti lato client (CRIB_MAX,
-// EXTRA_BED_MAX, CRIB_PRICE_PER_NIGHT, EXTRA_BED_PRICE_PER_NIGHT). Prezzi
-// fittizi/placeholder, da tenere allineati manualmente nei due file finché
-// non hanno una sola fonte di verità comune.
+// EXTRA_BED_MAX, CRIB_PRICE, EXTRA_BED_PRICE). Prezzi fittizi/placeholder,
+// da tenere allineati manualmente nei due file finché non hanno una sola
+// fonte di verità comune. Forfettari per l'intero soggiorno, non a notte.
 const CRIB_MAX = 1;
 const EXTRA_BED_MAX = 1;
-const CRIB_PRICE_PER_NIGHT = 8;
-const EXTRA_BED_PRICE_PER_NIGHT = 15;
+const CRIB_PRICE = 8;
+const EXTRA_BED_PRICE = 15;
+
+// Commissione di elaborazione pagamento (stima, aliquota carte europee di
+// Stripe) addebitata all'ospite IN CIMA al costo del soggiorno, mostrata
+// esplicitamente nel riepilogo prima del pagamento. Se l'ospite cancella
+// entro i termini viene rimborsato solo il costo del soggiorno (baseTotal):
+// questa commissione non è mai rimborsabile, Stripe non la restituisce
+// nemmeno al gestore in caso di rimborso, quindi non può essere restituita
+// all'ospite.
+const PAYMENT_FEE_PERCENT = 1.5;
+const PAYMENT_FEE_FIXED = 0.25;
+// Finestra minima per cancellare gratis e ottenere il rimborso.
+const CANCELLATION_CUTOFF_HOURS = 48;
+function computePaymentFee(baseTotal) {
+  return Math.round((baseTotal * PAYMENT_FEE_PERCENT / 100 + PAYMENT_FEE_FIXED) * 100) / 100;
+}
 
 function fail(code, message) {
   const err = new Error(message);
@@ -57,6 +72,7 @@ async function createBookingCore(admin, db, data) {
   const bedType = data.bedType === 'singolo' ? 'singolo' : 'matrimoniale';
   const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(data.cribCount) || 0));
   const extraBedCount = Math.max(0, Math.min(EXTRA_BED_MAX, Number(data.extraBedCount) || 0));
+  const paymentIntentId = data.paymentIntentId || null;
 
   if (!isNonEmptyString(roomId, 50)) fail('invalid-argument', 'Stanza mancante.');
   if (!isValidDateStr(checkIn) || !isValidDateStr(checkOut) || checkIn >= checkOut) {
@@ -73,6 +89,14 @@ async function createBookingCore(admin, db, data) {
   }
   if (source === 'site' && !contractAccepted) {
     fail('failed-precondition', 'Condizioni di soggiorno non accettate.');
+  }
+  // Le prenotazioni dal sito passano sempre dal pagamento online prima di
+  // arrivare qui (vedi createPaymentIntent): senza un PaymentIntent non
+  // c'è modo di rimborsare più avanti se l'ospite cancella. Le prenotazioni
+  // manuali (bot, dashboard) restano fuori da questo obbligo — non passano
+  // da Stripe.
+  if (source === 'site' && !isNonEmptyString(paymentIntentId, 200)) {
+    fail('failed-precondition', 'Pagamento mancante.');
   }
 
   const roomRef = db.collection('tourism_rooms').doc(roomId);
@@ -108,24 +132,38 @@ async function createBookingCore(admin, db, data) {
     const guestFormToken = crypto.randomBytes(24).toString('hex');
 
     // Prezzo autoritativo: la stanza a notte + tassa di soggiorno + eventuali
-    // opzioni extra (culla, letto singolo aggiuntivo) scelte dall'ospite.
+    // opzioni extra (culla, letto singolo aggiuntivo) scelte dall'ospite —
+    // culla/letto extra sono un costo forfettario per l'intero soggiorno,
+    // non moltiplicato per le notti.
     const roomTotal = Math.round(nights * (Number(room.nightlyPrice) || 0) * 100) / 100;
-    const cribTotal = Math.round(cribCount * CRIB_PRICE_PER_NIGHT * nights * 100) / 100;
-    const extraBedTotal = Math.round(extraBedCount * EXTRA_BED_PRICE_PER_NIGHT * nights * 100) / 100;
+    const cribTotal = Math.round(cribCount * CRIB_PRICE * 100) / 100;
+    const extraBedTotal = Math.round(extraBedCount * EXTRA_BED_PRICE * 100) / 100;
     const pricing = {
       roomTotal: roomTotal,
-      crib: { count: cribCount, pricePerNight: CRIB_PRICE_PER_NIGHT, total: cribTotal },
-      extraBed: { count: extraBedCount, pricePerNight: EXTRA_BED_PRICE_PER_NIGHT, total: extraBedTotal },
+      crib: { count: cribCount, price: CRIB_PRICE, total: cribTotal },
+      extraBed: { count: extraBedCount, price: EXTRA_BED_PRICE, total: extraBedTotal },
       touristTax: touristTax.totalDue,
       total: Math.round((roomTotal + touristTax.totalDue + cribTotal + extraBedTotal) * 100) / 100
     };
 
+    // Pagata online -> confermata subito (nessuna approvazione manuale del
+    // proprietario nel mezzo, vedi Condizioni di soggiorno). Le prenotazioni
+    // manuali (bot/dashboard, mai pagate qui) restano 'nuovo' come prima.
+    const status = source === 'site' ? 'confermato' : 'nuovo';
+    const fee = source === 'site' ? computePaymentFee(pricing.total) : 0;
     const bookingData = {
       roomId: roomId, roomLabel: room.name || roomId, checkIn: checkIn, checkOut: checkOut,
       nights: nights, guests: guests, exemptGuests: exemptGuests, name: name, email: email, phone: phone,
       bedType: bedType, cribCount: cribCount, extraBedCount: extraBedCount, pricing: pricing,
-      source: source, status: 'nuovo', touristTax: touristTax,
+      source: source, status: status, touristTax: touristTax,
+      payment: paymentIntentId ? { intentId: paymentIntentId, baseTotal: pricing.total, fee: fee, chargedTotal: Math.round((pricing.total + fee) * 100) / 100 } : null,
       contractAcceptedAt: source === 'site' ? admin.firestore.FieldValue.serverTimestamp() : null,
+      // Prima non veniva mai inizializzato: le query di
+      // guest-lifecycle-emails.js filtrano su confirmationEmailSent == false,
+      // e Firestore non fa mai match su un campo assente, quindi le email di
+      // conferma automatica rischiavano di non partire mai per le
+      // prenotazioni create senza questo campo esplicito.
+      confirmationEmailSent: false,
       guestFormToken: guestFormToken, guestDocsComplete: false,
       alloggiatiWeb: { submitted: false, submittedAt: null, error: null },
       payTourist: { reported: false, reportedAt: null },
@@ -159,6 +197,7 @@ async function createGroupBookingCore(admin, db, data) {
   const phone = data.phone || '';
   const contractAccepted = !!data.contractAccepted;
   const source = data.source === 'site' ? 'site' : (data.source || 'site');
+  const paymentIntentId = data.paymentIntentId || null;
 
   if (!isValidDateStr(checkIn) || !isValidDateStr(checkOut) || checkIn >= checkOut) {
     fail('invalid-argument', 'Date non valide.');
@@ -166,6 +205,7 @@ async function createGroupBookingCore(admin, db, data) {
   if (rooms.length < 2 || rooms.length > 10) fail('invalid-argument', 'Numero di stanze del gruppo non valido.');
   if (!isNonEmptyString(name, 200) || !isNonEmptyString(email, 200)) fail('invalid-argument', 'Nome o email mancanti.');
   if (source === 'site' && !contractAccepted) fail('failed-precondition', 'Condizioni di soggiorno non accettate.');
+  if (source === 'site' && !isNonEmptyString(paymentIntentId, 200)) fail('failed-precondition', 'Pagamento mancante.');
 
   const roomIds = rooms.map((r) => r.roomId);
   if (new Set(roomIds).size !== roomIds.length) fail('invalid-argument', 'Ogni stanza del gruppo deve essere diversa dalle altre.');
@@ -220,24 +260,33 @@ async function createGroupBookingCore(admin, db, data) {
       const guestFormToken = crypto.randomBytes(24).toString('hex');
 
       const roomTotal = Math.round(nights * (Number(room.nightlyPrice) || 0) * 100) / 100;
-      const cribTotal = Math.round(spec.cribCount * CRIB_PRICE_PER_NIGHT * nights * 100) / 100;
-      const extraBedTotal = Math.round(spec.extraBedCount * EXTRA_BED_PRICE_PER_NIGHT * nights * 100) / 100;
+      const cribTotal = Math.round(spec.cribCount * CRIB_PRICE * 100) / 100;
+      const extraBedTotal = Math.round(spec.extraBedCount * EXTRA_BED_PRICE * 100) / 100;
       const pricing = {
         roomTotal: roomTotal,
-        crib: { count: spec.cribCount, pricePerNight: CRIB_PRICE_PER_NIGHT, total: cribTotal },
-        extraBed: { count: spec.extraBedCount, pricePerNight: EXTRA_BED_PRICE_PER_NIGHT, total: extraBedTotal },
+        crib: { count: spec.cribCount, price: CRIB_PRICE, total: cribTotal },
+        extraBed: { count: spec.extraBedCount, price: EXTRA_BED_PRICE, total: extraBedTotal },
         touristTax: touristTax.totalDue,
         total: Math.round((roomTotal + touristTax.totalDue + cribTotal + extraBedTotal) * 100) / 100
       };
       grandTotal = Math.round((grandTotal + pricing.total) * 100) / 100;
 
+      // Pagata online -> confermata subito, stesso ragionamento di
+      // createBookingCore. Un solo PaymentIntent copre tutte le stanze del
+      // gruppo: ogni prenotazione registra il proprio baseTotal (per capire
+      // quanto rimborsarle se il gruppo viene cancellato) più lo stesso
+      // intentId condiviso.
+      const status = source === 'site' ? 'confermato' : 'nuovo';
+      const fee = source === 'site' ? computePaymentFee(pricing.total) : 0;
       const bookingData = {
         roomId: spec.roomId, roomLabel: room.name || spec.roomId, checkIn: checkIn, checkOut: checkOut,
         nights: nights, guests: spec.guests, exemptGuests: spec.exemptGuests, name: name, email: email, phone: phone,
         bedType: spec.bedType, cribCount: spec.cribCount, extraBedCount: spec.extraBedCount, pricing: pricing,
-        source: source, status: 'nuovo', touristTax: touristTax,
+        source: source, status: status, touristTax: touristTax,
+        payment: paymentIntentId ? { intentId: paymentIntentId, baseTotal: pricing.total, fee: fee, chargedTotal: Math.round((pricing.total + fee) * 100) / 100 } : null,
         groupId: groupId, groupSize: specs.length,
         contractAcceptedAt: source === 'site' ? admin.firestore.FieldValue.serverTimestamp() : null,
+        confirmationEmailSent: false,
         guestFormToken: guestFormToken, guestDocsComplete: false,
         alloggiatiWeb: { submitted: false, submittedAt: null, error: null },
         payTourist: { reported: false, reportedAt: null },
@@ -294,11 +343,76 @@ async function computeQuoteCore(db, data) {
     const roomTotal = nights * (Number(room.nightlyPrice) || 0);
     const taxableGuests = Math.max(0, guests - exemptGuests);
     const tax = taxRate * taxableGuests * nights;
-    const cribTotal = cribCount * CRIB_PRICE_PER_NIGHT * nights;
-    const extraBedTotal = extraBedCount * EXTRA_BED_PRICE_PER_NIGHT * nights;
+    const cribTotal = cribCount * CRIB_PRICE;
+    const extraBedTotal = extraBedCount * EXTRA_BED_PRICE;
     total += roomTotal + tax + cribTotal + extraBedTotal;
   }
-  return Math.round(total * 100) / 100;
+  const baseTotal = Math.round(total * 100) / 100;
+  const fee = computePaymentFee(baseTotal);
+  return { baseTotal: baseTotal, fee: fee, amount: Math.round((baseTotal + fee) * 100) / 100 };
 }
 
-module.exports = { createBookingCore, createGroupBookingCore, computeQuoteCore };
+// cancelBookingCore — cancellazione self-service da parte dell'ospite
+// (nessun login: il token è la stessa chiave d'accesso già usata per
+// ospiti.html). Rimborsa SOLO il costo del soggiorno (baseTotal): la
+// commissione di pagamento non è mai rimborsabile (vedi PAYMENT_FEE_*
+// sopra). Se la prenotazione fa parte di un gruppo (stesso groupId),
+// cancella e rimborsa TUTTE le stanze del gruppo insieme in un solo
+// rimborso Stripe sul PaymentIntent condiviso — un gruppo si cancella
+// come un blocco unico, non stanza per stanza.
+async function cancelBookingCore(admin, db, stripe, data) {
+  const bookingId = data.bookingId;
+  const token = data.token;
+  if (!isNonEmptyString(bookingId, 100) || !isNonEmptyString(token, 200)) {
+    fail('invalid-argument', 'Link non valido.');
+  }
+  const snap = await db.collection('tourism_bookings').doc(bookingId).get();
+  if (!snap.exists || snap.data().guestFormToken !== token) fail('permission-denied', 'Link non valido o scaduto.');
+  const booking = snap.data();
+  if (booking.status === 'annullato') fail('failed-precondition', 'already-cancelled');
+  if (booking.source !== 'site') fail('failed-precondition', 'Questa prenotazione non è stata pagata online: contatta il proprietario per la cancellazione.');
+  if (!booking.payment || !booking.payment.intentId) fail('failed-precondition', 'Nessun pagamento registrato per questa prenotazione.');
+
+  const now = new Date();
+  const checkInDate = new Date(booking.checkIn + 'T00:00:00');
+  const hoursToCheckIn = (checkInDate.getTime() - now.getTime()) / 3600000;
+  if (hoursToCheckIn < CANCELLATION_CUTOFF_HOURS) fail('failed-precondition', 'cancellation_too_late');
+
+  // Gruppo: raccoglie tutte le prenotazioni con lo stesso groupId (tutte
+  // condividono lo stesso PaymentIntent, un solo rimborso per l'importo
+  // complessivo di baseTotal).
+  let bookingDocs = [{ id: bookingId, ref: snap.ref, data: booking }];
+  if (booking.groupId) {
+    const groupSnap = await db.collection('tourism_bookings').where('groupId', '==', booking.groupId).get();
+    bookingDocs = groupSnap.docs.map((d) => ({ id: d.id, ref: d.ref, data: d.data() })).filter((b) => b.data.status !== 'annullato');
+  }
+
+  const refundBaseTotal = Math.round(bookingDocs.reduce((sum, b) => sum + (Number(b.data.payment && b.data.payment.baseTotal) || 0), 0) * 100) / 100;
+  if (!(refundBaseTotal > 0)) fail('failed-precondition', 'Importo da rimborsare non valido.');
+
+  await stripe.refunds.create({
+    payment_intent: booking.payment.intentId,
+    amount: Math.round(refundBaseTotal * 100)
+  });
+
+  const batch = db.batch();
+  const cancelledAt = admin.firestore.FieldValue.serverTimestamp();
+  for (const b of bookingDocs) {
+    batch.update(b.ref, {
+      status: 'annullato',
+      cancellation: { cancelledAt: cancelledAt, cancelledBy: 'guest', refundAmount: Number(b.data.payment && b.data.payment.baseTotal) || 0, refunded: true }
+    });
+    const roomRef = db.collection('tourism_rooms').doc(b.data.roomId);
+    const roomSnap = await roomRef.get();
+    if (roomSnap.exists) {
+      const room = roomSnap.data();
+      const newRanges = (room.blockedRanges || []).filter((r) => r.bookingId !== b.id);
+      batch.update(roomRef, { blockedRanges: newRanges });
+    }
+  }
+  await batch.commit();
+
+  return { refundedAmount: refundBaseTotal, bookingIds: bookingDocs.map((b) => b.id) };
+}
+
+module.exports = { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBookingCore, computePaymentFee, CANCELLATION_CUTOFF_HOURS };

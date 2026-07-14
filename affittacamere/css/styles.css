@@ -267,7 +267,7 @@ button { font-family: inherit; }
   font-family: ui-monospace, monospace; font-size: 11.5px; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--text-faintest); text-align: center; padding: 0 20px;
 }
-.real-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.real-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 
 /* Solo mobile: la foto facciata diventa il primo elemento della hero, con
    un bordo inferiore ondulato (stessa "grammatica" grafica dello sghiribizzo
@@ -329,7 +329,7 @@ button { font-family: inherit; }
   width: clamp(84px,12vw,104px); height: clamp(84px,12vw,104px); border-radius: 50%;
   overflow: hidden; flex-shrink: 0; background: var(--white); position: relative;
 }
-.manager-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.manager-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .manager-info { min-width: 0; }
 .manager-name { font-family: var(--font-display); font-weight: 800; font-size: 19px; color: var(--navy); margin: 4px 0 6px; }
 .manager-tagline { font-size: 14px; line-height: 1.6; color: var(--text-body); margin: 0 0 14px; }
@@ -550,7 +550,8 @@ button { font-family: inherit; }
   background: var(--blue-bg-soft); border-radius: var(--radius-xs); padding: 15px 18px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
-.distance-label { font-weight: 700; font-size: 14px; color: var(--text-body-alt); }
+.distance-label { display: inline-flex; align-items: center; gap: 9px; font-weight: 700; font-size: 14px; color: var(--text-body-alt); }
+.distance-label svg { flex-shrink: 0; color: var(--blue-deep); }
 .distance-value { font-weight: 800; font-size: 14px; color: var(--blue); }
 .parking-callout { background: var(--navy); color: var(--white); border-radius: var(--radius-xs); padding: 17px; display: flex; align-items: flex-start; gap: 12px; }
 .parking-callout-icon { font-size: 18px; }
@@ -690,8 +691,13 @@ button { font-family: inherit; }
 .room-list-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .room-list-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .room-list-name { font-family: var(--font-display); font-weight: 800; font-size: clamp(19px,2.8vw,23px); margin: 0; color: var(--blue-deep); }
-.room-list-rating { display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 700; color: var(--navy); flex-shrink: 0; padding-top: 2px; }
-.room-list-rating svg { color: var(--yellow-deep); }
+.room-list-rating {
+  display: flex; align-items: center; gap: 6px; font-size: 15.5px; font-weight: 800; color: var(--navy);
+  flex-shrink: 0; border: none; cursor: pointer; background: var(--yellow-bg-soft, #FDF3D9);
+  border-radius: var(--radius-pill); padding: 5px 12px 5px 9px; transition: background-color .15s ease;
+}
+.room-list-rating:hover { background: var(--yellow-bg, #FBEAC0); }
+.room-list-rating svg { color: var(--yellow-deep); flex-shrink: 0; }
 .room-list-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 7px 0 8px; }
 .room-list-meta-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
 .room-list-meta-item svg { color: var(--blue-deep); flex-shrink: 0; }
@@ -906,8 +912,10 @@ button { font-family: inherit; }
 .room-avail-tag--occupied { background: #C4463C; }
 .room-bestseller-tag {
   position: absolute; bottom: 8px; left: 8px; z-index: 2;
-  font-size: 10.5px; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase;
-  border-radius: var(--radius-pill); padding: 4px 10px; color: var(--navy); background: var(--yellow-deep);
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
+  border-radius: var(--radius-pill); padding: 5px 12px; color: var(--white);
+  background: linear-gradient(135deg, #FF6B4A, #E8265A);
+  box-shadow: 0 4px 12px -2px rgba(232,38,90,0.55);
 }
 .room-list-item--occupied { opacity: 0.72; }
 .room-list-desc { font-size: 12.5px; color: var(--text-muted); font-weight: 600; margin: 2px 0 8px; }
@@ -948,17 +956,20 @@ button { font-family: inherit; }
 }
 .rd-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 24px; }
 .rd-photos { position: relative; }
-.rd-photo-strip {
-  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
-  aspect-ratio: 4/3.2;
+/* Collage: foto principale grande in alto + griglia delle altre sotto,
+   tutte visibili insieme in una sola schermata (si scorre verticalmente
+   col resto della pagina). Ogni tassello apre la galleria a schermo
+   intero su quella singola foto. */
+.rd-collage { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.rd-collage-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.rd-collage-tile {
+  position: relative; cursor: pointer; background: var(--panel-bg); overflow: hidden;
+  aspect-ratio: 4/3;
 }
-.rd-photo-strip::-webkit-scrollbar { display: none; }
-.rd-photo-slide {
-  position: relative; flex: 0 0 100%; scroll-snap-align: start; cursor: pointer;
-  background: var(--panel-bg); overflow: hidden;
-}
-.rd-photo-slide .photo-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
-.rd-photo-slide img { width: 100%; height: 100%; object-fit: cover; }
+.rd-collage-main { grid-column: 1 / -1; aspect-ratio: 16/9; }
+.rd-collage-tile .photo-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+.rd-collage-tile img { width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform .2s ease; }
+.rd-collage-tile:hover img { transform: scale(1.04); }
 .rd-back-btn, .rd-share-btn {
   position: absolute; top: 16px; z-index: 2; width: 40px; height: 40px; border-radius: 50%;
   background: rgba(255,255,255,0.92); border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(16,35,59,0.18);
@@ -1069,13 +1080,13 @@ button { font-family: inherit; }
   padding: 0; cursor: pointer; opacity: 0.55;
 }
 .rd-gallery-thumb.is-active { border-color: var(--white); opacity: 1; }
-.rd-gallery-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rd-gallery-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
 
 @media (min-width: 620px) {
   .rd-location-grid { grid-template-columns: 1.3fr 1fr; }
 }
 @media (min-width: 769px) {
-  .rd-photo-strip { aspect-ratio: 16/7; }
+  .rd-collage-main { aspect-ratio: 21/9; }
 }
 
 /* ==========================================================================
@@ -1399,7 +1410,7 @@ button { font-family: inherit; }
 }
 .recs-card:hover { transform: translateY(-3px); box-shadow: 0 16px 30px -20px rgba(16,35,59,0.24); }
 .recs-card-photo { position: relative; aspect-ratio: 3/4; background: var(--panel-bg); }
-.recs-card-photo .real-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.recs-card-photo .real-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .recs-card-photo .photo-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 14px; }
 .recs-card-body { padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 4px; }
 .recs-card-meta { font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--blue-deep); }

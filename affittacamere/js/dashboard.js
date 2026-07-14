@@ -270,7 +270,7 @@
     });
     content.querySelectorAll('[data-delete-booking]').forEach(function (el) {
       el.addEventListener('click', function () {
-        if (window.confirm('Eliminare definitivamente questa prenotazione?')) window.CasaCelesteTourismDB.deleteBooking(el.getAttribute('data-id'));
+        if (window.confirm('Eliminare definitivamente questa prenotazione?')) deleteBookingAndFreeDates(el.getAttribute('data-id'));
       });
     });
     content.querySelectorAll('[data-copy-alloggiati]').forEach(function (el) {
@@ -297,12 +297,24 @@
   function setBookingStatus(id, status) {
     window.CasaCelesteTourismDB.updateBookingStatus(id, status);
     if (status !== 'annullato') return;
+    freeBookingBlockedRange(id);
+  }
+  function freeBookingBlockedRange(id) {
     var booking = state.bookings.find(function (b) { return b.id === id; });
     if (!booking) return;
     var room = state.roomsData[booking.roomId];
     if (!room) return;
     var newRanges = (room.blockedRanges || []).filter(function (r) { return r.bookingId !== id; });
     window.CasaCelesteTourismDB.setRoom(booking.roomId, { blockedRanges: newRanges });
+  }
+  // Eliminare una prenotazione dalla lista non liberava le notti bloccate
+  // sulla stanza (a differenza di "Annulla", vedi setBookingStatus sopra):
+  // restavano nel blockedRanges della stanza, quindi la ricerca sul sito
+  // continuava a mostrarla occupata e la scheda stanza in Dashboard
+  // continuava a elencarla anche dopo l'eliminazione.
+  function deleteBookingAndFreeDates(id) {
+    freeBookingBlockedRange(id);
+    window.CasaCelesteTourismDB.deleteBooking(id);
   }
   function copyAlloggiatiData(bookingId) {
     var booking = state.bookings.find(function (b) { return b.id === bookingId; });
@@ -500,6 +512,7 @@
             '<option value="privato"' + (room.balcony === 'privato' ? ' selected' : '') + '>Privato</option>' +
             '<option value="comunicante"' + (room.balcony === 'comunicante' ? ' selected' : '') + '>Comunicante</option>' +
           '</select></div>' +
+          '<div class="admin-field-group"><label>Numero recensioni mostrato (vuoto = automatico)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="reviewCountOverride" min="0" value="' + (room.reviewCountOverride === null || room.reviewCountOverride === undefined ? '' : room.reviewCountOverride) + '"></div>' +
         '</div>' +
         blockedRangesEditorHtml(roomId, room) +
       '</div>'
@@ -518,6 +531,9 @@
       el.addEventListener('change', function (e) {
         var val = e.target.value;
         if (field === 'nightlyPrice' || field === 'maxGuests' || field === 'minNights') val = Number(val) || 0;
+        // Vuoto = torna al conteggio automatico (reale o sovrascritto da
+        // Impostazioni), non "zero recensioni per questa stanza".
+        if (field === 'reviewCountOverride') val = val === '' ? null : (Number(val) || 0);
         var patch = {};
         // Campi bilingue (es. "description.it", "favoriteBadge.en"): si
         // scrive l'intero oggetto {it, en} come singolo campo top-level
@@ -527,9 +543,18 @@
         var dot = field.indexOf('.');
         if (dot !== -1) {
           var base = field.slice(0, dot), lang = field.slice(dot + 1);
+          var otherLang = lang === 'it' ? 'en' : 'it';
           var current = state.roomsData[roomId] && state.roomsData[roomId][base];
           var obj = (current && typeof current === 'object') ? Object.assign({}, current) : { it: '', en: '' };
           obj[lang] = val;
+          // Legge il valore ATTUALMENTE mostrato nel campo gemello (non
+          // state.roomsData, che può essere ancora indietro di un giro se
+          // le due lingue vengono modificate più veloci del round-trip a
+          // Firestore): altrimenti salvare una lingua può sovrascrivere con
+          // un valore vecchio quella appena salvata nell'altra — il bug del
+          // "badge distintivo che sparisce subito dopo averlo scritto".
+          var siblingEl = content.querySelector('[data-room-id="' + roomId + '"][data-field="' + base + '.' + otherLang + '"]');
+          if (siblingEl) obj[otherLang] = siblingEl.value;
           patch[base] = obj;
         } else {
           patch[field] = val;

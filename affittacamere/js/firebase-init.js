@@ -262,6 +262,12 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'createPaymentIntent')(data).then(function (res) { return res.data; });
   },
+  // Cancellazione self-service dell'ospite (nessun login, stesso token di
+  // ospiti.html) — vedi cancelBookingCore in functions/booking-logic.js.
+  cancelBooking: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'cancelBooking')(data).then(function (res) { return res.data; });
+  },
   submitGuestDocuments: function (data) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'submitGuestDocuments')(data).then(function (res) { return res.data; });
