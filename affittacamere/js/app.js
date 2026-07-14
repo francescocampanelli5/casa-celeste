@@ -242,8 +242,13 @@
       open: false,
       roomId: null,
       mediaIndex: 0,
+      overBooking: false,
+      overBookingPrevRoomId: null,
+      gridOpen: false,
       galleryOpen: false,
+      galleryFromGrid: false,
       galleryIndex: 0,
+      galleryZoomed: false,
       descExpanded: false,
       shareCopied: false,
       savedScrollY: 0
@@ -380,10 +385,16 @@
       if (suppressNextPopstate) { suppressNextPopstate = false; return; }
       inPopStateHandler = true;
       if (state.roomDetail.galleryOpen) closeRoomGallery();
+      else if (state.roomDetail.gridOpen) closeRoomGrid();
       else if (state.mediaZoomOpen) closeMediaZoom();
       else if (state.legalOpen) closeLegal();
-      else if (state.bookingOpen) closeBooking();
+      // roomDetail.open va controllato PRIMA di bookingOpen: quando la
+      // pagina stanza è aperta sopra il modale di prenotazione di gruppo
+      // (openRoomDetailFromGroup), è lei l'overlay in cima allo stack e
+      // deve chiudersi per prima col tasto indietro, lasciando il modale
+      // di gruppo aperto sotto.
       else if (state.roomDetail.open) closeRoomDetail();
+      else if (state.bookingOpen) closeBooking();
       else {
         var drawer = document.getElementById('mobile-drawer');
         if (drawer && drawer.classList.contains('is-open')) closeMobileDrawer();
@@ -825,10 +836,13 @@
     if (!id || !state.roomsData[id]) return;
     var room = state.roomsData[id];
     state.roomDetail.open = true;
+    state.roomDetail.overBooking = false;
     state.roomDetail.roomId = id;
     state.roomDetail.mediaIndex = 0;
+    state.roomDetail.gridOpen = false;
     state.roomDetail.galleryOpen = false;
     state.roomDetail.galleryIndex = 0;
+    state.roomDetail.galleryZoomed = false;
     state.roomDetail.descExpanded = false;
     state.roomDetail.shareCopied = false;
     var s = state.search;
@@ -883,21 +897,87 @@
   }
   function closeRoomDetail() {
     closeOverlayHistoryState();
+    var wasOverBooking = state.roomDetail.overBooking;
     state.roomDetail.open = false;
+    state.roomDetail.gridOpen = false;
     state.roomDetail.galleryOpen = false;
+    state.roomDetail.overBooking = false;
+    // Se la pagina stanza era stata aperta da una miniatura durante una
+    // prenotazione di gruppo (vedi openRoomDetailFromGroup), il modale di
+    // prenotazione è ancora aperto sotto: non tocchiamo lo scroll della
+    // pagina principale né la sticky bar, si torna semplicemente al modale
+    // esattamente al punto in cui si era (bookingRoomId ripristinato a
+    // com'era prima, cioè null in modalità gruppo).
+    if (wasOverBooking) {
+      state.bookingRoomId = state.roomDetail.overBookingPrevRoomId || null;
+      renderRoomDetail();
+      return;
+    }
     renderRoomDetail();
     updateBodyScrollLock();
     updateStickyBarVisibility();
     window.scrollTo(0, state.roomDetail.savedScrollY || 0);
   }
-  function openRoomGallery(index) { state.roomDetail.galleryOpen = true; state.roomDetail.galleryIndex = index || 0; renderRoomDetail(); pushOverlayHistoryState(); }
-  function closeRoomGallery() { closeOverlayHistoryState(); state.roomDetail.galleryOpen = false; renderRoomDetail(); }
-  function roomDetailGalleryGoTo(index) { state.roomDetail.galleryIndex = index; renderRoomDetail(); }
+  // Click su una miniatura stanza durante la prenotazione di gruppo: apre
+  // la card completa di quella stanza SOPRA il modale di prenotazione
+  // (z-index elevato via rd-overlay--elevated), senza toccare lo stato
+  // del wizard di gruppo (a differenza di openRoomDetail, che invece resetta
+  // sempre groupMode/ospiti per il flusso a stanza singola). Tornando
+  // indietro (chiudendo la card) si ritrova il modale di gruppo esattamente
+  // al punto in cui si era.
+  function openRoomDetailFromGroup(id) {
+    if (!id || !state.roomsData[id]) return;
+    state.roomDetail.open = true;
+    state.roomDetail.overBooking = true;
+    state.roomDetail.overBookingPrevRoomId = state.bookingRoomId;
+    // bookingRoomId punta temporaneamente alla stanza in anteprima solo
+    // per far leggere a calendarStepHtml()/currentRoom() le notti bloccate
+    // GIUSTE nel mini-calendario di questa pagina stanza — ripristinato in
+    // closeRoomDetail().
+    state.bookingRoomId = id;
+    state.roomDetail.roomId = id;
+    state.roomDetail.mediaIndex = 0;
+    state.roomDetail.gridOpen = false;
+    state.roomDetail.galleryOpen = false;
+    state.roomDetail.galleryIndex = 0;
+    state.roomDetail.galleryZoomed = false;
+    state.roomDetail.descExpanded = false;
+    state.roomDetail.shareCopied = false;
+    renderRoomDetail();
+    updateBodyScrollLock();
+    pushOverlayHistoryState();
+  }
+  // "Mostra altre" / click su una foto del collage: apre la griglia con
+  // TUTTE le foto della stanza affiancate su un'unica schermata (non un
+  // carosello una-alla-volta) — cliccandone una specifica si passa alla
+  // vista a schermo intero zoomabile (openRoomGallery), che al ritorno
+  // riporta alla griglia invece di chiudere tutto.
+  function openRoomGrid() { state.roomDetail.gridOpen = true; renderRoomDetail(); pushOverlayHistoryState(); }
+  function closeRoomGrid() { closeOverlayHistoryState(); state.roomDetail.gridOpen = false; renderRoomDetail(); }
+  function openRoomGallery(index, fromGrid) {
+    state.roomDetail.galleryOpen = true;
+    state.roomDetail.galleryIndex = index || 0;
+    state.roomDetail.galleryZoomed = false;
+    state.roomDetail.galleryFromGrid = !!fromGrid;
+    if (fromGrid) state.roomDetail.gridOpen = false;
+    renderRoomDetail();
+    pushOverlayHistoryState();
+  }
+  function closeRoomGallery() {
+    closeOverlayHistoryState();
+    state.roomDetail.galleryOpen = false;
+    state.roomDetail.galleryZoomed = false;
+    if (state.roomDetail.galleryFromGrid) { state.roomDetail.gridOpen = true; state.roomDetail.galleryFromGrid = false; }
+    renderRoomDetail();
+  }
+  function toggleRoomGalleryZoom() { state.roomDetail.galleryZoomed = !state.roomDetail.galleryZoomed; renderRoomDetail(); }
+  function roomDetailGalleryGoTo(index) { state.roomDetail.galleryIndex = index; state.roomDetail.galleryZoomed = false; renderRoomDetail(); }
   function roomGalleryNav(dir) {
     var room = state.roomsData[state.roomDetail.roomId];
     if (!room) return;
     var n = roomPhotos(state.roomDetail.roomId, room).length;
     state.roomDetail.galleryIndex = ((state.roomDetail.galleryIndex + (dir === 'next' ? 1 : -1)) % n + n) % n;
+    state.roomDetail.galleryZoomed = false;
     renderRoomDetail();
   }
   function toggleRoomDetailDesc() { state.roomDetail.descExpanded = !state.roomDetail.descExpanded; renderRoomDetail(); }
@@ -1098,18 +1178,40 @@
   }
   function roomDetailGalleryHtml(room, photos) {
     var idx = state.roomDetail.galleryIndex;
+    var zoomed = state.roomDetail.galleryZoomed;
     return (
       '<div class="rd-gallery-overlay" id="rd-gallery-overlay">' +
         '<button type="button" class="rd-back-btn rd-gallery-close" data-rd-gallery-close aria-label="' + escapeHtml(t('common.chiudi')) + '">×</button>' +
         '<div class="rd-gallery-counter">' + (idx + 1) + ' / ' + photos.length + '</div>' +
-        '<div class="rd-gallery-main">' +
+        '<div class="rd-gallery-main' + (zoomed ? ' is-zoomed' : '') + '">' +
           '<button type="button" class="rd-gallery-nav rd-gallery-nav--prev" data-rd-gallery-nav="prev" aria-label="' + escapeHtml(t('photo.prev')) + '">‹</button>' +
-          '<img src="' + escapeHtml(photos[idx]) + '" alt="' + escapeHtml(room.name + ' — ' + (idx + 1)) + '" class="rd-gallery-img">' +
+          '<div class="rd-gallery-img-wrap' + (zoomed ? ' is-zoomed' : '') + '" data-rd-gallery-zoom>' +
+            '<img src="' + escapeHtml(photos[idx]) + '" alt="' + escapeHtml(room.name + ' — ' + (idx + 1)) + '" class="rd-gallery-img">' +
+          '</div>' +
           '<button type="button" class="rd-gallery-nav rd-gallery-nav--next" data-rd-gallery-nav="next" aria-label="' + escapeHtml(t('photo.next')) + '">›</button>' +
         '</div>' +
         '<div class="rd-gallery-thumbs">' +
           photos.map(function (src, i) {
             return '<button type="button" class="rd-gallery-thumb' + (i === idx ? ' is-active' : '') + '" data-rd-gallery-goto="' + i + '"><img src="' + escapeHtml(src) + '" alt=""></button>';
+          }).join('') +
+        '</div>' +
+      '</div>'
+    );
+  }
+  // Griglia con TUTTE le foto affiancate su un'unica schermata (stile
+  // collage a mosaico), aperta cliccando una foto nella pagina stanza.
+  // Cliccando una singola tile si passa alla vista a schermo intero
+  // zoomabile (roomDetailGalleryHtml) partendo da quella foto.
+  function roomDetailGridHtml(room, photos) {
+    return (
+      '<div class="rd-grid-overlay" id="rd-grid-overlay">' +
+        '<div class="rd-grid-header">' +
+          '<button type="button" class="rd-back-btn rd-grid-close" data-rd-grid-close aria-label="' + escapeHtml(t('common.chiudi')) + '">×</button>' +
+          '<div class="rd-grid-title">' + escapeHtml(room.name) + ' — ' + photos.length + ' ' + escapeHtml(t('photo.prefix').replace('—', '').trim()) + '</div>' +
+        '</div>' +
+        '<div class="rd-grid-body">' +
+          photos.map(function (src, i) {
+            return '<button type="button" class="rd-grid-tile" data-rd-grid-photo data-index="' + i + '"><img src="' + escapeHtml(src) + '" alt="' + escapeHtml(room.name + ' — ' + (i + 1)) + '" loading="lazy"></button>';
           }).join('') +
         '</div>' +
       '</div>'
@@ -1208,6 +1310,7 @@
         roomDetailKnowHtml(room) +
       '</div>';
 
+    var gridHtml = state.roomDetail.gridOpen ? roomDetailGridHtml(room, photos) : '';
     var galleryHtml = state.roomDetail.galleryOpen ? roomDetailGalleryHtml(room, photos) : '';
 
     // Il contenitore scrollabile viene ricreato a ogni render (innerHTML
@@ -1218,7 +1321,7 @@
     var prevScrollTop = prevScrollEl ? prevScrollEl.scrollTop : 0;
 
     root.innerHTML =
-      '<div class="rd-overlay" id="rd-overlay">' +
+      '<div class="rd-overlay' + (state.roomDetail.overBooking ? ' rd-overlay--elevated' : '') + '" id="rd-overlay">' +
         '<button type="button" class="rd-back-btn" data-rd-close aria-label="' + escapeHtml(t('roomdetail.back')) + '"><svg width="20" height="20"><use href="#icon-arrow-left"></use></svg></button>' +
         '<button type="button" class="rd-share-btn" data-rd-share aria-label="' + escapeHtml(t('roomdetail.share')) + '">' +
           (state.roomDetail.shareCopied ? escapeHtml(t('roomdetail.share_copied')) :
@@ -1252,8 +1355,9 @@
             knowHtml +
           '</div>' +
         '</div>' +
-        renderRoomDetailStickyBar(room) +
+        (state.roomDetail.overBooking ? '' : renderRoomDetailStickyBar(room)) +
       '</div>' +
+      gridHtml +
       galleryHtml;
 
     var newScrollEl = root.querySelector('.rd-scroll');
@@ -2125,8 +2229,9 @@
       (tooManyInfants ? '<div class="booking-alert">' + escapeHtml(t('room.too_many_infants_hint')) + '</div>' : '') +
       (overCapacity ? '<div class="booking-alert">' + escapeHtml(t('room.over_capacity_hint')) + '</div>' : '') +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      (blocked ? '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.switch_to_group_cta')) + '</button>' : '') +
-      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step' + (blocked ? ' disabled' : '') + '>' + escapeHtml(t('booking.step_options_title')) + ' →</button>' +
+      (blocked ?
+        '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.switch_to_group_cta')) + '</button>' :
+        '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step>' + escapeHtml(t('booking.step_options_title')) + ' →</button>') +
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
@@ -2170,8 +2275,9 @@
       (tooManyInfants ? '<div class="booking-alert">' + escapeHtml(t('room.too_many_infants_hint')) + '</div>' : '') +
       (overCapacity ? '<div class="booking-alert">' + escapeHtml(t('room.over_capacity_hint')) + '</div>' : '') +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      (blocked ? '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.switch_to_group_cta')) + '</button>' : '') +
-      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step' + (blocked ? ' disabled' : '') + '>' + escapeHtml(t('booking.step_options_title')) + ' →</button>' +
+      (blocked ?
+        '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.switch_to_group_cta')) + '</button>' :
+        '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step>' + escapeHtml(t('booking.step_options_title')) + ' →</button>') +
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
@@ -2294,8 +2400,8 @@
       '<div id="payment-element-container" class="payment-element-container" style="display:none;"></div>' +
       '<div class="field-error" id="payment-error" style="display:none;"></div>' +
       '<button type="button" class="payment-submit-btn" id="payment-submit-btn" disabled>' + escapeHtml(t('booking.payment_submit_cta')) + '</button>' +
-      '<div class="payment-divider" id="payment-divider" style="display:none;"><span>' + escapeHtml(t('booking.payment_or_wallet')) + '</span></div>' +
-      '<div id="payment-express-container" class="payment-express-container" style="display:none;"></div>' +
+      '<div class="payment-divider" id="payment-divider"><span>' + escapeHtml(t('booking.payment_or_wallet')) + '</span></div>' +
+      '<div id="payment-express-container" class="payment-express-container"></div>' +
       '<div class="payment-secure-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>' + escapeHtml(t('booking.payment_secure_note')) + '</div>' +
       '<button type="button" class="link-btn link-btn--centered" data-back-to-contact>' + escapeHtml(t('booking.cambia_contatti')) + '</button>'
     );
@@ -2366,18 +2472,23 @@
       });
 
       // Bottone diretto Apple Pay/Google Pay in fondo, sotto al bottone
-      // "Paga e conferma" — solo questi due (niente Link/Amazon Pay/PayPal):
-      // il browser mostra da sé quello giusto per il dispositivo, quello
-      // sbagliato semplicemente non compare (niente spazio vuoto).
+      // "Paga e conferma" — solo questi due (niente Link/Amazon Pay/PayPal).
+      // 'always' (invece di 'auto') forza Stripe a mostrare entrambi i
+      // bottoni anche quando non riesce a rilevare con certezza il wallet
+      // del dispositivo/browser, invece di nasconderli in caso di dubbio.
       stripeExpressElementRef = stripeElementsRef.create('expressCheckout', {
-        paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', amazonPay: 'never', paypal: 'never', klarna: 'never' },
+        paymentMethods: { applePay: 'always', googlePay: 'always', link: 'never', amazonPay: 'never', paypal: 'never', klarna: 'never' },
         emailRequired: false, phoneNumberRequired: false, billingAddressRequired: false
       });
       stripeExpressElementRef.mount(expressContainer);
       stripeExpressElementRef.on('ready', function (event) {
-        if (event.availablePaymentMethods) {
-          expressContainer.style.display = '';
-          dividerEl.style.display = '';
+        // Se anche con 'always' Stripe non trova proprio nulla da mostrare
+        // (caso limite), evitiamo di lasciare un divider "oppure paga con"
+        // sopra un riquadro vuoto.
+        var hasAny = event && event.availablePaymentMethods && Object.keys(event.availablePaymentMethods).length > 0;
+        if (!hasAny) {
+          expressContainer.style.display = 'none';
+          dividerEl.style.display = 'none';
         }
       });
       stripeExpressElementRef.on('confirm', function () {
@@ -2440,8 +2551,7 @@
     var stepHtml = '';
     if (state.groupMode) {
       if (state.bookingStep === 1) stepHtml = calendarStepHtml();
-      else if (state.bookingStep === 2) stepHtml = groupAllocationStepHtml();
-      else if (state.bookingStep === 3) stepHtml = groupRoomPickStepHtml();
+      else if (state.bookingStep === 2) stepHtml = groupCombinedStepHtml();
       else if (state.bookingStep === 4) stepHtml = groupContactStepHtml();
       else if (state.bookingStep === 5) stepHtml = paymentStepHtml();
       else if (state.bookingStep === 6) stepHtml = groupSuccessStepHtml();
@@ -2453,6 +2563,15 @@
       else if (state.bookingStep === 5) stepHtml = paymentStepHtml();
       else if (state.bookingStep === 6) stepHtml = successStepHtml();
     }
+
+    // .modal-box viene ricreato a ogni render (innerHTML completo): senza
+    // salvare/ripristinare il suo scroll interno, ogni "+"/"−" su uno
+    // stepper (es. aggiungere un ospite nella prenotazione di gruppo)
+    // farebbe risalire il modale in cima invece di restare alla stessa
+    // altezza — stesso problema e stessa soluzione già usati in
+    // renderRoomDetail() per .rd-scroll.
+    var prevBoxEl = root.querySelector('.modal-box');
+    var prevBoxScrollTop = prevBoxEl ? prevBoxEl.scrollTop : 0;
 
     root.innerHTML =
       '<div class="modal-overlay" id="booking-overlay">' +
@@ -2466,6 +2585,9 @@
           '</div>' +
         '</div>' +
       '</div>';
+
+    var newBoxEl = root.querySelector('.modal-box');
+    if (newBoxEl && prevBoxScrollTop) newBoxEl.scrollTop = prevBoxScrollTop;
 
     document.getElementById('booking-overlay').addEventListener('click', function (e) {
       if (e.target.id === 'booking-overlay') closeBooking();
@@ -2627,6 +2749,10 @@
   function openGroupBooking() {
     var s = state.search;
     var searched = !!(s.checkIn && s.checkOut);
+    // Se si arriva da una card stanza (prenotazione a stanza singola
+    // diventata di gruppo perché gli ospiti non ci stanno), quella stanza
+    // resta "Stanza 1": non va rifatta scegliere da capo.
+    var originRoomId = state.bookingRoomId;
     // Se il modale è già aperto (es. si passa qui dalla prenotazione a
     // stanza singola perché gli ospiti non ci stanno), non pushare un
     // secondo stato nella cronologia: ce n'è già uno per il modale stesso.
@@ -2642,6 +2768,7 @@
     state.selectedCheckOut = searched ? s.checkOut : null;
     state.groupRoomsCount = Math.max(s.rooms || 2, neededGroupRooms());
     state.groupAllocations = buildGroupAllocations(state.groupRoomsCount);
+    if (originRoomId && state.roomsData[originRoomId]) state.groupAllocations[0].roomId = originRoomId;
     state.contactName = ''; state.contactEmail = ''; state.contactPhone = '';
     state.contractAccepted = false;
     state.bookingError = ''; state.bookingResult = null;
@@ -2693,9 +2820,17 @@
     state.groupAllocations.pop();
     renderBookingModal();
   }
+  // Il tetto di ospiti "grandi" per una stanza del gruppo dipende dalla
+  // stanza specifica se già scelta (una stanza da 2 non deve poter
+  // ricevere 3 ospiti solo perché il tetto generico lo permetterebbe),
+  // altrimenti dal tetto generico finché la stanza non è ancora scelta.
+  function groupAllocBigCap(alloc) {
+    var room = alloc.roomId ? state.roomsData[alloc.roomId] : null;
+    return room ? Math.min(MAX_BIG_GUESTS_PER_ROOM, effectiveMaxGuests(room)) : MAX_BIG_GUESTS_PER_ROOM;
+  }
   function groupAllocAdultsInc(ri) {
     var alloc = state.groupAllocations[ri];
-    if (!alloc || groupAllocBigCount(alloc) >= MAX_BIG_GUESTS_PER_ROOM || groupUnallocatedAdults() <= 0) return;
+    if (!alloc || groupAllocBigCount(alloc) >= groupAllocBigCap(alloc) || groupUnallocatedAdults() <= 0) return;
     alloc.adults++;
     syncGroupExtraBed(alloc);
     renderBookingModal();
@@ -2713,7 +2848,7 @@
     if (idx !== -1) { alloc.childIdxs.splice(idx, 1); renderBookingModal(); return; }
     if (groupChildAllocationMap()[ci] !== -1) return; // già assegnato a un'altra stanza: va rimosso da lì prima
     var isInfant = state.guestsChildAges[ci] < CHILD_ROOM_COUNT_MIN_AGE;
-    if (isInfant ? (groupAllocInfantCount(alloc) >= MAX_INFANTS_PER_ROOM) : (groupAllocBigCount(alloc) >= MAX_BIG_GUESTS_PER_ROOM)) return;
+    if (isInfant ? (groupAllocInfantCount(alloc) >= MAX_INFANTS_PER_ROOM) : (groupAllocBigCount(alloc) >= groupAllocBigCap(alloc))) return;
     alloc.childIdxs.push(ci);
     syncGroupExtraBed(alloc);
     renderBookingModal();
@@ -2727,57 +2862,6 @@
       return '<button type="button" class="group-child-chip' + (here ? ' is-active' : '') + (elsewhere ? ' is-elsewhere' : '') + '" data-group-child-toggle data-room-index="' + ri + '" data-child-index="' + ci + '"' + (elsewhere ? ' disabled' : '') + '>' + escapeHtml(ageLabel) + elsewhereLabel + '</button>';
     }).join('');
   }
-  function groupAllocationStepHtml() {
-    var map = groupChildAllocationMap();
-    var unallocAdults = groupUnallocatedAdults();
-    var unallocChildren = map.filter(function (m) { return m === -1; }).length;
-    var cardsHtml = state.groupAllocations.map(function (alloc, ri) {
-      var big = groupAllocBigCount(alloc), infants = groupAllocInfantCount(alloc);
-      var incDisabled = big >= MAX_BIG_GUESTS_PER_ROOM || unallocAdults <= 0;
-      return (
-        '<div class="group-room-card">' +
-          '<div class="group-room-card-title">' + escapeHtml(tpl(t('booking.group_room_n'), { n: ri + 1 })) + '</div>' +
-          '<div class="search-guests-row">' +
-            '<div class="search-guests-row-title">' + escapeHtml(t('search.adults')) + '</div>' +
-            '<div class="search-stepper">' +
-              '<button type="button" class="search-stepper-btn" data-group-adults-dec data-room-index="' + ri + '"' + (alloc.adults <= 0 ? ' disabled' : '') + '>−</button>' +
-              '<span class="search-stepper-value">' + alloc.adults + '</span>' +
-              '<button type="button" class="search-stepper-btn" data-group-adults-inc data-room-index="' + ri + '"' + (incDisabled ? ' disabled' : '') + '>+</button>' +
-            '</div>' +
-          '</div>' +
-          (state.guestsChildAges.length ? (
-            '<div class="group-room-children">' +
-              '<div class="search-guests-row-sub">' + escapeHtml(t('booking.group_children_label')) + '</div>' +
-              '<div class="group-child-chip-row">' + groupChildChipHtml(ri, map) + '</div>' +
-            '</div>'
-          ) : '') +
-          '<div class="range-hint">' + escapeHtml(tpl(t('booking.group_room_capacity'), { big: big, infants: infants })) + '</div>' +
-        '</div>'
-      );
-    }).join('');
-    var poolHint = (unallocAdults > 0 || unallocChildren > 0)
-      ? '<div class="booking-alert">' + escapeHtml(tpl(t('booking.group_unallocated_hint'), { adults: unallocAdults, children: unallocChildren })) + '</div>'
-      : '<div class="range-hint range-hint--ok">' + escapeHtml(t('booking.group_all_allocated')) + '</div>';
-    var complete = groupAllComplete();
-    return (
-      '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div></div>' +
-      '<div class="slot-label">' + escapeHtml(t('booking.group_step_title')) + '</div>' +
-      '<p class="range-hint">' + escapeHtml(tpl(t('booking.group_step_intro'), { adults: state.guestsAdults, children: state.guestsChildAges.length })) + '</p>' +
-      '<div class="search-guests-row">' +
-        '<div class="search-guests-row-title">' + escapeHtml(t('search.rooms')) + '</div>' +
-        '<div class="search-stepper">' +
-          '<button type="button" class="search-stepper-btn" data-group-rooms-dec' + (state.groupAllocations.length <= neededGroupRooms() ? ' disabled' : '') + '>−</button>' +
-          '<span class="search-stepper-value">' + state.groupAllocations.length + '</span>' +
-          '<button type="button" class="search-stepper-btn" data-group-rooms-inc' + (state.groupAllocations.length >= totalRoomsCount() ? ' disabled' : '') + '>+</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="group-room-cards">' + cardsHtml + '</div>' +
-      poolHint +
-      (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-group-rooms-step' + (complete ? '' : ' disabled') + '>' + escapeHtml(t('booking.step_options_title')) + ' →</button>' +
-      '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
-    );
-  }
   function groupAvailableRoomsFor(alloc, excludeRoomIds) {
     var big = groupAllocBigCount(alloc);
     return orderedIds(state.roomsData).filter(function (id) {
@@ -2788,10 +2872,13 @@
       return rangeIsFree(room, state.selectedCheckIn, state.selectedCheckOut);
     });
   }
-  function groupPickRoom(ri, roomId) {
+  // Bottone "Scegli questa stanza" nella miniatura: se è già quella
+  // scelta per questo slot, un secondo click la deseleziona (per poter
+  // cambiare stanza senza dover prima svuotare gli ospiti già inseriti).
+  function groupPickRoomToggle(ri, roomId) {
     var alloc = state.groupAllocations[ri];
     if (!alloc) return;
-    alloc.roomId = roomId || null;
+    alloc.roomId = (alloc.roomId === roomId) ? null : (roomId || null);
     renderBookingModal();
   }
   function groupSetBedType(ri, type) {
@@ -2804,20 +2891,51 @@
   function groupCribDec(ri) { var a = state.groupAllocations[ri]; if (a && a.cribCount > 0) { a.cribCount--; renderBookingModal(); } }
   function groupExtraBedInc(ri) { var a = state.groupAllocations[ri]; if (a && a.extraBedCount < EXTRA_BED_MAX) { a.extraBedCount++; renderBookingModal(); } }
   function groupExtraBedDec(ri) { var a = state.groupAllocations[ri]; if (a && a.extraBedCount > 0 && groupAllocBigCount(a) < MAX_BIG_GUESTS_PER_ROOM) { a.extraBedCount--; renderBookingModal(); } }
-  function groupRoomPickStepHtml() {
+  // Miniatura di una stanza disponibile per questo slot: foto, nome,
+  // prezzo e un bottone per sceglierla. Cliccare sulla foto apre la
+  // card completa della stanza (tutte le info) senza perdere il punto
+  // in cui si è nel wizard di gruppo (vedi openRoomDetailFromGroup).
+  function groupRoomThumbHtml(id, ri, isSelected) {
+    var room = state.roomsData[id];
+    if (!room) return '';
+    var photo = (room.photos && room.photos[0]) || ('images/' + id + '-1.jpg');
+    return (
+      '<div class="group-room-thumb' + (isSelected ? ' is-selected' : '') + '">' +
+        '<button type="button" class="group-room-thumb-media" data-group-room-view data-view-room-id="' + id + '" aria-label="' + escapeHtml(t('booking.group_room_view_aria')) + '">' +
+          '<span class="photo-placeholder">' + escapeHtml(room.name) + '</span>' +
+          photoTag(photo, room.name) +
+        '</button>' +
+        '<div class="group-room-thumb-body">' +
+          '<div class="group-room-thumb-name">' + escapeHtml(room.name) + '</div>' +
+          '<div class="group-room-thumb-price">€' + room.nightlyPrice + escapeHtml(t('room.per_night')) + '</div>' +
+          '<button type="button" class="btn btn-outline group-room-thumb-select' + (isSelected ? ' is-selected' : '') + '" data-group-room-pick-thumb data-room-index="' + ri + '" data-choose-id="' + id + '">' +
+            (isSelected ? escapeHtml(t('booking.group_room_selected')) : escapeHtml(t('booking.group_room_select_cta'))) +
+          '</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+  // Scelta della stanza e spartizione degli ospiti unite in un unico
+  // passaggio per ogni slot del gruppo: si vede subito "questi ospiti
+  // vanno in QUESTA stanza", invece di scegliere prima quanti ospiti per
+  // stanza (astratta) e solo dopo, in uno step separato, quale stanza
+  // fisica assegnare a ciascuna.
+  function groupCombinedStepHtml() {
+    var map = groupChildAllocationMap();
+    var unallocAdults = groupUnallocatedAdults();
+    var unallocChildren = map.filter(function (m) { return m === -1; }).length;
     var chosenIds = state.groupAllocations.map(function (a) { return a.roomId; }).filter(Boolean);
     var cardsHtml = state.groupAllocations.map(function (alloc, ri) {
       var big = groupAllocBigCount(alloc), infants = groupAllocInfantCount(alloc);
-      if (big + infants === 0) return '';
+      var incDisabled = big >= groupAllocBigCap(alloc) || unallocAdults <= 0;
       var excludeOthers = chosenIds.filter(function (id) { return id !== alloc.roomId; });
       var available = groupAvailableRoomsFor(alloc, excludeOthers);
-      var options = available.map(function (id) {
-        var room = state.roomsData[id];
-        return '<option value="' + id + '"' + (alloc.roomId === id ? ' selected' : '') + '>' + escapeHtml(room.name) + ' — €' + room.nightlyPrice + escapeHtml(t('room.per_night')) + '</option>';
-      }).join('');
+      var thumbsHtml = available.length
+        ? '<div class="group-room-thumbs">' + available.map(function (id) { return groupRoomThumbHtml(id, ri, id === alloc.roomId); }).join('') + '</div>'
+        : '<div class="booking-alert">' + escapeHtml(t('booking.group_no_rooms_available')) + '</div>';
       var suggestCrib = infants > 0 && !alloc.cribCount;
       var extraBedMandatory = big === MAX_BIG_GUESTS_PER_ROOM;
-      var optionsPanelHtml = !alloc.roomId ? (available.length ? '' : '<div class="booking-alert">' + escapeHtml(t('booking.group_no_rooms_available')) + '</div>') : (
+      var optionsPanelHtml = !alloc.roomId ? '' : (
         '<div class="rd-bedtype-row">' +
           '<button type="button" class="rd-bedtype-btn' + (alloc.bedType === 'matrimoniale' ? ' is-active' : '') + '" data-group-bedtype="matrimoniale" data-room-index="' + ri + '"><svg width="20" height="20"><use href="#icon-bed-double"></use></svg>' + escapeHtml(t('options.bed_double')) + '</button>' +
           '<button type="button" class="rd-bedtype-btn' + (alloc.bedType === 'singolo' ? ' is-active' : '') + '" data-group-bedtype="singolo" data-room-index="' + ri + '"><svg width="20" height="20"><use href="#icon-bed-single"></use></svg>' + escapeHtml(t('options.bed_single')) + '</button>' +
@@ -2842,23 +2960,49 @@
       return (
         '<div class="group-room-card">' +
           '<div class="group-room-card-title">' + escapeHtml(tpl(t('booking.group_room_n'), { n: ri + 1 })) + '</div>' +
-          '<div class="range-hint">' + escapeHtml(tpl(t('booking.group_room_capacity'), { big: big, infants: infants })) + '</div>' +
           '<label class="group-room-select-label">' + escapeHtml(t('booking.group_pick_room_label')) + '</label>' +
-          '<select class="search-child-select group-room-select" data-group-room-pick data-room-index="' + ri + '">' +
-            '<option value="">' + escapeHtml(t('booking.group_pick_room_placeholder')) + '</option>' + options +
-          '</select>' +
+          thumbsHtml +
+          '<div class="search-guests-row">' +
+            '<div class="search-guests-row-title">' + escapeHtml(t('search.adults')) + '</div>' +
+            '<div class="search-stepper">' +
+              '<button type="button" class="search-stepper-btn" data-group-adults-dec data-room-index="' + ri + '"' + (alloc.adults <= 0 ? ' disabled' : '') + '>−</button>' +
+              '<span class="search-stepper-value">' + alloc.adults + '</span>' +
+              '<button type="button" class="search-stepper-btn" data-group-adults-inc data-room-index="' + ri + '"' + (incDisabled ? ' disabled' : '') + '>+</button>' +
+            '</div>' +
+          '</div>' +
+          (state.guestsChildAges.length ? (
+            '<div class="group-room-children">' +
+              '<div class="search-guests-row-sub">' + escapeHtml(t('booking.group_children_label')) + '</div>' +
+              '<div class="group-child-chip-row">' + groupChildChipHtml(ri, map) + '</div>' +
+            '</div>'
+          ) : '') +
+          '<div class="range-hint">' + escapeHtml(tpl(t('booking.group_room_capacity'), { big: big, infants: infants })) + '</div>' +
           optionsPanelHtml +
         '</div>'
       );
     }).join('');
-    var allPicked = state.groupAllocations.every(function (a) { return (groupAllocBigCount(a) + groupAllocInfantCount(a)) === 0 || !!a.roomId; });
+    var poolHint = (unallocAdults > 0 || unallocChildren > 0)
+      ? '<div class="booking-alert">' + escapeHtml(tpl(t('booking.group_unallocated_hint'), { adults: unallocAdults, children: unallocChildren })) + '</div>'
+      : '<div class="range-hint range-hint--ok">' + escapeHtml(t('booking.group_all_allocated')) + '</div>';
+    var allRoomsPicked = state.groupAllocations.every(function (a) { return (groupAllocBigCount(a) + groupAllocInfantCount(a)) === 0 || !!a.roomId; });
+    var complete = groupAllComplete() && allRoomsPicked;
     return (
-      '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsSummaryLabel(state.guestsAdults, state.guestsChildAges)) + '</div></div>' +
-      '<div class="slot-label">' + escapeHtml(t('booking.group_pick_rooms_title')) + '</div>' +
+      '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div></div>' +
+      '<div class="slot-label">' + escapeHtml(t('booking.group_step_title')) + '</div>' +
+      '<p class="range-hint">' + escapeHtml(tpl(t('booking.group_step_intro'), { adults: state.guestsAdults, children: state.guestsChildAges.length })) + '</p>' +
+      '<div class="search-guests-row">' +
+        '<div class="search-guests-row-title">' + escapeHtml(t('search.rooms')) + '</div>' +
+        '<div class="search-stepper">' +
+          '<button type="button" class="search-stepper-btn" data-group-rooms-dec' + (state.groupAllocations.length <= neededGroupRooms() ? ' disabled' : '') + '>−</button>' +
+          '<span class="search-stepper-value">' + state.groupAllocations.length + '</span>' +
+          '<button type="button" class="search-stepper-btn" data-group-rooms-inc' + (state.groupAllocations.length >= totalRoomsCount() ? ' disabled' : '') + '>+</button>' +
+        '</div>' +
+      '</div>' +
       '<div class="group-room-cards">' + cardsHtml + '</div>' +
+      poolHint +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-group-contact-step' + (allPicked ? '' : ' disabled') + '>' + escapeHtml(t('common.prenota_soggiorno')) + ' →</button>' +
-      '<button type="button" class="link-btn" data-back-to-group-alloc>' + escapeHtml(t('booking.cambia_ospiti')) + '</button>'
+      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-group-contact-step' + (complete ? '' : ' disabled') + '>' + escapeHtml(t('common.prenota_soggiorno')) + ' →</button>' +
+      '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
   function groupNights() { return daysBetween(state.selectedCheckIn, state.selectedCheckOut); }
@@ -2958,8 +3102,7 @@
   }
   function goGroupRoomsStep() { state.bookingStep = 3; renderBookingModal(); }
   function goGroupContactStep() { state.bookingStep = 4; renderBookingModal(); }
-  function backToGroupAlloc() { state.bookingStep = 2; renderBookingModal(); }
-  function backToGroupRooms() { state.bookingStep = 3; renderBookingModal(); }
+  function backToGroupRooms() { state.bookingStep = 2; renderBookingModal(); }
   function confirmGroupBooking(paymentIntentId) {
     if (!state.contactName || !isValidEmail(state.contactEmail) || !isValidPhone(state.contactPhone) || !state.contractAccepted) return;
     if (!window.CasaCelesteTourismDB) return;
@@ -3481,10 +3624,10 @@
       if (el && !el.disabled) { groupRoomsInc(); return; }
       el = e.target.closest('[data-group-rooms-dec]');
       if (el && !el.disabled) { groupRoomsDec(); return; }
-      el = e.target.closest('[data-go-group-rooms-step]');
-      if (el && !el.disabled) { goGroupRoomsStep(); return; }
-      el = e.target.closest('[data-back-to-group-alloc]');
-      if (el) { backToGroupAlloc(); return; }
+      el = e.target.closest('[data-group-room-pick-thumb]');
+      if (el) { groupPickRoomToggle(Number(el.getAttribute('data-room-index')), el.getAttribute('data-choose-id')); return; }
+      el = e.target.closest('[data-group-room-view]');
+      if (el) { openRoomDetailFromGroup(el.getAttribute('data-view-room-id')); return; }
       el = e.target.closest('[data-group-bedtype]');
       if (el) { groupSetBedType(Number(el.getAttribute('data-room-index')), el.getAttribute('data-group-bedtype')); return; }
       el = e.target.closest('[data-group-crib-inc]');
@@ -3557,7 +3700,13 @@
       el = e.target.closest('[data-rd-share]');
       if (el) { shareRoomDetail(); return; }
       el = e.target.closest('[data-rd-photo]');
-      if (el) { openRoomGallery(Number(el.getAttribute('data-index'))); return; }
+      if (el) { openRoomGrid(); return; }
+      el = e.target.closest('[data-rd-grid-photo]');
+      if (el) { openRoomGallery(Number(el.getAttribute('data-index')), true); return; }
+      el = e.target.closest('[data-rd-grid-close]');
+      if (el) { closeRoomGrid(); return; }
+      el = e.target.closest('[data-rd-gallery-zoom]');
+      if (el) { toggleRoomGalleryZoom(); return; }
       el = e.target.closest('[data-rd-toggle-desc]');
       if (el) { toggleRoomDetailDesc(); return; }
       el = e.target.closest('[data-rd-bedtype]');
@@ -3591,8 +3740,6 @@
     document.addEventListener('change', function (e) {
       var el = e.target.closest('[data-search-child-age]');
       if (el) { setSearchChildAge(Number(el.getAttribute('data-index')), Number(el.value)); return; }
-      el = e.target.closest('[data-group-room-pick]');
-      if (el) { groupPickRoom(Number(el.getAttribute('data-room-index')), el.value); return; }
     });
 
     document.addEventListener('keydown', function (e) {

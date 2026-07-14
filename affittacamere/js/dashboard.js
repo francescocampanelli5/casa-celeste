@@ -17,6 +17,7 @@
     settings: {},
     assistMessages: [],
     manualBookingOpen: false,
+    bookingsFilter: { roomId: '', source: '', status: '', from: '', to: '' },
     rerenderPending: false,
     unsubBookings: null, unsubRooms: null, unsubCommons: null, unsubReviews: null, unsubMonoSlides: null, unsubSettings: null, unsubAssistMessages: null
   };
@@ -234,11 +235,73 @@
       '</div>'
     );
   }
+  // Tutte le prenotazioni (sito, manuali, importate da Airbnb/Booking.com)
+  // vivono nella stessa collezione tourism_bookings e passano tutte da qui:
+  // i filtri sotto sono solo un modo di guardare lo stesso elenco, non una
+  // sorgente dati diversa — niente compare/scompare cambiando filtro.
+  function filteredBookings() {
+    var f = state.bookingsFilter;
+    return state.bookings.filter(function (b) {
+      if (f.roomId && b.roomId !== f.roomId) return false;
+      if (f.source && (b.source || 'site') !== f.source) return false;
+      if (f.status && (b.status || 'nuovo') !== f.status) return false;
+      if (f.from && (b.checkOut || '') < f.from) return false;
+      if (f.to && (b.checkIn || '') > f.to) return false;
+      return true;
+    });
+  }
+  function bookingsFilterBarHtml() {
+    var f = state.bookingsFilter;
+    var roomIds = Object.keys(state.roomsData).sort(function (a, b) { return (state.roomsData[a].order || 0) - (state.roomsData[b].order || 0); });
+    var roomOptions = '<option value="">Tutte le stanze</option>' + roomIds.map(function (id) {
+      return '<option value="' + id + '"' + (f.roomId === id ? ' selected' : '') + '>' + escapeHtml(state.roomsData[id].name) + '</option>';
+    }).join('');
+    var sourceOptions = '<option value="">Tutte le origini</option>' + Object.keys(SOURCE_LABELS).map(function (key) {
+      return '<option value="' + key + '"' + (f.source === key ? ' selected' : '') + '>' + escapeHtml(SOURCE_LABELS[key]) + '</option>';
+    }).join('');
+    var statusOptions = '<option value="">Tutti gli stati</option>' + Object.keys(STATUS_LABELS).map(function (key) {
+      return '<option value="' + key + '"' + (f.status === key ? ' selected' : '') + '>' + escapeHtml(STATUS_LABELS[key]) + '</option>';
+    }).join('');
+    return (
+      '<div class="dash-bookings-filters">' +
+        '<select class="dash-select" id="bf-room">' + roomOptions + '</select>' +
+        '<select class="dash-select" id="bf-source">' + sourceOptions + '</select>' +
+        '<select class="dash-select" id="bf-status">' + statusOptions + '</select>' +
+        '<label class="dash-filter-date-label">Dal <input type="date" class="admin-field" id="bf-from" value="' + escapeHtml(f.from) + '"></label>' +
+        '<label class="dash-filter-date-label">Al <input type="date" class="admin-field" id="bf-to" value="' + escapeHtml(f.to) + '"></label>' +
+        (f.roomId || f.source || f.status || f.from || f.to ? '<button type="button" class="link-btn" id="bf-reset">Reimposta filtri</button>' : '') +
+      '</div>'
+    );
+  }
   function renderBookingsTab(content) {
-    var list = state.bookings.length
-      ? '<div class="booking-list">' + state.bookings.map(bookingCardHtml).join('') + '</div>'
-      : '<div class="dash-empty">Nessuna prenotazione ricevuta finora.</div>';
-    content.innerHTML = manualBookingFormHtml() + list;
+    var visible = filteredBookings();
+    var countLabel = state.bookings.length
+      ? '<div class="dash-bookings-count">' + visible.length + ' di ' + state.bookings.length + ' prenotazioni</div>'
+      : '';
+    var list = state.bookings.length === 0
+      ? '<div class="dash-empty">Nessuna prenotazione ricevuta finora.</div>'
+      : (visible.length ? '<div class="booking-list">' + visible.map(bookingCardHtml).join('') + '</div>' : '<div class="dash-empty">Nessuna prenotazione corrisponde ai filtri scelti.</div>');
+    content.innerHTML = manualBookingFormHtml() + bookingsFilterBarHtml() + countLabel + list;
+
+    function onFilterChange() {
+      state.bookingsFilter = {
+        roomId: document.getElementById('bf-room').value,
+        source: document.getElementById('bf-source').value,
+        status: document.getElementById('bf-status').value,
+        from: document.getElementById('bf-from').value,
+        to: document.getElementById('bf-to').value
+      };
+      renderBookingsTab(content);
+    }
+    ['bf-room', 'bf-source', 'bf-status', 'bf-from', 'bf-to'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('change', onFilterChange);
+    });
+    var resetBtn = document.getElementById('bf-reset');
+    if (resetBtn) resetBtn.addEventListener('click', function () {
+      state.bookingsFilter = { roomId: '', source: '', status: '', from: '', to: '' };
+      renderBookingsTab(content);
+    });
 
     var openBtn = document.getElementById('open-manual-booking-btn');
     if (openBtn) openBtn.addEventListener('click', function () { state.manualBookingOpen = true; renderBookingsTab(content); });
@@ -477,9 +540,15 @@
   function blockedRangesEditorHtml(roomId, room) {
     var ranges = room.blockedRanges || [];
     var rows = ranges.map(function (r, i) {
+      // Se il blocco appartiene a una prenotazione vera (sito, manuale o
+      // importata da Airbnb/Booking.com), mostra chi/da dove invece del
+      // generico "manual"/"booking" — così le due tab restano leggibili
+      // come un'unica fonte di verità, non due elenchi scollegati.
+      var booking = r.bookingId ? state.bookings.find(function (b) { return b.id === r.bookingId; }) : null;
+      var badgeText = booking ? (SOURCE_LABELS[booking.source] || booking.source || 'Prenotazione') + (booking.name ? ' — ' + booking.name : '') : (r.source || '');
       return '<div class="admin-stat-row">' +
-        '<span style="flex:1; font-size:13px;">' + escapeHtml(r.start) + ' → ' + escapeHtml(r.end) + ' <span class="booking-source-badge">' + escapeHtml(r.source || '') + '</span></span>' +
-        '<button type="button" class="admin-stat-remove" data-block-remove data-room-id="' + roomId + '" data-block-index="' + i + '" title="Rimuovi blocco">✕</button>' +
+        '<span style="flex:1; font-size:13px;">' + escapeHtml(r.start) + ' → ' + escapeHtml(r.end) + ' <span class="booking-source-badge">' + escapeHtml(badgeText) + '</span></span>' +
+        '<button type="button" class="admin-stat-remove" data-block-remove data-room-id="' + roomId + '" data-block-index="' + i + '" title="' + (r.bookingId ? 'Elimina la prenotazione (libera queste notti)' : 'Rimuovi blocco') + '">✕</button>' +
       '</div>';
     }).join('') || '<div style="font-size:13px; color:var(--text-muted,#6B7A8C);">Nessuna notte bloccata.</div>';
     return (
@@ -587,6 +656,18 @@
       el.addEventListener('click', function () {
         var roomId = el.getAttribute('data-room-id'), idx = Number(el.getAttribute('data-block-index'));
         var ranges = (state.roomsData[roomId].blockedRanges || []).slice();
+        var target = ranges[idx];
+        // Se questo blocco appartiene a una prenotazione vera (sito, manuale
+        // o importata da Airbnb/Booking.com: tutte hanno un bookingId da
+        // quando sono state create), rimuoverlo da qui deve cancellare
+        // anche la prenotazione stessa — altrimenti resterebbe nella tab
+        // Prenotazioni mentre le notti sul calendario tornano libere,
+        // disallineando le due sezioni.
+        if (target && target.bookingId) {
+          if (!window.confirm('Questo blocco appartiene a una prenotazione. Rimuovendolo verrà eliminata anche la prenotazione corrispondente (visibile in "Prenotazioni"). Continuare?')) return;
+          deleteBookingAndFreeDates(target.bookingId);
+          return;
+        }
         ranges.splice(idx, 1);
         window.CasaCelesteTourismDB.setRoom(roomId, { blockedRanges: ranges });
       });

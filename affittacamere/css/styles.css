@@ -676,6 +676,10 @@ button { font-family: inherit; }
   position: relative; flex: 0 0 clamp(180px,34vw,280px); aspect-ratio: 1; border-radius: var(--radius-sm);
   overflow: hidden; background: var(--panel-bg);
 }
+/* La foto intera deve stare nello spazio senza essere tagliata: se le
+   proporzioni non combaciano restano bande vuote (dello sfondo del
+   contenitore) invece di uno zoom/crop dell'immagine. */
+.room-list-thumb .real-photo { object-fit: contain; }
 .room-list-thumb .photo-placeholder { font-size: 9.5px; padding: 4px; }
 .room-thumb-actions { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; gap: 8px; }
 .room-share-btn {
@@ -954,6 +958,13 @@ button { font-family: inherit; }
   position: fixed; inset: 0; z-index: 70; background: var(--white);
   display: flex; flex-direction: column; overflow: hidden;
 }
+/* Quando la pagina stanza si apre da una miniatura durante la
+   prenotazione di gruppo, deve stare SOPRA al modale di prenotazione
+   (z-index 90), non sotto: altrimenti resterebbe invisibile/non
+   cliccabile dietro di esso. */
+.rd-overlay--elevated {
+  z-index: 95;
+}
 .rd-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 24px; }
 .rd-photos { position: relative; }
 /* Collage: foto principale grande in alto + griglia delle altre sotto,
@@ -968,7 +979,7 @@ button { font-family: inherit; }
 }
 .rd-collage-main { grid-column: 1 / -1; aspect-ratio: 16/9; }
 .rd-collage-tile .photo-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
-.rd-collage-tile img { width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform .2s ease; }
+.rd-collage-tile img { width: 100%; height: 100%; object-fit: contain; object-position: center; transition: transform .2s ease; }
 .rd-collage-tile:hover img { transform: scale(1.04); }
 .rd-collage-more-overlay {
   position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center;
@@ -1072,7 +1083,10 @@ button { font-family: inherit; }
 }
 .rd-gallery-counter { position: absolute; top: 26px; left: 50%; transform: translateX(-50%); color: var(--white); font-size: 13px; font-weight: 700; }
 .rd-gallery-main { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 0; }
-.rd-gallery-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+.rd-gallery-img-wrap { flex: 1; height: 100%; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: zoom-in; }
+.rd-gallery-img-wrap.is-zoomed { cursor: zoom-out; }
+.rd-gallery-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; transition: transform .2s ease; }
+.rd-gallery-img-wrap.is-zoomed .rd-gallery-img { max-width: none; max-height: none; width: auto; height: auto; transform: scale(1.9); }
 .rd-gallery-nav {
   background: rgba(255,255,255,0.12); color: var(--white); border: none; border-radius: 50%;
   width: 40px; height: 40px; font-size: 20px; cursor: pointer; flex-shrink: 0;
@@ -1085,6 +1099,32 @@ button { font-family: inherit; }
 }
 .rd-gallery-thumb.is-active { border-color: var(--white); opacity: 1; }
 .rd-gallery-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+
+/* Griglia "tutte le foto insieme" (collage a mosaico su un'unica
+   schermata scorrevole), aperta cliccando una foto nella pagina stanza;
+   da qui si sceglie la foto specifica da vedere ingrandita/zoomabile. */
+.rd-grid-overlay {
+  position: fixed; inset: 0; z-index: 76; background: var(--white);
+  display: flex; flex-direction: column;
+}
+.rd-grid-header {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  border-bottom: 1px solid var(--border-hairline); flex-shrink: 0;
+}
+.rd-grid-close { position: static; background: var(--panel-bg); color: var(--navy); }
+.rd-grid-title { font-weight: 800; font-size: 15px; color: var(--blue-deep); }
+.rd-grid-body {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 4px;
+}
+.rd-grid-tile {
+  position: relative; aspect-ratio: 1; border: none; padding: 0; cursor: pointer;
+  background: var(--panel-bg); overflow: hidden; border-radius: 4px;
+}
+.rd-grid-tile img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+@media (min-width: 640px) {
+  .rd-grid-body { grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 6px; }
+}
 
 @media (min-width: 620px) {
   .rd-location-grid { grid-template-columns: 1.3fr 1fr; }
@@ -1361,6 +1401,14 @@ button { font-family: inherit; }
 
 .dash-empty { padding: 40px 20px; text-align: center; color: var(--text-faint); font-size: 14px; }
 
+.dash-bookings-filters {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  background: var(--off-white); border: 1px solid var(--border-hairline); border-radius: var(--radius-xs);
+  padding: 12px 14px; margin: 14px 0 10px;
+}
+.dash-filter-date-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.dash-filter-date-label input { padding: 7px 9px; font-size: 12.5px; }
+.dash-bookings-count { font-size: 12.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; }
 .booking-list { display: flex; flex-direction: column; gap: 12px; }
 .booking-card { background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-xs); padding: 18px 20px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
 .booking-main { display: flex; flex-direction: column; gap: 4px; }
@@ -1487,7 +1535,30 @@ button { font-family: inherit; }
 .group-child-chip.is-active { background: var(--blue-bg); border-color: var(--blue); color: var(--blue-deep); }
 .group-child-chip.is-elsewhere { opacity: 0.55; cursor: not-allowed; }
 .group-room-select-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--text-muted); margin: 10px 0 6px; }
-.group-room-select { width: 100%; padding: 10px 12px; margin-bottom: 14px; }
+/* Miniature stanza (foto + nome + prezzo + bottone) al posto del vecchio
+   menu a tendina: cliccare la foto apre la card stanza completa, il
+   bottone sotto seleziona/deseleziona quella stanza per lo slot. */
+.group-room-thumbs {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px;
+}
+.group-room-thumb {
+  border: 1.5px solid var(--border-hairline); border-radius: var(--radius-sm); overflow: hidden;
+  background: var(--white); display: flex; flex-direction: column; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.group-room-thumb.is-selected { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(44,143,201,0.18); }
+.group-room-thumb-media {
+  position: relative; display: block; width: 100%; aspect-ratio: 4/3; border: none; padding: 0; margin: 0;
+  cursor: pointer; background: var(--panel-bg); overflow: hidden;
+}
+.group-room-thumb-media img { width: 100%; height: 100%; object-fit: contain; object-position: center; }
+.group-room-thumb-media .photo-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; font-size: 9px; }
+.group-room-thumb-body { padding: 8px 9px 10px; display: flex; flex-direction: column; gap: 4px; }
+.group-room-thumb-name { font-size: 12.5px; font-weight: 800; color: var(--navy); line-height: 1.2; }
+.group-room-thumb-price { font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
+.group-room-thumb-select {
+  width: 100%; margin-top: 4px; padding: 7px 8px; font-size: 11.5px; font-weight: 700; border-radius: var(--radius-pill);
+}
+.group-room-thumb-select.is-selected { background: var(--blue); color: var(--white); border-color: var(--blue); }
 .group-price-block { padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid rgba(16,35,59,0.08); }
 .group-price-block:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 .group-price-block-title { font-size: 13px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
