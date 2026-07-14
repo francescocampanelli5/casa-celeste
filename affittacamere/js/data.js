@@ -29,6 +29,7 @@ window.CASA_CELESTE_TOURISM_DATA = {
         en: 'Maestrale welcomes you with morning light and a desk corner handy for working travellers too. Essential furniture, neutral tones and a private balcony all your own: perfect for a coffee at sunrise before heading out to explore Monopoli.'
       },
       balcony: 'privato', photos: [],
+      favoriteBadge: { it: 'Amato dagli ospiti', en: 'Guest favourite' },
       blockedRanges: []
     },
     scirocco: {
@@ -45,6 +46,7 @@ window.CASA_CELESTE_TOURISM_DATA = {
         en: 'Scirocco is the largest of the four: a comfortable double bed, a double desk and a spacious wardrobe — ideal for a couple who want a good balance between room to relax and comfort for planning their days out.'
       },
       balcony: 'nessuno', photos: [],
+      favoriteBadge: { it: 'Il più popolare', en: 'Most popular' },
       blockedRanges: []
     },
     ponente: {
@@ -61,6 +63,7 @@ window.CASA_CELESTE_TOURISM_DATA = {
         en: 'Ponente is the coziest and quietest room in the house, ideal for solo travellers looking for a calm home base. It opens onto a connecting balcony shared with Levante (divided by a privacy screen): perfect for an evening break in the breeze, while still keeping your own privacy.'
       },
       balcony: 'comunicante', photos: [],
+      favoriteBadge: { it: 'Il più richiesto', en: 'Most requested' },
       blockedRanges: []
     },
     levante: {
@@ -77,6 +80,7 @@ window.CASA_CELESTE_TOURISM_DATA = {
         en: 'Levante faces two sides and stays bright all day; the small sofa makes it comfortable for two people travelling together without needing a double bed. It shares a connecting balcony with Ponente (with a privacy screen): the ideal spot to watch the sunset from above.'
       },
       balcony: 'comunicante', photos: [],
+      favoriteBadge: { it: 'La scelta più votata', en: 'Top rated pick' },
       blockedRanges: []
     }
   },

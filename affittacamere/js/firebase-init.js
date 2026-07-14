@@ -223,6 +223,12 @@ window.CasaCelesteTourismDB = {
     var fileRef = storageRef(storage, 'tourism-site/manager/slot' + slotIndex + '.' + ext);
     return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
   },
+  uploadRecPhoto: function (recId, file) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    var fileRef = storageRef(storage, 'tourism-site/recs/' + recId + '.' + ext);
+    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+  },
 
   // ---- upload foto documento ospite (area TEMPORANEA, pubblica in
   // scrittura, spostata dalla Cloud Function submitGuestDocuments in

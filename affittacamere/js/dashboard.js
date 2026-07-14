@@ -384,6 +384,13 @@
       if (kind === 'common') return state.commonsData;
       if (kind === 'mono') return state.monoSlidesData;
       if (kind === 'manager') { var mwrap = {}; mwrap.manager = { photos: (state.settings.managerPhoto) ? [state.settings.managerPhoto] : [] }; return mwrap; }
+      if (kind === 'rec') {
+        var rmap = {};
+        (state.settings.recommendations || []).forEach(function (r, i) {
+          rmap[r.id || ('rec' + i)] = { photos: r.photo ? [r.photo] : [] };
+        });
+        return rmap;
+      }
       var wrap = {}; wrap.facciata = { photos: state.settings.facadePhotos || [] }; return wrap;
     }
     function setFnFor(kind) {
@@ -391,11 +398,20 @@
       if (kind === 'common') return window.CasaCelesteTourismDB.setCommon;
       if (kind === 'mono') return window.CasaCelesteTourismDB.setMonoSlide;
       if (kind === 'manager') return function (id, patch) { return window.CasaCelesteTourismDB.setSettings({ managerPhoto: (patch.photos && patch.photos[0]) || '' }); };
+      if (kind === 'rec') return function (recId, patch) {
+        var list = (state.settings.recommendations || []).slice();
+        var idx = -1;
+        list.forEach(function (r, i) { if ((r.id || ('rec' + i)) === recId) idx = i; });
+        if (idx === -1) return Promise.resolve();
+        list[idx] = Object.assign({}, list[idx], { photo: (patch.photos && patch.photos[0]) || '' });
+        return window.CasaCelesteTourismDB.setSettings({ recommendations: list });
+      };
       return function (id, patch) { return window.CasaCelesteTourismDB.setSettings({ facadePhotos: patch.photos }); };
     }
     function uploadFnFor(kind) {
       if (kind === 'room') return window.CasaCelesteTourismDB.uploadRoomPhoto;
       if (kind === 'common') return window.CasaCelesteTourismDB.uploadCommonPhoto;
+      if (kind === 'rec') return function (id, idx, file) { return window.CasaCelesteTourismDB.uploadRecPhoto(id, file); };
       if (kind === 'mono') return window.CasaCelesteTourismDB.uploadMonoSlidePhoto;
       if (kind === 'manager') return function (id, idx, file) { return window.CasaCelesteTourismDB.uploadManagerPhoto(idx, file); };
       return function (id, idx, file) { return window.CasaCelesteTourismDB.uploadFacadePhoto(idx, file); };
@@ -452,6 +468,7 @@
           '<button type="button" class="dash-delete-btn" data-delete-room data-room-id="' + roomId + '">Elimina</button>' +
         '</div>' +
         biRowHtml('textarea', 'Descrizione', 'data-room-field data-room-id="' + roomId + '"', 'description', room.description, 3) +
+        biRowHtml('input', 'Badge distintivo (es. "Il più popolare")', 'data-room-field data-room-id="' + roomId + '"', 'favoriteBadge', room.favoriteBadge, null) +
         photoSlotsHtml('room', roomId, room) +
         statsEditorHtml('room', roomId, room.stats) +
         '<div class="admin-room-type-row">' +
@@ -765,13 +782,29 @@
   }
   function recommendationsEditorHtml(recs) {
     var rows = recs.map(function (r, i) {
-      return '<div class="admin-stat-row">' +
-        '<input type="text" class="admin-field" placeholder="Titolo" data-rec-field data-rec-index="' + i + '" data-rec-part="title" value="' + escapeHtml(r.title || '') + '">' +
-        '<input type="text" class="admin-field" placeholder="URL" data-rec-field data-rec-index="' + i + '" data-rec-part="url" value="' + escapeHtml(r.url || '') + '">' +
-        '<button type="button" class="admin-stat-remove" data-rec-remove data-rec-index="' + i + '">✕</button>' +
-      '</div>';
+      var recId = r.id || ('rec' + i);
+      var idAttr = 'data-rec-field data-rec-index="' + i + '"';
+      return (
+        '<div class="admin-room-card" data-rec-row-index="' + i + '">' +
+          '<div class="admin-room-head">' +
+            '<input type="text" class="admin-field admin-room-name" placeholder="Titolo (es. Trattoria da Mimì)" ' + idAttr + ' data-rec-part="title" value="' + escapeHtml(r.title || '') + '">' +
+            '<button type="button" class="dash-delete-btn" data-rec-remove data-rec-index="' + i + '">Elimina</button>' +
+          '</div>' +
+          '<div class="admin-room-type-row">' +
+            '<div class="admin-field-group"><label>Tipo di attività</label><input type="text" class="admin-field" ' + idAttr + ' data-rec-part="category" placeholder="Ristorante, Spiaggia, Attività…" value="' + escapeHtml(r.category || '') + '"></div>' +
+            '<div class="admin-field-group"><label>Costo</label><input type="text" class="admin-field" ' + idAttr + ' data-rec-part="cost" placeholder="€€, Gratis, Su prenotazione…" value="' + escapeHtml(r.cost || '') + '"></div>' +
+          '</div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Link (sito o pagina di prenotazione)</label><input type="text" class="admin-field" ' + idAttr + ' data-rec-part="url" value="' + escapeHtml(r.url || '') + '"></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Descrizione breve (facoltativa)</label><input type="text" class="admin-field" ' + idAttr + ' data-rec-part="text" value="' + escapeHtml(r.text || '') + '"></div>' +
+          photoSlotsHtml('rec', recId, { photos: r.photo ? [r.photo] : [] }, 1) +
+        '</div>'
+      );
     }).join('');
-    return '<div class="admin-field-group admin-field-group--full"><label>Consigli & dintorni (ristoranti, attività — link facoltativamente di affiliazione)</label><div class="admin-stats-rows">' + rows + '</div><button type="button" class="admin-stat-add" id="add-rec-btn">+ Aggiungi consiglio</button></div>';
+    return (
+      '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Consigli &amp; dintorni (ristoranti, attività — link facoltativamente di affiliazione)</span></div>' +
+      '<div class="dash-room-rows">' + rows + '</div>' +
+      '<button type="button" class="dash-add-room-btn" id="add-rec-btn">+ Aggiungi consiglio</button>'
+    );
   }
   function renderSettingsTab(content) {
     var s = state.settings || {};
@@ -844,7 +877,7 @@
         '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" value="' + escapeHtml(s.managerEmail || '') + '"></div>' +
         photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +
       '</div>' +
-      '<div class="admin-room-card">' + recommendationsEditorHtml(s.recommendations || []) + '</div>' +
+      recommendationsEditorHtml(s.recommendations || []) +
       '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Social</span></div>' + socialFieldsHtml(s.socials || {}) + '</div>';
 
     document.getElementById('settings-phone').addEventListener('change', function (e) {
@@ -924,7 +957,7 @@
     var addRecBtn = document.getElementById('add-rec-btn');
     if (addRecBtn) addRecBtn.addEventListener('click', function () {
       var list = (state.settings.recommendations || []).slice();
-      list.push({ title: '', url: '' });
+      list.push({ id: 'rec-' + Date.now(), title: '', url: '', category: '', cost: '', text: '', photo: '' });
       window.CasaCelesteTourismDB.setSettings({ recommendations: list });
     });
     content.querySelectorAll('[data-rec-remove]').forEach(function (el) {

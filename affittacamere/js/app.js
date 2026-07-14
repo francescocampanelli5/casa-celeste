@@ -945,10 +945,11 @@
       (avgRating ? Number(avgRating).toFixed(1) : (reviewCount || 0)) + '</strong></div>';
     var reviewsLabel = reviewCount === 0 ? t('hero.reviews_none') : (reviewCount === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: reviewCount }));
 
+    var favoriteBadgeLabel = tf(room.favoriteBadge) || t('roomdetail.guest_favorite');
     var reviewsRowHtml =
       '<div class="rd-reviews-row">' +
         ratingHtml +
-        '<div class="rd-guest-favorite"><span class="rd-guest-favorite-icon"><svg width="20" height="20"><use href="#icon-trophy"></use></svg></span>' + escapeHtml(t('roomdetail.guest_favorite')) + '</div>' +
+        '<div class="rd-guest-favorite"><span class="rd-guest-favorite-icon"><svg width="20" height="20"><use href="#icon-trophy"></use></svg></span>' + escapeHtml(favoriteBadgeLabel) + '</div>' +
         '<div class="rd-reviews-count">' + escapeHtml(reviewsLabel) + '</div>' +
       '</div>' +
       '<div class="rd-cancel-tag-row"><span class="rd-cancel-tag">' + escapeHtml(t('roomdetail.free_cancel_short')) + '</span></div>';
@@ -1581,18 +1582,32 @@
      Render: Consigli & dintorni (facoltativo, da settings.recommendations)
      ========================================================================== */
   function renderRecs() {
-    var container = document.getElementById('recs-grid');
+    var container = document.getElementById('recs-scroll');
     if (!container) return;
     var recs = (state.settings && state.settings.recommendations) || [];
     var section = container.closest('section');
     if (!recs.length) { if (section) section.style.display = 'none'; return; }
     if (section) section.style.display = '';
     container.innerHTML = recs.map(function (r) {
+      var metaBits = [r.category, r.cost].filter(Boolean);
       return '<a class="recs-card" href="' + escapeHtml(r.url || '#') + '" target="_blank" rel="noopener sponsored">' +
-        '<div class="recs-card-title">' + escapeHtml(r.title || '') + '</div>' +
-        (r.text ? '<div class="card-text">' + escapeHtml(r.text) + '</div>' : '') +
+        '<div class="recs-card-photo">' +
+          (r.photo ? photoTag(r.photo, r.title || '') : '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(r.title || '') + '</span>') +
+        '</div>' +
+        '<div class="recs-card-body">' +
+          (metaBits.length ? '<div class="recs-card-meta">' + metaBits.map(escapeHtml).join(' · ') + '</div>' : '') +
+          '<div class="recs-card-title">' + escapeHtml(r.title || '') + '</div>' +
+          (r.text ? '<div class="card-text">' + escapeHtml(r.text) + '</div>' : '') +
+        '</div>' +
       '</a>';
     }).join('');
+  }
+  function scrollRecs(dir) {
+    var container = document.getElementById('recs-scroll');
+    if (!container) return;
+    var card = container.querySelector('.recs-card');
+    var step = card ? card.getBoundingClientRect().width + 16 : 220;
+    container.scrollBy({ left: dir * step, behavior: 'smooth' });
   }
 
   /* ==========================================================================
@@ -2299,6 +2314,11 @@
       if (el) { monoNext(); return; }
       el = e.target.closest('[data-mono-dot]');
       if (el) { monoGoTo(Number(el.getAttribute('data-index'))); return; }
+
+      el = e.target.closest('#recs-prev');
+      if (el) { scrollRecs(-1); return; }
+      el = e.target.closest('#recs-next');
+      if (el) { scrollRecs(1); return; }
 
       el = e.target.closest('[data-faq-toggle]');
       if (el) { faqToggle(Number(el.getAttribute('data-index'))); return; }
