@@ -20,6 +20,37 @@
       a: { it: 'Cancellazione gratuita fino a 48 ore prima dell\'orario di check-in, con rimborso automatico. Oltre questa soglia la cancellazione non è più valida e non è possibile alcun rimborso, come indicato nelle Condizioni di soggiorno.', en: 'Free cancellation up to 48 hours before check-in time, with automatic refund. After that, cancellation is no longer possible and no refund can be issued, as stated in the Stay Terms & Conditions.' } }
   ];
 
+  // Widget di assistenza: albero di opzioni preimpostate, l'ospite non
+  // scrive mai testo libero, sceglie solo tra i bottoni proposti. Ogni nodo
+  // ha un testo e, a scelta, una lista di sotto-opzioni (options) e/o
+  // un'azione con bottone dedicato (action/actionLabel). "root" è la
+  // schermata iniziale, ogni altro nodo mostra il bottone "torna al menu".
+  var ASSIST_CHAT_TREE = {
+    root: {
+      text: 'assist.root_text',
+      options: ['rooms', 'cancel', 'checkin', 'location', 'whatsapp']
+    },
+    rooms: { text: 'assist.rooms_text', action: 'scrollRooms', actionLabel: 'assist.rooms_cta' },
+    cancel: { text: 'assist.cancel_text', action: 'openCancelLookup', actionLabel: 'assist.cancel_cta' },
+    checkin: {
+      text: 'assist.checkin_text',
+      textDynamic: function () {
+        var checkinTime = (state.settings && state.settings.checkInTime) || '15:00';
+        var checkoutTime = (state.settings && state.settings.checkOutTime) || '10:00';
+        return tpl(t('assist.checkin_text'), { checkin: checkinTime, checkout: checkoutTime });
+      }
+    },
+    location: { text: 'assist.location_text', action: 'scrollLocation', actionLabel: 'assist.location_cta' },
+    whatsapp: { text: 'assist.whatsapp_text', action: 'openWhatsapp', actionLabel: 'assist.whatsapp_cta' }
+  };
+  var ASSIST_CHAT_OPTION_LABELS = {
+    rooms: 'assist.opt_rooms',
+    cancel: 'assist.opt_cancel',
+    checkin: 'assist.opt_checkin',
+    location: 'assist.opt_location',
+    whatsapp: 'assist.opt_whatsapp'
+  };
+
   // Testi legali — vedi Fase B del piano: privacy policy molto più
   // dettagliata dello studentato (dati documento d'identità = categoria
   // delicata), base giuridica = adempimento di obbligo di legge, non
@@ -169,6 +200,11 @@
     activeLegalId: 'privacy',
     showCookieBanner: false,
 
+    // Assistenza: chat a opzioni preimpostate, l'ospite sceglie solo tra i
+    // bottoni proposti, non scrive mai testo libero.
+    assistChatOpen: false,
+    assistChatNode: 'root',
+
     search: {
       checkIn: null,
       checkOut: null,
@@ -310,16 +346,31 @@
      history con un secondo history.back() (loop).
      ========================================================================== */
   var inPopStateHandler = false;
+  // Quando si chiude un overlay con un tasto "×" nell'app (non col gesto
+  // fisico indietro), closeOverlayHistoryState() consuma comunque la voce
+  // di history con history.back() per restare sincronizzati — ma quel
+  // history.back() genera comunque un evento 'popstate' asincrono, che
+  // altrimenti arriverebbe DOPO che lo stato è già stato aggiornato dalla
+  // chiamata diretta: l'handler lo rileggerebbe da capo e chiuderebbe per
+  // sbaglio anche il livello sottostante (bug corretto: chiudere la
+  // galleria con la sua X chiudeva anche la pagina stanza). Bug corretto:
+  // suppressNextPopstate salta quell'evento "eco" quando la chiusura è già
+  // stata gestita direttamente.
+  var suppressNextPopstate = false;
   function pushOverlayHistoryState() {
     if (inPopStateHandler) return;
     try { history.pushState({ ccOverlay: true }, ''); } catch (e) {}
   }
   function closeOverlayHistoryState() {
     if (inPopStateHandler) return;
-    if (history.state && history.state.ccOverlay) { try { history.back(); } catch (e) {} }
+    if (history.state && history.state.ccOverlay) {
+      suppressNextPopstate = true;
+      try { history.back(); } catch (e) {}
+    }
   }
   function bindOverlayBackButton() {
     window.addEventListener('popstate', function () {
+      if (suppressNextPopstate) { suppressNextPopstate = false; return; }
       inPopStateHandler = true;
       if (state.roomDetail.galleryOpen) closeRoomGallery();
       else if (state.mediaZoomOpen) closeMediaZoom();
@@ -422,6 +473,7 @@
     renderBookingModal();
     renderLegalModal();
     renderCookieBanner();
+    renderAssistChat();
   }
   function setLang(lang) {
     state.lang = lang;
@@ -817,8 +869,13 @@
     updateStickyBarVisibility();
     pushOverlayHistoryState();
     if (scrollToCalendar) {
+      // 'center' (non 'start'): con 'start' il titolo della sezione finiva
+      // in cima e la griglia del calendario, che viene dopo intro/legenda,
+      // restava sotto la piega — serviva comunque uno scroll manuale per
+      // raggiungerla col dito. Centrandola nel viewport la griglia cade
+      // subito ad altezza dito, pronta al tocco.
       var datesEl = document.getElementById('rd-dates-section');
-      if (datesEl) datesEl.scrollIntoView({ block: 'start' });
+      if (datesEl) datesEl.scrollIntoView({ block: 'center' });
     }
   }
   function closeRoomDetail() {
@@ -1069,21 +1126,30 @@
       : (room.balcony === 'comunicante' ? t('room.balcony_shared_clause') : '');
     var metaLine = [guestsLabel, t('room.private_room_beds_clause'), t('roomdetail.shared_bathroom'), balconyClause].filter(Boolean).join(' - ');
 
-    // Collage: tutte le foto visibili insieme in una sola schermata (non
-    // una alla volta come un carosello) — la principale grande in alto, le
-    // altre in una griglia sotto, tutte cliccabili per aprire la galleria
-    // a schermo intero su quella singola foto (data-rd-photo/openRoomGallery,
-    // invariati). Si scorre verticalmente con il resto della pagina, non
-    // serve uno scroll orizzontale dedicato.
-    var collageSlideHtml = function (src, i, extraClass) {
+    // Collage: solo le prime 3 foto visibili in una sola schermata (non
+    // una alla volta come un carosello, ma nemmeno tutte insieme — troppe
+    // affollano la pagina), cliccabili per aprire la galleria a schermo
+    // intero con TUTTE le foto (data-rd-photo/openRoomGallery, invariati).
+    // Se ce ne sono altre, l'ultima tile visibile mostra "+N foto" ed è
+    // comunque un data-rd-photo come le altre.
+    var collageSlideHtml = function (src, i, extraClass, overlayLabel) {
       return '<div class="rd-collage-tile' + (extraClass ? ' ' + extraClass : '') + '" data-rd-photo data-index="' + i + '">' +
         '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(room.name) + '</span>' +
         photoTag(src, room.name + ' — ' + (i + 1)) +
+        (overlayLabel ? '<span class="rd-collage-more-overlay">' + escapeHtml(overlayLabel) + '</span>' : '') +
       '</div>';
     };
-    var stripHtml = collageSlideHtml(photos[0], 0, 'rd-collage-main') +
+    var COLLAGE_VISIBLE_PHOTOS = 3;
+    var visiblePhotos = photos.slice(0, COLLAGE_VISIBLE_PHOTOS);
+    var remainingPhotosCount = photos.length - visiblePhotos.length;
+    var stripHtml = collageSlideHtml(visiblePhotos[0], 0, 'rd-collage-main') +
       '<div class="rd-collage-grid">' +
-        photos.slice(1).map(function (src, i) { return collageSlideHtml(src, i + 1); }).join('') +
+        visiblePhotos.slice(1).map(function (src, i) {
+          var index = i + 1;
+          var isLast = index === visiblePhotos.length - 1;
+          var overlayLabel = (isLast && remainingPhotosCount > 0) ? tpl(t('roomdetail.more_photos'), { n: remainingPhotosCount }) : '';
+          return collageSlideHtml(src, index, '', overlayLabel);
+        }).join('') +
       '</div>';
 
     var reviewCount = effectiveReviewCountForRoom(room);
@@ -1212,6 +1278,12 @@
   var CHILD_ROOM_COUNT_MIN_AGE = 3;
   var CHILD_TAX_MIN_AGE = 12;
   var CHILD_DEFAULT_AGE = 8;
+  // Se una stanza è già al tetto dei 3 "grandi", si può comunque aggiungere
+  // UN bambino in più solo come neonato (0-2, non conta nel limite): il
+  // nuovo bambino parte quindi già con un'età da neonato invece della età
+  // di default "grande", altrimenti il pulsante "+" risulterebbe bloccato
+  // anche quando in realtà un neonato ci starebbe ancora (bug corretto).
+  var CHILD_INFANT_DEFAULT_AGE = 1;
   // Opzioni stanza (letto a scelta, culla, letto singolo aggiuntivo): prezzi
   // fittizi/placeholder da confermare col gestore prima di essere reali.
   var CRIB_MAX = 1;
@@ -1235,6 +1307,18 @@
   }
   function infantsCount(childAges) {
     return childAges.filter(function (age) { return age < CHILD_ROOM_COUNT_MIN_AGE; }).length;
+  }
+  // Un altro bambino si può sempre aggiungere se non si è ancora al tetto
+  // dei "grandi", oppure — anche se ci si è già — se resta posto per un
+  // neonato in più (che non conta nel limite). Va di pari passo con
+  // childAgeForNewGuest, che sceglie l'età di default coerente.
+  function canAddAnotherChild(adults, childAges, max) {
+    var counted = countedGuests(adults, childAges);
+    if (counted < max) return true;
+    return infantsCount(childAges) < MAX_INFANTS_PER_ROOM;
+  }
+  function childAgeForNewGuest(adults, childAges, max) {
+    return countedGuests(adults, childAges) < max ? CHILD_DEFAULT_AGE : CHILD_INFANT_DEFAULT_AGE;
   }
   // Il tetto per stanza è fisso a 3 ospiti grandi (vedi nota sopra): il
   // letto singolo aggiuntivo è solo l'allestimento per arrivarci comodi,
@@ -1269,31 +1353,36 @@
     state.search.roomsManual = false;
     state.search.warning = '';
   }
-  // A esattamente 3 ospiti "contati" (adulti + bambini dai 3 anni in su,
-  // in qualsiasi combinazione) una stanza sola (con letto extra) o due
-  // stanze sono ENTRAMBE opzioni valide: invece di scegliere da sola in
-  // silenzio (come faceva prima), il sistema si mette in pausa e lo chiede
-  // esplicitamente in searchGuestsPopoverHtml (applySearchExtraBedChoice).
-  // Da 4 ospiti contati in su una stanza sola non basta comunque (nemmeno
-  // col letto extra): lì niente scelta, si torna alla raccomandazione
-  // automatica.
-  function isSingleRoomBoundary() {
-    return countedGuests(state.search.adults, state.search.childAges) === 3;
+  // Stanze necessarie per i soli ospiti "grandi" (3-99 anni), con o senza
+  // usare il letto singolo aggiuntivo (fino a 3/stanza con letto extra,
+  // fino a 2/stanza senza). Quando le due danno numeri diversi la scelta è
+  // genuinamente ambigua — vale per QUALSIASI numero di ospiti, non solo
+  // per 3 esatti come prima: es. a 6 ospiti bastano 2 stanze coi letti
+  // extra o ne servono 3 con letti normali, stessa ambiguità.
+  function roomsForBigGuestsWithExtraBed(bigGuests) {
+    return Math.max(1, Math.ceil(bigGuests / MAX_BIG_GUESTS_PER_ROOM));
+  }
+  function roomsForBigGuestsWithoutExtraBed(bigGuests) {
+    return Math.max(1, Math.ceil(bigGuests / (MAX_BIG_GUESTS_PER_ROOM - 1)));
+  }
+  function isRoomsChoiceAmbiguous(adults, childAges) {
+    var bigGuests = countedGuests(adults, childAges);
+    if (bigGuests < 3) return false;
+    return roomsForBigGuestsWithExtraBed(bigGuests) !== roomsForBigGuestsWithoutExtraBed(bigGuests);
   }
   function maybeUpdateRoomsRecommendation() {
-    if (isSingleRoomBoundary() && !state.search.extraBedChoice) return;
+    if (isRoomsChoiceAmbiguous(state.search.adults, state.search.childAges) && !state.search.extraBedChoice) return;
     var rec = recommendedRoomsForGroup(state.search.adults, state.search.childAges);
     if (!state.search.roomsManual || state.search.rooms < rec) applyRoomsRecommendation();
   }
   function applySearchExtraBedChoice(choice) {
     state.search.extraBedChoice = choice;
-    if (choice === 'extraBed') {
-      state.search.rooms = 1;
-      state.search.roomsManual = true;
-      state.search.warning = '';
-    } else {
-      applyRoomsRecommendation();
-    }
+    var bigGuests = countedGuests(state.search.adults, state.search.childAges);
+    var infants = infantsCount(state.search.childAges);
+    var roomsForBig = choice === 'extraBed' ? roomsForBigGuestsWithExtraBed(bigGuests) : roomsForBigGuestsWithoutExtraBed(bigGuests);
+    state.search.rooms = Math.min(totalRoomsCount(), Math.max(roomsForBig, infants));
+    state.search.roomsManual = true;
+    state.search.warning = '';
     renderSearch();
   }
   function searchAdultsInc() {
@@ -1560,33 +1649,31 @@
       '</div>'
     );
   }
-  // A esattamente 3 ospiti contati (adulti e/o bambini dai 3 anni in su)
-  // chiede esplicitamente cosa preferiscono invece di decidere in silenzio
-  // (vedi isSingleRoomBoundary/applySearchExtraBedChoice) — vale anche per
-  // un bambino tra i 3 e i 17 anni, trattato come un adulto ai fini della
-  // stanza. Da 4 ospiti contati in su una stanza sola non basta comunque:
-  // solo una nota informativa, niente scelta finta.
+  // Chiede esplicitamente cosa preferiscono invece di decidere in silenzio
+  // (vedi isRoomsChoiceAmbiguous/applySearchExtraBedChoice) ogni volta che
+  // usare il letto extra farebbe risparmiare almeno una stanza, per
+  // QUALSIASI numero di ospiti — non solo a 3 esatti. Quando letto extra o
+  // no non cambia il numero di stanze necessarie, niente scelta finta.
   function extraBedChoiceHtml(s) {
     var counted = countedGuests(s.adults, s.childAges);
-    if (counted < 3) return '';
-    if (counted === 3 && !s.extraBedChoice) {
+    if (!isRoomsChoiceAmbiguous(s.adults, s.childAges)) return '';
+    var withBed = roomsForBigGuestsWithExtraBed(counted);
+    var withoutBed = roomsForBigGuestsWithoutExtraBed(counted);
+    if (!s.extraBedChoice) {
       return (
         '<div class="search-extrabed-choice">' +
           '<div class="search-extrabed-choice-text">' + escapeHtml(t('search.extrabed_choice_text')) + '</div>' +
           '<div class="search-extrabed-choice-actions">' +
-            '<button type="button" class="flex-result-chip" data-search-extrabed-choice="extraBed">' + escapeHtml(t('search.extrabed_choice_bed')) + '</button>' +
-            '<button type="button" class="flex-result-chip" data-search-extrabed-choice="secondRoom">' + escapeHtml(t('search.extrabed_choice_room')) + '</button>' +
+            '<button type="button" class="flex-result-chip" data-search-extrabed-choice="extraBed">' + escapeHtml(tpl(t('search.extrabed_choice_bed_n'), { rooms: roomsCountLabel(withBed) })) + '</button>' +
+            '<button type="button" class="flex-result-chip" data-search-extrabed-choice="secondRoom">' + escapeHtml(tpl(t('search.extrabed_choice_room_n'), { rooms: roomsCountLabel(withoutBed) })) + '</button>' +
           '</div>' +
         '</div>'
       );
     }
-    if (counted === 3 && s.extraBedChoice === 'extraBed') {
-      return '<div class="range-hint">' + escapeHtml(t('search.extrabed_choice_confirmed')) + '</div>';
+    if (s.extraBedChoice === 'extraBed') {
+      return '<div class="range-hint">' + escapeHtml(tpl(t('search.extrabed_choice_confirmed_n'), { rooms: roomsCountLabel(withBed) })) + '</div>';
     }
-    if (counted === 3 && s.extraBedChoice === 'secondRoom') {
-      return '<div class="range-hint">' + escapeHtml(tpl(t('search.extrabed_choice_room_confirmed'), { n: recommendedRoomsForGroup(s.adults, s.childAges) })) + '</div>';
-    }
-    return '';
+    return '<div class="range-hint">' + escapeHtml(tpl(t('search.extrabed_choice_room_confirmed'), { n: withoutBed })) + '</div>';
   }
   // Sempre visibile mentre si scelgono ospiti/bambini: quante stanze
   // servono per questo gruppo, in chiaro — non solo nei casi limite.
@@ -2012,6 +2099,18 @@
   function guestsSummaryCardHtml() {
     var nights = daysBetween(state.selectedCheckIn, state.selectedCheckOut);
     var guestsLabel = guestsSummaryLabel(state.guestsAdults, state.guestsChildAges);
+    // Bug corretto: gli ospiti arrivati dalla ricerca (es. 10 persone) non
+    // erano mai confrontati con la capienza di QUESTA stanza in questo
+    // riepilogo — si poteva proseguire e finire per stipare tutti in una
+    // stanza sola. Stesso controllo del form di modifica (guestsEditFormHtml),
+    // con CTA per passare alla prenotazione di gruppo multi-stanza.
+    var room = currentRoom();
+    var baseMax = effectiveMaxGuests(room);
+    var counted = countedGuests(state.guestsAdults, state.guestsChildAges);
+    var infants = infantsCount(state.guestsChildAges);
+    var overCapacity = counted > baseMax;
+    var tooManyInfants = infants > MAX_INFANTS_PER_ROOM;
+    var blocked = overCapacity || tooManyInfants;
     return (
       '<div class="checkout-card">' +
         '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' +
@@ -2021,8 +2120,11 @@
       '</div>' +
       '<div class="range-hint">' + escapeHtml(t('booking.guests_from_search_note')) + '</div>' +
       '<button type="button" class="link-btn" data-guests-edit>' + escapeHtml(t('booking.modifica_ospiti')) + '</button>' +
+      (tooManyInfants ? '<div class="booking-alert">' + escapeHtml(t('room.too_many_infants_hint')) + '</div>' : '') +
+      (overCapacity ? '<div class="booking-alert">' + escapeHtml(t('room.over_capacity_hint')) + '</div>' : '') +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step>' + escapeHtml(t('booking.step_options_title')) + ' →</button>' +
+      (blocked ? '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.switch_to_group_cta')) + '</button>' : '') +
+      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step' + (blocked ? ' disabled' : '') + '>' + escapeHtml(t('booking.step_options_title')) + ' →</button>' +
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
@@ -2035,6 +2137,11 @@
     var overCapacity = counted > baseMax;
     var tooManyInfants = infants > MAX_INFANTS_PER_ROOM;
     var blocked = overCapacity || tooManyInfants;
+    // Il "+" bambini resta attivo anche a stanza piena se c'è ancora posto
+    // per UN neonato (childAgeForNewGuest lo aggiungerà già con un'età da
+    // neonato): si blocca solo quando davvero non c'è più posto, nemmeno
+    // per un neonato.
+    var childIncDisabled = !canAddAnotherChild(state.guestsAdults, state.guestsChildAges, baseMax);
     return (
       '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div></div>' +
       '<div class="slot-label">' + escapeHtml(t('booking.step_guests_title')) + '</div>' +
@@ -2051,7 +2158,7 @@
         '<div class="search-stepper">' +
           '<button type="button" class="search-stepper-btn" data-guest-children-dec' + (state.guestsChildAges.length <= 0 ? ' disabled' : '') + '>−</button>' +
           '<span class="search-stepper-value">' + state.guestsChildAges.length + '</span>' +
-          '<button type="button" class="search-stepper-btn" data-guest-children-inc' + (atCapacity ? ' disabled' : '') + '>+</button>' +
+          '<button type="button" class="search-stepper-btn" data-guest-children-inc' + (childIncDisabled ? ' disabled' : '') + '>+</button>' +
         '</div>' +
       '</div>' +
       guestsChildAgesHtml(state.guestsChildAges, 'data-guest-child-age') +
@@ -2061,6 +2168,7 @@
       (tooManyInfants ? '<div class="booking-alert">' + escapeHtml(t('room.too_many_infants_hint')) + '</div>' : '') +
       (overCapacity ? '<div class="booking-alert">' + escapeHtml(t('room.over_capacity_hint')) + '</div>' : '') +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
+      (blocked ? '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.switch_to_group_cta')) + '</button>' : '') +
       '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step' + (blocked ? ' disabled' : '') + '>' + escapeHtml(t('booking.step_options_title')) + ' →</button>' +
       '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
@@ -2420,7 +2528,8 @@
   }
   function guestChildrenInc() {
     var room = currentRoom(); var max = effectiveMaxGuests(room);
-    if (countedGuests(state.guestsAdults, state.guestsChildAges.concat([CHILD_DEFAULT_AGE])) <= max) state.guestsChildAges.push(CHILD_DEFAULT_AGE);
+    if (!canAddAnotherChild(state.guestsAdults, state.guestsChildAges, max)) return;
+    state.guestsChildAges.push(childAgeForNewGuest(state.guestsAdults, state.guestsChildAges, max));
     syncExtraBedToCapacity();
     renderBookingModal();
   }
@@ -2454,6 +2563,10 @@
   function openGroupBooking() {
     var s = state.search;
     var searched = !!(s.checkIn && s.checkOut);
+    // Se il modale è già aperto (es. si passa qui dalla prenotazione a
+    // stanza singola perché gli ospiti non ci stanno), non pushare un
+    // secondo stato nella cronologia: ce n'è già uno per il modale stesso.
+    var wasAlreadyOpen = state.bookingOpen;
     state.groupMode = true;
     state.bookingOpen = true;
     state.bookingStep = searched ? 2 : 1;
@@ -2472,7 +2585,7 @@
     state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
     renderBookingModal();
     updateStickyBarVisibility();
-    pushOverlayHistoryState();
+    if (!wasAlreadyOpen) pushOverlayHistoryState();
   }
   function groupAllocBigCount(alloc) {
     return alloc.adults + alloc.childIdxs.filter(function (ci) { return state.guestsChildAges[ci] >= CHILD_ROOM_COUNT_MIN_AGE; }).length;
@@ -2888,6 +3001,69 @@
   function openLegal(id) { state.legalOpen = true; state.activeLegalId = id; renderLegalModal(); updateStickyBarVisibility(); pushOverlayHistoryState(); }
   function closeLegal() { closeOverlayHistoryState(); state.legalOpen = false; renderLegalModal(); updateStickyBarVisibility(); }
 
+  /* ==========================================================================
+     Assistenza — bottone flottante con chat a opzioni preimpostate: nessun
+     campo di testo libero, l'ospite sceglie sempre tra bottoni. Non è
+     agganciata al tasto/gesto indietro del telefono (vedi
+     pushOverlayHistoryState sopra) perché è un widget leggero sempre
+     accessibile, non un overlay a schermo intero come gli altri.
+     ========================================================================== */
+  function toggleAssistChat() {
+    state.assistChatOpen = !state.assistChatOpen;
+    if (state.assistChatOpen) state.assistChatNode = 'root';
+    renderAssistChat();
+  }
+  function assistChatGoto(nodeKey) {
+    if (!ASSIST_CHAT_TREE[nodeKey]) return;
+    state.assistChatNode = nodeKey;
+    renderAssistChat();
+  }
+  function assistChatBack() {
+    state.assistChatNode = 'root';
+    renderAssistChat();
+  }
+  function runAssistChatAction(action) {
+    if (action === 'scrollRooms') {
+      state.assistChatOpen = false; renderAssistChat();
+      scrollSectionIntoView('stanze');
+    } else if (action === 'scrollLocation') {
+      state.assistChatOpen = false; renderAssistChat();
+      scrollSectionIntoView('posizione');
+    } else if (action === 'openWhatsapp') {
+      window.open(waLink(t('assist.whatsapp_prefill')), '_blank', 'noopener');
+    } else if (action === 'openCancelLookup') {
+      window.open('cancella.html', '_blank', 'noopener');
+    }
+  }
+  function renderAssistChat() {
+    var root = document.getElementById('assist-chat-root');
+    if (!root) return;
+    var open = state.assistChatOpen;
+    var node = ASSIST_CHAT_TREE[state.assistChatNode] || ASSIST_CHAT_TREE.root;
+    var isRoot = state.assistChatNode === 'root';
+    var optionsHtml = (node.options || []).map(function (key) {
+      return '<button type="button" class="assist-chat-option" data-assist-goto="' + key + '">' + escapeHtml(t(ASSIST_CHAT_OPTION_LABELS[key])) + '</button>';
+    }).join('');
+    var actionHtml = node.action ? '<button type="button" class="assist-chat-cta" data-assist-action="' + node.action + '">' + escapeHtml(t(node.actionLabel)) + '</button>' : '';
+    root.innerHTML =
+      '<button type="button" class="assist-chat-toggle' + (open ? ' is-open' : '') + '" data-assist-toggle aria-label="' + escapeHtml(t(open ? 'common.chiudi' : 'assist.toggle_aria')) + '">' +
+        (open
+          ? '×'
+          : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>') +
+      '</button>' +
+      (open ?
+        '<div class="assist-chat-panel">' +
+          '<div class="assist-chat-header">' + escapeHtml(t('assist.header')) + '</div>' +
+          '<div class="assist-chat-body">' +
+            '<div class="assist-chat-bubble">' + escapeHtml(node.textDynamic ? node.textDynamic() : t(node.text)) + '</div>' +
+            (actionHtml ? '<div class="assist-chat-actions-inline">' + actionHtml + '</div>' : '') +
+            (optionsHtml ? '<div class="assist-chat-options">' + optionsHtml + '</div>' : '') +
+          '</div>' +
+          (!isRoot ? '<button type="button" class="assist-chat-back" data-assist-back>' + escapeHtml(t('assist.back')) + '</button>' : '') +
+        '</div>'
+      : '');
+  }
+
   function renderMediaZoomModal() {
     var root = document.getElementById('media-zoom-root');
     if (!root) return;
@@ -3090,6 +3266,8 @@
 
       el = e.target.closest('[data-open-group-booking]');
       if (el) { openGroupBooking(); return; }
+      el = e.target.closest('[data-switch-to-group-booking]');
+      if (el) { openGroupBooking(); return; }
       el = e.target.closest('[data-group-adults-inc]');
       if (el && !el.disabled) { groupAllocAdultsInc(Number(el.getAttribute('data-room-index'))); return; }
       el = e.target.closest('[data-group-adults-dec]');
@@ -3125,6 +3303,15 @@
       if (el) { closeLegal(); return; }
       el = e.target.closest('[data-accept-cookies]');
       if (el) { acceptCookies(); return; }
+
+      el = e.target.closest('[data-assist-toggle]');
+      if (el) { toggleAssistChat(); return; }
+      el = e.target.closest('[data-assist-goto]');
+      if (el) { assistChatGoto(el.getAttribute('data-assist-goto')); return; }
+      el = e.target.closest('[data-assist-back]');
+      if (el) { assistChatBack(); return; }
+      el = e.target.closest('[data-assist-action]');
+      if (el) { runAssistChatAction(el.getAttribute('data-assist-action')); return; }
 
       el = e.target.closest('#mono-prev');
       if (el) { monoPrev(); return; }
@@ -3276,6 +3463,7 @@
     renderLegalModal();
     renderCookieBanner();
     renderContactHostBar();
+    renderAssistChat();
     bindGlobalEvents();
     bindCarouselSwipe();
     bindMobileDrawer();

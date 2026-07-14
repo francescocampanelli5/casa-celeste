@@ -16,4 +16,4 @@
 // stesso pattern già in uso per TELEGRAM_BOT_TOKEN.
 // ==========================================================================
 
-window.STRIPE_PUBLISHABLE_KEY = "pk_test_INSERISCI_QUI_LA_TUA_CHIAVE_PUBBLICABILE";
+window.STRIPE_PUBLISHABLE_KEY = "pk_live_51TsvTdLJcvsCELnEsGHIt09r9ejwWCFLQa6JMhoXPNUqVIgIMIswEckHNX8MStMl8eJgWkEKYCjx7v4eLDh3k0vc008LAV5GCH";

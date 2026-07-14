@@ -415,4 +415,38 @@ async function cancelBookingCore(admin, db, stripe, data) {
   return { refundedAmount: refundBaseTotal, bookingIds: bookingDocs.map((b) => b.id) };
 }
 
-module.exports = { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBookingCore, computePaymentFee, CANCELLATION_CUTOFF_HOURS };
+function normalizeForMatch(s) {
+  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// lookupBookingForCancellationCore — trova una prenotazione senza il link
+// con token (es. ospite che l'ha persa/cancellata), usata dal widget di
+// assistenza. Chiede nome e cognome, email e data di check-in: i tre
+// insieme sono già praticamente impossibili da indovinare per chi non è
+// l'ospite. Query su checkIn (poche prenotazioni per data su una sola
+// struttura), poi confronto normalizzato di nome ed email in memoria — così
+// non serve un indice composto né campi "lower" duplicati sul documento.
+// In caso di mancata corrispondenza (qualunque campo) risponde SEMPRE con
+// lo stesso errore generico 'booking-not-found', senza mai rivelare quale
+// dato è sbagliato. Se trovata, restituisce bookingId/token: da qui in poi
+// il client procede esattamente come se fosse arrivato dal link email,
+// riusando cancelBookingCore senza duplicare la logica di rimborso/termini.
+async function lookupBookingForCancellationCore(db, data) {
+  const fullName = normalizeForMatch(data.fullName);
+  const email = normalizeForMatch(data.email);
+  const checkIn = isNonEmptyString(data.checkIn, 10) && isValidDateStr(data.checkIn) ? data.checkIn : '';
+  if (!fullName || !email || !checkIn) fail('invalid-argument', 'Compila tutti i campi.');
+
+  const snap = await db.collection('tourism_bookings').where('checkIn', '==', checkIn).get();
+  const match = snap.docs.find((doc) => {
+    const b = doc.data();
+    return b.source === 'site' && b.status !== 'annullato' &&
+      normalizeForMatch(b.name) === fullName && normalizeForMatch(b.email) === email;
+  });
+  if (!match) fail('not-found', 'booking-not-found');
+
+  const b = match.data();
+  return { bookingId: match.id, token: b.guestFormToken };
+}
+
+module.exports = { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBookingCore, lookupBookingForCancellationCore, computePaymentFee, CANCELLATION_CUTOFF_HOURS };

@@ -914,8 +914,8 @@ button { font-family: inherit; }
   position: absolute; bottom: 8px; left: 8px; z-index: 2;
   font-size: 10.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
   border-radius: var(--radius-pill); padding: 5px 12px; color: var(--white);
-  background: linear-gradient(135deg, #FF6B4A, #E8265A);
-  box-shadow: 0 4px 12px -2px rgba(232,38,90,0.55);
+  background: linear-gradient(135deg, #FFC736, #F5A300);
+  box-shadow: 0 4px 12px -2px rgba(245,163,0,0.6);
 }
 .room-list-item--occupied { opacity: 0.72; }
 .room-list-desc { font-size: 12.5px; color: var(--text-muted); font-weight: 600; margin: 2px 0 8px; }
@@ -970,6 +970,10 @@ button { font-family: inherit; }
 .rd-collage-tile .photo-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
 .rd-collage-tile img { width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform .2s ease; }
 .rd-collage-tile:hover img { transform: scale(1.04); }
+.rd-collage-more-overlay {
+  position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center;
+  background: rgba(16, 35, 59, 0.55); color: var(--white); font-weight: 800; font-size: 15px; letter-spacing: 0.01em;
+}
 .rd-back-btn, .rd-share-btn {
   position: absolute; top: 16px; z-index: 2; width: 40px; height: 40px; border-radius: 50%;
   background: rgba(255,255,255,0.92); border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(16,35,59,0.18);
@@ -1243,6 +1247,58 @@ button { font-family: inherit; }
 .cookie-link { background: none; border: none; color: var(--yellow); font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline; }
 .btn-cookie-accept { background: var(--yellow); color: var(--navy); border: none; padding: 10px 20px; border-radius: var(--radius-pill); font-weight: 800; font-size: 13px; cursor: pointer; white-space: nowrap; }
 .btn-cookie-accept:hover { background: var(--white); }
+
+/* ==========================================================================
+   Assistenza — bottone flottante + chat a opzioni preimpostate (niente
+   testo libero dall'ospite, solo bottoni)
+   ========================================================================== */
+.assist-chat-toggle {
+  position: fixed; right: 18px; bottom: 18px; z-index: 65;
+  width: 56px; height: 56px; border-radius: 50%; border: none;
+  background: var(--blue-deep); color: var(--white); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 12px 28px -10px rgba(16,35,59,0.45);
+  font-size: 26px; line-height: 1; transition: transform .15s ease, background .15s ease;
+}
+.assist-chat-toggle:hover { transform: scale(1.05); background: var(--navy); }
+.assist-chat-toggle.is-open { background: var(--navy); }
+.assist-chat-panel {
+  position: fixed; right: 18px; bottom: 84px; z-index: 65;
+  width: min(340px, calc(100vw - 36px)); max-height: min(480px, calc(100vh - 140px));
+  background: var(--white); border-radius: 20px; overflow: hidden;
+  box-shadow: 0 24px 48px -18px rgba(16,35,59,0.5);
+  display: flex; flex-direction: column;
+}
+.assist-chat-header {
+  background: var(--blue-deep); color: var(--white); font-weight: 800; font-size: 15px;
+  padding: 16px 20px;
+}
+.assist-chat-body { padding: 18px 20px; overflow-y: auto; flex: 1; }
+.assist-chat-bubble {
+  background: var(--panel-bg, #F3F7FA); color: var(--text-body); font-size: 14px; line-height: 1.6;
+  border-radius: 14px; padding: 12px 14px; margin-bottom: 14px;
+}
+.assist-chat-actions-inline { margin-bottom: 14px; }
+.assist-chat-cta {
+  width: 100%; background: var(--yellow); color: var(--navy); border: none; border-radius: var(--radius-pill);
+  font-weight: 800; font-size: 13.5px; padding: 11px 16px; cursor: pointer;
+}
+.assist-chat-cta:hover { background: var(--yellow-deep, var(--yellow)); }
+.assist-chat-options { display: flex; flex-direction: column; gap: 8px; }
+.assist-chat-option {
+  text-align: left; background: var(--white); border: 1.5px solid var(--border-light, #E1E8ED);
+  border-radius: 12px; padding: 11px 14px; font-size: 13.5px; font-weight: 700; color: var(--navy);
+  cursor: pointer; transition: border-color .15s ease, background .15s ease;
+}
+.assist-chat-option:hover { border-color: var(--blue-deep); background: var(--panel-bg, #F3F7FA); }
+.assist-chat-back {
+  background: none; border: none; border-top: 1px solid var(--border-light, #E1E8ED);
+  color: var(--blue-deep); font-weight: 700; font-size: 13px; padding: 12px 20px; cursor: pointer; text-align: left;
+}
+@media (max-width: 480px) {
+  .assist-chat-toggle { right: 14px; bottom: 14px; width: 52px; height: 52px; }
+  .assist-chat-panel { right: 14px; left: 14px; width: auto; bottom: 76px; }
+}
 
 /* ==========================================================================
    Dashboard (owner-only page)

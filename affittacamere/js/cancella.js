@@ -13,7 +13,12 @@
     busy: false,
     actionError: '',
     done: false,
-    refundedAmount: 0
+    refundedAmount: 0,
+    // Ricerca senza token (link dell'email perso, es. arrivo dal widget di
+    // assistenza): niente bookingId/token nell'URL finché la ricerca non
+    // trova una corrispondenza esatta.
+    lookupBusy: false,
+    lookupError: ''
   };
 
   function escapeHtml(str) {
@@ -39,13 +44,22 @@
     var titleEl = document.getElementById('cancel-title');
     var subtitleEl = document.getElementById('cancel-subtitle');
     var noticeEl = document.getElementById('cancel-notice');
+    var lookupFormEl = document.getElementById('cancel-lookup-form');
     var detailsEl = document.getElementById('cancel-details');
     var successEl = document.getElementById('cancel-success');
 
     if (!bookingId || !token) {
-      subtitleEl.textContent = 'Link non valido: controlla di aver aperto il link ricevuto per intero.';
+      subtitleEl.textContent = 'Trova la tua prenotazione per procedere con la cancellazione.';
+      lookupFormEl.style.display = '';
+      var lookupErrorEl = document.getElementById('cancel-lookup-error');
+      lookupErrorEl.style.display = state.lookupError ? '' : 'none';
+      lookupErrorEl.textContent = state.lookupError;
+      var lookupBtn = document.getElementById('cancel-lookup-btn');
+      lookupBtn.disabled = state.lookupBusy;
+      lookupBtn.textContent = state.lookupBusy ? 'Ricerca in corso…' : 'Cerca la mia prenotazione';
       return;
     }
+    lookupFormEl.style.display = 'none';
     if (state.loadError) {
       subtitleEl.textContent = ' ';
       noticeEl.style.display = '';
@@ -145,13 +159,7 @@
     });
   }
 
-  function init() {
-    document.getElementById('cancel-confirm-btn').addEventListener('click', doCancel);
-    document.getElementById('cancel-terms-link').addEventListener('click', function () {
-      window.location.href = 'index.html#top';
-    });
-
-    if (!bookingId || !token) { render(); return; }
+  function loadBooking() {
     if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) {
       state.loadError = 'Servizio non configurato.'; render(); return;
     }
@@ -162,6 +170,49 @@
       state.loadError = (err && err.message) || 'Link non valido o scaduto.';
       render();
     });
+  }
+
+  // Ricerca senza token: nome+email+data di check-in devono corrispondere
+  // ESATTAMENTE a una prenotazione (vedi lookupBookingForCancellationCore
+  // lato server) — in caso contrario risponde sempre con lo stesso
+  // messaggio generico, senza mai rivelare quale dato è sbagliato.
+  function doLookup() {
+    if (state.lookupBusy) return;
+    var fullName = document.getElementById('cancel-lookup-name').value.trim();
+    var email = document.getElementById('cancel-lookup-email').value.trim();
+    var checkIn = document.getElementById('cancel-lookup-checkin').value.trim();
+    if (!fullName || !email || !checkIn) {
+      state.lookupError = 'Compila tutti i campi.';
+      render();
+      return;
+    }
+    if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) {
+      state.lookupError = 'Servizio non configurato.'; render(); return;
+    }
+    state.lookupBusy = true; state.lookupError = '';
+    render();
+    window.CasaCelesteTourismDB.lookupBookingForCancellation({ fullName: fullName, email: email, checkIn: checkIn }).then(function (res) {
+      state.lookupBusy = false;
+      bookingId = res.bookingId;
+      token = res.token;
+      render();
+      loadBooking();
+    }).catch(function () {
+      state.lookupBusy = false;
+      state.lookupError = 'Prenotazione non trovata o dati errati.';
+      render();
+    });
+  }
+
+  function init() {
+    document.getElementById('cancel-confirm-btn').addEventListener('click', doCancel);
+    document.getElementById('cancel-lookup-btn').addEventListener('click', doLookup);
+    document.getElementById('cancel-terms-link').addEventListener('click', function () {
+      window.location.href = 'index.html#top';
+    });
+
+    if (!bookingId || !token) { render(); return; }
+    loadBooking();
   }
 
   if (document.readyState === 'loading') {

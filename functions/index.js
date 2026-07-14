@@ -23,7 +23,7 @@ const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https')
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBookingCore } = require('./booking-logic');
+const { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBookingCore, lookupBookingForCancellationCore } = require('./booking-logic');
 const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-verification');
 const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString } = require('./guest-documents');
 const { handleTelegramUpdate } = require('./telegram-bot');
@@ -196,6 +196,25 @@ exports.cancelBooking = onCall({ secrets: [stripeSecretKey] }, async (request) =
   try {
     return await cancelBookingCore(admin, db, stripe, data);
   } catch (err) {
+    if (err.code) throw new HttpsError(err.code, err.message);
+    throw new HttpsError('internal', 'Errore imprevisto: riprova.');
+  }
+});
+
+/* ==========================================================================
+   lookupBookingForCancellation — usata dal widget di assistenza (opzione
+   "Cancellazione") per chi non ha più sottomano il link con token: ritrova
+   la prenotazione da nome+email+data di check-in e restituisce lo stesso
+   bookingId/token del link email, così il client richiama poi cancelBooking
+   esattamente come dal flusso normale. Errore sempre generico per non
+   rivelare quale dato è sbagliato — vedi lookupBookingForCancellationCore.
+   ========================================================================== */
+exports.lookupBookingForCancellation = onCall(async (request) => {
+  const data = request.data || {};
+  try {
+    return await lookupBookingForCancellationCore(db, data);
+  } catch (err) {
+    if (err.code === 'not-found') throw new HttpsError('not-found', 'booking-not-found');
     if (err.code) throw new HttpsError(err.code, err.message);
     throw new HttpsError('internal', 'Errore imprevisto: riprova.');
   }

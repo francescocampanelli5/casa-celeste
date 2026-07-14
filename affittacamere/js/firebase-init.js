@@ -276,6 +276,14 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'getBookingForGuestForm')(data).then(function (res) { return res.data; });
   },
+  // Ritrova bookingId/token da nome+email+data di check-in, per chi vuole
+  // cancellare dal widget di assistenza senza avere più sottomano il link
+  // con token dell'email di conferma — vedi lookupBookingForCancellationCore
+  // in functions/booking-logic.js.
+  lookupBookingForCancellation: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'lookupBookingForCancellation')(data).then(function (res) { return res.data; });
+  },
   // Conferma identificazione ospite (videochiamata 1h prima del check-in con
   // documento in mano, o videocitofono solo la prima volta) — registra
   // l'ospite come "già verificato" per riconoscerlo in automatico ai

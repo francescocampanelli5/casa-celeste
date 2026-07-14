@@ -2,8 +2,24 @@ name: Affittacamere — sincronizzazione calendario iCal
 
 on:
   schedule:
-    - cron: '0 */3 * * *'
+    # Ogni 5 minuti (il minimo pratico supportato da GitHub Actions): è il
+    # massimo che possiamo stringere dal nostro lato. Airbnb/Booking.com
+    # però aggiornano il LORO file iCal esportato secondo i propri tempi
+    # (in genere entro qualche ora, non istantaneo neanche per loro): anche
+    # interrogandolo ogni 5 minuti, una prenotazione appena fatta su Airbnb
+    # può comparire qui con lo stesso ritardo con cui compare nel loro
+    # export — non è un limite di questo script, è un limite del
+    # meccanismo iCal stesso (nessun canale ci notifica in tempo reale).
+    - cron: '*/5 * * * *'
   workflow_dispatch: {}
+
+# Con una schedulazione così stretta, se un run impiega più di 5 minuti il
+# successivo partirebbe mentre il precedente è ancora attivo: due push
+# concorrenti sullo stesso branch andrebbero in conflitto. Questo mette in
+# coda i run invece di farli sovrapporre (nessuno viene annullato).
+concurrency:
+  group: affittacamere-ical-sync
+  cancel-in-progress: false
 
 jobs:
   sync:
