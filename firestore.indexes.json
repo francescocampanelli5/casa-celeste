@@ -12,8 +12,8 @@
       "collectionGroup": "tourism_bookings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "checkIn", "order": "ASCENDING" },
-        { "fieldPath": "guestDocsComplete", "order": "ASCENDING" }
+        { "fieldPath": "guestDocsComplete", "order": "ASCENDING" },
+        { "fieldPath": "checkIn", "order": "ASCENDING" }
       ]
     },
     {
@@ -36,8 +36,8 @@
       "collectionGroup": "tourism_bookings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "checkOut", "order": "ASCENDING" },
-        { "fieldPath": "thankYouEmailSent", "order": "ASCENDING" }
+        { "fieldPath": "thankYouEmailSent", "order": "ASCENDING" },
+        { "fieldPath": "checkOut", "order": "ASCENDING" }
       ]
     },
     {
