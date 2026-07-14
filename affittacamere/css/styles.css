@@ -1291,6 +1291,16 @@ button { font-family: inherit; }
   cursor: pointer; transition: border-color .15s ease, background .15s ease;
 }
 .assist-chat-option:hover { border-color: var(--blue-deep); background: var(--panel-bg, #F3F7FA); }
+.assist-chat-textarea {
+  width: 100%; border: 1.5px solid var(--border-light, #E1E8ED); border-radius: 12px; padding: 11px 14px;
+  font-family: inherit; font-size: 13.5px; color: var(--text-body); resize: vertical; margin-bottom: 10px;
+}
+.assist-chat-textarea:focus { outline: none; border-color: var(--blue-deep); }
+.assist-chat-escalate {
+  display: block; width: 100%; background: none; border: none; margin-top: 6px;
+  color: var(--blue-deep); font-weight: 700; font-size: 12.5px; padding: 8px 4px; cursor: pointer; text-align: left;
+  text-decoration: underline;
+}
 .assist-chat-back {
   background: none; border: none; border-top: 1px solid var(--border-light, #E1E8ED);
   color: var(--blue-deep); font-weight: 700; font-size: 13px; padding: 12px 20px; cursor: pointer; text-align: left;

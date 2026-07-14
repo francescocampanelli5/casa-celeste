@@ -21,16 +21,24 @@
   ];
 
   // Widget di assistenza: albero di opzioni preimpostate, l'ospite non
-  // scrive mai testo libero, sceglie solo tra i bottoni proposti. Ogni nodo
-  // ha un testo e, a scelta, una lista di sotto-opzioni (options) e/o
-  // un'azione con bottone dedicato (action/actionLabel). "root" è la
-  // schermata iniziale, ogni altro nodo mostra il bottone "torna al menu".
+  // scrive mai testo libero (unica eccezione: il messaggio da inoltrare via
+  // WhatsApp nel nodo "message", che è l'unico posto pensato apposta per
+  // scrivere). Ogni nodo ha un testo e, a scelta, una lista di sotto-opzioni
+  // (options) e/o un'azione con bottone dedicato (action/actionLabel).
+  // "root" è la schermata iniziale. Il link "Non hai trovato quello che
+  // cercavi?" è sempre visibile (tranne dentro al nodo contact/message
+  // stesso, per non fare un giro su se stesso) e porta al nodo "contact":
+  // scegliere se lasciare un messaggio (poi inoltrato via WhatsApp) o
+  // aprire subito la chat WhatsApp diretta — con gli orari di disponibilità
+  // sempre mostrati prima.
   var ASSIST_CHAT_TREE = {
     root: {
       text: 'assist.root_text',
-      options: ['rooms', 'cancel', 'checkin', 'location', 'whatsapp']
+      options: ['rooms', 'price', 'document', 'cancel', 'checkin', 'location']
     },
     rooms: { text: 'assist.rooms_text', action: 'scrollRooms', actionLabel: 'assist.rooms_cta' },
+    price: { text: 'assist.price_text' },
+    document: { text: 'assist.document_text' },
     cancel: { text: 'assist.cancel_text', action: 'openCancelLookup', actionLabel: 'assist.cancel_cta' },
     checkin: {
       text: 'assist.checkin_text',
@@ -41,14 +49,22 @@
       }
     },
     location: { text: 'assist.location_text', action: 'scrollLocation', actionLabel: 'assist.location_cta' },
-    whatsapp: { text: 'assist.whatsapp_text', action: 'openWhatsapp', actionLabel: 'assist.whatsapp_cta' }
+    contact: {
+      text: 'assist.contact_text',
+      options: ['message'],
+      action: 'openWhatsappDirect',
+      actionLabel: 'assist.contact_wa_cta'
+    },
+    message: { text: 'assist.message_text', isMessageForm: true }
   };
   var ASSIST_CHAT_OPTION_LABELS = {
     rooms: 'assist.opt_rooms',
+    price: 'assist.opt_price',
+    document: 'assist.opt_document',
     cancel: 'assist.opt_cancel',
     checkin: 'assist.opt_checkin',
     location: 'assist.opt_location',
-    whatsapp: 'assist.opt_whatsapp'
+    message: 'assist.opt_message'
   };
 
   // Testi legali — vedi Fase B del piano: privacy policy molto più
@@ -449,10 +465,6 @@
       el.classList.toggle('is-active', el.getAttribute('data-lang-set') === state.lang);
     });
 
-    var finalWa = document.getElementById('finalcta-wa');
-    if (finalWa) finalWa.href = waLink(t('finalcta.wa_text'));
-    var footerWa = document.getElementById('footer-wa');
-    if (footerWa) footerWa.href = waLink(t('finalcta.wa_text'));
     var footerWaPlain = document.getElementById('footer-wa-plain');
     if (footerWaPlain) footerWaPlain.href = 'https://wa.me/' + waNumber();
     var footerWaNumberText = document.getElementById('footer-wa-number');
@@ -1205,7 +1217,6 @@
         roomDetailKnowHtml(room) +
       '</div>';
 
-    var chatWa = waLink(tpl(t('room.wa_info_room'), { room: room.name }));
     var galleryHtml = state.roomDetail.galleryOpen ? roomDetailGalleryHtml(room, photos) : '';
 
     // Il contenitore scrollabile viene ricreato a ogni render (innerHTML
@@ -1227,7 +1238,7 @@
             '<div class="rd-collage">' + stripHtml + '</div>' +
           '</div>' +
           '<div class="rd-body">' +
-            '<a href="' + escapeHtml(chatWa) + '" target="_blank" rel="noopener" class="btn btn-whatsapp rd-chat-btn">' + escapeHtml(t('roomdetail.chat_host')) + '</a>' +
+            '<button type="button" data-open-assist class="btn btn-whatsapp rd-chat-btn">' + escapeHtml(t('roomdetail.chat_host')) + '</button>' +
             '<h1 class="rd-room-name">' + escapeHtml(room.name) + '</h1>' +
             '<div class="rd-address"><svg width="14" height="14"><use href="#icon-pin"></use></svg>' + escapeHtml(HOUSE_ADDRESS) + '</div>' +
             '<div class="rd-meta-line">' + escapeHtml(metaLine) + '</div>' +
@@ -3013,6 +3024,14 @@
     if (state.assistChatOpen) state.assistChatNode = 'root';
     renderAssistChat();
   }
+  // Forza l'apertura (a differenza di toggleAssistChat) — usata da tutti i
+  // bottoni "Contatta l'host" del sito: prima di finire su WhatsApp,
+  // l'ospite passa sempre da qui.
+  function openAssistChat() {
+    state.assistChatOpen = true;
+    state.assistChatNode = 'root';
+    renderAssistChat();
+  }
   function assistChatGoto(nodeKey) {
     if (!ASSIST_CHAT_TREE[nodeKey]) return;
     state.assistChatNode = nodeKey;
@@ -3029,11 +3048,31 @@
     } else if (action === 'scrollLocation') {
       state.assistChatOpen = false; renderAssistChat();
       scrollSectionIntoView('posizione');
-    } else if (action === 'openWhatsapp') {
+    } else if (action === 'openWhatsappDirect') {
       window.open(waLink(t('assist.whatsapp_prefill')), '_blank', 'noopener');
     } else if (action === 'openCancelLookup') {
       window.open('cancella.html', '_blank', 'noopener');
     }
+  }
+  // Unica eccezione al "niente testo libero": il messaggio da inoltrare via
+  // WhatsApp. Non si rilegge lo stato a ogni tasto (evitando di dover
+  // ricostruire l'innerHTML e perdere il focus/cursore): si legge il valore
+  // dal DOM solo al momento dell'invio.
+  function sendAssistMessage() {
+    var inputEl = document.getElementById('assist-chat-message-input');
+    var text = inputEl ? inputEl.value.trim() : '';
+    var errEl = document.getElementById('assist-chat-message-error');
+    if (!text) {
+      if (errEl) { errEl.textContent = t('assist.message_empty_error'); errEl.style.display = ''; }
+      return;
+    }
+    window.open(waLink(tpl(t('assist.message_wa_prefix'), { message: text })), '_blank', 'noopener');
+    // Chat "temporanea": si chiude e si azzera subito, nessuna traccia
+    // salvata del messaggio da nessuna parte oltre al link WhatsApp appena
+    // aperto (che l'ospite deve comunque confermare di suo pugno).
+    state.assistChatOpen = false;
+    state.assistChatNode = 'root';
+    renderAssistChat();
   }
   function renderAssistChat() {
     var root = document.getElementById('assist-chat-root');
@@ -3041,10 +3080,17 @@
     var open = state.assistChatOpen;
     var node = ASSIST_CHAT_TREE[state.assistChatNode] || ASSIST_CHAT_TREE.root;
     var isRoot = state.assistChatNode === 'root';
+    var isMessageForm = !!node.isMessageForm;
+    var showEscalate = state.assistChatNode !== 'contact' && state.assistChatNode !== 'message';
     var optionsHtml = (node.options || []).map(function (key) {
       return '<button type="button" class="assist-chat-option" data-assist-goto="' + key + '">' + escapeHtml(t(ASSIST_CHAT_OPTION_LABELS[key])) + '</button>';
     }).join('');
     var actionHtml = node.action ? '<button type="button" class="assist-chat-cta" data-assist-action="' + node.action + '">' + escapeHtml(t(node.actionLabel)) + '</button>' : '';
+    var messageFormHtml = isMessageForm
+      ? '<textarea class="assist-chat-textarea" id="assist-chat-message-input" placeholder="' + escapeHtml(t('assist.message_placeholder')) + '" rows="4"></textarea>' +
+        '<div class="field-error" id="assist-chat-message-error" style="display:none;"></div>' +
+        '<button type="button" class="assist-chat-cta" data-assist-send-message>' + escapeHtml(t('assist.message_send_cta')) + '</button>'
+      : '';
     root.innerHTML =
       '<button type="button" class="assist-chat-toggle' + (open ? ' is-open' : '') + '" data-assist-toggle aria-label="' + escapeHtml(t(open ? 'common.chiudi' : 'assist.toggle_aria')) + '">' +
         (open
@@ -3058,6 +3104,8 @@
             '<div class="assist-chat-bubble">' + escapeHtml(node.textDynamic ? node.textDynamic() : t(node.text)) + '</div>' +
             (actionHtml ? '<div class="assist-chat-actions-inline">' + actionHtml + '</div>' : '') +
             (optionsHtml ? '<div class="assist-chat-options">' + optionsHtml + '</div>' : '') +
+            messageFormHtml +
+            (showEscalate ? '<button type="button" class="assist-chat-escalate" data-assist-goto="contact">' + escapeHtml(t('assist.escalate_cta')) + '</button>' : '') +
           '</div>' +
           (!isRoot ? '<button type="button" class="assist-chat-back" data-assist-back>' + escapeHtml(t('assist.back')) + '</button>' : '') +
         '</div>'
@@ -3306,12 +3354,16 @@
 
       el = e.target.closest('[data-assist-toggle]');
       if (el) { toggleAssistChat(); return; }
+      el = e.target.closest('[data-open-assist]');
+      if (el) { openAssistChat(); return; }
       el = e.target.closest('[data-assist-goto]');
       if (el) { assistChatGoto(el.getAttribute('data-assist-goto')); return; }
       el = e.target.closest('[data-assist-back]');
       if (el) { assistChatBack(); return; }
       el = e.target.closest('[data-assist-action]');
       if (el) { runAssistChatAction(el.getAttribute('data-assist-action')); return; }
+      el = e.target.closest('[data-assist-send-message]');
+      if (el) { sendAssistMessage(); return; }
 
       el = e.target.closest('#mono-prev');
       if (el) { monoPrev(); return; }
@@ -3407,9 +3459,9 @@
     var el = document.getElementById('contact-host-bar');
     if (!el) return;
     el.innerHTML =
-      '<a href="' + escapeHtml(waLink(t('finalcta.wa_text'))) + '" target="_blank" rel="noopener" class="btn btn-whatsapp contact-host-btn">' +
+      '<button type="button" data-open-assist class="btn btn-whatsapp contact-host-btn">' +
         '<svg width="18" height="18"><use href="#icon-chat"></use></svg>' + escapeHtml(t('contact.host_cta')) +
-      '</a>';
+      '</button>';
   }
   function updateStickyBarVisibility() {
     var el = document.getElementById('contact-host-bar');
