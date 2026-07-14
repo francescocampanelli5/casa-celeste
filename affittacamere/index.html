@@ -36,7 +36,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20">
+<!-- Preconnect a Stripe: la pagina di pagamento carica js.stripe.com solo
+     al momento del pagamento (step 5 del modale prenotazione) — anticipare
+     qui la connessione TLS accorcia sensibilmente il caricamento dei campi
+     carta/Apple Pay/Google Pay quando l'ospite ci arriva. -->
+<link rel="preconnect" href="https://js.stripe.com">
+<link rel="preconnect" href="https://api.stripe.com">
+<link rel="preconnect" href="https://m.stripe.network">
+<link rel="stylesheet" href="css/styles.css?v=21">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
@@ -481,11 +488,11 @@
 
 </div>
 <script src="js/data.js?v=5"></script>
-<script src="js/i18n.js?v=18"></script>
+<script src="js/i18n.js?v=19"></script>
 <script src="js/firebase-config.js?v=1"></script>
 <script type="module" src="js/firebase-init.js?v=6"></script>
 <script src="js/stripe-config.js?v=1"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="js/app.js?v=18" defer></script>
+<script src="js/app.js?v=19" defer></script>
 </body>
 </html>

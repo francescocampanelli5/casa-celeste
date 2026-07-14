@@ -2263,7 +2263,7 @@
      scrive direttamente nel DOM. renderBookingModal() viene richiamato solo
      per uscire dallo step (indietro, o successo dopo il pagamento).
      ========================================================================== */
-  var stripeClientRef = null, stripeElementsRef = null, stripePaymentElementRef = null;
+  var stripeClientRef = null, stripeElementsRef = null, stripePaymentElementRef = null, stripeExpressElementRef = null;
   function paymentQuotePayload() {
     if (state.groupMode) {
       var roomsPayload = state.groupAllocations.filter(function (a) { return a.roomId; }).map(function (alloc) {
@@ -2282,7 +2282,7 @@
     };
   }
   function paymentStepHtml() {
-    stripeClientRef = null; stripeElementsRef = null; stripePaymentElementRef = null;
+    stripeClientRef = null; stripeElementsRef = null; stripePaymentElementRef = null; stripeExpressElementRef = null;
     return (
       '<div class="slot-label">' + escapeHtml(t('booking.payment_step_title')) + '</div>' +
       '<div class="price-summary" id="payment-fee-breakdown">' +
@@ -2290,9 +2290,13 @@
         '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_payment_fee')) + '</span><span id="payment-fee-value">…</span></div>' +
         '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.payment_total_label')) + '</span><span id="payment-total-value">…</span></div>' +
       '</div>' +
-      '<div id="payment-element-container" class="payment-element-container"></div>' +
+      '<div class="payment-loading" id="payment-loading"><span class="payment-spinner"></span>' + escapeHtml(t('booking.payment_loading')) + '</div>' +
+      '<div id="payment-express-container" class="payment-express-container" style="display:none;"></div>' +
+      '<div class="payment-divider" id="payment-divider" style="display:none;"><span>' + escapeHtml(t('booking.payment_or_card')) + '</span></div>' +
+      '<div id="payment-element-container" class="payment-element-container" style="display:none;"></div>' +
       '<div class="field-error" id="payment-error" style="display:none;"></div>' +
       '<button type="button" class="payment-submit-btn" id="payment-submit-btn" disabled>' + escapeHtml(t('booking.payment_submit_cta')) + '</button>' +
+      '<div class="payment-secure-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>' + escapeHtml(t('booking.payment_secure_note')) + '</div>' +
       '<button type="button" class="link-btn link-btn--centered" data-back-to-contact>' + escapeHtml(t('booking.cambia_contatti')) + '</button>'
     );
   }
@@ -2303,8 +2307,31 @@
     var baseEl = document.getElementById('payment-base-value');
     var feeEl = document.getElementById('payment-fee-value');
     var container = document.getElementById('payment-element-container');
+    var expressContainer = document.getElementById('payment-express-container');
+    var dividerEl = document.getElementById('payment-divider');
+    var loadingEl = document.getElementById('payment-loading');
     function showError(msg) { errorEl.textContent = msg; errorEl.style.display = ''; }
+    function hideLoadingSkeleton() {
+      if (loadingEl) loadingEl.style.display = 'none';
+      container.style.display = '';
+    }
+    // Pagamento confermato lato Stripe (da bottone carta o da Apple
+    // Pay/Google Pay/Link): ora si crea davvero la prenotazione, con l'id
+    // del PaymentIntent salvato sulla prenotazione stessa (serve più avanti
+    // per un eventuale rimborso se l'ospite cancella, vedi
+    // cancella.html/cancelBookingCore).
+    function handlePaymentResult(result) {
+      if (result.error) {
+        showError(result.error.message || t('booking.payment_generic_error'));
+        submitBtn.disabled = false;
+        submitBtn.textContent = t('booking.payment_submit_cta');
+        return;
+      }
+      var paymentIntentId = result.paymentIntent && result.paymentIntent.id;
+      if (state.groupMode) confirmGroupBooking(paymentIntentId); else confirmBooking(paymentIntentId);
+    }
     if (!window.Stripe || !window.STRIPE_PUBLISHABLE_KEY || window.STRIPE_PUBLISHABLE_KEY.indexOf('INSERISCI') !== -1) {
+      if (loadingEl) loadingEl.style.display = 'none';
       showError(t('booking.payment_not_configured'));
       return;
     }
@@ -2314,11 +2341,39 @@
       feeEl.textContent = '€' + Number(res.fee).toFixed(2);
       totalEl.textContent = '€' + Number(res.amount).toFixed(2);
       stripeClientRef = window.Stripe(window.STRIPE_PUBLISHABLE_KEY);
-      stripeElementsRef = stripeClientRef.elements({ clientSecret: res.clientSecret });
+      // loader:'auto' mostra lo scheletro di caricamento nativo di Stripe
+      // dentro l'iframe stesso (oltre al nostro, rimosso non appena i campi
+      // sono pronti) — insieme ai preconnect in <head>, è quello che riduce
+      // di più la sensazione di attesa.
+      stripeElementsRef = stripeClientRef.elements({ clientSecret: res.clientSecret, loader: 'auto' });
+
+      // Bottoni diretti Apple Pay / Google Pay / Link, ben in vista sopra il
+      // form della carta — l'elemento si mostra da solo SOLO se il
+      // browser/dispositivo li supporta davvero (altrimenti resta nascosto,
+      // niente spazio vuoto in una schermata altrimenti vuota).
+      stripeExpressElementRef = stripeElementsRef.create('expressCheckout');
+      stripeExpressElementRef.mount(expressContainer);
+      stripeExpressElementRef.on('ready', function (event) {
+        if (event.availablePaymentMethods) {
+          expressContainer.style.display = '';
+          dividerEl.style.display = '';
+        }
+      });
+      stripeExpressElementRef.on('confirm', function () {
+        errorEl.style.display = 'none';
+        stripeClientRef.confirmPayment({ elements: stripeElementsRef, redirect: 'if_required' }).then(handlePaymentResult).catch(function (err) {
+          showError((err && err.message) || t('booking.payment_generic_error'));
+        });
+      });
+
       stripePaymentElementRef = stripeElementsRef.create('payment');
       stripePaymentElementRef.mount(container);
-      submitBtn.disabled = false;
+      stripePaymentElementRef.on('ready', function () {
+        hideLoadingSkeleton();
+        submitBtn.disabled = false;
+      });
     }).catch(function (err) {
+      if (loadingEl) loadingEl.style.display = 'none';
       showError((err && err.message) || t('booking.payment_generic_error'));
     });
 
@@ -2327,20 +2382,7 @@
       submitBtn.disabled = true;
       submitBtn.textContent = '…';
       errorEl.style.display = 'none';
-      stripeClientRef.confirmPayment({ elements: stripeElementsRef, redirect: 'if_required' }).then(function (result) {
-        if (result.error) {
-          showError(result.error.message || t('booking.payment_generic_error'));
-          submitBtn.disabled = false;
-          submitBtn.textContent = t('booking.payment_submit_cta');
-          return;
-        }
-        // Pagamento confermato lato Stripe: ora si crea davvero la
-        // prenotazione, con l'id del PaymentIntent salvato sulla
-        // prenotazione stessa (serve più avanti per un eventuale rimborso
-        // se l'ospite cancella, vedi cancella.html/cancelBookingCore).
-        var paymentIntentId = result.paymentIntent && result.paymentIntent.id;
-        if (state.groupMode) confirmGroupBooking(paymentIntentId); else confirmBooking(paymentIntentId);
-      }).catch(function (err) {
+      stripeClientRef.confirmPayment({ elements: stripeElementsRef, redirect: 'if_required' }).then(handlePaymentResult).catch(function (err) {
         showError((err && err.message) || t('booking.payment_generic_error'));
         submitBtn.disabled = false;
         submitBtn.textContent = t('booking.payment_submit_cta');
@@ -3016,14 +3058,9 @@
     state.assistChatMessageText = '';
     state.assistChatContactMethod = null;
   }
-  function toggleAssistChat() {
-    state.assistChatOpen = !state.assistChatOpen;
-    if (state.assistChatOpen) assistChatReset();
-    renderAssistChat();
-  }
-  // Forza l'apertura (a differenza di toggleAssistChat) — usata da tutti i
-  // bottoni "Contatta l'host" del sito: prima di finire su WhatsApp,
-  // l'ospite passa sempre da qui.
+  // Niente bottone flottante permanente: si apre solo passando da un
+  // bottone "Contatta l'host" del sito (vedi data-open-assist ovunque nel
+  // markup) — un'unica bolla verde invece di due bottoni sovrapposti.
   function openAssistChat() {
     state.assistChatOpen = true;
     assistChatReset();
@@ -3199,19 +3236,15 @@
       return;
     }
 
+    if (!open) { root.innerHTML = ''; return; }
     root.innerHTML =
-      '<button type="button" class="assist-chat-toggle' + (open ? ' is-open' : '') + '" data-assist-toggle aria-label="' + escapeHtml(t(open ? 'common.chiudi' : 'assist.toggle_aria')) + '">' +
-        (open
-          ? '×'
-          : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>') +
-      '</button>' +
-      (open ?
-        '<div class="assist-chat-panel">' +
-          '<div class="assist-chat-header">' + escapeHtml(t('assist.header')) + '</div>' +
-          '<div class="assist-chat-body">' + bodyHtml + '</div>' +
-          backHtml +
-        '</div>'
-      : '');
+      '<div class="assist-chat-panel">' +
+        '<div class="assist-chat-header">' + escapeHtml(t('assist.header')) +
+          '<button type="button" class="assist-chat-header-close" data-assist-close-chat aria-label="' + escapeHtml(t('common.chiudi')) + '">×</button>' +
+        '</div>' +
+        '<div class="assist-chat-body">' + bodyHtml + '</div>' +
+        backHtml +
+      '</div>';
   }
 
   function renderMediaZoomModal() {
@@ -3454,8 +3487,6 @@
       el = e.target.closest('[data-accept-cookies]');
       if (el) { acceptCookies(); return; }
 
-      el = e.target.closest('[data-assist-toggle]');
-      if (el) { toggleAssistChat(); return; }
       el = e.target.closest('[data-open-assist]');
       if (el) { openAssistChat(); return; }
       el = e.target.closest('[data-assist-goto]');
