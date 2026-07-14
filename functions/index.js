@@ -23,7 +23,7 @@ const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https')
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const { createBookingCore } = require('./booking-logic');
+const { createBookingCore, createGroupBookingCore } = require('./booking-logic');
 const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-verification');
 const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString } = require('./guest-documents');
 const { handleTelegramUpdate } = require('./telegram-bot');
@@ -45,6 +45,27 @@ async function notifyOwnerNewBooking(result, data) {
     const text = '🛎️ Nuova richiesta di prenotazione\n' + result.roomLabel + ' — ' + data.checkIn + ' → ' + data.checkOut +
       ' (' + result.nights + ' notti, ' + data.guests + ' ospiti)\n' + data.name + ' — ' + data.email + (data.phone ? ' — ' + data.phone : '') +
       '\nConfermala dalla dashboard quando vuoi.';
+    await Promise.all(recipients.map((r) => fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: r.chatId, text: text })
+    }).catch(() => {})));
+  } catch (e) {
+    // Notifica best-effort: non deve mai far fallire la creazione della prenotazione.
+  }
+}
+
+async function notifyOwnerNewGroupBooking(result, data) {
+  const token = telegramBotToken.value();
+  if (!token) return;
+  try {
+    const settingsSnap = await db.collection('tourism_settings').doc('site').get();
+    const recipients = ((settingsSnap.exists ? settingsSnap.data() : {}).bookingCommandAuthorized || [])
+      .filter((r) => r.enabled && r.chatId);
+    const roomLabels = result.bookings.map((b) => b.roomLabel).join(', ');
+    const text = '🛎️ Nuova richiesta di prenotazione di gruppo (' + result.bookings.length + ' stanze)\n' +
+      roomLabels + ' — ' + data.checkIn + ' → ' + data.checkOut + '\n' +
+      data.name + ' — ' + data.email + (data.phone ? ' — ' + data.phone : '') + '\n' +
+      'Totale: €' + result.grandTotal.toFixed(2) + '\nConfermala dalla dashboard quando vuoi.';
     await Promise.all(recipients.map((r) => fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: r.chatId, text: text })
@@ -78,6 +99,29 @@ exports.createBooking = onCall({ secrets: [telegramBotToken] }, async (request) 
   // Notifica Telegram al proprietario per le richieste dal sito (le
   // prenotazioni manuali le crea lui stesso, non serve avvisarlo di nuovo).
   if (source === 'site') await notifyOwnerNewBooking(result, data);
+  return result;
+});
+
+/* ==========================================================================
+   createGroupBooking — prenotazione di gruppo su più stanze insieme (vedi
+   createGroupBookingCore in booking-logic.js): una sola transazione
+   atomica, o tutte le stanze richieste vengono prenotate o nessuna.
+   ========================================================================== */
+exports.createGroupBooking = onCall({ secrets: [telegramBotToken] }, async (request) => {
+  const data = request.data || {};
+  const source = data.source === 'site' ? 'site' : (data.source || 'site');
+  if (source !== 'site' && !request.auth) {
+    throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
+  }
+  let result;
+  try {
+    result = await createGroupBookingCore(admin, db, data);
+  } catch (err) {
+    if (err.code === 'already-exists') throw new HttpsError('already-exists', 'dates_taken');
+    if (err.code) throw new HttpsError(err.code, err.message);
+    throw new HttpsError('internal', 'Errore imprevisto: riprova.');
+  }
+  if (source === 'site') await notifyOwnerNewGroupBooking(result, data);
   return result;
 });
 

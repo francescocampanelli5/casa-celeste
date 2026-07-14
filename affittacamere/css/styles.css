@@ -880,6 +880,12 @@ button { font-family: inherit; }
   padding: 13px 18px; font-size: 13.5px; font-weight: 700; margin: 22px 0 24px;
 }
 .search-reset-link { background: none; border: none; color: var(--blue-deep); font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: underline; }
+.search-group-cta-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  margin: -6px 0 24px;
+}
+.search-group-cta { width: auto; padding: 12px 22px; }
+.search-group-cta-note { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
 .sold-out-banner {
   background: var(--yellow-bg); border-radius: var(--radius-md); padding: 22px 26px;
   margin: 0 0 24px; text-align: center;
@@ -1328,6 +1334,30 @@ button { font-family: inherit; }
 .price-summary-row { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; color: var(--text-body, #3C4A5C); }
 .price-summary-row.is-total { border-top: 1px solid rgba(16,35,59,0.12); margin-top: 6px; padding-top: 10px; font-weight: 700; font-size: 16px; color: #10233B; }
 .price-summary-note { font-size: 12px; color: var(--text-muted, #6B7A8C); padding: 0 0 6px; margin-top: -2px; }
+.range-hint--ok { color: var(--green, #2E8B57); font-weight: 700; }
+
+/* Prenotazione di gruppo (più stanze insieme nel modale) */
+.group-room-cards { display: flex; flex-direction: column; gap: 14px; margin-bottom: 8px; }
+.group-room-card {
+  background: var(--off-white); border-radius: var(--radius-md); padding: 16px 18px;
+  border: 1.5px solid var(--border-hairline);
+}
+.group-room-card-title { font-size: 14.5px; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
+.group-room-children { margin: 6px 0 4px; }
+.group-child-chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.group-child-chip {
+  border: 1.5px solid var(--border-medium); background: var(--white); border-radius: var(--radius-pill);
+  padding: 7px 14px; font-size: 12.5px; font-weight: 700; color: var(--text-body); cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+}
+.group-child-chip.is-active { background: var(--blue-bg); border-color: var(--blue); color: var(--blue-deep); }
+.group-child-chip.is-elsewhere { opacity: 0.55; cursor: not-allowed; }
+.group-room-select-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--text-muted); margin: 10px 0 6px; }
+.group-room-select { width: 100%; padding: 10px 12px; margin-bottom: 14px; }
+.group-price-block { padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid rgba(16,35,59,0.08); }
+.group-price-block:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.group-price-block-title { font-size: 13px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+.price-summary-row.is-subtotal { border-top: 1px dashed rgba(16,35,59,0.15); margin-top: 4px; padding-top: 6px; font-weight: 700; }
 .contract-checkbox-row { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; margin: 14px 0; text-align: left; }
 .contract-checkbox-row input { margin-top: 3px; }
 .contract-checkbox-row a { color: #2C8FC9; text-decoration: underline; }

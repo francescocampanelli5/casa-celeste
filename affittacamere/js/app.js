@@ -146,6 +146,10 @@
     bookingGuestsEditing: true,
     bookingRoomId: null,
     bookingRoomLabel: 'Casa Celeste',
+    // Prenotazione di gruppo (più stanze insieme nello stesso modale)
+    groupMode: false,
+    groupRoomsCount: 2,
+    groupAllocations: [],
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
     selectedCheckIn: null,
@@ -649,6 +653,7 @@
     var searched = !!(s.performed && s.checkIn && s.checkOut);
     var summaryHtml = '';
     var soldOutHtml = '';
+    var groupCtaHtml = '';
     if (searched) {
       var nights = daysBetween(s.checkIn, s.checkOut);
       var availableIds = otherIds.filter(function (id) { return roomIsFreeForSearch(rooms[id], s.checkIn, s.checkOut); });
@@ -662,6 +667,16 @@
           })) + '</span>' +
           '<button type="button" class="search-reset-link" data-search-reset>' + escapeHtml(t('search.reset')) + '</button>' +
         '</div>';
+      // Gruppo che serve più di una stanza: prenotarle tutte insieme nello
+      // stesso modale invece di uscire ed entrare da una card alla volta
+      // (solo se ci sono abbastanza stanze libere da tentare l'allocazione).
+      if (s.rooms > 1 && availableIds.length >= 2) {
+        groupCtaHtml =
+          '<div class="search-group-cta-row">' +
+            '<button type="button" class="btn btn-primary search-group-cta" data-open-group-booking>' + escapeHtml(t('search.book_group_together_cta')) + '</button>' +
+            '<span class="search-group-cta-note">' + escapeHtml(t('search.book_group_together_note')) + '</span>' +
+          '</div>';
+      }
       if (!availableIds.length) {
         soldOutHtml =
           '<div class="sold-out-banner">' +
@@ -681,7 +696,7 @@
           '<p style="font-size:15.5px; line-height:1.65; color:var(--text-body); margin:0;">' + escapeHtml(t('stanze.text')) + '</p>' +
         '</div>' +
       '</div>' +
-      summaryHtml + soldOutHtml +
+      summaryHtml + groupCtaHtml + soldOutHtml +
       '<div class="room-list">' + cardsHtml + '</div>' +
       (searched ? '' :
       '<div class="urgency-banner">' +
@@ -721,6 +736,7 @@
     state.roomDetail.shareCopied = false;
     var s = state.search;
     var searched = !!(s.checkIn && s.checkOut);
+    state.groupMode = false;
     state.bookingRoomId = id;
     state.bookingRoomLabel = room.name;
     state.selectedCheckIn = searched ? s.checkIn : null;
@@ -890,6 +906,7 @@
     var id = state.roomDetail.roomId;
     var room = state.roomsData[id];
     if (!room) return;
+    state.groupMode = false;
     state.bookingOpen = true;
     state.bookingRoomId = id;
     state.bookingRoomLabel = room.name;
@@ -1994,6 +2011,8 @@
   }
   function cribTotalForNights(nights) { return state.cribCount * CRIB_PRICE_PER_NIGHT * nights; }
   function extraBedTotalForNights(nights) { return state.extraBedCount * EXTRA_BED_PRICE_PER_NIGHT * nights; }
+  function cribTotalForNightsN(count, nights) { return count * CRIB_PRICE_PER_NIGHT * nights; }
+  function extraBedTotalForNightsN(count, nights) { return count * EXTRA_BED_PRICE_PER_NIGHT * nights; }
   function priceSummaryHtml() {
     var room = currentRoom();
     if (!room) return '';
@@ -2067,11 +2086,19 @@
     if (!state.bookingOpen) { root.innerHTML = ''; updateBodyScrollLock(); return; }
 
     var stepHtml = '';
-    if (state.bookingStep === 1) stepHtml = calendarStepHtml();
-    else if (state.bookingStep === 2) stepHtml = guestsStepHtml();
-    else if (state.bookingStep === 3) stepHtml = optionsStepHtml();
-    else if (state.bookingStep === 4) stepHtml = contactStepHtml();
-    else if (state.bookingStep === 5) stepHtml = successStepHtml();
+    if (state.groupMode) {
+      if (state.bookingStep === 1) stepHtml = calendarStepHtml();
+      else if (state.bookingStep === 2) stepHtml = groupAllocationStepHtml();
+      else if (state.bookingStep === 3) stepHtml = groupRoomPickStepHtml();
+      else if (state.bookingStep === 4) stepHtml = groupContactStepHtml();
+      else if (state.bookingStep === 5) stepHtml = groupSuccessStepHtml();
+    } else {
+      if (state.bookingStep === 1) stepHtml = calendarStepHtml();
+      else if (state.bookingStep === 2) stepHtml = guestsStepHtml();
+      else if (state.bookingStep === 3) stepHtml = optionsStepHtml();
+      else if (state.bookingStep === 4) stepHtml = contactStepHtml();
+      else if (state.bookingStep === 5) stepHtml = successStepHtml();
+    }
 
     root.innerHTML =
       '<div class="modal-overlay" id="booking-overlay">' +
@@ -2089,7 +2116,7 @@
     document.getElementById('booking-overlay').addEventListener('click', function (e) {
       if (e.target.id === 'booking-overlay') closeBooking();
     });
-    if (state.bookingStep === 2) bindGuestsStepInputs();
+    if (!state.groupMode && state.bookingStep === 2) bindGuestsStepInputs();
     if (state.bookingStep === 4) bindContactInputs();
     updateBodyScrollLock();
   }
@@ -2138,6 +2165,7 @@
   }
   function openBooking(roomId, roomLabel) {
     if (!roomId) { scrollSectionIntoView('stanze'); return; }
+    state.groupMode = false;
     state.bookingOpen = true;
     state.bookingStep = 1;
     state.bookingRoomId = roomId;
@@ -2165,7 +2193,7 @@
     renderBookingModal();
     updateStickyBarVisibility();
   }
-  function closeBooking() { state.bookingOpen = false; renderBookingModal(); updateStickyBarVisibility(); }
+  function closeBooking() { state.bookingOpen = false; state.groupMode = false; renderBookingModal(); updateStickyBarVisibility(); }
   function refreshCalendarConsumers() { renderBookingModal(); renderRoomDetail(); updateStickyBarVisibility(); }
   function calMonthPrev() { var m = state.calMonth - 1, y = state.calYear; if (m < 0) { m = 11; y -= 1; } state.calMonth = m; state.calYear = y; refreshCalendarConsumers(); }
   function calMonthNext() { var m = state.calMonth + 1, y = state.calYear; if (m > 11) { m = 0; y += 1; } state.calMonth = m; state.calYear = y; refreshCalendarConsumers(); }
@@ -2217,6 +2245,378 @@
     syncCribToInfants();
     syncExtraBedToCapacity();
     renderBookingModal();
+  }
+
+  /* ==========================================================================
+     Prenotazione di gruppo (più stanze insieme, senza uscire ed entrare dal
+     modale una stanza alla volta): stesso modale di prenotazione, in
+     "groupMode". Step 1 (calendario) è condiviso col flusso a stanza
+     singola — currentRoom() torna null qui (nessuna stanza ancora scelta),
+     e calendarStepHtml()/pickDate() lo gestiscono già senza errori (nessun
+     blocco per data, nessun minNights). Dallo step 2 in poi il rendering è
+     completamente separato per non rischiare di rompere il flusso a
+     stanza singola già in uso (vedi nota su refreshOptionsConsumers sopra:
+     una funzione condivisa fra due contesti va sempre verificata in
+     entrambi).
+     ========================================================================== */
+  function neededGroupRooms() {
+    return Math.max(2, recommendedRoomsForGroup(state.guestsAdults, state.guestsChildAges));
+  }
+  function buildGroupAllocations(n) {
+    var arr = [];
+    for (var i = 0; i < n; i++) arr.push({ adults: 0, childIdxs: [], roomId: null, bedType: 'matrimoniale', cribCount: 0, extraBedCount: 0 });
+    return arr;
+  }
+  function openGroupBooking() {
+    var s = state.search;
+    var searched = !!(s.checkIn && s.checkOut);
+    state.groupMode = true;
+    state.bookingOpen = true;
+    state.bookingStep = searched ? 2 : 1;
+    state.bookingRoomId = null;
+    state.bookingRoomLabel = t('booking.group_modal_title');
+    state.guestsAdults = s.adults;
+    state.guestsChildAges = s.childAges.slice();
+    state.selectedCheckIn = searched ? s.checkIn : null;
+    state.selectedCheckOut = searched ? s.checkOut : null;
+    state.groupRoomsCount = Math.max(s.rooms || 2, neededGroupRooms());
+    state.groupAllocations = buildGroupAllocations(state.groupRoomsCount);
+    state.contactName = ''; state.contactEmail = ''; state.contactPhone = '';
+    state.contractAccepted = false;
+    state.bookingError = ''; state.bookingResult = null;
+    var calBase = searched ? dateFromIso(s.checkIn) : new Date();
+    state.calYear = calBase.getFullYear(); state.calMonth = calBase.getMonth();
+    renderBookingModal();
+    updateStickyBarVisibility();
+  }
+  function groupAllocBigCount(alloc) {
+    return alloc.adults + alloc.childIdxs.filter(function (ci) { return state.guestsChildAges[ci] >= CHILD_ROOM_COUNT_MIN_AGE; }).length;
+  }
+  function groupAllocInfantCount(alloc) {
+    return alloc.childIdxs.filter(function (ci) { return state.guestsChildAges[ci] < CHILD_ROOM_COUNT_MIN_AGE; }).length;
+  }
+  function groupAllocatedAdultsTotal() {
+    return state.groupAllocations.reduce(function (sum, a) { return sum + a.adults; }, 0);
+  }
+  function groupUnallocatedAdults() {
+    return state.guestsAdults - groupAllocatedAdultsTotal();
+  }
+  // Indice della stanza a cui è assegnato ogni bambino del pool (-1 = non ancora assegnato).
+  function groupChildAllocationMap() {
+    var map = state.guestsChildAges.map(function () { return -1; });
+    state.groupAllocations.forEach(function (alloc, ri) { alloc.childIdxs.forEach(function (ci) { map[ci] = ri; }); });
+    return map;
+  }
+  function groupAllComplete() {
+    if (groupUnallocatedAdults() !== 0) return false;
+    if (groupChildAllocationMap().indexOf(-1) !== -1) return false;
+    return state.groupAllocations.every(function (a) { return groupAllocBigCount(a) <= MAX_BIG_GUESTS_PER_ROOM && groupAllocInfantCount(a) <= MAX_INFANTS_PER_ROOM; });
+  }
+  // A 3 ospiti "grandi" in una stanza del gruppo il letto extra è
+  // obbligatorio, stessa regola del flusso a stanza singola (vedi
+  // syncExtraBedToCapacity/extraBedIsMandatory).
+  function syncGroupExtraBed(alloc) {
+    if (groupAllocBigCount(alloc) === MAX_BIG_GUESTS_PER_ROOM) alloc.extraBedCount = 1;
+  }
+  function groupRoomsInc() {
+    if (state.groupAllocations.length >= totalRoomsCount()) return;
+    state.groupAllocations.push({ adults: 0, childIdxs: [], roomId: null, bedType: 'matrimoniale', cribCount: 0, extraBedCount: 0 });
+    renderBookingModal();
+  }
+  function groupRoomsDec() {
+    if (state.groupAllocations.length <= neededGroupRooms()) return;
+    // Gli ospiti eventualmente assegnati all'ultima stanza tornano nel
+    // pool "da assegnare" automaticamente: non sono salvati altrove,
+    // rimuovere l'allocazione basta.
+    state.groupAllocations.pop();
+    renderBookingModal();
+  }
+  function groupAllocAdultsInc(ri) {
+    var alloc = state.groupAllocations[ri];
+    if (!alloc || groupAllocBigCount(alloc) >= MAX_BIG_GUESTS_PER_ROOM || groupUnallocatedAdults() <= 0) return;
+    alloc.adults++;
+    syncGroupExtraBed(alloc);
+    renderBookingModal();
+  }
+  function groupAllocAdultsDec(ri) {
+    var alloc = state.groupAllocations[ri];
+    if (!alloc || alloc.adults <= 0) return;
+    alloc.adults--;
+    renderBookingModal();
+  }
+  function groupChildToggle(ri, ci) {
+    var alloc = state.groupAllocations[ri];
+    if (!alloc) return;
+    var idx = alloc.childIdxs.indexOf(ci);
+    if (idx !== -1) { alloc.childIdxs.splice(idx, 1); renderBookingModal(); return; }
+    if (groupChildAllocationMap()[ci] !== -1) return; // già assegnato a un'altra stanza: va rimosso da lì prima
+    var isInfant = state.guestsChildAges[ci] < CHILD_ROOM_COUNT_MIN_AGE;
+    if (isInfant ? (groupAllocInfantCount(alloc) >= MAX_INFANTS_PER_ROOM) : (groupAllocBigCount(alloc) >= MAX_BIG_GUESTS_PER_ROOM)) return;
+    alloc.childIdxs.push(ci);
+    syncGroupExtraBed(alloc);
+    renderBookingModal();
+  }
+  function groupChildChipHtml(ri, map) {
+    return state.guestsChildAges.map(function (age, ci) {
+      var here = map[ci] === ri;
+      var elsewhere = map[ci] !== -1 && !here;
+      var ageLabel = age === 0 ? t('search.child_age_0') : tpl(t('search.child_age_n'), { n: age });
+      var elsewhereLabel = elsewhere ? ' · ' + escapeHtml(tpl(t('booking.group_child_in_room'), { n: map[ci] + 1 })) : '';
+      return '<button type="button" class="group-child-chip' + (here ? ' is-active' : '') + (elsewhere ? ' is-elsewhere' : '') + '" data-group-child-toggle data-room-index="' + ri + '" data-child-index="' + ci + '"' + (elsewhere ? ' disabled' : '') + '>' + escapeHtml(ageLabel) + elsewhereLabel + '</button>';
+    }).join('');
+  }
+  function groupAllocationStepHtml() {
+    var map = groupChildAllocationMap();
+    var unallocAdults = groupUnallocatedAdults();
+    var unallocChildren = map.filter(function (m) { return m === -1; }).length;
+    var cardsHtml = state.groupAllocations.map(function (alloc, ri) {
+      var big = groupAllocBigCount(alloc), infants = groupAllocInfantCount(alloc);
+      var incDisabled = big >= MAX_BIG_GUESTS_PER_ROOM || unallocAdults <= 0;
+      return (
+        '<div class="group-room-card">' +
+          '<div class="group-room-card-title">' + escapeHtml(tpl(t('booking.group_room_n'), { n: ri + 1 })) + '</div>' +
+          '<div class="search-guests-row">' +
+            '<div class="search-guests-row-title">' + escapeHtml(t('search.adults')) + '</div>' +
+            '<div class="search-stepper">' +
+              '<button type="button" class="search-stepper-btn" data-group-adults-dec data-room-index="' + ri + '"' + (alloc.adults <= 0 ? ' disabled' : '') + '>−</button>' +
+              '<span class="search-stepper-value">' + alloc.adults + '</span>' +
+              '<button type="button" class="search-stepper-btn" data-group-adults-inc data-room-index="' + ri + '"' + (incDisabled ? ' disabled' : '') + '>+</button>' +
+            '</div>' +
+          '</div>' +
+          (state.guestsChildAges.length ? (
+            '<div class="group-room-children">' +
+              '<div class="search-guests-row-sub">' + escapeHtml(t('booking.group_children_label')) + '</div>' +
+              '<div class="group-child-chip-row">' + groupChildChipHtml(ri, map) + '</div>' +
+            '</div>'
+          ) : '') +
+          '<div class="range-hint">' + escapeHtml(tpl(t('booking.group_room_capacity'), { big: big, infants: infants })) + '</div>' +
+        '</div>'
+      );
+    }).join('');
+    var poolHint = (unallocAdults > 0 || unallocChildren > 0)
+      ? '<div class="booking-alert">' + escapeHtml(tpl(t('booking.group_unallocated_hint'), { adults: unallocAdults, children: unallocChildren })) + '</div>'
+      : '<div class="range-hint range-hint--ok">' + escapeHtml(t('booking.group_all_allocated')) + '</div>';
+    var complete = groupAllComplete();
+    return (
+      '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div></div>' +
+      '<div class="slot-label">' + escapeHtml(t('booking.group_step_title')) + '</div>' +
+      '<p class="range-hint">' + escapeHtml(tpl(t('booking.group_step_intro'), { adults: state.guestsAdults, children: state.guestsChildAges.length })) + '</p>' +
+      '<div class="search-guests-row">' +
+        '<div class="search-guests-row-title">' + escapeHtml(t('search.rooms')) + '</div>' +
+        '<div class="search-stepper">' +
+          '<button type="button" class="search-stepper-btn" data-group-rooms-dec' + (state.groupAllocations.length <= neededGroupRooms() ? ' disabled' : '') + '>−</button>' +
+          '<span class="search-stepper-value">' + state.groupAllocations.length + '</span>' +
+          '<button type="button" class="search-stepper-btn" data-group-rooms-inc' + (state.groupAllocations.length >= totalRoomsCount() ? ' disabled' : '') + '>+</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="group-room-cards">' + cardsHtml + '</div>' +
+      poolHint +
+      (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
+      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-group-rooms-step' + (complete ? '' : ' disabled') + '>' + escapeHtml(t('booking.step_options_title')) + ' →</button>' +
+      '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
+    );
+  }
+  function groupAvailableRoomsFor(alloc, excludeRoomIds) {
+    var big = groupAllocBigCount(alloc);
+    return orderedIds(state.roomsData).filter(function (id) {
+      if (excludeRoomIds.indexOf(id) !== -1 && id !== alloc.roomId) return false;
+      var room = state.roomsData[id];
+      if (big > effectiveMaxGuests(room)) return false;
+      if (!state.selectedCheckIn || !state.selectedCheckOut) return true;
+      return rangeIsFree(room, state.selectedCheckIn, state.selectedCheckOut);
+    });
+  }
+  function groupPickRoom(ri, roomId) {
+    var alloc = state.groupAllocations[ri];
+    if (!alloc) return;
+    alloc.roomId = roomId || null;
+    renderBookingModal();
+  }
+  function groupSetBedType(ri, type) {
+    var alloc = state.groupAllocations[ri];
+    if (!alloc) return;
+    alloc.bedType = type === 'singolo' ? 'singolo' : 'matrimoniale';
+    renderBookingModal();
+  }
+  function groupCribInc(ri) { var a = state.groupAllocations[ri]; if (a && a.cribCount < CRIB_MAX) { a.cribCount++; renderBookingModal(); } }
+  function groupCribDec(ri) { var a = state.groupAllocations[ri]; if (a && a.cribCount > 0) { a.cribCount--; renderBookingModal(); } }
+  function groupExtraBedInc(ri) { var a = state.groupAllocations[ri]; if (a && a.extraBedCount < EXTRA_BED_MAX) { a.extraBedCount++; renderBookingModal(); } }
+  function groupExtraBedDec(ri) { var a = state.groupAllocations[ri]; if (a && a.extraBedCount > 0 && groupAllocBigCount(a) < MAX_BIG_GUESTS_PER_ROOM) { a.extraBedCount--; renderBookingModal(); } }
+  function groupRoomPickStepHtml() {
+    var chosenIds = state.groupAllocations.map(function (a) { return a.roomId; }).filter(Boolean);
+    var cardsHtml = state.groupAllocations.map(function (alloc, ri) {
+      var big = groupAllocBigCount(alloc), infants = groupAllocInfantCount(alloc);
+      if (big + infants === 0) return '';
+      var excludeOthers = chosenIds.filter(function (id) { return id !== alloc.roomId; });
+      var available = groupAvailableRoomsFor(alloc, excludeOthers);
+      var options = available.map(function (id) {
+        var room = state.roomsData[id];
+        return '<option value="' + id + '"' + (alloc.roomId === id ? ' selected' : '') + '>' + escapeHtml(room.name) + ' — €' + room.nightlyPrice + escapeHtml(t('room.per_night')) + '</option>';
+      }).join('');
+      var suggestCrib = infants > 0 && !alloc.cribCount;
+      var extraBedMandatory = big === MAX_BIG_GUESTS_PER_ROOM;
+      var optionsPanelHtml = !alloc.roomId ? (available.length ? '' : '<div class="booking-alert">' + escapeHtml(t('booking.group_no_rooms_available')) + '</div>') : (
+        '<div class="rd-bedtype-row">' +
+          '<button type="button" class="rd-bedtype-btn' + (alloc.bedType === 'matrimoniale' ? ' is-active' : '') + '" data-group-bedtype="matrimoniale" data-room-index="' + ri + '"><svg width="20" height="20"><use href="#icon-bed-double"></use></svg>' + escapeHtml(t('options.bed_double')) + '</button>' +
+          '<button type="button" class="rd-bedtype-btn' + (alloc.bedType === 'singolo' ? ' is-active' : '') + '" data-group-bedtype="singolo" data-room-index="' + ri + '"><svg width="20" height="20"><use href="#icon-bed-single"></use></svg>' + escapeHtml(t('options.bed_single')) + '</button>' +
+        '</div>' +
+        (infants > 0 ? (
+          '<div class="rd-option-row"><div><div class="rd-option-title">' + escapeHtml(t('options.crib')) + (suggestCrib ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.crib_recommended')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(tpl(t('options.extra_price_note'), { price: CRIB_PRICE_PER_NIGHT })) + '</div></div>' +
+            '<div class="search-stepper">' +
+              '<button type="button" class="search-stepper-btn" data-group-crib-dec data-room-index="' + ri + '"' + (alloc.cribCount <= 0 ? ' disabled' : '') + '>−</button>' +
+              '<span class="search-stepper-value">' + alloc.cribCount + '</span>' +
+              '<button type="button" class="search-stepper-btn" data-group-crib-inc data-room-index="' + ri + '"' + (alloc.cribCount >= CRIB_MAX ? ' disabled' : '') + '>+</button>' +
+            '</div>' +
+          '</div>'
+        ) : '') +
+        '<div class="rd-option-row"><div><div class="rd-option-title">' + escapeHtml(t('options.extra_bed')) + (extraBedMandatory ? ' <span class="rd-recommended-tag">' + escapeHtml(t('options.extra_bed_required_tag')) + '</span>' : '') + '</div><div class="rd-option-sub">' + escapeHtml(extraBedMandatory ? t('options.extra_bed_required_note') : tpl(t('options.extra_price_note'), { price: EXTRA_BED_PRICE_PER_NIGHT })) + '</div></div>' +
+          '<div class="search-stepper">' +
+            '<button type="button" class="search-stepper-btn" data-group-extrabed-dec data-room-index="' + ri + '"' + ((alloc.extraBedCount <= 0 || extraBedMandatory) ? ' disabled' : '') + '>−</button>' +
+            '<span class="search-stepper-value">' + alloc.extraBedCount + '</span>' +
+            '<button type="button" class="search-stepper-btn" data-group-extrabed-inc data-room-index="' + ri + '"' + (alloc.extraBedCount >= EXTRA_BED_MAX ? ' disabled' : '') + '>+</button>' +
+          '</div>' +
+        '</div>'
+      );
+      return (
+        '<div class="group-room-card">' +
+          '<div class="group-room-card-title">' + escapeHtml(tpl(t('booking.group_room_n'), { n: ri + 1 })) + '</div>' +
+          '<div class="range-hint">' + escapeHtml(tpl(t('booking.group_room_capacity'), { big: big, infants: infants })) + '</div>' +
+          '<label class="group-room-select-label">' + escapeHtml(t('booking.group_pick_room_label')) + '</label>' +
+          '<select class="search-child-select group-room-select" data-group-room-pick data-room-index="' + ri + '">' +
+            '<option value="">' + escapeHtml(t('booking.group_pick_room_placeholder')) + '</option>' + options +
+          '</select>' +
+          optionsPanelHtml +
+        '</div>'
+      );
+    }).join('');
+    var allPicked = state.groupAllocations.every(function (a) { return (groupAllocBigCount(a) + groupAllocInfantCount(a)) === 0 || !!a.roomId; });
+    return (
+      '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsSummaryLabel(state.guestsAdults, state.guestsChildAges)) + '</div></div>' +
+      '<div class="slot-label">' + escapeHtml(t('booking.group_pick_rooms_title')) + '</div>' +
+      '<div class="group-room-cards">' + cardsHtml + '</div>' +
+      (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
+      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-group-contact-step' + (allPicked ? '' : ' disabled') + '>' + escapeHtml(t('common.prenota_soggiorno')) + ' →</button>' +
+      '<button type="button" class="link-btn" data-back-to-group-alloc>' + escapeHtml(t('booking.cambia_ospiti')) + '</button>'
+    );
+  }
+  function groupNights() { return daysBetween(state.selectedCheckIn, state.selectedCheckOut); }
+  function groupAllocPricing(alloc) {
+    var room = state.roomsData[alloc.roomId];
+    if (!room) return null;
+    var nights = groupNights();
+    var roomTotal = nights * room.nightlyPrice;
+    var taxRate = Number(state.settings && state.settings.touristTaxRate) || 0;
+    var allocChildAges = alloc.childIdxs.map(function (ci) { return state.guestsChildAges[ci]; });
+    var taxable = taxablePersons(alloc.adults, allocChildAges);
+    var tax = Math.round(taxRate * taxable * nights * 100) / 100;
+    var cribTotal = cribTotalForNightsN(alloc.cribCount, nights);
+    var extraBedTotal = extraBedTotalForNightsN(alloc.extraBedCount, nights);
+    var total = roomTotal + tax + cribTotal + extraBedTotal;
+    return { room: room, nights: nights, roomTotal: roomTotal, tax: tax, cribTotal: cribTotal, extraBedTotal: extraBedTotal, total: total };
+  }
+  function groupPriceSummaryHtml() {
+    var rows = '';
+    var grandTotal = 0;
+    state.groupAllocations.forEach(function (alloc, ri) {
+      var p = groupAllocPricing(alloc);
+      if (!p) return;
+      grandTotal += p.total;
+      rows +=
+        '<div class="group-price-block">' +
+          '<div class="group-price-block-title">' + escapeHtml(tpl(t('booking.group_room_n'), { n: ri + 1 })) + ' — ' + escapeHtml(p.room.name) + '</div>' +
+          '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: p.nights, price: p.room.nightlyPrice })) + '</span><span>€' + p.roomTotal.toFixed(2) + '</span></div>' +
+          (p.tax ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + p.tax.toFixed(2) + '</span></div>' : '') +
+          (alloc.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + p.cribTotal.toFixed(2) + '</span></div>' : '') +
+          (alloc.extraBedCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_extra_bed')) + '</span><span>€' + p.extraBedTotal.toFixed(2) + '</span></div>' : '') +
+          '<div class="price-summary-row is-subtotal"><span>' + escapeHtml(t('booking.group_room_subtotal')) + '</span><span>€' + p.total.toFixed(2) + '</span></div>' +
+        '</div>';
+    });
+    return '<div class="price-summary">' + rows + '<div class="price-summary-row is-total"><span>' + escapeHtml(t('booking.summary_total')) + '</span><span>€' + grandTotal.toFixed(2) + '</span></div></div>';
+  }
+  function groupContactStepHtml() {
+    var nights = groupNights();
+    var roomNames = state.groupAllocations.filter(function (a) { return a.roomId; }).map(function (a) { return state.roomsData[a.roomId].name; }).join(', ');
+    return (
+      '<div class="checkout-card">' +
+        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' +
+          formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) +
+          ' · ' + escapeHtml(tpl(t('booking.summary_nights_n'), { n: nights })) + '</div>' +
+        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-house"></use></svg>' + escapeHtml(roomNames) + '</div>' +
+        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsSummaryLabel(state.guestsAdults, state.guestsChildAges)) + '</div>' +
+        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(HOUSE_ADDRESS) + '</div>' +
+      '</div>' +
+      groupPriceSummaryHtml() +
+      '<div class="contact-form">' +
+        '<div class="input-icon-group"><svg width="16" height="16"><use href="#icon-user"></use></svg><input type="text" placeholder="' + escapeHtml(t('booking.nome_cognome')) + '" id="contact-name-input"></div>' +
+        '<div class="input-icon-group"><svg width="16" height="16"><use href="#icon-mail"></use></svg><input type="email" placeholder="' + escapeHtml(t('booking.email')) + '" id="contact-email-input"></div>' +
+        '<div class="field-error" id="contact-email-error" style="display:none;"></div>' +
+        '<div class="input-icon-group"><svg width="16" height="16"><use href="#icon-phone"></use></svg><input type="tel" placeholder="' + escapeHtml(t('booking.telefono')) + '" id="contact-phone-input"></div>' +
+        '<div class="field-error" id="contact-phone-error" style="display:none;"></div>' +
+      '</div>' +
+      '<div class="contract-checkbox-row">' +
+        '<input type="checkbox" id="contract-checkbox">' +
+        '<label for="contract-checkbox">' + escapeHtml(t('booking.contract_checkbox')) + ' — <button type="button" class="link-btn" style="display:inline; padding:0;" data-open-legal="termini">' + escapeHtml(t('booking.contract_link')) + '</button></label>' +
+      '</div>' +
+      (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
+      '<button type="button" class="btn confirm-btn" data-confirm-group-booking id="confirm-booking-btn">' + escapeHtml(state.bookingBusy ? '…' : t('booking.conferma_prenotazione')) + '</button>' +
+      '<button type="button" class="link-btn link-btn--centered" data-back-to-group-rooms>' + escapeHtml(t('booking.cambia_opzioni')) + '</button>'
+    );
+  }
+  function groupSuccessStepHtml() {
+    var res = state.bookingResult || { bookings: [] };
+    var linksHtml = (res.bookings || []).map(function (b) {
+      var docsLink = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + 'ospiti.html?booking=' + encodeURIComponent(b.id || '') + '&token=' + encodeURIComponent(b.guestFormToken || '');
+      return '<a href="' + escapeHtml(docsLink) + '" class="btn btn-primary" style="width:100%; margin-top:10px;">' + escapeHtml(tpl(t('booking.group_success_docs_cta'), { room: b.roomLabel })) + '</a>';
+    }).join('');
+    return (
+      '<div class="booking-success">' +
+        '<div class="success-icon"><svg width="26" height="26"><use href="#icon-check"></use></svg></div>' +
+        '<h4 class="success-title">' + escapeHtml(t('booking.soggiorno_richiesto')) + '</h4>' +
+        '<p class="success-text">' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + ' — ' + escapeHtml(t('booking.success_text')) + '</p>' +
+        '<div class="noservices-panel" style="margin-top:20px; text-align:left;">' +
+          '<strong>' + escapeHtml(t('booking.success_docs_title')) + '</strong>' +
+          '<span>' + escapeHtml(t('booking.group_success_docs_text')) + '</span>' +
+        '</div>' +
+        linksHtml +
+        '<button type="button" class="link-btn" data-close-booking style="margin-top:10px;">' + escapeHtml(t('common.chiudi')) + '</button>' +
+      '</div>'
+    );
+  }
+  function goGroupRoomsStep() { state.bookingStep = 3; renderBookingModal(); }
+  function goGroupContactStep() { state.bookingStep = 4; renderBookingModal(); }
+  function backToGroupAlloc() { state.bookingStep = 2; renderBookingModal(); }
+  function backToGroupRooms() { state.bookingStep = 3; renderBookingModal(); }
+  function confirmGroupBooking() {
+    if (!state.contactName || !isValidEmail(state.contactEmail) || !isValidPhone(state.contactPhone) || !state.contractAccepted) return;
+    if (!window.CasaCelesteTourismDB) return;
+    state.bookingBusy = true; state.bookingError = '';
+    renderBookingModal();
+    var roomsPayload = state.groupAllocations.filter(function (a) { return a.roomId; }).map(function (alloc) {
+      var allocChildAges = alloc.childIdxs.map(function (ci) { return state.guestsChildAges[ci]; });
+      var totalGuestsForServer = countedGuests(alloc.adults, allocChildAges);
+      var exemptGuestsForServer = totalGuestsForServer - taxablePersons(alloc.adults, allocChildAges);
+      return {
+        roomId: alloc.roomId, guests: totalGuestsForServer, exemptGuests: exemptGuestsForServer,
+        bedType: alloc.bedType, cribCount: alloc.cribCount, extraBedCount: alloc.extraBedCount
+      };
+    });
+    window.CasaCelesteTourismDB.createGroupBooking({
+      checkIn: state.selectedCheckIn, checkOut: state.selectedCheckOut,
+      rooms: roomsPayload,
+      name: state.contactName, email: state.contactEmail, phone: state.contactPhone,
+      contractAccepted: state.contractAccepted, source: 'site'
+    }).then(function (res) {
+      state.bookingBusy = false;
+      state.bookingResult = res;
+      state.bookingStep = 5;
+      renderBookingModal();
+    }).catch(function (err) {
+      state.bookingBusy = false;
+      var code = err && err.message || '';
+      state.bookingError = code.indexOf('dates_taken') !== -1 ? t('booking.dates_taken') : (err && err.message) || 'Errore, riprova.';
+      state.bookingStep = 1;
+      renderBookingModal();
+    });
   }
 
   // Niente invio EmailJS diretto dal browser qui: per restare sotto la
@@ -2479,6 +2879,39 @@
       el = e.target.closest('[data-confirm-booking]');
       if (el && !el.disabled) { confirmBooking(); return; }
 
+      el = e.target.closest('[data-open-group-booking]');
+      if (el) { openGroupBooking(); return; }
+      el = e.target.closest('[data-group-adults-inc]');
+      if (el && !el.disabled) { groupAllocAdultsInc(Number(el.getAttribute('data-room-index'))); return; }
+      el = e.target.closest('[data-group-adults-dec]');
+      if (el && !el.disabled) { groupAllocAdultsDec(Number(el.getAttribute('data-room-index'))); return; }
+      el = e.target.closest('[data-group-child-toggle]');
+      if (el && !el.disabled) { groupChildToggle(Number(el.getAttribute('data-room-index')), Number(el.getAttribute('data-child-index'))); return; }
+      el = e.target.closest('[data-group-rooms-inc]');
+      if (el && !el.disabled) { groupRoomsInc(); return; }
+      el = e.target.closest('[data-group-rooms-dec]');
+      if (el && !el.disabled) { groupRoomsDec(); return; }
+      el = e.target.closest('[data-go-group-rooms-step]');
+      if (el && !el.disabled) { goGroupRoomsStep(); return; }
+      el = e.target.closest('[data-back-to-group-alloc]');
+      if (el) { backToGroupAlloc(); return; }
+      el = e.target.closest('[data-group-bedtype]');
+      if (el) { groupSetBedType(Number(el.getAttribute('data-room-index')), el.getAttribute('data-group-bedtype')); return; }
+      el = e.target.closest('[data-group-crib-inc]');
+      if (el && !el.disabled) { groupCribInc(Number(el.getAttribute('data-room-index'))); return; }
+      el = e.target.closest('[data-group-crib-dec]');
+      if (el && !el.disabled) { groupCribDec(Number(el.getAttribute('data-room-index'))); return; }
+      el = e.target.closest('[data-group-extrabed-inc]');
+      if (el && !el.disabled) { groupExtraBedInc(Number(el.getAttribute('data-room-index'))); return; }
+      el = e.target.closest('[data-group-extrabed-dec]');
+      if (el && !el.disabled) { groupExtraBedDec(Number(el.getAttribute('data-room-index'))); return; }
+      el = e.target.closest('[data-go-group-contact-step]');
+      if (el && !el.disabled) { goGroupContactStep(); return; }
+      el = e.target.closest('[data-back-to-group-rooms]');
+      if (el) { backToGroupRooms(); return; }
+      el = e.target.closest('[data-confirm-group-booking]');
+      if (el && !el.disabled) { confirmGroupBooking(); return; }
+
       el = e.target.closest('[data-open-legal]');
       if (el) { openLegal(el.getAttribute('data-open-legal')); return; }
       el = e.target.closest('[data-close-legal]');
@@ -2549,6 +2982,8 @@
     document.addEventListener('change', function (e) {
       var el = e.target.closest('[data-search-child-age]');
       if (el) { setSearchChildAge(Number(el.getAttribute('data-index')), Number(el.value)); return; }
+      el = e.target.closest('[data-group-room-pick]');
+      if (el) { groupPickRoom(Number(el.getAttribute('data-room-index')), el.value); return; }
     });
 
     document.addEventListener('keydown', function (e) {

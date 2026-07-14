@@ -249,6 +249,12 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'createBooking')(data).then(function (res) { return res.data; });
   },
+  // Prenotazione di gruppo su più stanze insieme in una sola transazione
+  // atomica (vedi createGroupBookingCore in functions/booking-logic.js).
+  createGroupBooking: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'createGroupBooking')(data).then(function (res) { return res.data; });
+  },
   submitGuestDocuments: function (data) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'submitGuestDocuments')(data).then(function (res) { return res.data; });
