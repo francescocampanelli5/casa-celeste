@@ -319,6 +319,12 @@ window.CasaCelesteTourismDB = {
   updateBookingStatus: function (id, status) {
     return updateDoc(doc(requireDb(), 'tourism_bookings', id), { status: status });
   },
+  // Codice/link per aprire la singola stanza (facoltativo, "da creare" ogni
+  // volta lato proprietario — non generato dal sistema, cambia a ogni nuova
+  // prenotazione, incluso nell'email di istruzioni check-in).
+  updateBookingRoomAccessCode: function (id, roomAccessCode) {
+    return updateDoc(doc(requireDb(), 'tourism_bookings', id), { roomAccessCode: roomAccessCode });
+  },
   deleteBooking: function (id) {
     return deleteDoc(doc(requireDb(), 'tourism_bookings', id));
   },

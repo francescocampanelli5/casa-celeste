@@ -20,15 +20,18 @@
 // poche decine al mese — a costo pratico zero.
 
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBookingCore, lookupBookingForCancellationCore } = require('./booking-logic');
-const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-verification');
+const { recordVerifiedGuests } = require('./guest-verification');
 const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString } = require('./guest-documents');
 const { handleTelegramUpdate } = require('./telegram-bot');
 const { submitAssistMessageCore } = require('./assist-messages');
 const { logRecClickCore } = require('./recs-clicks');
+const { buildBookingIcs } = require('./calendar-ics');
+const { notifyBookingConfirmed, notifyBookingCancelled } = require('./guest-notify');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -36,6 +39,13 @@ setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
 const telegramBotToken = defineSecret('TELEGRAM_BOT_TOKEN');
 const telegramWebhookSecret = defineSecret('TELEGRAM_WEBHOOK_SECRET');
 const visionApiKey = defineSecret('VISION_API_KEY');
+// Email immediate all'ospite (conferma/annullamento) — vedi guest-notify.js
+// e il trigger onBookingStatusChange più sotto. Stesso account Gmail usato
+// dal cron GitHub Actions per le altre email (affittacamere/scripts/_lib.js),
+// ma è un secret separato: Cloud Functions e GitHub Actions non condividono
+// lo stesso "secret store", vanno impostati in entrambi i posti.
+const gmailUser = defineSecret('GMAIL_USER');
+const gmailAppPassword = defineSecret('GMAIL_APP_PASSWORD');
 // Chiave segreta Stripe (sk_...) — impostarla con:
 //   firebase functions:secrets:set STRIPE_SECRET_KEY
 // (mai nel codice, stesso pattern di TELEGRAM_BOT_TOKEN). La chiave
@@ -390,20 +400,16 @@ exports.submitGuestDocuments = onCall(async (request) => {
     guests: movedGuests,
     submittedAt: admin.firestore.FieldValue.serverTimestamp()
   });
-  const patch = { guestDocsComplete: true };
-
   // Identificazione: la legge impone di verificare che l'ospite corrisponda
   // al documento (non solo raccogliere/trasmettere i dati) — vedi
-  // functions/guest-verification.js. Se OGNI ospite di questa prenotazione
-  // risulta già verificato in un soggiorno precedente, lo riconosciamo qui
-  // in automatico: dalla seconda volta niente nuova videochiamata/citofono.
-  const alreadyVerified = await findAlreadyVerifiedGuests(db, guests).catch(() => false);
-  if (alreadyVerified) {
-    patch.identityVerified = { method: 'auto_returning', verifiedAt: admin.firestore.FieldValue.serverTimestamp() };
-  }
-  await bookingRef.update(patch);
+  // functions/guest-verification.js. Nessuno skip automatico: ogni NUOVA
+  // prenotazione richiede una nuova verifica al primo ingresso, anche per
+  // un ospite già soggiornato in passato — identityVerified si imposta solo
+  // a mano dal proprietario (markIdentityVerified), dopo la videochiamata
+  // o la conferma al videocitofono.
+  await bookingRef.update({ guestDocsComplete: true });
 
-  return { ok: true, identityAlreadyVerified: alreadyVerified };
+  return { ok: true };
 });
 
 /* ==========================================================================
@@ -457,4 +463,73 @@ exports.telegramWebhook = onRequest({ secrets: [telegramBotToken, telegramWebhoo
     console.error('Errore telegramWebhook:', err);
   }
   res.status(200).send('');
+});
+
+// File .ics scaricabile per la prenotazione (bottone "Aggiungi al calendario
+// Apple/Outlook" nell'email di conferma, vedi
+// affittacamere/email-templates/1-conferma-prenotazione.html). onRequest
+// (non onCall) perché deve essere un link cliccabile diretto — protetto
+// dallo stesso guestFormToken usato per ospiti.html, non da App Check
+// (che qui non si applica, non è una chiamata dell'SDK client).
+exports.bookingCalendarIcs = onRequest(async (req, res) => {
+  const bookingId = String(req.query.booking || '');
+  const token = String(req.query.token || '');
+  if (!bookingId || !token) {
+    res.status(400).send('Link non valido.');
+    return;
+  }
+  const snap = await db.collection('tourism_bookings').doc(bookingId).get();
+  if (!snap.exists || snap.data().guestFormToken !== token) {
+    res.status(403).send('Link non valido o scaduto.');
+    return;
+  }
+  const b = snap.data();
+  if (b.status === 'annullato') {
+    res.status(410).send('Questa prenotazione è stata annullata.');
+    return;
+  }
+  const settingsSnap = await db.collection('tourism_settings').doc('site').get();
+  const settings = settingsSnap.exists ? settingsSnap.data() : {};
+  // label: per una prenotazione di gruppo (più stanze insieme), il link
+  // .ics nell'email di conferma passa qui i nomi di TUTTE le stanze invece
+  // del solo nome di questa (vedi icsLink in guest-lifecycle-emails.js).
+  const labelOverride = req.query.label ? String(req.query.label) : '';
+  const ics = buildBookingIcs(Object.assign({ id: bookingId }, b, labelOverride ? { roomLabel: labelOverride } : {}), {
+    checkInTime: settings.checkInTime, checkOutTime: settings.checkOutTime
+  });
+  res.set('Content-Type', 'text/calendar; charset=utf-8');
+  res.set('Content-Disposition', 'attachment; filename="casa-celeste.ics"');
+  res.status(200).send(ics);
+});
+
+// onBookingStatusChange — email IMMEDIATA all'ospite (non il cron orario)
+// appena una prenotazione passa a status='confermato' o 'annullato', da
+// qualunque percorso (pagamento online, conferma manuale in dashboard,
+// cancellazione self-service o manuale). onDocumentWritten copre sia la
+// creazione (prenotazione online già confermata al momento della scrittura,
+// before.exists=false) sia l'aggiornamento (conferma/annullamento manuale
+// da parte del proprietario). Vedi guest-notify.js per la logica di invio
+// (gestisce da sola i gruppi di più stanze e la corsa critica tra invii
+// simultanei).
+exports.onBookingStatusChange = onDocumentWritten({
+  document: 'tourism_bookings/{bookingId}',
+  secrets: [gmailUser, gmailAppPassword, telegramBotToken]
+}, async (event) => {
+  const after = event.data.after.exists ? event.data.after.data() : null;
+  if (!after) return; // documento eliminato, niente da notificare
+  const before = event.data.before.exists ? event.data.before.data() : null;
+  const beforeStatus = before ? before.status : null;
+  const bookingId = event.params.bookingId;
+
+  const ctx = {
+    admin: admin, db: db,
+    gmailUser: gmailUser.value(), gmailAppPassword: gmailAppPassword.value(),
+    telegramBotToken: telegramBotToken.value()
+  };
+
+  if (after.status === 'confermato' && beforeStatus !== 'confermato') {
+    await notifyBookingConfirmed(ctx, bookingId, after).catch((err) => console.error('Errore onBookingStatusChange (conferma):', err));
+  } else if (after.status === 'annullato' && beforeStatus !== 'annullato') {
+    await notifyBookingCancelled(ctx, bookingId, after).catch((err) => console.error('Errore onBookingStatusChange (annullamento):', err));
+  }
 });

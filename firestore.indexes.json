@@ -44,6 +44,22 @@
       "collectionGroup": "tourism_bookings",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "reviewRequestEmailSent", "order": "ASCENDING" },
+        { "fieldPath": "checkOut", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tourism_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "checkIn", "order": "ASCENDING" },
+        { "fieldPath": "wellnessEmailSent", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tourism_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "roomId", "order": "ASCENDING" },
         { "fieldPath": "checkIn", "order": "ASCENDING" }
       ]

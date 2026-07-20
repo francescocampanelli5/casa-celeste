@@ -151,8 +151,12 @@
      Bookings tab
      ========================================================================== */
   var IDENTITY_METHOD_LABELS = {
-    video_call: 'videochiamata', door_intercom: 'videocitofono (1ª volta)',
-    auto_returning: 'ospite già verificato in precedenza — accesso automatico', spid_cie: 'SPID/CIE'
+    video_call: 'videochiamata', door_intercom: 'videocitofono',
+    // auto_returning non viene più impostato dal sistema (ogni nuova
+    // prenotazione richiede una nuova verifica, nessuno skip per storico) —
+    // l'etichetta resta solo per non rompere la visualizzazione di
+    // prenotazioni verificate prima di questa correzione.
+    auto_returning: 'verificato in automatico (prenotazione precedente al fix)', spid_cie: 'SPID/CIE'
   };
   function identityVerifiedLabel(iv) {
     if (!iv) return '⏳ da verificare (obbligo di legge: identificazione documento-persona)';
@@ -190,6 +194,7 @@
             ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + ' · Codice referral: <strong>CC-' + escapeHtml(String(b.id || '').slice(-6).toUpperCase()) + '</strong></div>' +
           (b.videoCallLink ? '<div class="booking-meta"><a href="' + escapeHtml(b.videoCallLink) + '" target="_blank" rel="noopener">🎥 Link videochiamata (verifica documento, ~1h prima del check-in)</a></div>' : '') +
           bookingAlertHtml(b) +
+          '<div class="admin-field-group admin-field-group--full" style="margin-top:8px;"><label>Codice/link apertura stanza (cambia a ogni prenotazione — incluso nell\'email di check-in)</label><input type="text" class="admin-field" data-room-access-code data-id="' + b.id + '" value="' + escapeHtml(b.roomAccessCode || '') + '" placeholder="es. 4471 oppure un link"></div>' +
         '</div>' +
         '<div class="booking-actions">' +
           '<span class="dash-status-pill ' + statusClass + '">' + (STATUS_LABELS[b.status] || 'Nuova') + '</span>' +
@@ -202,7 +207,7 @@
             '<select class="dash-select" data-mark-verified-select data-id="' + b.id + '">' +
               '<option value="">Segna identità verificata come…</option>' +
               '<option value="video_call">✅ Videochiamata (documento in mano)</option>' +
-              '<option value="door_intercom">✅ Videocitofono all\'arrivo (solo 1ª volta)</option>' +
+              '<option value="door_intercom">✅ Videocitofono all\'arrivo</option>' +
             '</select>'
           ) : '') +
           '<button type="button" class="dash-delete-btn" data-copy-alloggiati data-id="' + b.id + '">Copia dati Alloggiati Web</button>' +
@@ -343,6 +348,11 @@
     });
     content.querySelectorAll('[data-copy-alloggiati]').forEach(function (el) {
       el.addEventListener('click', function () { copyAlloggiatiData(el.getAttribute('data-id')); });
+    });
+    content.querySelectorAll('[data-room-access-code]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        window.CasaCelesteTourismDB.updateBookingRoomAccessCode(el.getAttribute('data-id'), e.target.value);
+      });
     });
     content.querySelectorAll('[data-mark-verified-select]').forEach(function (el) {
       el.addEventListener('change', function (e) {
@@ -1134,18 +1144,23 @@
         '<div class="admin-note">⚠️ Questo riguarda solo la FOTO. Il periodo di conservazione dei dati anagrafici tipizzati (nome, data nascita, documento senza foto) non ha invece un default: confermalo con un consulente legale/commercialista in base agli obblighi di pubblica sicurezza.</div>' +
       '</div>' +
       '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Quota email (EmailJS, 200/mese gratis, condivisa con lo studentato)</span></div>' +
-        '<div class="admin-field-group"><label>Budget mensile che vuoi usare qui (margine di sicurezza)</label><input type="number" class="admin-field" id="settings-email-budget" value="' + (s.emailQuotaMonthlyBudget != null ? s.emailQuotaMonthlyBudget : 150) + '"></div>' +
-        '<div class="admin-field-group"><label>Riservate per lo studentato (stimate, non contate qui)</label><input type="number" class="admin-field" id="settings-email-reserved" value="' + (s.emailQuotaReservedForStudentato != null ? s.emailQuotaReservedForStudentato : 40) + '"></div>' +
-        '<div class="admin-note">Le email al proprietario passano tutte da Telegram (gratis, illimitato): solo le email all\'ospite (conferma, check-in, promemoria, ringraziamento) consumano questa quota. Se ci si avvicina al limite, il ringraziamento post-soggiorno viene saltato per primo, poi la conferma — ricevi un avviso su Telegram ogni volta che una email viene saltata.</div>' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Quota email (inviate da Gmail, rete di sicurezza)</span></div>' +
+        '<div class="admin-field-group"><label>Budget mensile (rete di sicurezza contro invii ripetuti per errore, non un vincolo di piano gratuito — Gmail permette molto di più)</label><input type="number" class="admin-field" id="settings-email-budget" value="' + (s.emailQuotaMonthlyBudget != null ? s.emailQuotaMonthlyBudget : 500) + '"></div>' +
+        '<div class="admin-note">Le email al proprietario passano tutte da Telegram (gratis, illimitato): solo le email all\'ospite (conferma, check-in, promemoria, check-out, consigli, recensione) consumano questa quota, inviate direttamente dal tuo account Gmail. Se ci si avvicina al limite (di norma solo per un bug, non per volume normale), saltano per prime le due email extra (consigli a metà soggiorno, richiesta recensione), poi il ringraziamento/istruzioni check-out, poi la conferma — le email operative sono le ultime a essere sacrificate. Ricevi un avviso su Telegram ogni volta che una email viene saltata.</div>' +
       '</div>' +
       '<div class="admin-room-card">' +
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">WiFi e istruzioni check-in</span></div>' +
         '<div class="admin-field-group"><label>Nome rete WiFi</label><input type="text" class="admin-field" id="settings-wifi-name" value="' + escapeHtml(s.wifiName || '') + '"></div>' +
         '<div class="admin-field-group"><label>Password WiFi</label><input type="text" class="admin-field" id="settings-wifi-password" value="' + escapeHtml(s.wifiPassword || '') + '"></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso (chiavi/citofono/portone) — incluse nell\'email di check-in</label><textarea class="admin-field" id="settings-checkin-instructions" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.it) || '') + '</textarea></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Link recensione (facoltativo, incluso nell\'email di ringraziamento)</label><input type="text" class="admin-field" id="settings-review-link" value="' + escapeHtml(s.reviewLink || '') + '"></div>' +
-        '<div class="admin-note">Il link Google Meet per l\'eventuale videochiamata di verifica documento si genera da solo (gratis) una volta autorizzato Google Calendar — vedi GUIDA-PUBBLICAZIONE.md Parte 8.6. Finché non è autorizzato, l\'email di check-in parte comunque, semplicemente senza link video.</div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Link apertura portone lato strada (facoltativo — es. link dell\'app del citofono/serratura smart; se l\'app genera link/codici che scadono, aggiorna questo campo ogni volta che serve, il sistema mostra sempre l\'ultimo valore salvato)</label><input type="text" class="admin-field" id="settings-street-gate-link" value="' + escapeHtml(s.streetGateLink || '') + '"></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso — italiano (chiavi/citofono/portone) — incluse nell\'email di check-in</label><textarea class="admin-field" id="settings-checkin-instructions" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.it) || '') + '</textarea></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso — English (per gli ospiti che hanno scelto il sito in inglese)</label><textarea class="admin-field" id="settings-checkin-instructions-en" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.en) || '') + '</textarea></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — italiano (dove lasciare le chiavi, cosa spegnere, ecc.) — incluse nell\'email della mattina del check-out</label><textarea class="admin-field" id="settings-checkout-instructions" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.it) || '') + '</textarea></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — English</label><textarea class="admin-field" id="settings-checkout-instructions-en" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.en) || '') + '</textarea></div>' +
+        '<div class="admin-note">Se un ospite ha scelto il sito in inglese, riceve automaticamente le email in inglese usando questi campi (se li lasci vuoti, quella sezione semplicemente non appare nell\'email in inglese).</div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Link recensione (facoltativo, incluso nell\'email del check-out)</label><input type="text" class="admin-field" id="settings-review-link" value="' + escapeHtml(s.reviewLink || '') + '"></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label class="admin-social-toggle"><input type="checkbox" id="settings-video-call-enabled"' + (s.videoCallEnabled !== false ? ' checked' : '') + '> Offri la videochiamata di verifica documento</label></div>' +
+        '<div class="admin-note">Ogni NUOVA prenotazione richiede la verifica dell\'identità al primo ingresso (obbligo di legge, nessuna eccezione per ospiti già soggiornati in passato) — con questa casella attiva il sistema genera da solo (gratis) un link Google Meet un\'ora prima del check-in, una volta autorizzato Google Calendar (vedi GUIDA-PUBBLICAZIONE.md Parte 8.6); se non è ancora autorizzato, l\'email di check-in parte comunque, semplicemente senza link video. Disattiva la casella se per un periodo NON vuoi offrire la videochiamata: l\'email dirà semplicemente che la verifica avverrà dal vivo al videocitofono all\'arrivo.</div>' +
       '</div>' +
       '<div class="admin-room-card">' +
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Notifiche pulizie (bot Telegram)</span></div>' +
@@ -1193,11 +1208,15 @@
       window.CasaCelesteTourismDB.setSettings({ reviewCountOverride: (v == null || isNaN(v)) ? null : Math.round(v) });
     });
     document.getElementById('settings-retention-hours').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ guestDocsRetentionHours: Number(e.target.value) || 48 }); });
-    document.getElementById('settings-email-budget').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaMonthlyBudget: Number(e.target.value) || 150 }); });
-    document.getElementById('settings-email-reserved').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaReservedForStudentato: Number(e.target.value) || 0 }); });
+    document.getElementById('settings-email-budget').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaMonthlyBudget: Number(e.target.value) || 500 }); });
     document.getElementById('settings-wifi-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiName: e.target.value.trim() }); });
     document.getElementById('settings-wifi-password').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiPassword: e.target.value }); });
+    document.getElementById('settings-street-gate-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ streetGateLink: e.target.value }); });
+    document.getElementById('settings-video-call-enabled').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ videoCallEnabled: e.target.checked }); });
     document.getElementById('settings-checkin-instructions').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkInInstructionsText: { it: e.target.value, en: (state.settings.checkInInstructionsText && state.settings.checkInInstructionsText.en) || '' } }); });
+    document.getElementById('settings-checkin-instructions-en').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkInInstructionsText: { it: (state.settings.checkInInstructionsText && state.settings.checkInInstructionsText.it) || '', en: e.target.value } }); });
+    document.getElementById('settings-checkout-instructions').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutInstructionsText: { it: e.target.value, en: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.en) || '' } }); });
+    document.getElementById('settings-checkout-instructions-en').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutInstructionsText: { it: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.it) || '', en: e.target.value } }); });
     document.getElementById('settings-review-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ reviewLink: e.target.value.trim() }); });
     document.getElementById('manager-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerName: e.target.value.trim() }); });
     document.getElementById('manager-phone').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerPhone: e.target.value.replace(/\D/g, '') }); });

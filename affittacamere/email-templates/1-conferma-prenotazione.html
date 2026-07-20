@@ -1,12 +1,43 @@
 <!--
-Subject: ✅ Prenotazione confermata — {{roomLabel}}, Casa Celeste
+Subject: {{subjectLine}}
+
+L'oggetto è calcolato in affittacamere/scripts/guest-lifecycle-emails.js
+(funzione subjectFor) in base alla lingua della prenotazione (b.lang) e
+passato come variabile semplice — non lasciare qui un testo fisso, il
+campo Subject nel template EmailJS deve essere esattamente {{subjectLine}}.
 
 Variabili usate: email, name, roomLabel, checkIn, checkOut, nights, guests,
-totalDue, docsLink, checkInTime, checkOutTime, hostPhone
+totalDue, docsLink, checkInTime, checkOutTime, googleCalendarLink, icsLink,
+assistLink, isEn, subjectLine, isGroup, rooms
+
+googleCalendarLink e icsLink permettono all'ospite di salvare le date sul
+proprio calendario: il primo apre Google Calendar precompilato (nessun
+download), il secondo scarica un file .ics standard che apre Apple
+Calendar, Outlook o qualunque altra app di calendario. Entrambi calcolati
+in guest-lifecycle-emails.js (funzioni googleCalendarLink/icsLink) — il
+secondo passa dalla Cloud Function bookingCalendarIcs (functions/index.js),
+protetta dallo stesso token del link documenti.
+
+Prenotazione di più stanze insieme (isGroup=true): checkIn/checkOut/nights/
+guests/totalDue sono già aggregati sull'intero gruppo dallo script,
+roomLabel diventa l'elenco di tutte le stanze ("Stanza Blu e Stanza
+Gialla"). rooms (lista di {roomLabel, docsLink} — loop Mustache
+{{#rooms}}...{{/rooms}}) sostituisce l'unico bottone documenti con un
+bottone per stanza, perché ogni stanza ha ospiti e documenti propri.
+
+Il contenuto è bilingue: ogni blocco di testo ha una versione italiana
+{{^isEn}}...{{/isEn}} e una inglese {{#isEn}}...{{/isEn}} — isEn arriva
+dallo script in base alla lingua scelta dall'ospite sul sito.
 
 Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
 -->
-<div style="background:#F5FAFD; padding:32px 16px; font-family:Helvetica,Arial,sans-serif;">
+<style>
+  @media only screen and (max-width:480px) {
+    .cc-outer { padding:20px 10px !important; }
+    .cc-body { padding:24px 20px !important; }
+  }
+</style>
+<div class="cc-outer" style="background:#F5FAFD; padding:32px 16px; font-family:Helvetica,Arial,sans-serif; -webkit-text-size-adjust:100%; text-size-adjust:100%; color-scheme:light;">
   <table role="presentation" width="100%" style="max-width:560px; margin:0 auto; background:#FFFFFF; border-radius:16px; overflow:hidden; border:1px solid rgba(16,35,59,0.08);" cellpadding="0" cellspacing="0">
     <tr>
       <td style="background:#10233B; padding:24px 32px;">
@@ -15,35 +46,104 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
       </td>
     </tr>
     <tr>
-      <td style="padding:32px;">
+      <td class="cc-body" style="padding:32px;">
+        {{^isEn}}
         <p style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:#2C8FC9; font-weight:700; margin:0 0 8px;">Prenotazione confermata</p>
-        <h1 style="font-size:22px; color:#10233B; margin:0 0 16px;">Ci vediamo a Monopoli, {{name}}!</h1>
+        <h1 style="font-size:22px; color:#10233B; margin:0 0 16px; word-break:break-word;">Ci vediamo a Monopoli, {{name}}!</h1>
+        {{^isGroup}}
         <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 24px;">
           Abbiamo confermato la tua prenotazione per la stanza <strong>{{roomLabel}}</strong>. Qui sotto trovi tutti i dettagli — le istruzioni per il check-in (accesso, WiFi) ti arriveranno in un'email separata non appena avrai completato il passaggio richiesto qui sotto.
         </p>
+        {{/isGroup}}
+        {{#isGroup}}
+        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 24px;">
+          Abbiamo confermato la tua prenotazione di gruppo: <strong>{{roomLabel}}</strong>. Qui sotto trovi il riepilogo — ogni stanza ha il proprio modulo documenti da completare separatamente (ospiti diversi possono stare in stanze diverse), e le istruzioni di check-in arriveranno in un'unica email non appena tutte le stanze avranno completato questo passaggio.
+        </p>
+        {{/isGroup}}
+        {{/isEn}}
+        {{#isEn}}
+        <p style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:#2C8FC9; font-weight:700; margin:0 0 8px;">Booking confirmed</p>
+        <h1 style="font-size:22px; color:#10233B; margin:0 0 16px; word-break:break-word;">See you in Monopoli, {{name}}!</h1>
+        {{^isGroup}}
+        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 24px;">
+          We've confirmed your booking for room <strong>{{roomLabel}}</strong>. You'll find all the details below — check-in instructions (access, WiFi) will arrive in a separate email as soon as you've completed the step below.
+        </p>
+        {{/isGroup}}
+        {{#isGroup}}
+        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 24px;">
+          We've confirmed your group booking: <strong>{{roomLabel}}</strong>. You'll find the summary below — each room has its own document form to complete separately (different guests may stay in different rooms), and check-in instructions will arrive in a single email once every room has completed this step.
+        </p>
+        {{/isGroup}}
+        {{/isEn}}
 
         <table role="presentation" width="100%" style="background:#F5FAFD; border-radius:12px; padding:4px 20px; margin-bottom:24px;" cellpadding="8" cellspacing="0">
-          <tr><td style="color:#6B7A8C; font-size:14px;">Check-in</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{checkIn}}, dalle {{checkInTime}}</td></tr>
-          <tr><td style="color:#6B7A8C; font-size:14px;">Check-out</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{checkOut}}, entro le {{checkOutTime}}</td></tr>
-          <tr><td style="color:#6B7A8C; font-size:14px;">Notti</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{nights}}</td></tr>
-          <tr><td style="color:#6B7A8C; font-size:14px;">Ospiti</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{guests}}</td></tr>
-          <tr><td style="color:#6B7A8C; font-size:14px; border-top:1px solid rgba(16,35,59,0.1); padding-top:12px;">Tassa di soggiorno stimata</td><td style="text-align:right; font-weight:700; color:#10233B; font-size:14px; border-top:1px solid rgba(16,35,59,0.1); padding-top:12px;">€{{totalDue}}</td></tr>
+          <tr><td width="45%" style="color:#6B7A8C; font-size:14px;">Check-in</td><td width="55%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px; word-break:break-word;">{{^isEn}}{{checkIn}}, dalle {{checkInTime}}{{/isEn}}{{#isEn}}{{checkIn}}, from {{checkInTime}}{{/isEn}}</td></tr>
+          <tr><td width="45%" style="color:#6B7A8C; font-size:14px;">Check-out</td><td width="55%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px; word-break:break-word;">{{^isEn}}{{checkOut}}, entro le {{checkOutTime}}{{/isEn}}{{#isEn}}{{checkOut}}, by {{checkOutTime}}{{/isEn}}</td></tr>
+          <tr><td width="45%" style="color:#6B7A8C; font-size:14px;">{{^isEn}}Notti{{/isEn}}{{#isEn}}Nights{{/isEn}}</td><td width="55%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{nights}}</td></tr>
+          <tr><td width="45%" style="color:#6B7A8C; font-size:14px;">{{^isEn}}Ospiti{{/isEn}}{{#isEn}}Guests{{/isEn}}</td><td width="55%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px;">{{guests}}</td></tr>
+          <tr><td width="45%" style="color:#6B7A8C; font-size:14px; border-top:1px solid rgba(16,35,59,0.1); padding-top:12px;">{{^isEn}}Tassa di soggiorno stimata{{/isEn}}{{#isEn}}Estimated tourist tax{{/isEn}}</td><td width="55%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px; border-top:1px solid rgba(16,35,59,0.1); padding-top:12px;">€{{totalDue}}</td></tr>
+        </table>
+
+        <p style="font-size:13px; color:#6B7A8C; margin:0 0 10px;">
+          {{^isEn}}Salva le date sul tuo calendario:{{/isEn}}{{#isEn}}Save the dates to your calendar:{{/isEn}}
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+          <tr>
+            <td width="50%" align="center" style="padding-right:6px;">
+              <a href="{{googleCalendarLink}}" style="display:block; background:#FFFFFF; color:#10233B; text-decoration:none; font-weight:700; font-size:13px; padding:12px 8px; border-radius:10px; border:1px solid rgba(16,35,59,0.15); word-break:break-word;">Google Calendar</a>
+            </td>
+            <td width="50%" align="center" style="padding-left:6px;">
+              <a href="{{icsLink}}" style="display:block; background:#FFFFFF; color:#10233B; text-decoration:none; font-weight:700; font-size:13px; padding:12px 8px; border-radius:10px; border:1px solid rgba(16,35,59,0.15); word-break:break-word;">Apple / Outlook (.ics)</a>
+            </td>
+          </tr>
         </table>
 
         <div style="background:#FDF3D9; border-radius:12px; padding:18px 20px; margin-bottom:24px;">
+          {{^isEn}}
           <p style="margin:0 0 6px; font-weight:700; color:#7A5E12; font-size:14px;">Un ultimo passo obbligatorio per legge</p>
           <p style="margin:0; color:#7A5E12; font-size:14px; line-height:1.5;">Dobbiamo raccogliere i dati del documento d'identità di tutti gli ospiti prima del check-in (comunicazione obbligatoria alla Questura). Ti basta un paio di minuti:</p>
+          {{/isEn}}
+          {{#isEn}}
+          <p style="margin:0 0 6px; font-weight:700; color:#7A5E12; font-size:14px;">One last step required by Italian law</p>
+          <p style="margin:0; color:#7A5E12; font-size:14px; line-height:1.5;">We're required to collect ID document details for all guests before check-in (mandatory report to the local police). It only takes a couple of minutes:</p>
+          {{/isEn}}
         </div>
 
+        {{^isGroup}}
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
           <tr><td align="center">
-            <a href="{{docsLink}}" style="display:inline-block; background:#2C8FC9; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:15px; padding:14px 32px; border-radius:10px;">Inserisci i documenti ora →</a>
+            <a href="{{docsLink}}" style="display:inline-block; background:#2C8FC9; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:15px; padding:14px 32px; border-radius:10px;">{{^isEn}}Inserisci i documenti ora →{{/isEn}}{{#isEn}}Enter documents now →{{/isEn}}</a>
+          </td></tr>
+        </table>
+        {{/isGroup}}
+        {{#isGroup}}
+        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0 0 10px;">
+          {{^isEn}}Inserisci i documenti per ciascuna stanza:{{/isEn}}{{#isEn}}Enter the documents for each room:{{/isEn}}
+        </p>
+        {{#rooms}}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
+          <tr><td align="center">
+            <a href="{{docsLink}}" style="display:block; background:#2C8FC9; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:15px; padding:14px 32px; border-radius:10px; word-break:break-word;">{{roomLabel}} — {{^isEn}}Inserisci i documenti →{{/isEn}}{{#isEn}}Enter documents →{{/isEn}}</a>
+          </td></tr>
+        </table>
+        {{/rooms}}
+        <div style="height:18px;"></div>
+        {{/isGroup}}
+
+        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0 0 12px;">
+          {{^isEn}}Domande prima del tuo arrivo? Passa dall'assistenza del sito, rispondiamo in giornata:{{/isEn}}{{#isEn}}Questions before you arrive? Reach out through the site's assistance chat, we reply the same day:{{/isEn}}
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td align="center">
+            <a href="{{assistLink}}" style="display:inline-block; background:#FFFFFF; color:#2C8FC9; text-decoration:none; font-weight:700; font-size:14px; padding:12px 28px; border-radius:10px; border:2px solid #2C8FC9;">{{^isEn}}Contatta l'assistenza{{/isEn}}{{#isEn}}Contact assistance{{/isEn}}</a>
           </td></tr>
         </table>
 
-        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0 0 8px;">
-          Domande prima del tuo arrivo? Scrivici pure, rispondiamo in giornata: <a href="tel:+{{hostPhone}}" style="color:#2C8FC9;">+{{hostPhone}}</a>.
-        </p>
+        <div style="border-top:1px solid rgba(16,35,59,0.08); margin-top:24px; padding-top:16px;">
+          <p style="font-size:12px; line-height:1.6; color:#8A98A8; margin:0;">
+            {{^isEn}}Non trovi questa email tra le principali? Controlla nella cartella Spam/Promozioni e sposta questo messaggio nella posta principale (o segna "Non è spam") — così anche le prossime email su documenti e check-in ti arriveranno dritte in bacheca.{{/isEn}}{{#isEn}}Can't find this email in your main inbox? Check your Spam/Promotions folder and move this message to your primary inbox (or mark it "Not spam") — that way the next emails about documents and check-in will land there too.{{/isEn}}
+          </p>
+        </div>
       </td>
     </tr>
     <tr>

@@ -35,18 +35,16 @@ jobs:
         run: node guest-docs-reminder.js
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
-          EMAILJS_TOURISM_DOCS_REMINDER_TEMPLATE_ID: ${{ secrets.EMAILJS_TOURISM_DOCS_REMINDER_TEMPLATE_ID }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           SITE_ORIGIN: https://lacasaceleste.it/affittacamere/
-      - name: Email ciclo di vita (conferma, istruzioni check-in, ringraziamento)
+      - name: Email ciclo di vita (conferma, istruzioni check-in, ringraziamento, consigli, recensione)
         working-directory: affittacamere/scripts
         run: node guest-lifecycle-emails.js
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
-          EMAILJS_TOURISM_CONFIRMATION_TEMPLATE_ID: ${{ secrets.EMAILJS_TOURISM_CONFIRMATION_TEMPLATE_ID }}
-          EMAILJS_TOURISM_CHECKIN_TEMPLATE_ID: ${{ secrets.EMAILJS_TOURISM_CHECKIN_TEMPLATE_ID }}
-          EMAILJS_TOURISM_THANKYOU_TEMPLATE_ID: ${{ secrets.EMAILJS_TOURISM_THANKYOU_TEMPLATE_ID }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           SITE_ORIGIN: https://lacasaceleste.it/affittacamere/
           GOOGLE_CALENDAR_CLIENT_ID: ${{ secrets.GOOGLE_CALENDAR_CLIENT_ID }}

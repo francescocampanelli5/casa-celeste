@@ -19,7 +19,6 @@
 'use strict';
 const crypto = require('crypto');
 const { createBookingCore } = require('./booking-logic');
-const { findAlreadyVerifiedGuests, recordVerifiedGuests } = require('./guest-verification');
 const { validateGuest, movePhotoToPermanent } = require('./guest-documents');
 const { parseMrzFromText } = require('./mrz-parser');
 
@@ -791,10 +790,11 @@ async function finalizeGuestDocuments(ctx, session) {
   await ctx.db.collection('tourism_guestDocuments').doc(bookingId).set({
     guests: movedGuests, submittedAt: ctx.admin.firestore.FieldValue.serverTimestamp()
   });
-  const patch = { guestDocsComplete: true };
-  const alreadyVerified = await findAlreadyVerifiedGuests(ctx.db, guests).catch(() => false);
-  if (alreadyVerified) patch.identityVerified = { method: 'auto_returning', verifiedAt: ctx.admin.firestore.FieldValue.serverTimestamp() };
-  await ctx.db.collection('tourism_bookings').doc(bookingId).update(patch);
+  // Nessuno skip: la legge impone di verificare l'identità a ogni NUOVA
+  // prenotazione, anche per un ospite già soggiornato in passato (vedi
+  // guest-verification.js) — identityVerified si imposta solo a mano dal
+  // proprietario (markIdentityVerified) dopo la videochiamata/videocitofono.
+  await ctx.db.collection('tourism_bookings').doc(bookingId).update({ guestDocsComplete: true });
 }
 
 async function onDocConfirm(ctx, chatId, session) {

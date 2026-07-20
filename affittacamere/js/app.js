@@ -149,6 +149,12 @@
         if (urlLang === 'en' || urlLang === 'it') return urlLang;
         var saved = localStorage.getItem('casaceleste_lang');
         if (saved === 'en' || saved === 'it') return saved;
+        var navLangs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || navigator.userLanguage || ''];
+        for (var i = 0; i < navLangs.length; i++) {
+          var l = (navLangs[i] || '').toLowerCase();
+          if (l.indexOf('it') === 0) return 'it';
+          if (l) return 'en';
+        }
       } catch (e) {}
       return 'it';
     })(),
@@ -3264,7 +3270,8 @@
       checkIn: state.selectedCheckIn, checkOut: state.selectedCheckOut,
       rooms: roomsPayload,
       name: state.contactName, email: state.contactEmail, phone: state.contactPhone,
-      contractAccepted: state.contractAccepted, source: 'site', paymentIntentId: paymentIntentId || null
+      contractAccepted: state.contractAccepted, source: 'site', paymentIntentId: paymentIntentId || null,
+      lang: state.lang
     }).then(function (res) {
       state.bookingBusy = false;
       state.bookingResult = res;
@@ -3312,7 +3319,8 @@
       phone: state.contactPhone,
       contractAccepted: state.contractAccepted,
       source: 'site',
-      paymentIntentId: paymentIntentId || null
+      paymentIntentId: paymentIntentId || null,
+      lang: state.lang
     }).then(function (res) {
       state.bookingBusy = false;
       state.bookingResult = res;
@@ -3956,6 +3964,10 @@
     if (ci && co) state.search.performed = true;
     var roomId = params.get('room');
     if (roomId) state.__deepLinkRoomId = roomId;
+    // Link "Contatta l'assistenza" nelle email (vedi guest-lifecycle-emails.js
+    // e guest-docs-reminder.js): apre subito la chat invece di lasciare
+    // l'ospite a cercare il bottone sul sito.
+    if (params.get('assist')) state.__deepLinkOpenAssist = true;
   }
   function init() {
     try {
@@ -3990,6 +4002,7 @@
     if (state.__deepLinkRoomId && state.roomsData[state.__deepLinkRoomId]) {
       openRoomDetail(state.__deepLinkRoomId);
     }
+    if (state.__deepLinkOpenAssist) openAssistChat();
 
     if (window.CasaCelesteTourismDB && window.CasaCelesteTourismDB.isConfigured()) {
       window.CasaCelesteTourismDB.subscribeRooms(function (roomsFromDb) {

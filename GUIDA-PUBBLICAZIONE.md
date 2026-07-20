@@ -782,43 +782,64 @@ deploy con una singola chiamata:
 curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"
 ```
 
-### 8.3 EmailJS — 4 email automatiche all'ospite, sotto la quota gratuita
+### 8.3 Email automatiche all'ospite — inviate direttamente dal tuo Gmail
 
-**Perché solo 4 email e non di più**: il piano gratuito EmailJS è 200
-email/mese, **condiviso con lo studentato** (stesso account). Con occupazione
-realistica (non tutte le notti prenotate) e 2-3 email per prenotazione in
-media, si resta comodamente sotto quota — ma il sistema ha comunque una
-guardia automatica che salta le email meno critiche se ci si avvicina al
-limite (vedi Impostazioni → "Quota email" in dashboard), avvisandoti su
-Telegram ogni volta che succede.
+**Non serve EmailJS per l'affittacamere** (lo studentato ne ha uno separato,
+vedi Parte 4 — resta indipendente): le 7 email agli ospiti partono
+direttamente dal tuo account Gmail (libreria gratuita Nodemailer), senza
+passare da nessun servizio terzo. Nessun limite di template da rispettare
+(i piani gratuiti di questi servizi spesso ne permettono solo 1-2), nessuna
+quota condivisa da monitorare — il volume di una struttura di poche stanze
+resta ben dentro i limiti di invio giornalieri di un account Gmail
+personale.
 
-Le 4 email (contenuto già scritto, pronto da incollare) sono in
-`affittacamere/email-templates/` — segui il `README.md` lì dentro passo
-per passo. In sintesi, per ognuno dei 4 file: crea un Template EmailJS
-nuovo (stesso Service `service_pgej8ka` dello studentato), incolla
-Subject+Content, e salva l'ID nel secret GitHub indicato:
+**Due percorsi di invio**: conferma e annullamento partono **subito**, da
+un trigger Firestore su Cloud Functions (`onBookingStatusChange`) — non
+appena lo stato della prenotazione cambia, da qualunque punto del sito
+(pagamento online, dashboard, cancellazione self-service dell'ospite). Le
+altre 5 email dipendono da eventi che richiedono comunque ore/giorni
+(documenti completati, giorno del check-out, ecc.) e restano sul cron
+GitHub Actions orario, che resta anche rete di sicurezza per la conferma
+se l'invio immediato dovesse fallire per qualche motivo.
 
-| Email | Quando parte | Secret GitHub |
-|---|---|---|
-| Conferma prenotazione | Tu confermi in dashboard | `EMAILJS_TOURISM_CONFIRMATION_TEMPLATE_ID` |
-| Promemoria documenti | 24h prima del check-in se mancano | `EMAILJS_TOURISM_DOCS_REMINDER_TEMPLATE_ID` |
-| Istruzioni check-in | Documenti completati | `EMAILJS_TOURISM_CHECKIN_TEMPLATE_ID` |
-| Ringraziamento | Il giorno dopo il check-out | `EMAILJS_TOURISM_THANKYOU_TEMPLATE_ID` |
+**Configurazione una tantum**:
+1. Sul tuo account Google, attiva la **verifica in due passaggi** se non
+   già attiva: `myaccount.google.com/security`
+2. Genera una **Password per le app**: `myaccount.google.com/apppasswords`
+   → scegli un nome (es. "Casa Celeste") → copia il codice di 16 caratteri
+3. **Due secret store separati, entrambi da impostare** (Cloud Functions e
+   GitHub Actions non li condividono anche se il nome è identico):
+   ```
+   gh secret set GMAIL_USER --body "tuoindirizzo@gmail.com"
+   gh secret set GMAIL_APP_PASSWORD
+   firebase functions:secrets:set GMAIL_USER
+   firebase functions:secrets:set GMAIL_APP_PASSWORD
+   firebase deploy --only functions
+   ```
+   (i comandi senza `--body`/`--data-file` chiedono il valore in modo
+   nascosto — incolla il codice di 16 caratteri quando richiesto)
 
-Serve anche il secret già usato per lo studentato `EMAILJS_PRIVATE_KEY`
-(API REST, diversa dalla Public Key) — se lo studentato è già configurato
-ce l'hai già, riusalo.
+Fatto: da quel momento tutte le email partono in automatico. I 7 file HTML
+(contenuto già scritto e completo, bilingue IT/EN) sono in
+`affittacamere/email-templates/` — non serve copiarli/incollarli da nessuna
+parte, il codice li legge direttamente da lì a ogni invio. Dettagli su
+prenotazioni di gruppo, portone/codice stanza e lingua nel `README.md`
+della stessa cartella.
 
-**⚠️ Controllo obbligatorio, causa più comune di "le email non arrivano":**
-per OGNI template (anche quelli già esistenti dello studentato) apri
-**Settings** del template su EmailJS e verifica che il campo **"To Email"**
-sia impostato a `{{email}}` — non al valore di esempio precompilato
-(spesso `text@example.com`) e non al tuo indirizzo fisso. Se lo lasci
-sbagliato, l'email parte ma non arriva mai al destinatario giusto.
+| Email | Quando parte |
+|---|---|
+| Conferma prenotazione | Immediata: pagamento online o tu confermi in dashboard |
+| Promemoria documenti | 24h prima del check-in se mancano |
+| Istruzioni check-in | Documenti completati |
+| Ringraziamento + istruzioni check-out | La mattina STESSA del check-out (6-8 ora Roma) |
+| Consigli a metà soggiorno | Il giorno dopo il check-in, se restano altre notti |
+| Richiesta recensione | 3 giorni dopo il check-out |
+| Annullamento prenotazione | Immediata: cancellazione self-service dell'ospite (con rimborso automatico se pagata online) o annullamento manuale in dashboard |
 
 Se salti questa parte, il sito funziona comunque: le prenotazioni restano
 visibili in dashboard e ricevi comunque l'avviso istantaneo su Telegram,
-semplicemente l'ospite non riceve le email automatiche.
+semplicemente l'ospite non riceve le email automatiche finché non imposti
+i due secret sopra.
 
 ### 8.4 Airbnb/Booking (quando avrai quegli account)
 
@@ -902,18 +923,24 @@ corrisponda davvero al documento presentato. Raccogliere solo i dati
 serve anche il passaggio di verifica descritto qui sotto.
 
 **Come funziona (già costruito e attivo)**:
-1. **Prima prenotazione di un ospite**: dopo l'invio dei documenti, il
-   sistema genera da solo un link **Google Meet** (vedi Parte 8.6) per una
-   videochiamata programmata **un'ora prima del check-in** — l'ospite deve
-   avere il documento in mano durante la chiamata. In alternativa, se
-   preferite, la verifica può avvenire dal vivo al **videocitofono** al
-   momento dell'arrivo: in quel caso vai su `affittacamere/dashboard.html`
-   → tab Prenotazioni → menu "Segna identità verificata come…" → scegli
-   "Videocitofono all'arrivo".
-2. **Da quella prenotazione in poi**, lo stesso ospite (stesso nome +
-   documento) viene **riconosciuto automaticamente** dal sistema
-   (`functions/guest-verification.js`) alle prenotazioni successive: niente
-   nuova videochiamata, nessun intervento tuo.
+1. **Ogni NUOVA prenotazione**, dopo l'invio dei documenti, richiede una
+   verifica al primo ingresso — **nessuna eccezione per ospiti già
+   soggiornati in passato**: la legge non fa distinzioni basate sulla
+   storia pregressa, quindi ogni nuovo soggiorno va verificato da capo (una
+   sola volta, al check-in; per il resto del soggiorno l'ospite è libero e
+   autonomo). Se il video è attivo (vedi punto 2), il sistema genera da
+   solo un link **Google Meet** (vedi Parte 8.6) per una videochiamata
+   programmata **un'ora prima del check-in** — l'ospite deve avere il
+   documento in mano durante la chiamata. Se la videochiamata non dovesse
+   avvenire, l'email lo dice chiaramente: la verifica avviene comunque dal
+   vivo al **videocitofono** al momento dell'arrivo — in quel caso vai su
+   `affittacamere/dashboard.html` → tab Prenotazioni → menu "Segna identità
+   verificata come…" → scegli "Videocitofono all'arrivo".
+2. **Casella "Offri la videochiamata..."** in Impostazioni → WiFi e
+   istruzioni check-in: attiva di default. Disattivala per un periodo in
+   cui NON vuoi offrire la videochiamata — in quel caso l'email di check-in
+   dice semplicemente che la verifica avverrà dal vivo al videocitofono,
+   nessun link Google Meet viene generato.
 3. **Cittadini italiani con SPID/CIE**: resta un'alternativa valida in
    teoria, ma richiede che TU (o un intermediario) venga accreditato come
    **Service Provider** presso AgID/Ministero dell'Interno — un processo
@@ -923,15 +950,32 @@ serve anche il passaggio di verifica descritto qui sotto.
    italiani passano dal percorso videochiamata/videocitofono sopra — dimmi
    quando vuoi approfondire l'accreditamento SPID/CIE.
 
+**Codice/link apertura stanza**: campo libero per prenotazione (dashboard,
+scheda della prenotazione) — non generato dal sistema, lo inserisci a mano
+ogni volta che cambia (es. resetti il codice della serratura), e viene
+incluso automaticamente nell'email di istruzioni check-in una volta
+compilato. Se lo lasci vuoto, quella sezione dell'email semplicemente non
+appare.
+
+**Link apertura portone lato strada**: stesso discorso, ma a livello di
+struttura invece che di singola stanza — campo in Impostazioni → WiFi e
+istruzioni check-in, anche questo compilato a mano da te (non generato dal
+sistema) e incluso nell'email di check-in se presente. Se la tua app di
+citofono/serratura smart genera link o codici temporanei che scadono, sei
+tu ad aggiornare il campo ogni volta che serve — il sistema si limita a
+mostrare sempre l'ultimo valore che hai salvato, non sa quando scade.
+
 **Cosa NON è (ancora) automatizzato — dipende da un pezzo di hardware che
-non hai ancora**: l'"apertura automatica della porta dalla seconda volta"
-richiede un **citofono/serratura smart con una propria app/API** (es. Nuki,
-Yale Access, Comelit con modulo IP, ecc.) che il sistema possa comandare da
-remoto. Oggi questo hardware non è ancora nella tua struttura, quindi il
-riconoscimento "ospite già verificato" (punto 2 sopra) è pronto lato
-software, ma l'apertura fisica resta manuale finché non mi dici quale
-prodotto acquisti/installi — a quel punto costruisco l'integrazione con la
-sua API reale (ogni marca è diversa, non posso costruirla "in astratto").
+non hai ancora**: l'apertura automatica da remoto (o l'invio/aggiornamento
+automatico di codici e link sempre diversi, sia per la singola stanza sia
+per il portone) richiede un **citofono/serratura smart con una propria
+app/API** (es. Nuki, Yale Access, Comelit con modulo IP, ecc.) che il
+sistema possa comandare direttamente. Oggi questo hardware non è ancora
+nella tua struttura, quindi per ora sia il codice di ogni stanza sia il
+link del portone li inserisci/aggiorni tu a mano (vedi sopra) — quando mi
+dici quale prodotto
+acquisti/installi, costruisco l'integrazione con la sua API reale (ogni
+marca è diversa, non posso costruirla "in astratto").
 
 **Perché non Stripe Identity / AWS Rekognition (biometria + liveness)**:
 scartate — sono a pagamento per verifica (non compatibili con budget 0) e
@@ -944,8 +988,9 @@ non vincola a un metodo biometrico specifico.
 ## Domande frequenti
 
 **Devo pagare qualcosa?** L'hosting no: per i volumi di un sito come questo, i
-piani gratuiti di GitHub Pages, Firebase (piano *Spark*) ed EmailJS (200
-email/mese) bastano ampiamente, e nessuno di questi chiede la carta di
+piani gratuiti di GitHub Pages, Firebase (piano *Spark*), Gmail (email agli
+ospiti dell'affittacamere) ed EmailJS (200 email/mese, usato solo dallo
+studentato) bastano ampiamente, e nessuno di questi chiede la carta di
 credito per il piano gratuito. L'unico costo reale è la **registrazione
 annuale del dominio** `.it` (vedi Parte 5), che nessun servizio gratuito può
 sostituire — è una tassa amministrativa dovuta al registro dei domini, non

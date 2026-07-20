@@ -102,6 +102,10 @@ async function createBookingCore(admin, db, stripe, data) {
   const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(data.cribCount) || 0));
   const extraBedCount = Math.max(0, Math.min(EXTRA_BED_MAX, Number(data.extraBedCount) || 0));
   const paymentIntentId = data.paymentIntentId || null;
+  // Lingua scelta dall'ospite sul sito (vedi state.lang in app.js) - salvata
+  // sulla prenotazione così guest-lifecycle-emails.js sa in quale lingua
+  // scrivere le email, senza dover indovinare dal nome/dominio email.
+  const lang = data.lang === 'en' ? 'en' : 'it';
 
   if (!isNonEmptyString(roomId, 50)) fail('invalid-argument', 'Stanza mancante.');
   if (!isValidDateStr(checkIn) || !isValidDateStr(checkOut) || checkIn >= checkOut) {
@@ -192,7 +196,7 @@ async function createBookingCore(admin, db, stripe, data) {
     const bookingData = {
       roomId: roomId, roomLabel: room.name || roomId, checkIn: checkIn, checkOut: checkOut,
       nights: nights, guests: guests, exemptGuests: exemptGuests, name: name, email: email, phone: phone,
-      bedType: bedType, cribCount: cribCount, extraBedCount: extraBedCount, pricing: pricing,
+      bedType: bedType, cribCount: cribCount, extraBedCount: extraBedCount, pricing: pricing, lang: lang,
       source: source, status: status, touristTax: touristTax,
       payment: paymentIntentId ? { intentId: paymentIntentId, baseTotal: pricing.total, fee: fee, chargedTotal: Math.round((pricing.total + fee) * 100) / 100 } : null,
       contractAcceptedAt: source === 'site' ? admin.firestore.FieldValue.serverTimestamp() : null,
@@ -236,6 +240,7 @@ async function createGroupBookingCore(admin, db, stripe, data) {
   const contractAccepted = !!data.contractAccepted;
   const source = data.source === 'site' ? 'site' : (data.source || 'site');
   const paymentIntentId = data.paymentIntentId || null;
+  const lang = data.lang === 'en' ? 'en' : 'it';
 
   if (!isValidDateStr(checkIn) || !isValidDateStr(checkOut) || checkIn >= checkOut) {
     fail('invalid-argument', 'Date non valide.');
@@ -325,7 +330,7 @@ async function createGroupBookingCore(admin, db, stripe, data) {
       const bookingData = {
         roomId: spec.roomId, roomLabel: room.name || spec.roomId, checkIn: checkIn, checkOut: checkOut,
         nights: nights, guests: spec.guests, exemptGuests: spec.exemptGuests, name: name, email: email, phone: phone,
-        bedType: spec.bedType, cribCount: spec.cribCount, extraBedCount: spec.extraBedCount, pricing: pricing,
+        bedType: spec.bedType, cribCount: spec.cribCount, extraBedCount: spec.extraBedCount, pricing: pricing, lang: lang,
         source: source, status: status, touristTax: touristTax,
         payment: paymentIntentId ? { intentId: paymentIntentId, baseTotal: pricing.total, fee: fee, chargedTotal: Math.round((pricing.total + fee) * 100) / 100 } : null,
         groupId: groupId, groupSize: specs.length,
