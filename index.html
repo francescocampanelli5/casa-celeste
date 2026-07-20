@@ -81,39 +81,41 @@
   /* Threshold interactive divider */
   .threshold-wrap{padding:clamp(24px,4vw,40px) 0 clamp(48px,6vw,72px)}
   .threshold{
-    position:relative; max-width:var(--container); margin:0 auto; height:clamp(340px,42vw,440px);
-    border-radius:var(--r-lg); overflow:hidden; box-shadow:0 30px 60px -32px rgba(16,35,59,.28);
-    border:1px solid var(--line);
+    position:relative; max-width:var(--container); margin:0 auto;
+    display:grid; grid-template-columns:1fr 1fr; gap:2px;
+    border-radius:var(--r-lg); overflow:visible; border:1px solid var(--line);
+    box-shadow:0 30px 60px -32px rgba(16,35,59,.28);
+    perspective:1600px;
   }
-  .threshold-panel{position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:clamp(28px,4vw,56px)}
-  .threshold-private{background:var(--private-surface); color:var(--private-ink); clip-path:inset(0 calc(100% - var(--split,50%)) 0 0)}
-  .threshold-shared{background:var(--shared-surface); color:var(--shared-ink); clip-path:inset(0 0 0 var(--split,50%))}
+  .threshold-panel{
+    position:relative; display:flex; flex-direction:column; justify-content:center;
+    padding:clamp(28px,4vw,56px); min-height:clamp(300px,34vw,380px);
+    transition:transform .4s cubic-bezier(.2,.8,.2,1), box-shadow .4s ease;
+    will-change:transform;
+  }
+  .threshold-private{background:var(--private-surface); color:var(--private-ink); border-radius:var(--r-lg) 0 0 var(--r-lg); transform-origin:right center}
+  .threshold-shared{background:var(--shared-surface); color:var(--shared-ink); border-radius:0 var(--r-lg) var(--r-lg) 0; transform-origin:left center}
+  @media (hover:hover){
+    .threshold-private:hover, .threshold-private:focus-within{transform:rotateY(-6deg); box-shadow:18px 8px 40px -18px rgba(16,35,59,.35); z-index:2}
+    .threshold-shared:hover, .threshold-shared:focus-within{transform:rotateY(6deg); box-shadow:-18px 8px 40px -18px rgba(16,35,59,.3); z-index:2}
+  }
   .threshold-panel .tag{margin-bottom:14px}
   .threshold-private .tag{color:var(--blue-deep)}
   .threshold-shared .tag{color:var(--yellow-deep)}
-  .threshold-panel h2{font-family:var(--font-display); font-weight:800; font-size:clamp(20px,2.6vw,28px); margin:0 0 10px; letter-spacing:-0.01em; max-width:340px}
-  .threshold-panel p{font-size:14.5px; line-height:1.55; margin:0; max-width:300px; opacity:.85}
-  .threshold-divider{position:absolute; top:0; bottom:0; left:var(--split,50%); width:0; pointer-events:none; z-index:3}
-  .threshold-divider::before{content:''; position:absolute; top:0; bottom:0; left:-1px; width:2px; background:rgba(255,255,255,.9)}
-  .threshold-handle{
-    position:absolute; top:50%; left:0; transform:translate(-50%,-50%); width:44px; height:44px; border-radius:50%;
-    background:var(--white,#fff); box-shadow:0 8px 20px -6px rgba(16,35,59,.35); display:flex; align-items:center; justify-content:center;
-    color:var(--navy); font-size:15px; pointer-events:none;
+  .threshold-panel h2{font-family:var(--font-display); font-weight:800; font-size:clamp(19px,2.4vw,26px); margin:0 0 10px; letter-spacing:-0.01em; max-width:320px}
+  .threshold-panel p{font-size:14.5px; line-height:1.55; margin:0; max-width:280px; opacity:.85}
+  .threshold-seam{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:3;
+    width:36px; height:36px; border-radius:50%; background:var(--paper); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px -6px rgba(16,35,59,.3);
+    pointer-events:none;
   }
-  .threshold-slider{
-    position:absolute; inset:0; width:100%; height:100%; margin:0; appearance:none; -webkit-appearance:none;
-    background:transparent; cursor:ew-resize; z-index:4;
-  }
-  .threshold-slider::-webkit-slider-thumb{-webkit-appearance:none; width:44px; height:100%; background:transparent}
-  .threshold-slider::-moz-range-thumb{width:44px; height:100%; background:transparent; border:none}
-  .threshold-slider::-webkit-slider-runnable-track{background:transparent}
   .threshold-hint{text-align:center; font-size:12.5px; color:var(--ink-faint); margin-top:14px}
   @media (max-width:680px){
-    .threshold{height:auto; border-radius:var(--r-md)}
-    .threshold-panel{position:static; clip-path:none !important; width:100%; padding:26px 22px}
-    .threshold-panel p{max-width:none}
-    .threshold-panel h2{max-width:none}
-    .threshold-divider, .threshold-slider, .threshold-hint{display:none}
+    .threshold{grid-template-columns:1fr}
+    .threshold-private{border-radius:var(--r-lg) var(--r-lg) 0 0}
+    .threshold-shared{border-radius:0 0 var(--r-lg) var(--r-lg)}
+    .threshold-seam{display:none}
   }
 
   /* Feature columns */
@@ -243,10 +245,11 @@
         <p data-lang="it">Cucina, salotto, terrazza: pensati per stare insieme, quando ne hai voglia.</p>
         <p data-lang="en">Kitchen, lounge, terrace: made for being together, whenever you feel like it.</p>
       </div>
-      <div class="threshold-divider" id="threshold-divider"><div class="threshold-handle">⇔</div></div>
-      <input type="range" min="0" max="100" value="50" class="threshold-slider" id="threshold-slider" aria-label="Trascina per esplorare privacy e community">
+      <div class="threshold-seam" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      </div>
     </div>
-    <p class="threshold-hint"><span data-lang="it">↔ Trascina per vedere entrambi i lati di Casa Celeste</span><span data-lang="en">↔ Drag to see both sides of Casa Celeste</span></p>
+    <p class="threshold-hint"><span data-lang="it">Stesso palazzo, due porte — sempre entrambe a portata di mano.</span><span data-lang="en">Same building, two doors — always both within reach.</span></p>
   </div>
 </section>
 
@@ -373,16 +376,6 @@
     a.addEventListener('click', function () { if (currentLang === 'en') a.href = a.getAttribute('href').split('?')[0] + '?lang=en'; });
   });
 
-  /* Threshold slider: privacy <-> community */
-  var threshold = document.getElementById('threshold');
-  var slider = document.getElementById('threshold-slider');
-  var divider = document.getElementById('threshold-divider');
-  function setSplit(v) {
-    threshold.style.setProperty('--split', v + '%');
-    divider.style.left = v + '%';
-  }
-  setSplit(50);
-  slider.addEventListener('input', function () { setSplit(slider.value); });
 
   /* Reveal on scroll */
   if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
