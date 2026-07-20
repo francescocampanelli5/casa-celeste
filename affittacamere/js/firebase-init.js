@@ -26,6 +26,11 @@ import {
 import {
   getFunctions, connectFunctionsEmulator, httpsCallable
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+import {
+  initializeAppCheck, ReCaptchaV3Provider
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
+
+var APP_CHECK_SITE_KEY = '6LdEnVstAAAAAL5b-A9izezh4n8VjhC8pFDJGYHR';
 
 var cfg = window.FIREBASE_CONFIG || {};
 var configured = !!cfg.apiKey && cfg.apiKey.indexOf('INCOLLA_QUI') === -1;
@@ -33,6 +38,10 @@ var configured = !!cfg.apiKey && cfg.apiKey.indexOf('INCOLLA_QUI') === -1;
 var app = null, db = null, auth = null, storage = null, functions = null;
 if (configured) {
   app = initializeApp(cfg);
+  if (window.USE_FIREBASE_EMULATOR) {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+  initializeAppCheck(app, { provider: new ReCaptchaV3Provider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
   db = getFirestore(app);
   auth = getAuth(app);
   storage = getStorage(app);
