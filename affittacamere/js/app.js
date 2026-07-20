@@ -15,7 +15,7 @@
     { q: { it: 'Cosa è incluso nel prezzo?', en: 'What is included in the price?' },
       a: { it: 'Il prezzo mostrato è tutto incluso (utenze, wifi, pulizie). L\'unico costo che si aggiunge è la tassa di soggiorno comunale (2€ a notte a persona, con esenzioni per i più piccoli), mostrata chiaramente prima di confermare.', en: 'The price shown is all-inclusive (utilities, wifi, cleaning). The only extra cost is the municipal tourist tax (€2 per night per person, with exemptions for younger guests), shown clearly before you confirm.' } },
     { q: { it: 'Serve un documento per prenotare?', en: 'Do I need an ID document to book?' },
-      a: { it: 'Sì, ma è più semplice di quanto sembri: prima del check-in ti mandiamo un link sicuro dove inserire i tuoi dati, poi basta una breve videochiamata di un minuto (o, solo la primissima volta, due parole al videocitofono all\'arrivo) — è la normale prassi italiana per le locazioni turistiche, non un controllo in più. Dalla seconda prenotazione in poi, se sei già stato nostro ospite, salti anche questo passaggio.', en: 'Yes, but it\'s simpler than it sounds: before check-in we send you a secure link to enter your details, then it\'s just a short one-minute video call (or, only the very first time, a quick hello at the entry intercom on arrival) — it\'s standard practice for short-term rentals in Italy, not an extra hurdle. From your second booking onward, if you\'ve stayed with us before, you skip this step too.' } },
+      a: { it: 'Sì, ma è più semplice di quanto sembri: prima del check-in ti mandiamo un link sicuro dove inserire i tuoi dati, poi basta una breve videochiamata di un minuto (o, se non dovesse avvenire, due parole al videocitofono al tuo arrivo) — è la normale prassi italiana per le locazioni turistiche, non un controllo in più. Va ripetuto a ogni nuova prenotazione, anche se sei già stato nostro ospite: lo richiede la legge.', en: 'Yes, but it\'s simpler than it sounds: before check-in we send you a secure link to enter your details, then it\'s just a short one-minute video call (or, if that doesn\'t happen, a quick hello at the entry intercom on arrival) — it\'s standard practice for short-term rentals in Italy, not an extra hurdle. It\'s required again for every new booking, even if you\'ve stayed with us before: Italian law requires it.' } },
     { q: { it: 'Posso cancellare la prenotazione?', en: 'Can I cancel my booking?' },
       a: { it: 'Cancellazione gratuita fino a 48 ore prima dell\'orario di check-in, con rimborso automatico. Oltre questa soglia la cancellazione non è più valida e non è possibile alcun rimborso, come indicato nelle Condizioni di soggiorno.', en: 'Free cancellation up to 48 hours before check-in time, with automatic refund. After that, cancellation is no longer possible and no refund can be issued, as stated in the Stay Terms & Conditions.' } }
   ];
@@ -268,6 +268,12 @@
     return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+  function normalizeExternalUrl(url) {
+    var u = String(url || '').trim();
+    if (!u) return '';
+    if (/^(https?:|mailto:|tel:)/i.test(u)) return u;
+    return 'https://' + u;
   }
   function t(key) {
     var dict = (window.CASA_CELESTE_TOURISM_I18N && window.CASA_CELESTE_TOURISM_I18N[state.lang]) || {};
@@ -2022,7 +2028,7 @@
     if (!recs.length) { if (section) section.style.display = 'none'; return; }
     if (section) section.style.display = '';
     container.innerHTML = recs.map(function (r) {
-      return '<a class="recs-card" href="' + escapeHtml(r.url || '#') + '" target="_blank" rel="noopener sponsored" data-recs-track="' + escapeHtml(r.id || r.title || '') + '">' +
+      return '<a class="recs-card" href="' + escapeHtml(normalizeExternalUrl(r.url) || '#') + '" target="_blank" rel="noopener sponsored" data-recs-track="' + escapeHtml(r.id || r.title || '') + '">' +
         '<div class="recs-card-photo">' +
           (r.photo ? photoTag(r.photo, r.title || '') : '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(r.title || '') + '</span>') +
           (r.cost ? '<span class="recs-card-price">' + escapeHtml(r.cost) + '</span>' : '') +
@@ -2135,7 +2141,7 @@
     var html = SOCIAL_PLATFORMS.map(function (platform) {
       var cfg = socials[platform];
       if (!cfg || !cfg.enabled || !cfg.url) return '';
-      return '<a href="' + escapeHtml(cfg.url) + '" target="_blank" rel="noopener" class="social-icon-link" aria-label="' + escapeHtml(SOCIAL_LABELS[platform]) + '">' +
+      return '<a href="' + escapeHtml(normalizeExternalUrl(cfg.url)) + '" target="_blank" rel="noopener" class="social-icon-link" aria-label="' + escapeHtml(SOCIAL_LABELS[platform]) + '">' +
         '<svg width="17" height="17"><use href="#social-' + platform + '"></use></svg>' +
       '</a>';
     }).join('');
