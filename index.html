@@ -42,133 +42,153 @@
 </script>
 <style>
   :root{
-    --navy:#10233B; --blue:#2C8FC9; --blue-light:#3EA5D8; --blue-deep:#1D6E96;
-    --blue-bg:#EAF6FC; --blue-bg-soft:#F5FAFD;
-    --yellow:#FFD24C; --yellow-bg:#FFF6DD; --yellow-deep:#C9971A; --yellow-text-dark:#8C6A16;
-    --green:#2E9E5B; --whatsapp:#1EBE5D; --whatsapp-hover:#149449;
-    --white:#FFFFFF; --off-white:#FAFAF8; --panel-bg:#F4F7F9;
-    --text-body:#4B5768; --text-body-alt:#3E4A5C; --text-muted:#57647A;
-    --footer-bg:#10233B; --footer-text:#C9D2DC; --footer-text-muted:#8FA0B3; --footer-text-dim:#6C7D91;
-    --border-hairline:rgba(16,35,59,0.06); --border-soft:rgba(16,35,59,0.07); --border-medium:rgba(16,35,59,0.12);
+    --navy:#10233B; --blue:#2C8FC9; --blue-deep:#1D6E96; --yellow:#FFD24C; --yellow-deep:#C9971A;
+    --private-surface:#EFF4F9; --private-ink:#22405C;
+    --shared-surface:#FFF3D9; --shared-ink:#7A5510;
+    --paper:#FCFBF8; --ink:#10233B; --ink-soft:#4B5768; --ink-faint:#7C8AA0;
+    --line:rgba(16,35,59,0.10); --line-soft:rgba(16,35,59,0.06);
     --font-display:'Sora',sans-serif; --font-body:'Manrope',sans-serif;
-    --radius-pill:100px; --radius-xl:32px; --radius-lg:28px; --radius-md:22px; --radius-sm:18px;
-    --container-max:1080px;
+    --font-tag:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --container:1100px; --r-lg:26px; --r-md:18px; --r-sm:12px; --r-pill:100px;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{
-    margin:0; background:var(--blue-bg-soft); color:var(--navy); font-family:var(--font-body);
-    -webkit-font-smoothing:antialiased;
-  }
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--font-body); -webkit-font-smoothing:antialiased}
   a{color:inherit}
-  .container{max-width:var(--container-max); margin:0 auto; padding:0 clamp(20px,5vw,32px)}
+  .wrap{max-width:var(--container); margin:0 auto; padding:0 clamp(20px,5vw,32px)}
+  .tag{font-family:var(--font-tag); font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:600}
 
-  /* Reveal on scroll */
-  .reveal{opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease}
+  .reveal{opacity:0; transform:translateY(16px); transition:opacity .5s ease, transform .5s ease}
   .reveal.is-visible{opacity:1; transform:translateY(0)}
-  @media (prefers-reduced-motion: reduce){
-    .reveal{opacity:1; transform:none; transition:none}
-    html{scroll-behavior:auto}
-  }
+  @media (prefers-reduced-motion: reduce){ .reveal{opacity:1; transform:none; transition:none} html{scroll-behavior:auto} }
 
   /* Header */
-  .topbar{display:flex; align-items:center; justify-content:space-between; max-width:var(--container-max); margin:0 auto; padding:20px clamp(20px,5vw,32px)}
-  .brand{font-family:var(--font-display); font-weight:800; font-size:17px; color:var(--navy); display:flex; align-items:center; gap:8px; text-decoration:none}
-  .brand-dot{width:10px; height:10px; border-radius:3px; background:var(--blue); display:inline-block}
-  .lang-switcher{display:flex; align-items:center; gap:4px; border:1.5px solid var(--border-medium); border-radius:var(--radius-pill); padding:3px; background:var(--white)}
-  .lang-flag-btn{background:none; border:none; border-radius:var(--radius-pill); cursor:pointer; padding:5px 9px; opacity:0.45; transition:opacity .15s ease, background-color .15s ease; display:inline-flex; align-items:center}
-  .lang-flag-btn:hover{opacity:0.75}
-  .lang-flag-btn.is-active{opacity:1; background:var(--blue-bg)}
-  .flag-icon{width:20px; height:14px; border-radius:3px; display:block; box-shadow:0 0 0 1px rgba(16,35,59,0.12)}
+  .topbar{display:flex; align-items:center; justify-content:space-between; max-width:var(--container); margin:0 auto; padding:22px clamp(20px,5vw,32px)}
+  .brand{font-family:var(--font-display); font-weight:800; font-size:16.5px; color:var(--navy); text-decoration:none; display:flex; align-items:center; gap:9px}
+  .brand-mark{width:9px; height:9px; border-radius:2px; background:var(--blue); transform:rotate(45deg); display:inline-block}
+  .lang-switcher{display:flex; align-items:center; gap:3px; border:1px solid var(--line); border-radius:var(--r-pill); padding:3px; background:var(--paper)}
+  .lang-flag-btn{background:none; border:none; border-radius:var(--r-pill); cursor:pointer; padding:5px 8px; opacity:.4; transition:opacity .15s ease, background-color .15s ease}
+  .lang-flag-btn:hover{opacity:.7}
+  .lang-flag-btn.is-active{opacity:1; background:var(--private-surface)}
+  .flag-icon{width:18px; height:13px; border-radius:2px; display:block}
 
-  /* Hero */
-  .hero{position:relative; overflow:hidden; padding:clamp(28px,5vw,48px) 0 clamp(48px,7vw,72px); text-align:center}
-  .hero-blob-1{position:absolute; top:-160px; right:-140px; width:400px; height:400px; border-radius:50%; background:var(--blue); opacity:0.10; animation:driftA 22s ease-in-out infinite}
-  .hero-blob-2{position:absolute; bottom:-70px; left:-50px; width:190px; height:190px; border-radius:44% 56% 60% 40%/50% 45% 55% 50%; background:var(--yellow); opacity:0.28; animation:driftB 26s ease-in-out infinite}
-  @keyframes driftA{0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-18px,14px) scale(1.05)}}
-  @keyframes driftB{0%,100%{transform:translate(0,0) rotate(0deg)} 50%{transform:translate(14px,-10px) rotate(8deg)}}
-  @media (prefers-reduced-motion: reduce){ .hero-blob-1,.hero-blob-2{animation:none} }
-  .badge{display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:var(--radius-pill); font-size:12.5px; font-weight:700; letter-spacing:0.03em; color:var(--blue-deep); background:var(--white); border:1px solid var(--blue); margin-bottom:24px}
-  .hero-title{font-family:var(--font-display); font-weight:800; font-size:clamp(30px,5.2vw,52px); line-height:1.1; letter-spacing:-0.02em; margin:0 0 18px; color:var(--navy)}
-  .hero-title-highlight{position:relative; white-space:nowrap}
-  .hero-title-highlight svg{position:absolute; left:0; bottom:-6px; width:100%}
-  .hero-lead{font-size:clamp(15.5px,1.6vw,17.5px); line-height:1.65; color:var(--text-body); max-width:560px; margin:0 auto 14px; font-weight:500}
-  .hero-address{display:flex; align-items:center; justify-content:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--navy); margin:0 0 40px}
+  /* Hero intro */
+  .intro{padding:clamp(20px,4vw,32px) 0 clamp(28px,4vw,40px); text-align:center}
+  .h1{font-family:var(--font-display); font-weight:800; font-size:clamp(30px,5vw,50px); line-height:1.08; letter-spacing:-0.02em; margin:0 0 16px; max-width:820px; margin-inline:auto}
+  .h1 em{font-style:normal; color:var(--blue-deep)}
+  .lead{font-size:clamp(15px,1.4vw,17px); line-height:1.6; color:var(--ink-soft); max-width:520px; margin:0 auto}
 
-  /* Interactive intent filter */
-  .intent-filter{max-width:400px; margin:0 auto}
-  .intent-filter-label{font-size:13px; font-weight:700; color:var(--text-muted); margin:0 0 12px}
-  .intent-switch{position:relative; display:grid; grid-template-columns:1fr 1fr; background:var(--panel-bg); border:1.5px solid var(--border-medium); border-radius:var(--radius-pill); padding:5px}
-  .intent-switch-thumb{position:absolute; top:5px; left:5px; width:calc(50% - 5px); height:calc(100% - 10px); background:var(--white); border-radius:var(--radius-pill); box-shadow:0 8px 18px -6px rgba(16,35,59,.22); transition:transform .35s cubic-bezier(.4,0,.2,1); transform:translateX(0)}
-  .intent-switch.is-studentato .intent-switch-thumb{transform:translateX(100%)}
-  .intent-opt{position:relative; z-index:1; background:none; border:none; padding:12px 10px; font-weight:700; font-size:13.5px; font-family:var(--font-body); color:var(--text-muted); cursor:pointer; border-radius:var(--radius-pill); transition:color .2s ease}
-  .intent-opt.is-active{color:var(--navy)}
-
-  /* Trust strip */
-  .trust-strip{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; border-top:1px solid var(--border-hairline); border-bottom:1px solid var(--border-hairline); padding:22px 0}
-  .trust-item{display:flex; align-items:center; justify-content:center; gap:10px; font-size:13px; font-weight:700; color:var(--text-body-alt)}
-  .trust-item .check{color:var(--green); flex-shrink:0}
-
-  /* Cards */
-  .cards-section{padding:clamp(48px,7vw,80px) 0}
-  .cards{display:grid; grid-template-columns:1fr 1fr; gap:20px}
-  @media (max-width:720px){ .cards{grid-template-columns:1fr} }
-  .card{
-    background:#fff; border:1px solid var(--border-soft); border-radius:var(--radius-lg); padding:30px;
-    display:flex; flex-direction:column; text-decoration:none; color:inherit;
-    transition:transform .2s ease, box-shadow .2s ease, opacity .3s ease, border-color .2s ease;
-    will-change:transform;
+  /* Threshold interactive divider */
+  .threshold-wrap{padding:clamp(24px,4vw,40px) 0 clamp(48px,6vw,72px)}
+  .threshold{
+    position:relative; max-width:var(--container); margin:0 auto; height:clamp(340px,42vw,440px);
+    border-radius:var(--r-lg); overflow:hidden; box-shadow:0 30px 60px -32px rgba(16,35,59,.28);
+    border:1px solid var(--line);
   }
-  .card:hover, .card:focus-visible{transform:translateY(-4px); box-shadow:0 20px 38px -20px rgba(16,35,59,.22)}
-  .card.is-match{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-bg), 0 20px 38px -20px rgba(16,35,59,.22)}
-  .card.affittacamere.is-match{border-color:var(--yellow-deep); box-shadow:0 0 0 3px var(--yellow-bg), 0 20px 38px -20px rgba(16,35,59,.22)}
-  .card.is-dim{opacity:0.55}
-  .card .icon{width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; margin-bottom:18px}
-  .card .icon svg{width:24px; height:24px}
-  .card.studentato .icon{background:var(--blue-bg)}
-  .card.affittacamere .icon{background:var(--yellow-bg)}
-  .card .eyebrow{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--blue-deep)}
-  .card.affittacamere .eyebrow{color:var(--yellow-deep)}
-  .card h2{font-family:var(--font-display); font-weight:800; font-size:22px; margin:8px 0 10px; letter-spacing:-0.01em}
-  .card p{font-size:14.5px; line-height:1.6; color:var(--text-body); margin:0 0 22px; flex:1}
-  .card .cta{font-weight:800; font-size:14.5px; color:var(--navy); display:flex; align-items:center; gap:6px}
-  .card.affittacamere .cta{color:#8A5A00}
-  .card .cta svg{transition:transform .2s ease}
-  .card:hover .cta svg{transform:translateX(3px)}
+  .threshold-panel{position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:clamp(28px,4vw,56px)}
+  .threshold-private{background:var(--private-surface); color:var(--private-ink); clip-path:inset(0 calc(100% - var(--split,50%)) 0 0)}
+  .threshold-shared{background:var(--shared-surface); color:var(--shared-ink); clip-path:inset(0 0 0 var(--split,50%))}
+  .threshold-panel .tag{margin-bottom:14px}
+  .threshold-private .tag{color:var(--blue-deep)}
+  .threshold-shared .tag{color:var(--yellow-deep)}
+  .threshold-panel h2{font-family:var(--font-display); font-weight:800; font-size:clamp(20px,2.6vw,28px); margin:0 0 10px; letter-spacing:-0.01em; max-width:340px}
+  .threshold-panel p{font-size:14.5px; line-height:1.55; margin:0; max-width:300px; opacity:.85}
+  .threshold-divider{position:absolute; top:0; bottom:0; left:var(--split,50%); width:0; pointer-events:none; z-index:3}
+  .threshold-divider::before{content:''; position:absolute; top:0; bottom:0; left:-1px; width:2px; background:rgba(255,255,255,.9)}
+  .threshold-handle{
+    position:absolute; top:50%; left:0; transform:translate(-50%,-50%); width:44px; height:44px; border-radius:50%;
+    background:var(--white,#fff); box-shadow:0 8px 20px -6px rgba(16,35,59,.35); display:flex; align-items:center; justify-content:center;
+    color:var(--navy); font-size:15px; pointer-events:none;
+  }
+  .threshold-slider{
+    position:absolute; inset:0; width:100%; height:100%; margin:0; appearance:none; -webkit-appearance:none;
+    background:transparent; cursor:ew-resize; z-index:4;
+  }
+  .threshold-slider::-webkit-slider-thumb{-webkit-appearance:none; width:44px; height:100%; background:transparent}
+  .threshold-slider::-moz-range-thumb{width:44px; height:100%; background:transparent; border:none}
+  .threshold-slider::-webkit-slider-runnable-track{background:transparent}
+  .threshold-hint{text-align:center; font-size:12.5px; color:var(--ink-faint); margin-top:14px}
+  @media (max-width:680px){
+    .threshold{height:auto; border-radius:var(--r-md)}
+    .threshold-panel{position:static; clip-path:none !important; width:100%; padding:26px 22px}
+    .threshold-panel p{max-width:none}
+    .threshold-panel h2{max-width:none}
+    .threshold-divider, .threshold-slider, .threshold-hint{display:none}
+  }
 
-  /* Welcome */
-  .welcome{text-align:center; padding:clamp(40px,6vw,64px) 0; max-width:640px; margin:0 auto}
-  .eyebrow-label{font-weight:800; font-size:12.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--blue-deep); margin-bottom:10px}
-  .welcome h2{font-family:var(--font-display); font-weight:800; font-size:clamp(24px,3vw,32px); margin:0 0 16px; letter-spacing:-0.01em}
-  .welcome p{font-size:15.5px; line-height:1.75; color:var(--text-body); margin:0}
+  /* Feature columns */
+  .balance{padding:clamp(24px,4vw,40px) 0; display:grid; grid-template-columns:1fr 1fr; gap:clamp(24px,5vw,48px)}
+  @media (max-width:680px){ .balance{grid-template-columns:1fr} }
+  .balance-col h3{font-family:var(--font-display); font-weight:800; font-size:15px; margin:0 0 14px; display:flex; align-items:center; gap:8px}
+  .balance-col ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px}
+  .balance-col li{font-size:14px; color:var(--ink-soft); line-height:1.5; display:flex; gap:10px; align-items:baseline}
+  .balance-col li::before{content:'—'; color:var(--ink-faint); flex-shrink:0}
+
+  /* Practical routing: plaques */
+  .plaques-wrap{padding:clamp(32px,5vw,56px) 0}
+  .plaques-title{text-align:center; margin:0 0 28px}
+  .plaques-title .tag{display:block; color:var(--ink-faint); margin-bottom:10px}
+  .plaques-title h2{font-family:var(--font-display); font-weight:800; font-size:clamp(22px,2.6vw,28px); margin:0; letter-spacing:-0.01em}
+  .plaques{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  @media (max-width:680px){ .plaques{grid-template-columns:1fr} }
+  .plaque{
+    position:relative; background:#fff; border:1px solid var(--line); border-radius:var(--r-md); padding:26px 26px 24px;
+    text-decoration:none; color:inherit; display:flex; flex-direction:column; overflow:hidden;
+    transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .plaque::before{content:''; position:absolute; left:0; top:0; bottom:0; width:5px}
+  .plaque.long::before{background:var(--blue)}
+  .plaque.short::before{background:var(--yellow)}
+  .plaque:hover, .plaque:focus-visible{transform:translateY(-3px); box-shadow:0 18px 34px -20px rgba(16,35,59,.22)}
+  .plaque .tag{margin-bottom:10px}
+  .plaque.long .tag{color:var(--blue-deep)}
+  .plaque.short .tag{color:var(--yellow-deep)}
+  .plaque h3{font-family:var(--font-display); font-weight:800; font-size:20px; margin:0 0 10px}
+  .plaque p{font-size:14px; line-height:1.55; color:var(--ink-soft); margin:0 0 20px; flex:1}
+  .plaque-go{font-weight:800; font-size:13.5px; display:flex; align-items:center; gap:6px; color:var(--navy)}
+  .plaque-go svg{transition:transform .18s ease}
+  .plaque:hover .plaque-go svg{transform:translateX(3px)}
 
   /* FAQ */
-  .faq{padding:clamp(32px,5vw,56px) 0; max-width:720px; margin:0 auto}
-  .faq-title{font-family:var(--font-display); font-weight:800; font-size:15px; color:var(--text-muted); margin:0 0 16px; text-align:center}
-  .faq details{background:#fff; border:1px solid var(--border-soft); border-radius:var(--radius-sm); padding:16px 18px; margin-bottom:10px}
-  .faq details[open]{border-color:var(--blue)}
-  .faq summary{font-weight:700; cursor:pointer; font-size:14.5px; list-style:none}
+  .faq-wrap{padding:clamp(24px,4vw,40px) 0; max-width:680px; margin:0 auto}
+  .faq-wrap .plaques-title{margin-bottom:20px}
+  .faq details{border-bottom:1px solid var(--line-soft); padding:16px 4px}
+  .faq summary{cursor:pointer; font-weight:700; font-size:14.5px; list-style:none; display:flex; justify-content:space-between; gap:12px}
   .faq summary::-webkit-details-marker{display:none}
-  .faq summary::before{content:"+"; display:inline-block; width:18px; color:var(--blue); font-weight:800}
-  .faq details[open] summary::before{content:"–"}
-  .faq p{font-size:14px; color:var(--text-body); margin:10px 0 0; line-height:1.55; padding-left:18px}
+  .faq summary::after{content:'+'; color:var(--blue-deep); font-weight:800; flex-shrink:0}
+  .faq details[open] summary::after{content:'–'}
+  .faq p{font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin:10px 0 0}
   .faq a{color:var(--blue-deep); font-weight:700; text-decoration:none}
   .faq a:hover{text-decoration:underline}
 
   /* Footer */
-  .footer{background:var(--footer-bg); color:var(--footer-text); padding:clamp(40px,6vw,56px) 0 24px; margin-top:20px}
-  .footer-grid{display:flex; flex-wrap:wrap; gap:32px; justify-content:space-between; align-items:flex-start}
-  .footer-logo{font-family:var(--font-display); font-weight:800; font-size:18px; color:var(--white); display:flex; align-items:center; gap:8px; margin-bottom:10px}
-  .footer-logo .brand-dot{background:var(--yellow)}
-  .footer-tagline{font-size:13.5px; line-height:1.6; color:var(--footer-text-muted); margin:0; max-width:260px}
-  .footer-contact{font-size:13.5px; line-height:2; color:var(--footer-text)}
-  .footer-contact a{color:var(--footer-text); text-decoration:none}
-  .footer-contact a:hover{color:var(--white)}
-  .footer-bottom{max-width:var(--container-max); margin:24px auto 0; padding:0 clamp(20px,5vw,32px); padding-top:20px; border-top:1px solid rgba(255,255,255,0.08); font-size:12px; color:var(--footer-text-dim)}
+  .footer{border-top:1px solid var(--line); margin-top:32px; padding:32px 0}
+  .footer-row{display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; align-items:center; font-size:13px; color:var(--ink-faint)}
+  .footer-help-btn{background:none; border:1px solid var(--line); border-radius:var(--r-pill); padding:9px 16px; font-weight:700; font-size:13px; color:var(--navy); cursor:pointer}
+  .footer-help-btn:hover{border-color:var(--navy)}
 
-  /* WhatsApp floating button */
-  .wa-float{position:fixed; bottom:22px; right:22px; z-index:50; width:56px; height:56px; border-radius:50%; background:var(--whatsapp); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 26px -6px rgba(30,190,93,.5); text-decoration:none; transition:transform .15s ease}
-  .wa-float:hover{transform:scale(1.07)}
+  /* Assistenza */
+  .assist-launcher{
+    position:fixed; right:22px; bottom:22px; z-index:60; width:56px; height:56px; border-radius:50%;
+    background:var(--navy); color:#fff; border:none; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 12px 28px -8px rgba(16,35,59,.5); cursor:pointer; transition:transform .15s ease;
+  }
+  .assist-launcher:hover{transform:scale(1.06)}
+  .assist-panel{
+    position:fixed; right:22px; bottom:88px; z-index:60; width:min(300px,calc(100vw - 44px));
+    background:#fff; border:1px solid var(--line); border-radius:var(--r-md); padding:20px;
+    box-shadow:0 24px 48px -20px rgba(16,35,59,.35);
+  }
+  .assist-panel[hidden]{display:none}
+  .assist-title{font-family:var(--font-display); font-weight:800; font-size:15.5px; margin:0 0 4px}
+  .assist-sub{font-size:12.5px; color:var(--ink-faint); margin:0 0 16px}
+  .assist-topics{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:4px}
+  .assist-chip{background:var(--private-surface); border:1px solid transparent; border-radius:var(--r-pill); padding:8px 14px; font-size:13px; font-weight:700; color:var(--private-ink); cursor:pointer; transition:background-color .15s ease}
+  .assist-chip:hover{background:#E2EEF7}
+  .assist-chip.is-active{background:var(--blue); color:#fff}
+  .assist-cta{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:14px; background:var(--navy); color:#fff; text-decoration:none; font-weight:800; font-size:13.5px; padding:12px; border-radius:var(--r-pill); transition:background-color .15s ease}
+  .assist-cta:hover{background:var(--blue-deep)}
+  .assist-cta[hidden]{display:none}
 
   html:not(.lang-en) [data-lang="en"]{display:none}
   html.lang-en [data-lang="it"]{display:none}
@@ -179,9 +199,7 @@
 <script src="site-gate.js"></script>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="flag-it" viewBox="0 0 60 30">
-    <rect width="20" height="30" fill="#008C45"/><rect x="20" width="20" height="30" fill="#F4F5F0"/><rect x="40" width="20" height="30" fill="#CD212A"/>
-  </symbol>
+  <symbol id="flag-it" viewBox="0 0 60 30"><rect width="20" height="30" fill="#008C45"/><rect x="20" width="20" height="30" fill="#F4F5F0"/><rect x="40" width="20" height="30" fill="#CD212A"/></symbol>
   <symbol id="flag-gb" viewBox="0 0 60 30">
     <rect width="60" height="30" fill="#012169"/>
     <line x1="0" y1="0" x2="60" y2="30" stroke="#FFFFFF" stroke-width="10"/><line x1="0" y1="30" x2="60" y2="0" stroke="#FFFFFF" stroke-width="10"/>
@@ -190,98 +208,101 @@
 </svg>
 
 <header class="topbar">
-  <a href="/" class="brand"><span class="brand-dot" aria-hidden="true"></span>Casa Celeste</a>
+  <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>Casa Celeste</a>
   <div class="lang-switcher">
     <button type="button" class="lang-flag-btn" data-lang-set="it" aria-label="Italiano" title="Italiano"><svg class="flag-icon"><use href="#flag-it"></use></svg></button>
     <button type="button" class="lang-flag-btn" data-lang-set="en" aria-label="English" title="English"><svg class="flag-icon"><use href="#flag-gb"></use></svg></button>
   </div>
 </header>
 
-<section class="hero">
-  <div class="hero-blob-1" aria-hidden="true"></div>
-  <div class="hero-blob-2" aria-hidden="true"></div>
-  <div class="container">
-    <div class="badge" data-lang="it">🏡 Casa Celeste · Monopoli</div>
-    <div class="badge" data-lang="en">🏡 Casa Celeste · Monopoli</div>
-    <h1 class="hero-title">
-      <span data-lang="it">Monopoli è casa,<br>per il tempo che <span class="hero-title-highlight">ti serve<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.</span>
-      <span data-lang="en">Monopoli feels like home,<br>for as long as <span class="hero-title-highlight">you need<svg width="100%" height="14" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10 Q 60 2, 110 7 T 218 5" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"></path></svg></span>.</span>
+<section class="intro reveal">
+  <div class="wrap">
+    <h1 class="h1">
+      <span data-lang="it">La tua stanza è solo tua. <em>Il resto è di tutti.</em></span>
+      <span data-lang="en">Your room is yours alone. <em>The rest is everyone's.</em></span>
     </h1>
-    <p class="hero-lead" data-lang="it">Stesso palazzo nel cuore di Monopoli, due modi di viverlo: per l'intero anno accademico o per qualche giorno di vacanza. Dimmi cosa ti serve, ti accompagno subito al posto giusto.</p>
-    <p class="hero-lead" data-lang="en">Same building in the heart of Monopoli, two ways to live in it: for the whole academic year, or for a few days away. Tell us what you need, we'll take you straight there.</p>
-    <div class="hero-address">
-      <span data-lang="it">📍 Via Giuseppe Can. del Drago 9 – Monopoli (BA)</span>
-      <span data-lang="en">📍 Via Giuseppe Can. del Drago 9 – Monopoli (BA)</span>
-    </div>
+    <p class="lead" data-lang="it">Casa Celeste funziona così, a Monopoli: una stanza tutta tua per il silenzio, spazi comuni pensati per la compagnia. Che tu resti tutto l'anno o solo qualche notte.</p>
+    <p class="lead" data-lang="en">That's how Casa Celeste works, in Monopoli: a room all your own for quiet, shared spaces built for company. Whether you stay the whole year or just a few nights.</p>
+  </div>
+</section>
 
-    <div class="intent-filter">
-      <p class="intent-filter-label" data-lang="it">Quanto pensi di fermarti?</p>
-      <p class="intent-filter-label" data-lang="en">How long are you staying?</p>
-      <div class="intent-switch" id="intent-switch">
-        <div class="intent-switch-thumb" aria-hidden="true"></div>
-        <button type="button" class="intent-opt" data-intent="affittacamere" aria-pressed="false">
-          <span data-lang="it">Qualche giorno</span><span data-lang="en">A few days</span>
-        </button>
-        <button type="button" class="intent-opt" data-intent="studentato" aria-pressed="false">
-          <span data-lang="it">Tutto l'anno</span><span data-lang="en">The whole year</span>
-        </button>
+<section class="threshold-wrap">
+  <div class="wrap">
+    <div class="threshold" id="threshold">
+      <div class="threshold-panel threshold-private">
+        <span class="tag" data-lang="it">LA TUA STANZA</span>
+        <span class="tag" data-lang="en">YOUR ROOM</span>
+        <h2><span data-lang="it">Porta chiusa, testa libera.</span><span data-lang="en">Door closed, mind clear.</span></h2>
+        <p data-lang="it">Silenzio quando studi, privacy quando riposi. Il tuo spazio non lo condividi con nessuno.</p>
+        <p data-lang="en">Quiet when you study, privacy when you rest. Your space, shared with no one.</p>
       </div>
+      <div class="threshold-panel threshold-shared">
+        <span class="tag" data-lang="it">SPAZI COMUNI</span>
+        <span class="tag" data-lang="en">SHARED SPACES</span>
+        <h2><span data-lang="it">Porta aperta, compagnia a un passo.</span><span data-lang="en">Door open, company one step away.</span></h2>
+        <p data-lang="it">Cucina, salotto, terrazza: pensati per stare insieme, quando ne hai voglia.</p>
+        <p data-lang="en">Kitchen, lounge, terrace: made for being together, whenever you feel like it.</p>
+      </div>
+      <div class="threshold-divider" id="threshold-divider"><div class="threshold-handle">⇔</div></div>
+      <input type="range" min="0" max="100" value="50" class="threshold-slider" id="threshold-slider" aria-label="Trascina per esplorare privacy e community">
     </div>
+    <p class="threshold-hint"><span data-lang="it">↔ Trascina per vedere entrambi i lati di Casa Celeste</span><span data-lang="en">↔ Drag to see both sides of Casa Celeste</span></p>
   </div>
 </section>
 
-<div class="container">
-  <div class="trust-strip reveal">
-    <div class="trust-item"><span class="check">✓</span><span data-lang="it">Stesso palazzo, due modi di viverlo</span><span data-lang="en">Same building, two ways to live it</span></div>
-    <div class="trust-item"><span class="check">✓</span><span data-lang="it">Risposta su WhatsApp in giornata</span><span data-lang="en">WhatsApp reply within the day</span></div>
-    <div class="trust-item"><span class="check">✓</span><span data-lang="it">Prenotazione online, nessun impegno</span><span data-lang="en">Book online, no obligation</span></div>
+<div class="wrap">
+  <div class="balance reveal">
+    <div class="balance-col">
+      <h3><span style="color:var(--blue-deep)">●</span> <span data-lang="it">Quando vuoi stare per conto tuo</span><span data-lang="en">When you want your own space</span></h3>
+      <ul>
+        <li><span data-lang="it">Stanza chiusa a chiave, solo tua</span><span data-lang="en">Room that locks, only yours</span></li>
+        <li><span data-lang="it">Wifi e scrivania per studiare o lavorare</span><span data-lang="en">Wifi and a desk for studying or working</span></li>
+        <li><span data-lang="it">Nessun orario da rispettare in stanza</span><span data-lang="en">No schedule to keep inside your room</span></li>
+      </ul>
+    </div>
+    <div class="balance-col">
+      <h3><span style="color:var(--yellow-deep)">●</span> <span data-lang="it">Quando cerchi compagnia</span><span data-lang="en">When you're looking for company</span></h3>
+      <ul>
+        <li><span data-lang="it">Cucina e salotto condivisi, sempre aperti</span><span data-lang="en">Shared kitchen and lounge, always open</span></li>
+        <li><span data-lang="it">Altri studenti o viaggiatori con cui parlare</span><span data-lang="en">Other students or travelers to talk to</span></li>
+        <li><span data-lang="it">Consigli su Monopoli da chi ci vive davvero</span><span data-lang="en">Tips on Monopoli from people who actually live here</span></li>
+      </ul>
+    </div>
   </div>
 </div>
 
-<section class="cards-section">
-  <div class="container">
-    <div class="cards">
-      <a class="card studentato reveal" href="/studentato/" id="card-studentato">
-        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="#2C8FC9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></svg></span>
-        <span class="eyebrow" data-lang="it">Per l'anno accademico</span>
-        <span class="eyebrow" data-lang="en">For the academic year</span>
-        <h2 data-lang="it">Studentato</h2>
-        <h2 data-lang="en">Student Housing</h2>
-        <p data-lang="it">Stanze singole e doppie in affitto, tutto incluso (utenze, wifi, riscaldamento), a due passi dal Conservatorio Nino Rota, dal centro storico e dal mare. Per studenti italiani, Erasmus e internazionali.</p>
-        <p data-lang="en">Single and double rooms for rent, all-inclusive (utilities, wifi, heating), steps from the Nino Rota Conservatory, the old town and the sea. For Italian, Erasmus and international students.</p>
-        <span class="cta"><span data-lang="it">Vai allo Studentato</span><span data-lang="en">Go to Student Housing</span> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+<div class="wrap">
+  <div class="plaques-wrap reveal">
+    <div class="plaques-title">
+      <span class="tag"><span data-lang="it">SCEGLI LA TUA STANZA</span><span data-lang="en">CHOOSE YOUR ROOM</span></span>
+      <h2><span data-lang="it">Per quanto tempo resti?</span><span data-lang="en">How long are you staying?</span></h2>
+    </div>
+    <div class="plaques">
+      <a class="plaque long" href="/studentato/">
+        <span class="tag" data-lang="it">STANZA · ANNO ACCADEMICO</span>
+        <span class="tag" data-lang="en">ROOM · ACADEMIC YEAR</span>
+        <h3 data-lang="it">Studentato</h3>
+        <h3 data-lang="en">Student Housing</h3>
+        <p data-lang="it">Stanze singole e doppie tutto incluso, a due passi dal Conservatorio Nino Rota. Per studenti italiani, Erasmus e internazionali.</p>
+        <p data-lang="en">All-inclusive single and double rooms, steps from the Nino Rota Conservatory. For Italian, Erasmus and international students.</p>
+        <span class="plaque-go"><span data-lang="it">Entra nello Studentato</span><span data-lang="en">Enter Student Housing</span> <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
-      <a class="card affittacamere reveal" href="/affittacamere/" id="card-affittacamere">
-        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="#B8860B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></span>
-        <span class="eyebrow" data-lang="it">Per un soggiorno breve</span>
-        <span class="eyebrow" data-lang="en">For a short stay</span>
-        <h2 data-lang="it">Affittacamere</h2>
-        <h2 data-lang="en">Short-Term Rooms</h2>
-        <p data-lang="it">Stanze in affitto a notte, il comfort di una vera casa senza i servizi da hotel, nel cuore di Monopoli a pochi passi da centro storico e mare. Per vacanze, weekend e soggiorni turistici.</p>
-        <p data-lang="en">Rooms for rent by the night, the comfort of a real home without hotel services, in the heart of Monopoli near the old town and the sea. For holidays, weekends and short stays.</p>
-        <span class="cta"><span data-lang="it">Vai all'Affittacamere</span><span data-lang="en">Go to Short-Term Rooms</span> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      <a class="plaque short" href="/affittacamere/">
+        <span class="tag" data-lang="it">STANZA · SOGGIORNO BREVE</span>
+        <span class="tag" data-lang="en">ROOM · SHORT STAY</span>
+        <h3 data-lang="it">Affittacamere</h3>
+        <h3 data-lang="en">Short-Term Rooms</h3>
+        <p data-lang="it">Stanze a notte con il comfort di una vera casa, nel cuore di Monopoli a due passi da centro e mare. Per vacanze e weekend.</p>
+        <p data-lang="en">Rooms by the night with the comfort of a real home, in the heart of Monopoli near the old town and the sea. For holidays and weekends.</p>
+        <span class="plaque-go"><span data-lang="it">Entra nell'Affittacamere</span><span data-lang="en">Enter Short-Term Rooms</span> <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
     </div>
   </div>
-</section>
-
-<div class="container">
-  <div class="welcome reveal">
-    <div class="eyebrow-label" data-lang="it">Benvenuto/a</div>
-    <div class="eyebrow-label" data-lang="en">Welcome</div>
-    <h2>
-      <span data-lang="it">Casa Celeste ti dà il benvenuto, comunque tu arrivi.</span>
-      <span data-lang="en">Casa Celeste welcomes you, however you arrive.</span>
-    </h2>
-    <p data-lang="it">Che tu stia per iniziare l'anno accademico o sia qui solo per qualche giorno, trovi lo stesso spirito di accoglienza: spazi curati, risposte rapide, e qualcuno pronto ad aiutarti — su WhatsApp, in ogni momento.</p>
-    <p data-lang="en">Whether you're starting the academic year or just passing through for a few days, you'll find the same warm welcome: well-kept spaces, quick replies, and someone ready to help — on WhatsApp, any time.</p>
-  </div>
 </div>
 
-<div class="container">
-  <div class="faq reveal">
-    <p class="faq-title" data-lang="it">Le domande più comuni</p>
-    <p class="faq-title" data-lang="en">Frequently asked</p>
+<div class="wrap">
+  <div class="faq-wrap faq reveal">
+    <div class="plaques-title"><h2 style="font-size:16px"><span data-lang="it">Domande frequenti</span><span data-lang="en">Frequently asked</span></h2></div>
     <details>
       <summary><span data-lang="it">Cerchi uno studentato, un dormitorio o una casa per studenti a Monopoli?</span><span data-lang="en">Looking for student housing or a dorm in Monopoli?</span></summary>
       <p data-lang="it">Casa Celeste ha stanze singole e doppie in affitto per l'intero anno accademico, tutto incluso, a due passi dal Conservatorio Nino Rota. <a href="/studentato/">Scopri lo Studentato →</a></p>
@@ -296,38 +317,38 @@
 </div>
 
 <footer class="footer">
-  <div class="container">
-    <div class="footer-grid">
-      <div>
-        <div class="footer-logo"><span class="brand-dot" aria-hidden="true"></span>Casa Celeste</div>
-        <p class="footer-tagline" data-lang="it">Due modi di vivere Monopoli, nello stesso palazzo.</p>
-        <p class="footer-tagline" data-lang="en">Two ways to live Monopoli, in the same building.</p>
-      </div>
-      <div class="footer-contact">
-        <div>Via Giuseppe Can. del Drago 9, Monopoli (BA)</div>
-        <div><a href="https://wa.me/393381567389" target="_blank" rel="noopener">WhatsApp +39 338 156 7389</a></div>
-        <div><a href="mailto:lacasacelestemonopoli@gmail.com">lacasacelestemonopoli@gmail.com</a></div>
-      </div>
-    </div>
-    <div class="footer-bottom">© Casa Celeste — Monopoli</div>
+  <div class="wrap footer-row">
+    <span>Via Giuseppe Can. del Drago 9, Monopoli (BA)</span>
+    <button type="button" class="footer-help-btn" id="footer-help-btn"><span data-lang="it">Serve aiuto? →</span><span data-lang="en">Need help? →</span></button>
   </div>
 </footer>
 
-<a href="https://wa.me/393381567389?text=Ciao!%20Vorrei%20avere%20informazioni%20su%20Casa%20Celeste." target="_blank" rel="noopener" class="wa-float" aria-label="Scrivici su WhatsApp">
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.04 3.67C14.25 3.67 16.32 4.53 17.89 6.09C19.45 7.66 20.31 9.73 20.3 11.92C20.3 16.46 16.58 20.17 12.03 20.17C10.56 20.17 9.12 19.78 7.85 19.05L7.55 18.87L4.42 19.7L5.26 16.65L5.06 16.32C4.26 15.01 3.84 13.5 3.84 11.91C3.85 7.37 7.5 3.67 12.04 3.67M8.53 6.83C8.37 6.83 8.1 6.89 7.88 7.13C7.65 7.37 7 7.98 7 9.21C7 10.44 7.89 11.62 8 11.79C8.14 11.96 9.76 14.5 12.29 15.61C14.38 16.53 14.81 16.37 15.26 16.33C15.71 16.29 16.72 15.72 16.94 15.14C17.14 14.55 17.14 14.05 17.08 13.94C17 13.83 16.85 13.77 16.61 13.66C16.38 13.54 15.24 12.97 15.03 12.9C14.81 12.82 14.65 12.78 14.5 13.01C14.34 13.24 13.89 13.77 13.75 13.94C13.61 14.1 13.47 14.12 13.24 14C13 13.88 12.26 13.64 11.38 12.86C10.69 12.25 10.23 11.49 10.09 11.26C9.96 11.03 10.08 10.9 10.19 10.79C10.3 10.68 10.44 10.5 10.56 10.37C10.68 10.24 10.72 10.14 10.8 9.98C10.88 9.82 10.84 9.68 10.78 9.56C10.72 9.45 10.28 8.27 10.08 7.79C9.9 7.35 9.72 7.35 9.55 7.34L8.53 6.83Z"></path></svg>
-</a>
+<button type="button" class="assist-launcher" id="assist-launcher" aria-expanded="false" aria-controls="assist-panel" aria-label="Assistenza">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg>
+</button>
+<div class="assist-panel" id="assist-panel" hidden>
+  <p class="assist-title" data-lang="it">Serve una mano?</p>
+  <p class="assist-title" data-lang="en">Need a hand?</p>
+  <p class="assist-sub" data-lang="it">Rispondiamo di solito in giornata.</p>
+  <p class="assist-sub" data-lang="en">We usually reply within the day.</p>
+  <div class="assist-topics">
+    <button type="button" class="assist-chip" data-topic="studentato"><span data-lang="it">Studentato</span><span data-lang="en">Student housing</span></button>
+    <button type="button" class="assist-chip" data-topic="affittacamere"><span data-lang="it">Affittacamere</span><span data-lang="en">Short stay</span></button>
+    <button type="button" class="assist-chip" data-topic="altro"><span data-lang="it">Altro</span><span data-lang="en">Something else</span></button>
+  </div>
+  <a class="assist-cta" id="assist-cta" target="_blank" rel="noopener" hidden>
+    <span data-lang="it">Scrivici su WhatsApp</span><span data-lang="en">Message us on WhatsApp</span>
+  </a>
+</div>
 
 <script>
 (function () {
   'use strict';
   var KEY = 'casaceleste_lang';
 
-  /* Lingua */
   function applyLang(lang) {
     document.documentElement.classList.toggle('lang-en', lang === 'en');
-    document.querySelectorAll('.lang-flag-btn').forEach(function (b) {
-      b.classList.toggle('is-active', b.getAttribute('data-lang-set') === lang);
-    });
+    document.querySelectorAll('.lang-flag-btn').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-lang-set') === lang); });
   }
   function detectLang() {
     var params = new URLSearchParams(location.search);
@@ -346,58 +367,60 @@
   var currentLang = detectLang();
   applyLang(currentLang);
   document.querySelectorAll('.lang-flag-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      currentLang = btn.getAttribute('data-lang-set');
-      localStorage.setItem(KEY, currentLang);
-      applyLang(currentLang);
-    });
+    btn.addEventListener('click', function () { currentLang = btn.getAttribute('data-lang-set'); localStorage.setItem(KEY, currentLang); applyLang(currentLang); });
   });
-  document.querySelectorAll('.card').forEach(function (a) {
-    a.addEventListener('click', function () {
-      if (currentLang === 'en') a.href = a.getAttribute('href').split('?')[0] + '?lang=en';
-    });
+  document.querySelectorAll('.plaque').forEach(function (a) {
+    a.addEventListener('click', function () { if (currentLang === 'en') a.href = a.getAttribute('href').split('?')[0] + '?lang=en'; });
   });
 
-  /* Filtro intento interattivo */
-  var switchEl = document.getElementById('intent-switch');
-  var opts = switchEl.querySelectorAll('.intent-opt');
-  opts.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var intent = btn.getAttribute('data-intent');
-      switchEl.classList.toggle('is-studentato', intent === 'studentato');
-      opts.forEach(function (o) { o.classList.toggle('is-active', o === btn); o.setAttribute('aria-pressed', o === btn ? 'true' : 'false'); });
-      var matchId = intent === 'studentato' ? 'card-studentato' : 'card-affittacamere';
-      var otherId = intent === 'studentato' ? 'card-affittacamere' : 'card-studentato';
-      var matchCard = document.getElementById(matchId);
-      var otherCard = document.getElementById(otherId);
-      matchCard.classList.add('is-match'); matchCard.classList.remove('is-dim');
-      otherCard.classList.add('is-dim'); otherCard.classList.remove('is-match');
-      matchCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-  });
+  /* Threshold slider: privacy <-> community */
+  var threshold = document.getElementById('threshold');
+  var slider = document.getElementById('threshold-slider');
+  var divider = document.getElementById('threshold-divider');
+  function setSplit(v) {
+    threshold.style.setProperty('--split', v + '%');
+    divider.style.left = v + '%';
+  }
+  setSplit(50);
+  slider.addEventListener('input', function () { setSplit(slider.value); });
 
   /* Reveal on scroll */
   if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); } });
-    }, { threshold: 0.15 });
+    }, { threshold: 0.12 });
     document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
   } else {
     document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('is-visible'); });
   }
 
-  /* Tilt leggero sulle card al passaggio del mouse */
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && window.matchMedia('(hover: hover)').matches) {
-    document.querySelectorAll('.card').forEach(function (card) {
-      card.addEventListener('mousemove', function (e) {
-        var r = card.getBoundingClientRect();
-        var x = (e.clientX - r.left) / r.width - 0.5;
-        var y = (e.clientY - r.top) / r.height - 0.5;
-        card.style.transform = 'translateY(-4px) rotateX(' + (-y * 4) + 'deg) rotateY(' + (x * 4) + 'deg)';
-      });
-      card.addEventListener('mouseleave', function () { card.style.transform = ''; });
-    });
+  /* Assistenza */
+  var launcher = document.getElementById('assist-launcher');
+  var panel = document.getElementById('assist-panel');
+  var cta = document.getElementById('assist-cta');
+  var chips = document.querySelectorAll('.assist-chip');
+  var MESSAGES = {
+    studentato: 'Ciao! Ho una domanda sullo Studentato di Casa Celeste.',
+    affittacamere: "Ciao! Ho una domanda sull'Affittacamere di Casa Celeste.",
+    altro: 'Ciao! Vorrei avere informazioni su Casa Celeste.'
+  };
+  function togglePanel(open) {
+    panel.hidden = !open;
+    launcher.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
+  launcher.addEventListener('click', function () { togglePanel(panel.hidden); });
+  document.addEventListener('click', function (e) {
+    if (!panel.hidden && !panel.contains(e.target) && e.target !== launcher && !launcher.contains(e.target)) togglePanel(false);
+  });
+  document.getElementById('footer-help-btn').addEventListener('click', function () { togglePanel(true); panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chips.forEach(function (c) { c.classList.toggle('is-active', c === chip); });
+      var topic = chip.getAttribute('data-topic');
+      cta.href = 'https://wa.me/393381567389?text=' + encodeURIComponent(MESSAGES[topic]);
+      cta.hidden = false;
+    });
+  });
 })();
 </script>
 </body>
