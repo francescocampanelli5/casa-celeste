@@ -1,6 +1,14 @@
-User-agent: *
-Allow: /
-Disallow: /studentato/dashboard.html
-Disallow: /affittacamere/dashboard.html
+# PRE-LANCIO: sito dietro password (vedi site-gate.js), tutto bloccato ai
+# crawler per non farlo indicizzare a metà. Versione definitiva da
+# ripristinare al lancio pubblico (vedi GUIDA-PUBBLICAZIONE.md, checklist
+# pre-lancio):
+#
+# User-agent: *
+# Allow: /
+# Disallow: /studentato/dashboard.html
+# Disallow: /affittacamere/dashboard.html
+#
+# Sitemap: https://lacasaceleste.it/sitemap.xml
 
-Sitemap: https://lacasaceleste.it/sitemap.xml
+User-agent: *
+Disallow: /

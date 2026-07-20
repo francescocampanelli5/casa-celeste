@@ -618,6 +618,35 @@ trucco è alzare il numero di versione (`?v=`) nei tag `<link>`/`<script>` di
 `studentato/index.html`/`studentato/dashboard.html` (vedi la nota in cima a
 questa guida).
 
+### 5.4 Gate pre-lancio: sito visibile solo con password
+
+Finché il sito è in lavorazione, `index.html` (radice),
+`studentato/index.html` e `affittacamere/index.html` sono nascosti dietro
+una schermata con password (`site-gate.js`, alla radice del repo) — NON è
+una vera misura di sicurezza (il codice è leggibile da chiunque), serve
+solo a tenere fuori visitatori casuali e motori di ricerca durante lo
+sviluppo. Password attuale: **CasaCeleste2026!** — per cambiarla vedi le
+istruzioni in cima a `site-gate.js`. Le pagine `dashboard.html` (già
+protette da login Firebase separato) e le pagine ospiti/cancellazione
+raggiunte da link con token nelle email (`ospiti.html`, `cancella.html`)
+NON sono dietro il gate, per non rompere l'esperienza di chi riceve
+quelle email.
+
+**Checklist per aprire il sito al pubblico, quando è pronto:**
+1. In `site-gate.js`, metti `ENABLED = false` (basta questo per disattivare
+   il blocco su tutte e 3 le pagine — verificalo prima di procedere oltre).
+2. Nelle stesse 3 pagine, rimuovi il tag `<meta name="robots" content="noindex, nofollow">`
+   aggiunto sopra al robots originale (in `studentato/index.html` e
+   `affittacamere/index.html` va ripristinato a `<meta name="robots" content="index, follow">`;
+   nella radice `index.html` il tag va tolto del tutto) — i commenti "PRE-LANCIO"
+   segnano esattamente dove.
+3. Ripristina il `robots.txt` alla versione "definitiva" commentata in cima
+   al file stesso (basta scommentarla e togliere il blocco `Disallow: /`).
+4. Facoltativo ma consigliato: rimuovi anche `<script src="/site-gate.js"></script>`
+   e l'attributo `style="visibility:hidden"` dal tag `<body>` delle 3
+   pagine, poi elimina `site-gate.js` — con `ENABLED = false` il sito
+   funziona comunque, ma è più pulito non lasciare in giro codice inutile.
+
 ---
 
 ## Parte 6 — Test finale

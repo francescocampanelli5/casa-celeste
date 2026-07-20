@@ -3,21 +3,179 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Casa Celeste — Monopoli</title>
-<meta name="description" content="Casa Celeste a Monopoli: studentato per l'anno accademico e affittacamere per l'estate. Scegli la tua opzione.">
-<link rel="canonical" href="https://lacasaceleste.it/studentato/">
-<!-- Landing page temporanea: reindirizza all'unica offerta oggi online
-     (studentato). Quando anche /affittacamere sarà pronto, questa pagina
-     verrà sostituita da una vera landing page di scelta tra le due
-     offerte — vedi GUIDA-PUBBLICAZIONE.md, sezione "Architettura multi-sito". -->
-<meta http-equiv="refresh" content="0; url=/studentato/">
+<title>Casa Celeste Monopoli | Studentato o Affittacamere? Trova la stanza giusta</title>
+<meta name="description" content="Casa Celeste a Monopoli: stanze in affitto per l'anno accademico (Studentato, vicino al Conservatorio) o per un soggiorno breve (Affittacamere, vicino al centro e al mare). Scegli in un click.">
+<meta name="keywords" content="Casa Celeste Monopoli, studentato Monopoli, dormitorio studenti Monopoli, affittacamere Monopoli, casa vacanze Monopoli, stanze in affitto Monopoli, dove dormire a Monopoli, alloggi studenti Puglia">
+<!-- PRE-LANCIO: rimuovi questo tag quando il sito è pronto per il pubblico (vedi GUIDA-PUBBLICAZIONE.md, checklist pre-lancio) -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://lacasaceleste.it/">
+<link rel="alternate" hreflang="it" href="https://lacasaceleste.it/">
+<link rel="alternate" hreflang="en" href="https://lacasaceleste.it/?lang=en">
+<link rel="alternate" hreflang="x-default" href="https://lacasaceleste.it/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Casa Celeste Monopoli | Studentato o Affittacamere?">
+<meta property="og:description" content="Stanze in affitto a Monopoli: per l'anno accademico (Studentato) o per un soggiorno breve (Affittacamere). Scegli in un click quella giusta per te.">
+<meta property="og:locale" content="it_IT">
+<meta property="og:url" content="https://lacasaceleste.it/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Casa Celeste Monopoli | Studentato o Affittacamere?">
+<meta name="twitter:description" content="Stanze in affitto a Monopoli: per l'anno accademico o per un soggiorno breve. Scegli in un click quella giusta per te.">
+<meta name="theme-color" content="#10233B">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232C8FC9'/%3E%3Crect x='14' y='4' width='14' height='14' rx='4' fill='%23FFD24C'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","name":"Casa Celeste","alternateName":["Casa Celeste Monopoli"],"url":"https://lacasaceleste.it/","description":"Casa Celeste a Monopoli offre due soluzioni abitative nello stesso palazzo: uno studentato per l'anno accademico e un affittacamere per soggiorni brevi.","inLanguage":["it","en"]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"ItemList","itemListElement":[
+{"@type":"SiteNavigationElement","position":1,"name":"Studentato Monopoli","description":"Stanze singole e doppie in affitto per l'anno accademico, a due passi dal Conservatorio Nino Rota.","url":"https://lacasaceleste.it/studentato/"},
+{"@type":"SiteNavigationElement","position":2,"name":"Affittacamere Monopoli","description":"Stanze in affitto a notte per soggiorni brevi, nel cuore di Monopoli.","url":"https://lacasaceleste.it/affittacamere/"}
+]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Cerchi uno studentato, un dormitorio o una casa per studenti a Monopoli?","acceptedAnswer":{"@type":"Answer","text":"Casa Celeste ha stanze singole e doppie in affitto per l'intero anno accademico, tutto incluso (utenze, wifi, riscaldamento), a due passi dal Conservatorio Nino Rota, dal centro storico e dal mare: vai su https://lacasaceleste.it/studentato/"}},
+{"@type":"Question","name":"Cerchi un affittacamere, una casa vacanze o dove dormire a Monopoli?","acceptedAnswer":{"@type":"Answer","text":"Casa Celeste affitta stanze a notte per soggiorni brevi e vacanze, con il comfort di una vera casa, nel cuore di Monopoli a pochi passi da centro storico e mare: vai su https://lacasaceleste.it/affittacamere/"}}
+]}
+</script>
 <style>
-  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:#F5FAFD; color:#10233B; }
-  a { color:#2C8FC9; font-weight:700; }
+  :root{
+    --navy:#10233B; --blue:#2C8FC9; --yellow:#FFD24C; --bg:#F5FAFD; --line:#DCEAF3;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; background:var(--bg); color:var(--navy);
+    font-family:Manrope,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  main{width:100%; max-width:960px; padding:48px 20px 32px; text-align:center}
+  h1{font-family:Sora,sans-serif; font-size:clamp(24px,4vw,34px); margin:0 0 8px; letter-spacing:-0.01em}
+  p.lead{font-size:16px; color:#3A5876; max-width:520px; margin:0 auto 32px}
+  .cards{display:grid; grid-template-columns:1fr 1fr; gap:20px; text-align:left}
+  @media (max-width:720px){ .cards{grid-template-columns:1fr} }
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:16px; padding:28px;
+    display:flex; flex-direction:column; text-decoration:none; color:inherit;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .card:hover, .card:focus-visible{transform:translateY(-3px); box-shadow:0 12px 28px rgba(16,35,59,.12)}
+  .card .icon{width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-bottom:16px}
+  .card .icon svg{width:24px; height:24px}
+  .card.studentato .icon{background:#E7F2FA}
+  .card.affittacamere .icon{background:#FFF6DE}
+  .card .eyebrow{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--blue)}
+  .card.affittacamere .eyebrow{color:#B8860B}
+  .card h2{font-family:Sora,sans-serif; font-size:21px; margin:6px 0 10px}
+  .card p{font-size:14.5px; line-height:1.55; color:#3A5876; margin:0 0 20px; flex:1}
+  .card .cta{font-weight:700; font-size:14.5px; color:var(--navy); display:flex; align-items:center; gap:6px}
+  .card.affittacamere .cta{color:#8A5A00}
+  .faq{margin-top:44px; text-align:left; border-top:1px solid var(--line); padding-top:28px}
+  .faq h2{font-family:Sora,sans-serif; font-size:16px; color:#3A5876; margin:0 0 16px; text-align:center}
+  .faq details{background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px}
+  .faq summary{font-weight:700; cursor:pointer; font-size:14.5px}
+  .faq p{font-size:14px; color:#3A5876; margin:10px 0 0; line-height:1.5}
+  footer{font-size:13px; color:#5A7590; padding:24px 20px 40px; text-align:center}
+  footer a{color:var(--blue); text-decoration:none; font-weight:600}
+  .lang-toggle{position:absolute; top:16px; right:16px; font-size:13px}
+  .lang-toggle button{background:none; border:1px solid var(--line); border-radius:20px; padding:5px 12px; font-weight:700; color:var(--navy); cursor:pointer}
+  html:not(.lang-en) [data-lang="en"]{display:none}
+  html.lang-en [data-lang="it"]{display:none}
+  html.lang-en [data-lang="en"]{display:initial}
 </style>
 </head>
-<body>
-  <p>Casa Celeste — <a href="/studentato/">continua verso il sito per studenti</a>.</p>
-  <script>location.replace('/studentato/');</script>
+<body style="visibility:hidden">
+<script src="/site-gate.js"></script>
+<div class="lang-toggle"><button type="button" id="lang-switch" data-lang="it">EN</button><button type="button" id="lang-switch-en" data-lang="en">IT</button></div>
+<main>
+  <h1 data-lang="it">Casa Celeste, Monopoli</h1>
+  <h1 data-lang="en">Casa Celeste, Monopoli</h1>
+  <p class="lead" data-lang="it">Due soluzioni abitative nello stesso palazzo: dimmi cosa cerchi, ti porto al posto giusto in un click.</p>
+  <p class="lead" data-lang="en">Two housing options in the same building: tell us what you need, one click takes you to the right one.</p>
+
+  <div class="cards">
+    <a class="card studentato" href="/studentato/">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="#2C8FC9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></svg></span>
+      <span class="eyebrow" data-lang="it">Per l'anno accademico</span>
+      <span class="eyebrow" data-lang="en">For the academic year</span>
+      <h2 data-lang="it">Studentato</h2>
+      <h2 data-lang="en">Student Housing</h2>
+      <p data-lang="it">Stanze singole e doppie in affitto, tutto incluso (utenze, wifi, riscaldamento), a due passi dal Conservatorio Nino Rota, dal centro storico e dal mare. Per studenti italiani, Erasmus e internazionali.</p>
+      <p data-lang="en">Single and double rooms for rent, all-inclusive (utilities, wifi, heating), steps from the Nino Rota Conservatory, the old town and the sea. For Italian, Erasmus and international students.</p>
+      <span class="cta" data-lang="it">Vai allo Studentato →</span>
+      <span class="cta" data-lang="en">Go to Student Housing →</span>
+    </a>
+    <a class="card affittacamere" href="/affittacamere/">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="#B8860B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></span>
+      <span class="eyebrow" data-lang="it">Per un soggiorno breve</span>
+      <span class="eyebrow" data-lang="en">For a short stay</span>
+      <h2 data-lang="it">Affittacamere</h2>
+      <h2 data-lang="en">Short-Term Rooms</h2>
+      <p data-lang="it">Stanze in affitto a notte, il comfort di una vera casa senza i servizi da hotel, nel cuore di Monopoli a pochi passi da centro storico e mare. Per vacanze, weekend e soggiorni turistici.</p>
+      <p data-lang="en">Rooms for rent by the night, the comfort of a real home without hotel services, in the heart of Monopoli near the old town and the sea. For holidays, weekends and short stays.</p>
+      <span class="cta" data-lang="it">Vai all'Affittacamere →</span>
+      <span class="cta" data-lang="en">Go to Short-Term Rooms →</span>
+    </a>
+  </div>
+
+  <div class="faq">
+    <h2 data-lang="it">Le domande più comuni</h2>
+    <h2 data-lang="en">Frequently asked</h2>
+    <details>
+      <summary data-lang="it">Cerchi uno studentato, un dormitorio o una casa per studenti a Monopoli?</summary>
+      <summary data-lang="en">Looking for student housing or a dorm in Monopoli?</summary>
+      <p data-lang="it">Casa Celeste ha stanze singole e doppie in affitto per l'intero anno accademico, tutto incluso, a due passi dal Conservatorio Nino Rota. <a href="/studentato/">Scopri lo Studentato →</a></p>
+      <p data-lang="en">Casa Celeste has single and double rooms for rent for the whole academic year, all-inclusive, steps from the Nino Rota Conservatory. <a href="/studentato/">Discover Student Housing →</a></p>
+    </details>
+    <details>
+      <summary data-lang="it">Cerchi un affittacamere, una casa vacanze o dove dormire a Monopoli?</summary>
+      <summary data-lang="en">Looking for a short-term rental or place to stay in Monopoli?</summary>
+      <p data-lang="it">Casa Celeste affitta stanze a notte per soggiorni brevi e vacanze, nel cuore di Monopoli a pochi passi da centro storico e mare. <a href="/affittacamere/">Scopri l'Affittacamere →</a></p>
+      <p data-lang="en">Casa Celeste rents rooms by the night for short stays and holidays, in the heart of Monopoli near the old town and the sea. <a href="/affittacamere/">Discover Short-Term Rooms →</a></p>
+    </details>
+  </div>
+</main>
+<footer>
+  <span data-lang="it">Casa Celeste — Via Giuseppe Can. del Drago 9, Monopoli (BA) · WhatsApp </span>
+  <span data-lang="en">Casa Celeste — Via Giuseppe Can. del Drago 9, Monopoli (BA) · WhatsApp </span>
+  <a href="https://wa.me/393381567389" target="_blank" rel="noopener">+39 338 156 7389</a>
+</footer>
+<script>
+(function () {
+  'use strict';
+  var KEY = 'casaceleste_lang';
+  function apply(lang) {
+    document.documentElement.className = lang === 'en' ? 'lang-en' : '';
+    document.getElementById('lang-switch').style.display = lang === 'en' ? 'none' : '';
+    document.getElementById('lang-switch-en').style.display = lang === 'en' ? '' : 'none';
+  }
+  function detect() {
+    var params = new URLSearchParams(location.search);
+    var urlLang = params.get('lang');
+    if (urlLang === 'en' || urlLang === 'it') return urlLang;
+    var saved = localStorage.getItem(KEY);
+    if (saved === 'en' || saved === 'it') return saved;
+    var navLangs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+    for (var i = 0; i < navLangs.length; i++) {
+      var l = (navLangs[i] || '').toLowerCase();
+      if (l.indexOf('it') === 0) return 'it';
+      if (l) return 'en';
+    }
+    return 'it';
+  }
+  apply(detect());
+  document.getElementById('lang-switch').addEventListener('click', function () { localStorage.setItem(KEY, 'en'); apply('en'); });
+  document.getElementById('lang-switch-en').addEventListener('click', function () { localStorage.setItem(KEY, 'it'); apply('it'); });
+  // Propaga la lingua scelta quando l'utente sceglie una delle due offerte,
+  // così non deve reimpostarla una seconda volta sul sotto-sito.
+  document.querySelectorAll('.card').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var lang = localStorage.getItem(KEY);
+      if (lang === 'en') a.href = a.getAttribute('href') + '?lang=en';
+    });
+  });
+})();
+</script>
 </body>
 </html>

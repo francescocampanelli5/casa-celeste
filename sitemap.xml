@@ -2,6 +2,14 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
+    <loc>https://lacasaceleste.it/</loc>
+    <xhtml:link rel="alternate" hreflang="it" href="https://lacasaceleste.it/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lacasaceleste.it/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lacasaceleste.it/"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://lacasaceleste.it/studentato/</loc>
     <xhtml:link rel="alternate" hreflang="it" href="https://lacasaceleste.it/studentato/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://lacasaceleste.it/studentato/?lang=en"/>
