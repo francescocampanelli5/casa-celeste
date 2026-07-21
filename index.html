@@ -59,7 +59,10 @@
   /* Header */
   .topbar{display:flex; align-items:center; justify-content:space-between; max-width:var(--container); margin:0 auto; padding:22px clamp(20px,5vw,32px)}
   .brand{font-family:var(--font-display); font-weight:800; font-size:16.5px; color:var(--navy); text-decoration:none; display:flex; align-items:center; gap:9px}
-  .brand-mark{width:9px; height:9px; border-radius:2px; background:var(--blue); transform:rotate(45deg); display:inline-block}
+  .brand-mark{display:inline-flex; align-items:center}
+  .brand-dot{width:11px; height:11px; border-radius:4px; display:inline-block; transform:rotate(12deg)}
+  .brand-dot--blue{background:var(--blue)}
+  .brand-dot--yellow{background:var(--yellow); margin-left:-4px}
   .lang-switcher{display:flex; align-items:center; gap:3px; border:1px solid var(--line); border-radius:var(--r-pill); padding:3px; background:var(--paper)}
   .lang-flag-btn{background:none; border:none; border-radius:var(--r-pill); cursor:pointer; padding:6px 12px; font-size:12px; font-weight:800; letter-spacing:.02em; color:var(--ink-faint); transition:color .15s ease, background-color .15s ease}
   .lang-flag-btn:hover{color:var(--ink)}
@@ -148,7 +151,7 @@
 <script src="site-gate.js"></script>
 
 <header class="topbar">
-  <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>Casa Celeste</a>
+  <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"><span class="brand-dot brand-dot--blue"></span><span class="brand-dot brand-dot--yellow"></span></span>Casa Celeste</a>
   <div class="lang-switcher">
     <button type="button" class="lang-flag-btn" data-lang-set="it" aria-label="Italiano" title="Italiano">IT</button>
     <button type="button" class="lang-flag-btn" data-lang-set="en" aria-label="English" title="English">ENG</button>
