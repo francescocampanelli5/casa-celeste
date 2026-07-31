@@ -2135,7 +2135,12 @@
     if (!slot) return;
     var s = state.settings || {};
     var name = (s.managerName || '').trim();
-    if (!name) { slot.innerHTML = ''; return; }
+    // Svuotare innerHTML non basta: la sezione <section class="section"> resta
+    // nel DOM con tutto il suo padding verticale (fino a ~176px, vedi .section
+    // in styles.css) anche senza contenuto, lasciando un vuoto enorme prima
+    // del FAQ finché il proprietario non configura il manager in dashboard.
+    if (!name) { slot.innerHTML = ''; slot.style.display = 'none'; return; }
+    slot.style.display = '';
     var photoHtml = s.managerPhoto
       ? '<div class="manager-photo"><img src="' + escapeHtml(s.managerPhoto) + '" alt="' + escapeHtml(name) + '" class="real-photo" loading="lazy"></div>'
       : '';

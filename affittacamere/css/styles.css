@@ -722,7 +722,13 @@ button { font-family: inherit; }
   background: var(--yellow-bg-soft); border: 1px solid rgba(140,106,22,0.18);
   border-radius: var(--radius-pill); padding: 3px 10px;
 }
-.room-list-bottom { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+/* Non più "margin-top: auto" (ancorava prezzo/CTA al fondo della foto
+   quadrata, che è quasi sempre più alta del contenuto testuale sopra —
+   su una stanza senza badge balcone il vuoto risultante era enorme e
+   sembrava un errore di layout). Margine fisso: il prezzo segue subito
+   il contenuto reale, l'eventuale spazio residuo resta in fondo alla
+   card invece che sopra al prezzo. */
+.room-list-bottom { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .room-list-price { font-family: var(--font-display); font-weight: 800; font-size: 17px; color: var(--blue-deep); white-space: nowrap; }
 .room-list-price span { font-family: var(--font-body); font-weight: 600; font-size: 12px; color: var(--text-faint); }
 .room-list-cta {
