@@ -616,10 +616,18 @@ button { font-family: inherit; }
 .admin-price span { font-size: 12.5px; color: var(--text-faintest); }
 .admin-note { font-size: 12px; color: var(--text-faintest); margin-top: 14px; }
 
+/* margin-bottom qui (non solo gap nei contenitori .dash-room-rows): quando
+   più card si susseguono senza un wrapper flex (es. tab Impostazioni,
+   concatenate come semplici stringhe HTML) restavano letteralmente
+   attaccate l'una all'altra, zero respiro — la causa più diretta delle
+   "informazioni troppo compatte" segnalate. */
 .admin-room-card {
   background: var(--white); border: 1px solid var(--border-soft); border-radius: var(--radius-xs);
-  padding: 18px; display: flex; flex-direction: column; gap: 12px;
+  padding: var(--dash-space-5); display: flex; flex-direction: column; gap: var(--dash-space-4);
+  margin-bottom: var(--dash-space-4);
 }
+.admin-room-card:last-child { margin-bottom: 0; }
+.dash-room-rows .admin-room-card { margin-bottom: 0; }
 .admin-room-head { display: flex; align-items: center; gap: 10px; }
 .rec-clicks-hint { font-size: 12px; font-weight: 700; color: var(--blue-deep); background: var(--blue-bg-soft); border-radius: var(--radius-xs); padding: 6px 10px; display: inline-block; width: fit-content; }
 .admin-room-name { font-weight: 700; font-size: 14px; flex: 1; min-width: 0; }
@@ -1393,17 +1401,65 @@ button { font-family: inherit; }
 }
 
 /* ==========================================================================
-   Dashboard (owner-only page)
+   Dashboard (owner-only page) — redesign professionale (31/07): sidebar con
+   sezioni raggruppate invece di tab piatti, scala di spaziatura/tipografia
+   esplicita, gerarchia informazioni nelle card (primario/secondario/
+   terziario) invece di uno stack indistinto. Niente emoji come icone (già
+   respinte in passato nel design del sito pubblico) — solo etichette
+   testuali.
    ========================================================================== */
-.dash-shell { min-height: 100vh; display: flex; flex-direction: column; }
-.dash-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px clamp(20px,4vw,40px); border-bottom: 1px solid var(--border-hairline);
-  background: var(--white);
+:root {
+  --dash-space-1: 4px; --dash-space-2: 8px; --dash-space-3: 12px;
+  --dash-space-4: 16px; --dash-space-5: 24px; --dash-space-6: 32px; --dash-space-7: 48px;
+  --dash-sidebar-w: 248px;
 }
-.dash-body { flex: 1; padding: clamp(24px,4vw,40px) clamp(20px,4vw,40px); max-width: 1100px; margin: 0 auto; width: 100%; }
+.dash-shell { min-height: 100vh; display: flex; background: var(--off-white); }
 
-.dash-login-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
+/* ---- Sidebar (desktop) / drawer (mobile) ---- */
+.dash-sidebar {
+  width: var(--dash-sidebar-w); flex-shrink: 0; background: var(--white);
+  border-right: 1px solid var(--border-hairline); display: flex; flex-direction: column;
+  padding: var(--dash-space-5) var(--dash-space-4); position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.dash-sidebar-logo { display: flex; align-items: center; gap: 8px; padding: 0 var(--dash-space-2) var(--dash-space-5); text-decoration: none; }
+.dash-sidebar-logo .logo-text { font-size: 14.5px; }
+.dash-sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: var(--dash-space-5); }
+.dash-sidebar-group-title {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-faintest); padding: 0 var(--dash-space-2); margin-bottom: var(--dash-space-2);
+}
+.dash-sidebar-group { display: flex; flex-direction: column; gap: 2px; }
+.dash-sidebar-link {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+  background: none; border: none; border-radius: var(--radius-xxs); cursor: pointer; text-align: left;
+  padding: 10px var(--dash-space-2); font-weight: 700; font-size: 14px; color: var(--text-muted);
+  border-left: 3px solid transparent;
+}
+.dash-sidebar-link:hover { background: var(--panel-bg); color: var(--navy); }
+.dash-sidebar-link.is-active { background: var(--blue-bg-soft); color: var(--blue-deep); border-left-color: var(--blue); }
+.dash-sidebar-badge { background: #C4463C; color: var(--white); font-size: 10.5px; font-weight: 800; border-radius: 100px; padding: 1px 7px; line-height: 1.5; }
+.dash-sidebar-logout {
+  background: none; border: 1px solid var(--border-strong); border-radius: var(--radius-xxs); cursor: pointer;
+  padding: 10px var(--dash-space-3); font-weight: 700; font-size: 13px; color: var(--text-body); margin-top: var(--dash-space-5);
+}
+.dash-sidebar-logout:hover { border-color: var(--navy); color: var(--navy); }
+
+.dash-mobile-topbar { display: none; }
+.dash-sidebar-overlay { display: none; }
+
+/* ---- Area principale ---- */
+.dash-main { flex: 1; min-width: 0; }
+.dash-body { padding: var(--dash-space-6) clamp(20px,4vw,var(--dash-space-7)); max-width: 1180px; margin: 0 auto; width: 100%; }
+.dash-section-title { font-family: var(--font-display); font-size: 21px; font-weight: 800; color: var(--navy); margin: 0 0 var(--dash-space-5); }
+/* Titolo di gruppo dentro una tab lunga (oggi solo Impostazioni): raggruppa
+   più .admin-room-card sotto un'unica intestazione tematica, cosi' la
+   pagina resta scorrevole ma leggibile a blocchi invece che come un'unica
+   sequenza indistinta di card. */
+.dash-settings-group { margin-top: var(--dash-space-7); }
+.dash-settings-group:first-child { margin-top: 0; }
+.dash-settings-group-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--blue-deep); margin: 0 0 var(--dash-space-4); padding-bottom: var(--dash-space-2); border-bottom: 1px solid var(--border-hairline); }
+
+.dash-login-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; min-height: 100vh; }
 .dash-login-box { width: 100%; max-width: 380px; background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: 36px 32px; }
 .dash-login-box h1 { font-family: var(--font-display); font-size: 22px; font-weight: 800; margin: 0 0 6px; color: var(--navy); }
 .dash-login-box p { font-size: 13.5px; color: var(--text-faint); margin: 0 0 24px; }
@@ -1414,12 +1470,15 @@ button { font-family: inherit; }
 .admin-field-error { color: #B3261E; font-size: 12.5px; font-weight: 600; margin-top: 6px; }
 .dash-notice { background: var(--blue-bg-soft); color: var(--blue-deep); font-size: 13px; font-weight: 600; padding: 14px 16px; border-radius: var(--radius-xxs); margin: 0 0 20px; line-height: 1.6; }
 
-.dash-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--border-hairline); }
-.dash-tab { background: none; border: none; cursor: pointer; padding: 12px 4px; margin-right: 20px; font-weight: 700; font-size: 14px; color: var(--text-faint); border-bottom: 2px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
-.dash-tab.is-active { color: var(--navy); border-bottom-color: var(--blue); }
-.dash-tab-badge { background: #C4463C; color: var(--white); font-size: 10.5px; font-weight: 800; border-radius: 100px; padding: 1px 7px; line-height: 1.5; }
-
 .dash-empty { padding: 40px 20px; text-align: center; color: var(--text-faint); font-size: 14px; }
+
+/* ---- Pattern "card con sotto-sezioni" (Stanze, Impostazioni) — sostituisce
+   lo stack indistinto gap:12px con intestazioni + divisore fra gruppi di
+   campi eterogenei, cosi' una card lunga resta scansionabile a colpo
+   d'occhio invece di sembrare un modulo confuso. ---- */
+.admin-card-section { padding-top: var(--dash-space-4); margin-top: var(--dash-space-4); border-top: 1px solid var(--border-hairline); }
+.admin-card-section:first-child { padding-top: 0; margin-top: 0; border-top: none; }
+.admin-card-section-title { font-size: 12px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-faintest); margin-bottom: var(--dash-space-3); }
 
 .dash-bookings-filters {
   display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
@@ -1429,15 +1488,26 @@ button { font-family: inherit; }
 .dash-filter-date-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
 .dash-filter-date-label input { padding: 7px 9px; font-size: 12.5px; }
 .dash-bookings-count { font-size: 12.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; }
-.booking-list { display: flex; flex-direction: column; gap: 12px; }
-.booking-card { background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-xs); padding: 18px 20px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
-.booking-main { display: flex; flex-direction: column; gap: 4px; }
-.booking-room { font-weight: 800; font-size: 14.5px; color: var(--navy); }
-.booking-when { font-size: 13px; color: var(--blue-deep); font-weight: 700; }
-.booking-contact { font-size: 13px; color: var(--text-body); }
+.booking-list { display: flex; flex-direction: column; gap: var(--dash-space-4); }
+
+/* Gerarchia: header (stanza+fonte+stato) prominente, riga date in evidenza
+   subito sotto, contatto leggibile ma piu' piccolo, alert sempre ben
+   visibile, meta terziario (ricevuta il/codice referral/identita') in una
+   riga muted a fondo card — non piu' tutto allo stesso peso. */
+.booking-card { background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-xs); padding: var(--dash-space-5); display: grid; grid-template-columns: 1fr auto; gap: var(--dash-space-4); align-items: start; }
+.booking-main { display: flex; flex-direction: column; gap: var(--dash-space-1); min-width: 0; }
+.booking-header-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
+.booking-room { font-family: var(--font-display); font-weight: 800; font-size: 17px; color: var(--navy); }
+.booking-when { font-size: 14px; color: var(--blue-deep); font-weight: 700; margin-bottom: 2px; }
+.booking-contact { font-size: 13.5px; color: var(--text-body); }
 .booking-contact a { color: var(--text-body); text-decoration: underline; }
-.booking-meta { font-size: 11.5px; color: var(--text-faintest); margin-top: 4px; }
-.booking-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-width: 140px; }
+.booking-options { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+.booking-footer-meta { font-size: 11.5px; color: var(--text-faintest); margin-top: var(--dash-space-2); padding-top: var(--dash-space-2); border-top: 1px solid var(--border-hairline); }
+.booking-alert {
+  background: #FDECEC; color: #B3261E; font-weight: 700; font-size: 13px; padding: 8px 12px;
+  border-radius: var(--radius-xxs); margin: 4px 0;
+}
+.booking-actions { display: flex; flex-direction: column; gap: var(--dash-space-2); align-items: stretch; min-width: 150px; }
 .dash-select { border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
 .dash-status-pill { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 100px; display: inline-block; width: fit-content; }
 .dash-status-pill--nuovo { background: #FDF3D9; color: #8C6A16; }
@@ -1451,21 +1521,54 @@ button { font-family: inherit; }
    Dashboard: tab Assistenza — messaggi ricevuti dal widget + editor
    domande/risposte preimpostate del menu principale della chat.
    ========================================================================== */
-.assist-msg-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
-.assist-msg-card { background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-xs); padding: 18px 20px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
-.assist-msg-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.assist-msg-name { font-weight: 800; font-size: 14.5px; color: var(--navy); }
+.assist-msg-list { display: flex; flex-direction: column; gap: var(--dash-space-4); margin-bottom: 28px; }
+.assist-msg-card { background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-xs); padding: var(--dash-space-5); display: grid; grid-template-columns: 1fr auto; gap: var(--dash-space-4); align-items: start; }
+.assist-msg-main { display: flex; flex-direction: column; gap: var(--dash-space-1); min-width: 0; }
+.assist-msg-name { font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--navy); }
 .assist-msg-topic { font-size: 12.5px; color: var(--blue-deep); font-weight: 700; }
-.assist-msg-text { font-size: 13.5px; color: var(--text-body); line-height: 1.5; margin: 4px 0; }
-.assist-msg-contact { font-size: 13px; color: var(--text-body); }
+.assist-msg-text { font-size: 14px; color: var(--text-body); line-height: 1.55; margin: 6px 0; }
+.assist-msg-contact { font-size: 13.5px; color: var(--text-body); }
 .assist-msg-contact a { color: var(--text-body); text-decoration: underline; }
-.assist-msg-meta { font-size: 11.5px; color: var(--text-faintest); margin-top: 4px; }
-.assist-msg-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-width: 140px; }
+.assist-msg-meta { font-size: 11.5px; color: var(--text-faintest); margin-top: var(--dash-space-2); padding-top: var(--dash-space-2); border-top: 1px solid var(--border-hairline); }
+.assist-msg-actions { display: flex; flex-direction: column; gap: var(--dash-space-2); align-items: stretch; min-width: 140px; }
 .assist-topic-editor-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-bottom: 10px; }
 .dash-delete-btn { background: none; border: none; color: #B3261E; font-size: 12px; font-weight: 700; cursor: pointer; padding: 4px 0; text-align: right; }
 
-.dash-room-rows { display: flex; flex-direction: column; gap: 12px; }
+.dash-room-rows { display: flex; flex-direction: column; gap: var(--dash-space-4); }
 .dash-seed-btn { background: none; border: 1px dashed var(--border-strong); color: var(--text-body); border-radius: var(--radius-xxs); padding: 10px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer; margin-bottom: 18px; }
+
+/* ---- Mobile: la sidebar diventa un drawer a comparsa (stesso principio
+   overlay del menu mobile del sito pubblico, .mobile-drawer in app.js —
+   markup/stato separati perché dashboard.js è un file indipendente). ---- */
+@media (max-width: 900px) {
+  .dash-shell { flex-direction: column; }
+  .dash-mobile-topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px; border-bottom: 1px solid var(--border-hairline); background: var(--white);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .dash-mobile-toggle {
+    background: none; border: 1px solid var(--border-strong); border-radius: var(--radius-xxs);
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+  }
+  .dash-mobile-toggle span, .dash-mobile-toggle span::before, .dash-mobile-toggle span::after {
+    content: ''; display: block; width: 18px; height: 2px; background: var(--navy); position: relative;
+  }
+  .dash-mobile-toggle span::before { position: absolute; top: -6px; }
+  .dash-mobile-toggle span::after { position: absolute; top: 6px; }
+  .dash-sidebar {
+    position: fixed; top: 0; left: 0; height: 100vh; z-index: 40; transform: translateX(-100%);
+    transition: transform .2s ease; box-shadow: 0 0 0 rgba(0,0,0,0);
+  }
+  .dash-shell.is-drawer-open .dash-sidebar { transform: translateX(0); box-shadow: 20px 0 40px -20px rgba(16,35,59,0.3); }
+  .dash-sidebar-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(16,35,59,0.4); z-index: 30;
+  }
+  .dash-shell.is-drawer-open .dash-sidebar-overlay { display: block; }
+}
+@media (min-width: 901px) {
+  .dash-mobile-topbar { display: none; }
+}
 
 .hidden { display: none !important; }
 .sr-only {

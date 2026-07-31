@@ -123,28 +123,68 @@
       });
     });
   }
+  // Sidebar raggruppata per senso (redesign 31/07, sostituisce gli 8 tab
+  // piatti in orizzontale) — un solo posto dove aggiungere/spostare una
+  // voce di menu, invece di dover toccare sia l'elenco piatto sia lo stile.
+  var SIDEBAR_GROUPS = [
+    { title: 'Operativo', items: [
+      { tab: 'bookings', label: 'Prenotazioni' },
+      { tab: 'assist', label: 'Assistenza', badge: function () { return assistUnreadCount(); } }
+    ] },
+    { title: 'Contenuti', items: [
+      { tab: 'rooms', label: 'Stanze' },
+      { tab: 'commons', label: 'Spazi comuni' },
+      { tab: 'reviews', label: 'Recensioni' },
+      { tab: 'monopoli', label: 'Monopoli' }
+    ] },
+    { title: 'Sistema', items: [
+      { tab: 'compliance', label: 'Adempimenti' },
+      { tab: 'settings', label: 'Impostazioni' }
+    ] }
+  ];
+  var TAB_TITLES = { bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'Monopoli', compliance: 'Adempimenti', settings: 'Impostazioni' };
+
+  function sidebarLinksHtml() {
+    return SIDEBAR_GROUPS.map(function (group) {
+      var links = group.items.map(function (item) {
+        var badgeCount = item.badge ? item.badge() : 0;
+        return '<button type="button" class="dash-sidebar-link' + (state.activeTab === item.tab ? ' is-active' : '') + '" data-tab="' + item.tab + '">' +
+          '<span>' + escapeHtml(item.label) + '</span>' +
+          (badgeCount ? '<span class="dash-sidebar-badge">' + badgeCount + '</span>' : '') +
+        '</button>';
+      }).join('');
+      return '<div class="dash-sidebar-group"><div class="dash-sidebar-group-title">' + escapeHtml(group.title) + '</div>' + links + '</div>';
+    }).join('');
+  }
   function renderDashboard() {
     document.getElementById('dash-shell').innerHTML =
-      '<header class="dash-header">' +
-        '<a href="index.html" class="logo"><span class="logo-dot logo-dot--blue"></span><span class="logo-dot logo-dot--yellow"></span><span class="logo-text">Casa Celeste — Affittacamere</span></a>' +
-        '<button type="button" class="btn btn-outline" id="logout-btn" style="padding:10px 18px; font-size:13px;">Esci</button>' +
-      '</header>' +
-      '<div class="dash-body">' +
-        '<div class="dash-tabs">' +
-          '<button type="button" class="dash-tab' + (state.activeTab === 'bookings' ? ' is-active' : '') + '" data-tab="bookings">Prenotazioni</button>' +
-          '<button type="button" class="dash-tab' + (state.activeTab === 'rooms' ? ' is-active' : '') + '" data-tab="rooms">Stanze</button>' +
-          '<button type="button" class="dash-tab' + (state.activeTab === 'commons' ? ' is-active' : '') + '" data-tab="commons">Spazi comuni</button>' +
-          '<button type="button" class="dash-tab' + (state.activeTab === 'reviews' ? ' is-active' : '') + '" data-tab="reviews">Recensioni</button>' +
-          '<button type="button" class="dash-tab' + (state.activeTab === 'assist' ? ' is-active' : '') + '" data-tab="assist">Assistenza' + (assistUnreadCount() ? ' <span class="dash-tab-badge">' + assistUnreadCount() + '</span>' : '') + '</button>' +
-          '<button type="button" class="dash-tab' + (state.activeTab === 'monopoli' ? ' is-active' : '') + '" data-tab="monopoli">Monopoli</button>' +
-          '<button type="button" class="dash-tab' + (state.activeTab === 'compliance' ? ' is-active' : '') + '" data-tab="compliance">Adempimenti</button>' +
-          '<button type="button" class="dash-tab' + (state.activeTab === 'settings' ? ' is-active' : '') + '" data-tab="settings">Impostazioni</button>' +
-        '</div>' +
-        '<div id="dash-content"></div>' +
+      '<div class="dash-sidebar-overlay" id="dash-sidebar-overlay"></div>' +
+      '<aside class="dash-sidebar" id="dash-sidebar">' +
+        '<a href="index.html" class="dash-sidebar-logo logo"><span class="logo-dot logo-dot--blue"></span><span class="logo-dot logo-dot--yellow"></span><span class="logo-text">Casa Celeste</span></a>' +
+        '<nav class="dash-sidebar-nav">' + sidebarLinksHtml() + '</nav>' +
+        '<button type="button" class="dash-sidebar-logout" id="logout-btn">Esci</button>' +
+      '</aside>' +
+      '<div class="dash-main">' +
+        '<header class="dash-mobile-topbar">' +
+          '<button type="button" class="dash-mobile-toggle" id="dash-mobile-toggle" aria-label="Apri menu"><span></span></button>' +
+          '<span class="dash-section-title" style="margin:0; font-size:16px;">' + escapeHtml(TAB_TITLES[state.activeTab] || '') + '</span>' +
+          '<span style="width:40px;"></span>' +
+        '</header>' +
+        '<div class="dash-body" id="dash-content"></div>' +
       '</div>';
     document.getElementById('logout-btn').addEventListener('click', function () { window.CasaCelesteTourismDB.signOutUser(); });
-    document.querySelectorAll('.dash-tab').forEach(function (btn) {
-      btn.addEventListener('click', function () { state.activeTab = btn.getAttribute('data-tab'); renderDashboard(); });
+    document.querySelectorAll('.dash-sidebar-link').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state.activeTab = btn.getAttribute('data-tab');
+        document.getElementById('dash-shell').classList.remove('is-drawer-open');
+        renderDashboard();
+      });
+    });
+    document.getElementById('dash-mobile-toggle').addEventListener('click', function () {
+      document.getElementById('dash-shell').classList.toggle('is-drawer-open');
+    });
+    document.getElementById('dash-sidebar-overlay').addEventListener('click', function () {
+      document.getElementById('dash-shell').classList.remove('is-drawer-open');
     });
     renderTabContent();
   }
@@ -219,15 +259,23 @@
     return (
       '<div class="booking-card">' +
         '<div class="booking-main">' +
-          '<div class="booking-room">' + escapeHtml(b.roomLabel || 'Casa Celeste') + sourceBadge + '</div>' +
+          // Header: stanza + fonte insieme, subito seguiti dalle date — le
+          // due informazioni che servono per riconoscere la prenotazione
+          // a colpo d'occhio, non annegate tra il resto.
+          '<div class="booking-header-row"><span class="booking-room">' + escapeHtml(b.roomLabel || 'Casa Celeste') + '</span>' + sourceBadge + '</div>' +
           '<div class="booking-when">' + escapeHtml(b.checkIn || '') + ' → ' + escapeHtml(b.checkOut || '') + ' · ' + (b.nights || 0) + ' notti · ' + (b.guests || 0) + ' ospiti</div>' +
-          bookingOptionsHtml(b) +
+          '<div class="booking-options">' + bookingOptionsHtml(b) + '</div>' +
           '<div class="booking-contact">' + escapeHtml(b.name || '') + ' — <a href="mailto:' + encodeURIComponent(b.email || '') + '">' + escapeHtml(b.email || '') + '</a>' + (b.phone ? ' — <a href="tel:' + encodeURIComponent(b.phone) + '">' + escapeHtml(b.phone) + '</a>' : '') + '</div>' +
-          '<div class="booking-meta">Ricevuta il ' + formatCreatedAt(b.createdAt) + ' · Documenti ospiti: ' + (b.guestDocsComplete ? '✅ completi' : '❌ mancanti') +
-            ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + ' · Codice referral: <strong>CC-' + escapeHtml(String(b.id || '').slice(-6).toUpperCase()) + '</strong></div>' +
-          (b.videoCallLink ? '<div class="booking-meta"><a href="' + escapeHtml(b.videoCallLink) + '" target="_blank" rel="noopener">🎥 Link videochiamata (verifica documento, ~1h prima del check-in)</a></div>' : '') +
+          // L'alert (se c'è) prima del campo codice stanza: un check-in
+          // imminente senza documenti è più urgente di un campo da compilare.
           bookingAlertHtml(b) +
+          (b.videoCallLink ? '<div class="booking-options"><a href="' + escapeHtml(b.videoCallLink) + '" target="_blank" rel="noopener">Link videochiamata (verifica documento, ~1h prima del check-in)</a></div>' : '') +
           '<div class="admin-field-group admin-field-group--full" style="margin-top:8px;"><label>Codice/link apertura stanza (cambia a ogni prenotazione — incluso nell\'email di check-in)</label><input type="text" class="admin-field" data-room-access-code data-id="' + b.id + '" value="' + escapeHtml(b.roomAccessCode || '') + '" placeholder="es. 4471 oppure un link"></div>' +
+          // Meta terziario (data ricezione, stato documenti/identità, codice
+          // referral interno) raggruppato in una riga sola, piccola e
+          // separata: informazioni utili ma non da leggere per prime.
+          '<div class="booking-footer-meta">Ricevuta il ' + formatCreatedAt(b.createdAt) + ' · Documenti: ' + (b.guestDocsComplete ? 'completi' : 'mancanti') +
+            ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + ' · Rif. CC-' + escapeHtml(String(b.id || '').slice(-6).toUpperCase()) + '</div>' +
         '</div>' +
         '<div class="booking-actions">' +
           '<span class="dash-status-pill ' + statusClass + '">' + (STATUS_LABELS[b.status] || 'Nuova') + '</span>' +
@@ -321,7 +369,7 @@
     var list = state.bookings.length === 0
       ? '<div class="dash-empty">Nessuna prenotazione ricevuta finora.</div>'
       : (visible.length ? '<div class="booking-list">' + visible.map(bookingCardHtml).join('') + '</div>' : '<div class="dash-empty">Nessuna prenotazione corrisponde ai filtri scelti.</div>');
-    content.innerHTML = manualBookingFormHtml() + bookingsFilterBarHtml() + countLabel + list;
+    content.innerHTML = '<h1 class="dash-section-title">Prenotazioni</h1>' + manualBookingFormHtml() + bookingsFilterBarHtml() + countLabel + list;
 
     function onFilterChange() {
       state.bookingsFilter = {
@@ -642,23 +690,41 @@
           '<span class="admin-room-slug">' + roomId + '</span>' +
           '<button type="button" class="dash-delete-btn" data-delete-room data-room-id="' + roomId + '">Elimina</button>' +
         '</div>' +
-        biRowHtml('textarea', 'Descrizione', 'data-room-field data-room-id="' + roomId + '"', 'description', room.description, 3) +
-        biRowHtml('input', 'Badge distintivo (es. "Il più popolare")', 'data-room-field data-room-id="' + roomId + '"', 'favoriteBadge', room.favoriteBadge, null) +
-        photoSlotsHtml('room', roomId, room) +
-        statsEditorHtml('room', roomId, room.stats) +
-        '<div class="admin-room-type-row">' +
-          '<div class="admin-field-group"><label>Prezzo BASE a notte (€) — punto di partenza del calcolo dinamico stagionale, sovrascritto dai prezzi manuali per periodo qui sotto</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="nightlyPrice" value="' + (room.nightlyPrice || 0) + '"></div>' +
-          '<div class="admin-field-group"><label>Ospiti massimi (max 3, limite fisico della stanza)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="maxGuests" min="1" max="3" value="' + (room.maxGuests || 1) + '"></div>' +
-          '<div class="admin-field-group"><label>Notti minime</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="minNights" min="1" value="' + (room.minNights || 1) + '"></div>' +
-          '<div class="admin-field-group"><label>Balcone</label><select class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="balcony">' +
-            '<option value="nessuno"' + (room.balcony !== 'privato' && room.balcony !== 'comunicante' ? ' selected' : '') + '>Nessuno</option>' +
-            '<option value="privato"' + (room.balcony === 'privato' ? ' selected' : '') + '>Privato</option>' +
-            '<option value="comunicante"' + (room.balcony === 'comunicante' ? ' selected' : '') + '>Comunicante</option>' +
-          '</select></div>' +
-          '<div class="admin-field-group"><label>Numero recensioni mostrato (vuoto = automatico)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="reviewCountOverride" min="0" value="' + (room.reviewCountOverride === null || room.reviewCountOverride === undefined ? '' : room.reviewCountOverride) + '"></div>' +
+        // Sotto-sezioni etichettate (redesign 31/07): prima erano tutte
+        // impilate con lo stesso gap di 12px, indistinguibili l'una
+        // dall'altra — ora ogni gruppo tematico ha un titolo e un divisore.
+        '<div class="admin-card-section">' +
+          '<div class="admin-card-section-title">Descrizione e presentazione</div>' +
+          biRowHtml('textarea', 'Descrizione', 'data-room-field data-room-id="' + roomId + '"', 'description', room.description, 3) +
+          biRowHtml('input', 'Badge distintivo (es. "Il più popolare")', 'data-room-field data-room-id="' + roomId + '"', 'favoriteBadge', room.favoriteBadge, null) +
         '</div>' +
-        manualPricePeriodsEditorHtml(roomId, room) +
-        blockedRangesEditorHtml(roomId, room) +
+        '<div class="admin-card-section">' +
+          '<div class="admin-card-section-title">Foto e caratteristiche</div>' +
+          photoSlotsHtml('room', roomId, room) +
+          statsEditorHtml('room', roomId, room.stats) +
+        '</div>' +
+        '<div class="admin-card-section">' +
+          '<div class="admin-card-section-title">Prezzo e capienza</div>' +
+          '<div class="admin-room-type-row">' +
+            '<div class="admin-field-group"><label>Prezzo BASE a notte (€) — punto di partenza del calcolo dinamico stagionale, sovrascritto dai prezzi manuali per periodo qui sotto</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="nightlyPrice" value="' + (room.nightlyPrice || 0) + '"></div>' +
+            '<div class="admin-field-group"><label>Ospiti massimi (max 3, limite fisico della stanza)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="maxGuests" min="1" max="3" value="' + (room.maxGuests || 1) + '"></div>' +
+            '<div class="admin-field-group"><label>Notti minime</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="minNights" min="1" value="' + (room.minNights || 1) + '"></div>' +
+            '<div class="admin-field-group"><label>Balcone</label><select class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="balcony">' +
+              '<option value="nessuno"' + (room.balcony !== 'privato' && room.balcony !== 'comunicante' ? ' selected' : '') + '>Nessuno</option>' +
+              '<option value="privato"' + (room.balcony === 'privato' ? ' selected' : '') + '>Privato</option>' +
+              '<option value="comunicante"' + (room.balcony === 'comunicante' ? ' selected' : '') + '>Comunicante</option>' +
+            '</select></div>' +
+            '<div class="admin-field-group"><label>Numero recensioni mostrato (vuoto = automatico)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="reviewCountOverride" min="0" value="' + (room.reviewCountOverride === null || room.reviewCountOverride === undefined ? '' : room.reviewCountOverride) + '"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="admin-card-section">' +
+          '<div class="admin-card-section-title">Prezzi manuali per periodo</div>' +
+          manualPricePeriodsEditorHtml(roomId, room) +
+        '</div>' +
+        '<div class="admin-card-section">' +
+          '<div class="admin-card-section-title">Notti bloccate</div>' +
+          blockedRangesEditorHtml(roomId, room) +
+        '</div>' +
       '</div>'
     );
   }
@@ -666,6 +732,7 @@
     var ids = Object.keys(state.roomsData).sort(function (a, b) { return (state.roomsData[a].order || 999999) - (state.roomsData[b].order || 999999); });
     var cards = ids.map(function (id) { return roomAdminCardHtml(id, state.roomsData[id]); }).join('');
     content.innerHTML =
+      '<h1 class="dash-section-title">Stanze</h1>' +
       '<button type="button" class="dash-seed-btn" id="seed-btn">Inizializza le stanze con i valori di esempio (solo se il database è vuoto)</button>' +
       '<div class="dash-room-rows">' + cards + '</div>' +
       '<div class="admin-note">Le modifiche si salvano automaticamente e si aggiornano subito sul sito pubblico. Per le foto di una nuova stanza, usa il nome accanto al nome stanza.</div>';
@@ -809,6 +876,7 @@
     var ids = Object.keys(state.commonsData).sort(function (a, b) { return (state.commonsData[a].order || 999999) - (state.commonsData[b].order || 999999); });
     var cards = ids.map(function (id) { return commonAdminCardHtml(id, state.commonsData[id]); }).join('');
     content.innerHTML =
+      '<h1 class="dash-section-title">Spazi comuni</h1>' +
       '<button type="button" class="dash-seed-btn" id="seed-commons-btn">Inizializza gli spazi comuni con i valori di esempio</button>' +
       '<div class="dash-room-rows">' + cards + '</div>' +
       '<button type="button" class="dash-add-room-btn" id="add-common-btn">+ Aggiungi uno spazio comune</button>' +
@@ -878,6 +946,7 @@
     var ids = Object.keys(state.reviewsData).sort(function (a, b) { return (state.reviewsData[a].order || 999999) - (state.reviewsData[b].order || 999999); });
     var cards = ids.map(function (id) { return reviewAdminCardHtml(id, state.reviewsData[id]); }).join('');
     content.innerHTML =
+      '<h1 class="dash-section-title">Recensioni</h1>' +
       '<button type="button" class="dash-seed-btn" id="seed-reviews-btn">Inizializza le recensioni con i valori di esempio</button>' +
       '<div class="dash-room-rows">' + cards + '</div>' +
       '<button type="button" class="dash-add-room-btn" id="add-review-btn">+ Aggiungi una recensione</button>';
@@ -991,6 +1060,7 @@
     var topics = currentAssistTopics();
     var messages = state.assistMessages || [];
     content.innerHTML =
+      '<h1 class="dash-section-title">Assistenza</h1>' +
       '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Messaggi ricevuti' + (assistUnreadCount() ? ' — ' + assistUnreadCount() + ' da leggere' : '') + '</span></div>' +
       '<div class="assist-msg-list">' + (messages.length ? messages.map(assistMessageCardHtml).join('') : '<div class="dash-empty">Nessun messaggio ricevuto per ora.</div>') + '</div>' +
       '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Domande e risposte del menu principale della chat</span></div>' +
@@ -1053,6 +1123,7 @@
     var ids = Object.keys(state.monoSlidesData).sort(function (a, b) { return (state.monoSlidesData[a].order || 999999) - (state.monoSlidesData[b].order || 999999); });
     var cards = ids.map(function (id) { return monoSlideAdminCardHtml(id, state.monoSlidesData[id]); }).join('');
     content.innerHTML =
+      '<h1 class="dash-section-title">Monopoli</h1>' +
       '<button type="button" class="dash-seed-btn" id="seed-mono-btn">Inizializza il carosello con i valori di esempio</button>' +
       '<div class="dash-room-rows">' + cards + '</div>' +
       '<button type="button" class="dash-add-room-btn" id="add-mono-btn">+ Aggiungi uno scatto</button>';
@@ -1105,6 +1176,7 @@
     }).join('') || '<div class="dash-empty">Nessuna prenotazione attiva.</div>';
 
     content.innerHTML =
+      '<h1 class="dash-section-title">Adempimenti</h1>' +
       '<div class="compliance-banner">' +
         '<strong>Prossima scadenza tassa di soggiorno (versamento PagoPA via PayTourist): ' + deadline.toLocaleDateString('it-IT') + ' (tra ' + daysLeft + ' giorni)</strong><br>' +
         'Promemoria: comunicazione flussi ISTAT/SPOT mensile (anche nei mesi senza ospiti), Alloggiati Web entro 24h dal check-in, PayTourist entro 7gg dall\'arrivo.' +
@@ -1240,71 +1312,90 @@
       }).join('');
     }
     content.innerHTML =
-      mfaSecurityCardHtml() +
-      '<div class="admin-room-card">' +
-        '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '"></div>' +
-        '<div class="admin-field-group"><label>Check-in dalle</label><input type="text" class="admin-field" id="settings-checkin" value="' + escapeHtml(s.checkInTime || '15:00') + '"></div>' +
-        '<div class="admin-field-group"><label>Check-out entro</label><input type="text" class="admin-field" id="settings-checkout" value="' + escapeHtml(s.checkOutTime || '10:00') + '"></div>' +
-        '<div class="admin-field-group"><label>Tassa di soggiorno (€/notte/persona)</label><input type="number" step="0.5" class="admin-field" id="settings-tax-rate" value="' + (s.touristTaxRate != null ? s.touristTaxRate : 0) + '"></div>' +
-        '<div class="admin-field-group"><label>Valutazione media (facoltativo, es. da Airbnb/Booking) — lascia vuoto finché non hai un voto reale</label><input type="number" step="0.1" min="0" max="5" class="admin-field" id="settings-avg-rating" value="' + (s.avgRating != null ? s.avgRating : '') + '"></div>' +
-        '<div class="admin-field-group"><label>Numero recensioni mostrato sul sito (facoltativo) — lascia vuoto per usare il conteggio reale del tab Recensioni</label><input type="number" step="1" min="0" class="admin-field" id="settings-review-count" value="' + (s.reviewCountOverride != null ? s.reviewCountOverride : '') + '"></div>' +
+      '<h1 class="dash-section-title">Impostazioni</h1>' +
+      '<div class="dash-settings-group">' +
+        '<div class="dash-settings-group-title">Generali</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '"></div>' +
+          '<div class="admin-field-group"><label>Check-in dalle</label><input type="text" class="admin-field" id="settings-checkin" value="' + escapeHtml(s.checkInTime || '15:00') + '"></div>' +
+          '<div class="admin-field-group"><label>Check-out entro</label><input type="text" class="admin-field" id="settings-checkout" value="' + escapeHtml(s.checkOutTime || '10:00') + '"></div>' +
+          '<div class="admin-field-group"><label>Tassa di soggiorno (€/notte/persona)</label><input type="number" step="0.5" class="admin-field" id="settings-tax-rate" value="' + (s.touristTaxRate != null ? s.touristTaxRate : 0) + '"></div>' +
+          '<div class="admin-field-group"><label>Valutazione media (facoltativo, es. da Airbnb/Booking) — lascia vuoto finché non hai un voto reale</label><input type="number" step="0.1" min="0" max="5" class="admin-field" id="settings-avg-rating" value="' + (s.avgRating != null ? s.avgRating : '') + '"></div>' +
+          '<div class="admin-field-group"><label>Numero recensioni mostrato sul sito (facoltativo) — lascia vuoto per usare il conteggio reale del tab Recensioni</label><input type="number" step="1" min="0" class="admin-field" id="settings-review-count" value="' + (s.reviewCountOverride != null ? s.reviewCountOverride : '') + '"></div>' +
+        '</div>' +
       '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Conservazione dati documento ospiti</span></div>' +
-        '<div class="admin-note">Regola fissa (tua decisione): la FOTO del documento viene cancellata solo quando ENTRAMBE le condizioni sono vere — è già stata inviata ad Alloggiati Web/Questura, E sono passate almeno le ore qui sotto dal check-out. Prima di allora non viene mai cancellata, anche se una delle due condizioni è già soddisfatta.</div>' +
-        '<div class="admin-field-group"><label>Ore minime dopo il check-out</label><input type="number" class="admin-field" id="settings-retention-hours" min="1" value="' + (s.guestDocsRetentionHours != null ? s.guestDocsRetentionHours : 48) + '"></div>' +
-        '<div class="admin-note">⚠️ Questo riguarda solo la FOTO. Il periodo di conservazione dei dati anagrafici tipizzati (nome, data nascita, documento senza foto) non ha invece un default: confermalo con un consulente legale/commercialista in base agli obblighi di pubblica sicurezza.</div>' +
+      '<div class="dash-settings-group">' +
+        '<div class="dash-settings-group-title">Contenuti pubblici</div>' +
+        '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' + photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) + '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Host</span></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Nome e cognome</label><input type="text" class="admin-field" id="manager-name" value="' + escapeHtml(s.managerName || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="manager-phone" value="' + escapeHtml(s.managerPhone || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" value="' + escapeHtml(s.managerEmail || '') + '"></div>' +
+          photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +
+        '</div>' +
+        recommendationsEditorHtml(s.recommendations || []) +
       '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Quota email (inviate da Gmail, rete di sicurezza)</span></div>' +
-        '<div class="admin-field-group"><label>Budget mensile (rete di sicurezza contro invii ripetuti per errore, non un vincolo di piano gratuito — Gmail permette molto di più)</label><input type="number" class="admin-field" id="settings-email-budget" value="' + (s.emailQuotaMonthlyBudget != null ? s.emailQuotaMonthlyBudget : 500) + '"></div>' +
-        '<div class="admin-note">Le email al proprietario passano tutte da Telegram (gratis, illimitato): solo le email all\'ospite (conferma, check-in, promemoria, check-out, consigli, recensione) consumano questa quota, inviate direttamente dal tuo account Gmail. Se ci si avvicina al limite (di norma solo per un bug, non per volume normale), saltano per prime le due email extra (consigli a metà soggiorno, richiesta recensione), poi il ringraziamento/istruzioni check-out, poi la conferma — le email operative sono le ultime a essere sacrificate. Ricevi un avviso su Telegram ogni volta che una email viene saltata.</div>' +
+      '<div class="dash-settings-group">' +
+        '<div class="dash-settings-group-title">Comunicazioni</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Quota email (inviate da Gmail, rete di sicurezza)</span></div>' +
+          '<div class="admin-field-group"><label>Budget mensile (rete di sicurezza contro invii ripetuti per errore, non un vincolo di piano gratuito — Gmail permette molto di più)</label><input type="number" class="admin-field" id="settings-email-budget" value="' + (s.emailQuotaMonthlyBudget != null ? s.emailQuotaMonthlyBudget : 500) + '"></div>' +
+          '<div class="admin-note">Le email al proprietario passano tutte da Telegram (gratis, illimitato): solo le email all\'ospite (conferma, check-in, promemoria, check-out, consigli, recensione) consumano questa quota, inviate direttamente dal tuo account Gmail. Se ci si avvicina al limite (di norma solo per un bug, non per volume normale), saltano per prime le due email extra (consigli a metà soggiorno, richiesta recensione), poi il ringraziamento/istruzioni check-out, poi la conferma — le email operative sono le ultime a essere sacrificate. Ricevi un avviso su Telegram ogni volta che una email viene saltata.</div>' +
+        '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">WiFi e istruzioni check-in</span></div>' +
+          '<div class="admin-field-group"><label>Nome rete WiFi</label><input type="text" class="admin-field" id="settings-wifi-name" value="' + escapeHtml(s.wifiName || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Password WiFi</label><input type="text" class="admin-field" id="settings-wifi-password" value="' + escapeHtml(s.wifiPassword || '') + '"></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Link apertura portone lato strada (facoltativo — es. link dell\'app del citofono/serratura smart; se l\'app genera link/codici che scadono, aggiorna questo campo ogni volta che serve, il sistema mostra sempre l\'ultimo valore salvato)</label><input type="text" class="admin-field" id="settings-street-gate-link" value="' + escapeHtml(s.streetGateLink || '') + '"></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso — italiano (chiavi/citofono/portone) — incluse nell\'email di check-in</label><textarea class="admin-field" id="settings-checkin-instructions" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.it) || '') + '</textarea></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso — English (per gli ospiti che hanno scelto il sito in inglese)</label><textarea class="admin-field" id="settings-checkin-instructions-en" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.en) || '') + '</textarea></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — italiano (dove lasciare le chiavi, cosa spegnere, ecc.) — incluse nell\'email della mattina del check-out</label><textarea class="admin-field" id="settings-checkout-instructions" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.it) || '') + '</textarea></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — English</label><textarea class="admin-field" id="settings-checkout-instructions-en" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.en) || '') + '</textarea></div>' +
+          '<div class="admin-note">Se un ospite ha scelto il sito in inglese, riceve automaticamente le email in inglese usando questi campi (se li lasci vuoti, quella sezione semplicemente non appare nell\'email in inglese).</div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Link recensione (facoltativo, incluso nell\'email del check-out)</label><input type="text" class="admin-field" id="settings-review-link" value="' + escapeHtml(s.reviewLink || '') + '"></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label class="admin-social-toggle"><input type="checkbox" id="settings-video-call-enabled"' + (s.videoCallEnabled !== false ? ' checked' : '') + '> Offri la videochiamata di verifica documento</label></div>' +
+          '<div class="admin-note">Ogni NUOVA prenotazione richiede la verifica dell\'identità al primo ingresso (obbligo di legge, nessuna eccezione per ospiti già soggiornati in passato) — con questa casella attiva il sistema genera da solo (gratis) un link Google Meet un\'ora prima del check-in, una volta autorizzato Google Calendar (vedi GUIDA-PUBBLICAZIONE.md Parte 8.6); se non è ancora autorizzato, l\'email di check-in parte comunque, semplicemente senza link video. Disattiva la casella se per un periodo NON vuoi offrire la videochiamata: l\'email dirà semplicemente che la verifica avverrà dal vivo al videocitofono all\'arrivo.</div>' +
+        '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Notifiche pulizie (bot Telegram)</span></div>' +
+          '<div class="admin-stats-rows">' + recipientsRowsHtml(recipients, 'cleaning') + '</div>' +
+          '<button type="button" class="admin-stat-add" data-add-recipient="cleaning">+ Aggiungi destinatario pulizie</button>' +
+          '<div class="admin-note">Ogni persona manda /start al bot @NOME_BOT, poi lanci il workflow "Recupera chat-id" su GitHub Actions per leggere il suo Chat ID da incollare qui (vedi GUIDA-PUBBLICAZIONE.md).</div>' +
+        '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Autorizzati a creare prenotazioni via bot Telegram</span></div>' +
+          '<div class="admin-stats-rows">' + recipientsRowsHtml(authorized, 'auth') + '</div>' +
+          '<button type="button" class="admin-stat-add" data-add-recipient="auth">+ Aggiungi autorizzato</button>' +
+        '</div>' +
       '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">WiFi e istruzioni check-in</span></div>' +
-        '<div class="admin-field-group"><label>Nome rete WiFi</label><input type="text" class="admin-field" id="settings-wifi-name" value="' + escapeHtml(s.wifiName || '') + '"></div>' +
-        '<div class="admin-field-group"><label>Password WiFi</label><input type="text" class="admin-field" id="settings-wifi-password" value="' + escapeHtml(s.wifiPassword || '') + '"></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Link apertura portone lato strada (facoltativo — es. link dell\'app del citofono/serratura smart; se l\'app genera link/codici che scadono, aggiorna questo campo ogni volta che serve, il sistema mostra sempre l\'ultimo valore salvato)</label><input type="text" class="admin-field" id="settings-street-gate-link" value="' + escapeHtml(s.streetGateLink || '') + '"></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso — italiano (chiavi/citofono/portone) — incluse nell\'email di check-in</label><textarea class="admin-field" id="settings-checkin-instructions" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.it) || '') + '</textarea></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso — English (per gli ospiti che hanno scelto il sito in inglese)</label><textarea class="admin-field" id="settings-checkin-instructions-en" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.en) || '') + '</textarea></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — italiano (dove lasciare le chiavi, cosa spegnere, ecc.) — incluse nell\'email della mattina del check-out</label><textarea class="admin-field" id="settings-checkout-instructions" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.it) || '') + '</textarea></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — English</label><textarea class="admin-field" id="settings-checkout-instructions-en" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.en) || '') + '</textarea></div>' +
-        '<div class="admin-note">Se un ospite ha scelto il sito in inglese, riceve automaticamente le email in inglese usando questi campi (se li lasci vuoti, quella sezione semplicemente non appare nell\'email in inglese).</div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Link recensione (facoltativo, incluso nell\'email del check-out)</label><input type="text" class="admin-field" id="settings-review-link" value="' + escapeHtml(s.reviewLink || '') + '"></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label class="admin-social-toggle"><input type="checkbox" id="settings-video-call-enabled"' + (s.videoCallEnabled !== false ? ' checked' : '') + '> Offri la videochiamata di verifica documento</label></div>' +
-        '<div class="admin-note">Ogni NUOVA prenotazione richiede la verifica dell\'identità al primo ingresso (obbligo di legge, nessuna eccezione per ospiti già soggiornati in passato) — con questa casella attiva il sistema genera da solo (gratis) un link Google Meet un\'ora prima del check-in, una volta autorizzato Google Calendar (vedi GUIDA-PUBBLICAZIONE.md Parte 8.6); se non è ancora autorizzato, l\'email di check-in parte comunque, semplicemente senza link video. Disattiva la casella se per un periodo NON vuoi offrire la videochiamata: l\'email dirà semplicemente che la verifica avverrà dal vivo al videocitofono all\'arrivo.</div>' +
+      '<div class="dash-settings-group">' +
+        '<div class="dash-settings-group-title">Sicurezza account</div>' +
+        mfaSecurityCardHtml() +
       '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Notifiche pulizie (bot Telegram)</span></div>' +
-        '<div class="admin-stats-rows">' + recipientsRowsHtml(recipients, 'cleaning') + '</div>' +
-        '<button type="button" class="admin-stat-add" data-add-recipient="cleaning">+ Aggiungi destinatario pulizie</button>' +
-        '<div class="admin-note">Ogni persona manda /start al bot @NOME_BOT, poi lanci il workflow "Recupera chat-id" su GitHub Actions per leggere il suo Chat ID da incollare qui (vedi GUIDA-PUBBLICAZIONE.md).</div>' +
+      '<div class="dash-settings-group">' +
+        '<div class="dash-settings-group-title">Integrazioni</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Sincronizzazione calendario</span></div>' +
+          '<div class="admin-note">Collega quante piattaforme vuoi per stanza — Airbnb, Booking.com, Vrbo o qualsiasi altro sito che fornisca un link "esporta calendario" (iCal): incolla qui quel link, le prenotazioni trovate compaiono da sole nella tab Prenotazioni. Il link da dare INVECE a quella piattaforma (perché veda occupate le date prenotate sul sito) è il campo di sola lettura in fondo a ogni stanza.</div>' +
+          Object.keys(state.roomsData).map(function (id) {
+            return '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;"><label style="font-weight:700;">' + escapeHtml(state.roomsData[id].name) + '</label></div>' +
+                   '<div class="admin-stats-rows" data-ical-rows="' + id + '">' + icalChannelRowsHtml(id) + '</div>' +
+                   '<button type="button" class="admin-stat-add" data-ical-add="' + id + '">+ Aggiungi piattaforma</button>' +
+                   '<div class="admin-field-group admin-field-group--full"><label>URL da dare a queste piattaforme (vedono occupate le date prenotate sul sito)</label><input type="text" class="admin-field" readonly value="' + escapeHtml(window.location.origin + window.location.pathname.replace(/dashboard\.html$/, '') + 'ical/' + id + '.ics') + '"></div>';
+          }).join('') +
+        '</div>' +
+        '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Social</span></div>' + socialFieldsHtml(s.socials || {}) + '</div>' +
       '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Autorizzati a creare prenotazioni via bot Telegram</span></div>' +
-        '<div class="admin-stats-rows">' + recipientsRowsHtml(authorized, 'auth') + '</div>' +
-        '<button type="button" class="admin-stat-add" data-add-recipient="auth">+ Aggiungi autorizzato</button>' +
-      '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Sincronizzazione calendario</span></div>' +
-        '<div class="admin-note">Collega quante piattaforme vuoi per stanza — Airbnb, Booking.com, Vrbo o qualsiasi altro sito che fornisca un link "esporta calendario" (iCal): incolla qui quel link, le prenotazioni trovate compaiono da sole nella tab Prenotazioni. Il link da dare INVECE a quella piattaforma (perché veda occupate le date prenotate sul sito) è il campo di sola lettura in fondo a ogni stanza.</div>' +
-        Object.keys(state.roomsData).map(function (id) {
-          return '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;"><label style="font-weight:700;">' + escapeHtml(state.roomsData[id].name) + '</label></div>' +
-                 '<div class="admin-stats-rows" data-ical-rows="' + id + '">' + icalChannelRowsHtml(id) + '</div>' +
-                 '<button type="button" class="admin-stat-add" data-ical-add="' + id + '">+ Aggiungi piattaforma</button>' +
-                 '<div class="admin-field-group admin-field-group--full"><label>URL da dare a queste piattaforme (vedono occupate le date prenotate sul sito)</label><input type="text" class="admin-field" readonly value="' + escapeHtml(window.location.origin + window.location.pathname.replace(/dashboard\.html$/, '') + 'ical/' + id + '.ics') + '"></div>';
-        }).join('') +
-      '</div>' +
-      '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' + photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) + '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Host</span></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Nome e cognome</label><input type="text" class="admin-field" id="manager-name" value="' + escapeHtml(s.managerName || '') + '"></div>' +
-        '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="manager-phone" value="' + escapeHtml(s.managerPhone || '') + '"></div>' +
-        '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" value="' + escapeHtml(s.managerEmail || '') + '"></div>' +
-        photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +
-      '</div>' +
-      recommendationsEditorHtml(s.recommendations || []) +
-      '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Social</span></div>' + socialFieldsHtml(s.socials || {}) + '</div>';
+      '<div class="dash-settings-group">' +
+        '<div class="dash-settings-group-title">Privacy e conservazione dati</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Conservazione dati documento ospiti</span></div>' +
+          '<div class="admin-note">Regola fissa (tua decisione): la FOTO del documento viene cancellata solo quando ENTRAMBE le condizioni sono vere — è già stata inviata ad Alloggiati Web/Questura, E sono passate almeno le ore qui sotto dal check-out. Prima di allora non viene mai cancellata, anche se una delle due condizioni è già soddisfatta.</div>' +
+          '<div class="admin-field-group"><label>Ore minime dopo il check-out</label><input type="number" class="admin-field" id="settings-retention-hours" min="1" value="' + (s.guestDocsRetentionHours != null ? s.guestDocsRetentionHours : 48) + '"></div>' +
+          '<div class="admin-note">⚠️ Questo riguarda solo la FOTO. Il periodo di conservazione dei dati anagrafici tipizzati (nome, data nascita, documento senza foto) non ha invece un default: confermalo con un consulente legale/commercialista in base agli obblighi di pubblica sicurezza.</div>' +
+        '</div>' +
+      '</div>';
 
     document.getElementById('settings-phone').addEventListener('change', function (e) {
       window.CasaCelesteTourismDB.setSettings({ phone: e.target.value.replace(/\D/g, '') });
