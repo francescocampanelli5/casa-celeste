@@ -111,13 +111,22 @@ function telegramSend(chatId, text) {
 function telegramConfigured() {
   return !!process.env.TELEGRAM_BOT_TOKEN;
 }
+// Restituisce { sent, attempted }: sent è il numero di destinatari a cui il
+// messaggio è VERAMENTE arrivato (nessun errore Telegram). Un chiamante che
+// marca un flag "notificato" dopo questa chiamata deve controllare `sent > 0`
+// prima di farlo — altrimenti un fallimento silenzioso (chat ID sbagliato,
+// bot bloccato, rete) verrebbe comunque segnato come "già inviato" e non
+// verrebbe mai ritentato al prossimo passaggio del cron.
 function telegramBroadcast(recipients, text) {
   var enabled = (recipients || []).filter(function (r) { return r.enabled && r.chatId; });
   return Promise.all(enabled.map(function (r) {
-    return telegramSend(r.chatId, text).catch(function (err) {
+    return telegramSend(r.chatId, text).then(function () { return true; }).catch(function (err) {
       console.error('Errore invio Telegram a ' + r.label + ':', err.message);
+      return false;
     });
-  }));
+  })).then(function (results) {
+    return { sent: results.filter(Boolean).length, attempted: enabled.length };
+  });
 }
 
 // ==========================================================================

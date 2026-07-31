@@ -1,10 +1,12 @@
-// Promemoria pulizie — due avvisi per ogni check-out (la sera prima e la
-// mattina stessa, qualche ora prima delle 10:00), a TUTTI i destinatari
-// abilitati in Impostazioni (cleaningRecipients). Eseguito ogni ora da
-// .github/workflows/affittacamere-hourly.yml: calcola da solo l'ora locale
-// Europe/Rome (a prova di cambio ora legale/solare) invece di fidarsi
-// dell'orario UTC del cron, ed è idempotente (flag cleaningNotified.*) così
-// più esecuzioni nella stessa finestra oraria non duplicano il messaggio.
+// Promemoria pulizie — due avvisi per ogni check-out (uno nel pomeriggio/
+// sera del giorno prima, uno nella mattina del giorno stesso), a TUTTI i
+// destinatari abilitati in Impostazioni (cleaningRecipients). Eseguito da
+// .github/workflows/affittacamere-hourly.yml (cron "orario", ma GitHub
+// Actions non garantisce che scatti puntuale ogni ora — vedi il commento
+// sulle finestre più sotto): calcola da solo l'ora locale Europe/Rome (a
+// prova di cambio ora legale/solare) invece di fidarsi dell'orario UTC del
+// cron, ed è idempotente (flag cleaningNotified.*) così più esecuzioni nella
+// stessa finestra non duplicano il messaggio.
 'use strict';
 var lib = require('./_lib');
 var admin = lib.initAdmin();
@@ -16,9 +18,17 @@ async function main() {
     return;
   }
   var now = lib.romeNow();
-  var doDayBefore = now.hour >= 18 && now.hour <= 20;
-  var doSameDay = now.hour >= 6 && now.hour <= 8;
-  if (!doDayBefore && !doSameDay) { console.log('Fuori dalla finestra oraria dei promemoria (ora Roma: ' + now.hour + '), esco.'); return; }
+  // Finestre ampie e SENZA buchi (ogni ora del giorno ricade in una delle
+  // due), non più ristrette a "18-20"/"6-8": verificato sui log reali delle
+  // ultime ~18 esecuzioni che il cron orario di GitHub Actions NON scatta in
+  // modo affidabile ogni ora esatta — nel campione osservato non è MAI
+  // scattato tra le 3 e le 7 del mattino (ora Roma), che è esattamente la
+  // vecchia finestra "sameDay": il promemoria del giorno stesso del
+  // check-out non aveva quindi mai avuto una reale occasione di partire.
+  // L'idempotenza (cleaningNotified.*) resta comunque garantita: cambia solo
+  // QUANDO nella giornata può partire, mai se viene inviato due volte.
+  var doDayBefore = now.hour >= 12; // pomeriggio/sera del giorno prima del check-out
+  var doSameDay = now.hour < 12; // mattina del giorno stesso, prima del check-out
 
   var settingsSnap = await db.collection('tourism_settings').doc('site').get();
   var settings = settingsSnap.exists ? settingsSnap.data() : {};
@@ -58,7 +68,15 @@ async function notifyFor(checkoutDateIso, flagKey, recipients, checkoutTime, che
       'Promemoria: cambio lenzuola e asciugamani, controllo dotazioni bagno/cucina.' +
       (hasNextCheckin ? '\n⚠️ Nuovo ospite in arrivo lo STESSO giorno alle ' + checkinTime + ': pulizia urgente entro quell\'ora.' : '');
 
-    await lib.telegramBroadcast(recipients, text);
+    var result = await lib.telegramBroadcast(recipients, text);
+    // Marca "notificato" solo se il messaggio è VERAMENTE arrivato ad almeno
+    // un destinatario: se tutti gli invii falliscono (chat ID sbagliato, bot
+    // bloccato, rete), il flag resta false e si ritenta al prossimo passaggio
+    // invece di segnare per sempre come "già fatto" un avviso mai arrivato.
+    if (result.sent === 0) {
+      console.error('Nessun invio Telegram riuscito per ' + doc.id + ' (' + result.attempted + ' destinatari tentati): non segno come notificato, ritento al prossimo passaggio.');
+      continue;
+    }
     var patch = {}; patch['cleaningNotified.' + flagKey] = true;
     await doc.ref.update(patch);
     count++;
