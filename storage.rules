@@ -5,37 +5,39 @@ rules_version = '2';
 // mostrarle sul sito pubblico), solo il proprietario autenticato può
 // caricarne o cancellarne.
 //
-// request.app != null in ogni regola di scrittura: richiede un token App
-// Check valido (generato dal sito via reCAPTCHA v3, vedi js/firebase-init.js)
-// — blocca upload automatizzati/bot che non passano da una pagina reale del
-// sito. Va abilitato in "Enforce" anche per Storage lato console Firebase
-// (App Check > Storage) per avere effetto reale, non solo "Monitor".
+// App Check (request.app != null) TEMPORANEAMENTE RIMOSSO da tutte le regole
+// qui sotto (31/07, richiesta esplicita dell'utente): lo scambio del token
+// reCAPTCHA v3 → App Check falliva in produzione con "App attestation
+// failed", bloccando ogni upload autenticato dalla dashboard. Riabilitare
+// (rimettere "&& request.app != null" su ogni regola) SOLO dopo aver
+// verificato in Firebase Console → App Check che il provider reCAPTCHA v3
+// sia registrato con la chiave/dominio corretti.
 service firebase.storage {
   match /b/{bucket}/o {
     match /rooms/{roomId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null && request.app != null
+      allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
 
     match /commons/{commonId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null && request.app != null
+      allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
 
     match /monoSlides/{slideId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null && request.app != null
+      allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
 
     match /site/{fileName=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.app != null
+      allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
@@ -46,25 +48,25 @@ service firebase.storage {
 
     match /tourism-rooms/{roomId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null && request.app != null
+      allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
     match /tourism-commons/{commonId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null && request.app != null
+      allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
     match /tourism-monoSlides/{slideId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null && request.app != null
+      allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
     match /tourism-site/{fileName=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.app != null
+      allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
@@ -75,13 +77,15 @@ service firebase.storage {
     // definitiva sottostante ed elimina l'originale qui. Se un visitatore
     // carica un file senza mai completare l'invio, resta solo qui (ripulito
     // periodicamente da scripts/cleanup-guest-docs.js), mai nell'area
-    // definitiva. request.app != null richiede comunque che l'upload passi
-    // da ospiti.html/il bot Telegram (App Check), non da uno script esterno
-    // che spamma file a caso in quest'area pubblica.
+    // definitiva. App Check (che richiedeva che l'upload passi da
+    // ospiti.html/il bot Telegram, non da uno script esterno che spamma file
+    // a caso in quest'area pubblica) TEMPORANEAMENTE RIMOSSO come sopra:
+    // questo percorso resta scrittura pubblica senza login, protetta solo da
+    // dimensione/tipo file finché l'App Check non viene riabilitato — quello
+    // da riabilitare con più priorità, appena sistemata la console.
     match /tourism-guest-docs-tmp/{bookingId}/{fileName} {
-      allow read: if request.auth != null && request.app != null;
-      allow write: if request.app != null
-                   && request.resource.size < 10 * 1024 * 1024
+      allow read: if request.auth != null;
+      allow write: if request.resource.size < 10 * 1024 * 1024
                    && (request.resource.contentType.matches('image/.*')
                        || request.resource.contentType == 'application/pdf');
     }
@@ -91,7 +95,7 @@ service firebase.storage {
     // avviene solo lato server (Cloud Function/Admin SDK, che bypassa
     // queste regole), mai dal client.
     match /tourism-guest-docs/{bookingId}/{fileName} {
-      allow read: if request.auth != null && request.app != null;
+      allow read: if request.auth != null;
       allow write: if false;
     }
   }

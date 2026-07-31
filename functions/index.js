@@ -36,6 +36,16 @@ const { notifyBookingConfirmed, notifyBookingCancelled } = require('./guest-noti
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
 
+// `enforceAppCheck: true` TEMPORANEAMENTE RIMOSSO da tutte le funzioni onCall
+// qui sotto (31/07, richiesta esplicita dell'utente): lo scambio del token
+// reCAPTCHA v3 → App Check falliva in produzione con "App attestation
+// failed" (dominio/chiave non collegati correttamente in console Firebase),
+// bloccando OGNI prenotazione/pagamento/upload reale. Riabilitare (rimettere
+// `enforceAppCheck: true` su ogni onCall qui sotto, e "&& request.app !=
+// null" in firestore.rules/storage.rules) SOLO dopo aver verificato in
+// Firebase Console → App Check che il provider reCAPTCHA v3 sia registrato
+// con la chiave/dominio corretti.
+
 const telegramBotToken = defineSecret('TELEGRAM_BOT_TOKEN');
 const telegramWebhookSecret = defineSecret('TELEGRAM_WEBHOOK_SECRET');
 const visionApiKey = defineSecret('VISION_API_KEY');
@@ -122,7 +132,7 @@ const bucket = admin.storage().bucket();
    createBooking — logica condivisa in booking-logic.js (usata anche dal
    bot Telegram via telegram-bot.js).
    ========================================================================== */
-exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey], enforceAppCheck: true }, async (request) => {
+exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
   const data = request.data || {};
   const source = data.source || 'site';
   // 'site_test' TEMPORANEO (vedi booking-logic.js) — stessa via pubblica
@@ -157,7 +167,7 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey], e
    createGroupBookingCore in booking-logic.js): una sola transazione
    atomica, o tutte le stanze richieste vengono prenotate o nessuna.
    ========================================================================== */
-exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey], enforceAppCheck: true }, async (request) => {
+exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
   const data = request.data || {};
   const source = data.source || 'site';
   // 'site_test' TEMPORANEO (vedi booking-logic.js) — stessa via pubblica
@@ -193,7 +203,7 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
    così finché non è installato/configurato solo questa funzione fallisce con
    un errore chiaro invece di rompere il deploy di tutte le altre.
    ========================================================================== */
-exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey], enforceAppCheck: true }, async (request) => {
+exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (request) => {
   const data = request.data || {};
   const key = stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: manca STRIPE_SECRET_KEY.');
@@ -239,7 +249,7 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey], enforceAppChe
    solo entro il termine di 48 ore prima del check-in — vedi
    cancelBookingCore in booking-logic.js.
    ========================================================================== */
-exports.cancelBooking = onCall({ secrets: [stripeSecretKey], enforceAppCheck: true }, async (request) => {
+exports.cancelBooking = onCall({ secrets: [stripeSecretKey] }, async (request) => {
   const data = request.data || {};
   const key = stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato.');
@@ -265,7 +275,7 @@ exports.cancelBooking = onCall({ secrets: [stripeSecretKey], enforceAppCheck: tr
    esattamente come dal flusso normale. Errore sempre generico per non
    rivelare quale dato è sbagliato — vedi lookupBookingForCancellationCore.
    ========================================================================== */
-exports.lookupBookingForCancellation = onCall({ enforceAppCheck: true }, async (request) => {
+exports.lookupBookingForCancellation = onCall({}, async (request) => {
   const data = request.data || {};
   try {
     return await lookupBookingForCancellationCore(db, data);
@@ -284,7 +294,7 @@ exports.lookupBookingForCancellation = onCall({ enforceAppCheck: true }, async (
    Assistenza) e avvisa subito il proprietario su Telegram — stesso canale
    già usato per le nuove prenotazioni, nessuna quota EmailJS consumata.
    ========================================================================== */
-exports.submitAssistMessage = onCall({ secrets: [telegramBotToken], enforceAppCheck: true }, async (request) => {
+exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (request) => {
   const data = request.data || {};
   let result;
   try {
@@ -302,7 +312,7 @@ exports.submitAssistMessage = onCall({ secrets: [telegramBotToken], enforceAppCh
    notifica Telegram: sarebbe rumore, il proprietario guarda i totali in
    dashboard quando vuole, non evento per evento).
    ========================================================================== */
-exports.logRecClick = onCall({ enforceAppCheck: true }, async (request) => {
+exports.logRecClick = onCall({}, async (request) => {
   const data = request.data || {};
   try {
     return await logRecClickCore(admin, db, data);
@@ -318,7 +328,7 @@ exports.logRecClick = onCall({ enforceAppCheck: true }, async (request) => {
    lettura pubblica diretta di tourism_bookings (che contiene contatti e
    stato interno): il token fa da chiave d'accesso, verificato qui.
    ========================================================================== */
-exports.getBookingForGuestForm = onCall({ enforceAppCheck: true }, async (request) => {
+exports.getBookingForGuestForm = onCall({}, async (request) => {
   const data = request.data || {};
   const bookingId = data.bookingId;
   const token = data.token;
@@ -346,7 +356,7 @@ exports.getBookingForGuestForm = onCall({ enforceAppCheck: true }, async (reques
    submitGuestDocuments — validateGuest/movePhotoToPermanent ora in
    guest-documents.js (condivise con functions/telegram-bot.js).
    ========================================================================== */
-exports.submitGuestDocuments = onCall({ enforceAppCheck: true }, async (request) => {
+exports.submitGuestDocuments = onCall({}, async (request) => {
   const data = request.data || {};
   const bookingId = data.bookingId;
   const token = data.token;
@@ -422,7 +432,7 @@ exports.submitGuestDocuments = onCall({ enforceAppCheck: true }, async (request)
    videocitofono solo la prima volta) e registra l'ospite come "già
    verificato" per i soggiorni futuri. Solo owner autenticato.
    ========================================================================== */
-exports.markIdentityVerified = onCall({ enforceAppCheck: true }, async (request) => {
+exports.markIdentityVerified = onCall({}, async (request) => {
   if (!request.auth) throw new HttpsError('permission-denied', 'Solo il proprietario può confermare la verifica.');
   const data = request.data || {};
   const bookingId = data.bookingId;
