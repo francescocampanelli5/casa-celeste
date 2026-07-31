@@ -2398,7 +2398,7 @@
     return (
       '<div class="price-summary">' +
         '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_dates')) + '</span><span>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</span></div>' +
-        '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: nights, price: room.nightlyPrice })) + '</span><span>€' + roomTotal + '</span></div>' +
+        '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights_n'), { n: nights })) + '</span><span>€' + roomTotal + '</span></div>' +
         (taxRate ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + tax.toFixed(2) + '</span></div>' : '') +
         (taxRate ? '<div class="price-summary-note">' + escapeHtml(tpl(t('booking.summary_tourist_tax_note'), { rate: taxRate })) + '</div>' : '') +
         (state.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + cribAmount.toFixed(2) + '</span></div>' : '') +
@@ -3236,7 +3236,7 @@
       rows +=
         '<div class="group-price-block">' +
           '<div class="group-price-block-title">' + escapeHtml(tpl(t('booking.group_room_n'), { n: ri + 1 })) + ' — ' + escapeHtml(p.room.name) + '</div>' +
-          '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: p.nights, price: p.room.nightlyPrice })) + '</span><span>€' + p.totalBeforeDiscount + '</span></div>' +
+          '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights_n'), { n: p.nights })) + '</span><span>€' + p.totalBeforeDiscount + '</span></div>' +
           (p.discountRate ? '<div class="price-summary-row" style="color:var(--blue-deep,#1D6E96);"><span>' + escapeHtml(tpl(t('booking.summary_group_discount'), { pct: Math.round(p.discountRate * 100) })) + '</span><span>−€' + (p.totalBeforeDiscount - p.roomTotal) + '</span></div>' : '') +
           (p.tax ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + p.tax.toFixed(2) + '</span></div>' : '') +
           (alloc.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + p.cribTotal.toFixed(2) + '</span></div>' : '') +
