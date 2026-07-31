@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<!-- Cookiebot — DEVE restare il primo script del documento (blocca
-     automaticamente cookie/script di terze parti finché il visitatore non
-     dà il consenso). Sostituisci data-cbid con il Domain Group ID reale di
-     questo dominio: account Cookiebot (cookiebot.com) → Impostazioni → il
-     dominio dello studentato → "Your Cookiebot ID" (se lo studentato è sulla
-     stessa proprietà/dominio dell'affittacamere su Cookiebot, puoi anche
-     riusare lo stesso ID già inserito lì). -->
-<script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="INSERISCI-QUI-IL-TUO-DOMAIN-GROUP-ID-COOKIEBOT" data-blockingmode="auto" type="text/javascript"></script>
 <meta charset="UTF-8">
+<!-- CSP: allow-list solo le origini esterne davvero usate dal sito (SDK
+     Firebase/App Check/reCAPTCHA da gstatic.com/google.com, EmailJS via
+     cdn.jsdelivr.net, chiamate Firestore/Auth/Storage su *.googleapis.com).
+     'unsafe-inline' su script/style resta necessario: il sito non usa un
+     build step con nonce/hash, ma questo comunque blocca il vettore più
+     comune — caricare uno script da un dominio esterno non autorizzato. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.cloudfunctions.net https://api.emailjs.com https://www.google.com; frame-src https://www.google.com https://www.recaptcha.net; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Casa Celeste | Studentato e Alloggi per Studenti a Monopoli — Stanze in Affitto</title>
 <meta name="description" content="Casa Celeste: uno studentato e casa in condivisione nel cuore di Monopoli. Stanze singole e doppie in affitto, il comfort di una vera casa con lo spirito di un dormitorio per studenti. A pochi passi da centro storico, mare e Conservatorio. Prenota un tour su WhatsApp.">
@@ -44,9 +44,10 @@
 {"@type":"Question","name":"Posso vedere la casa prima di decidere?","acceptedAnswer":{"@type":"Answer","text":"Certo — prenota un tour dal sito o scrivici su WhatsApp: ti mostriamo la casa, stanza per stanza, prima di qualsiasi prenotazione."}}
 ]}
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Font Sora/Manrope self-hosted (non da Google Fonts CDN): evita l'invio
+     dell'IP del visitatore a Google prima di qualunque scelta sui cookie,
+     vedi fonts/fonts.css. -->
+<link rel="stylesheet" href="/fonts/fonts.css?v=1">
 <link rel="stylesheet" href="css/styles.css?v=4">
 </head>
 <body style="visibility:hidden">
@@ -252,7 +253,10 @@
       </div>
       <div class="location-grid">
         <div class="map-frame">
-          <iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia&output=embed" loading="lazy"></iframe>
+          <div class="map-placeholder" data-map-placeholder data-map-query="Via Giuseppe del Drago 9, Monopoli, BA, Italia">
+            <p data-i18n="maps.consent_needed">Per motivi di privacy, la mappa interattiva di Google Maps si carica solo con il tuo consenso.</p>
+            <button type="button" class="btn btn-outline" data-load-map data-i18n="maps.load_anyway">Carica la mappa</button>
+          </div>
         </div>
         <div class="distance-list">
           <div class="distance-item"><span class="distance-label" data-i18n="dist.centro">🏛️ Centro città</span><span class="distance-value" data-i18n="dist.min1">8 min a piedi</span></div>

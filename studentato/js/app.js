@@ -29,18 +29,26 @@
       title: { it: 'Privacy Policy', en: 'Privacy Policy' },
       paragraphs: {
         it: [
-          'Casa Celeste ("Titolare del trattamento") rispetta la privacy degli utenti che visitano questo sito e dei potenziali inquilini che ci contattano.',
-          'Dati raccolti: nome, email, numero di telefono e messaggi inviati tramite i moduli di contatto, WhatsApp o email, utilizzati esclusivamente per rispondere a richieste di informazioni e gestire prenotazioni di visite.',
-          'I dati non vengono ceduti a terzi per finalità commerciali e sono conservati per il tempo necessario a gestire la richiesta, salvo diversi obblighi di legge.',
-          'Per esercitare i tuoi diritti (accesso, rettifica, cancellazione) scrivici a lacasacelestemonopoli@gmail.com.',
-          'Nota: questo testo è un modello generico — si consiglia di farlo revisionare da un consulente legale/privacy prima della pubblicazione definitiva.'
+          'Titolare del trattamento: Casa Celeste, Via Giuseppe del Drago 9, Monopoli (BA), contattabile a lacasacelestemonopoli@gmail.com. Non è nominato un Responsabile della Protezione dei Dati (DPO): non è obbligatorio ai sensi dell\'art. 37 GDPR data la scala ridotta del trattamento — per qualunque richiesta scrivi comunque all\'indirizzo sopra.',
+          'Dati raccolti: nome, email, numero di telefono e messaggi inviati tramite i moduli di contatto, WhatsApp o email; dati della richiesta di prenotazione di una stanza (nome, contatti, stanza scelta, periodo); in caso di contratto di locazione effettivo, i dati anagrafici necessari alla stipula e alla cauzione.',
+          'Base giuridica: i dati di contatto e di richiesta prenotazione/visita si basano sull\'esecuzione di misure precontrattuali adottate su tua richiesta; i dati anagrafici in caso di contratto stipulato si basano sull\'esecuzione del contratto di locazione stesso e sui relativi obblighi fiscali/civilistici (es. registrazione del contratto).',
+          'Destinatari e responsabili del trattamento: Google Cloud/Firebase (hosting del sito e del database che conserva le richieste di prenotazione, region europe-west1 — Belgio); EmailJS (invio dei promemoria email relativi alle prenotazioni — servizio con sede negli Stati Uniti). I dati non sono mai ceduti a terzi per finalità commerciali o di marketing.',
+          'Trasferimenti extra-UE: EmailJS può trattare dati fuori dallo Spazio Economico Europeo; si basa sulle Clausole Contrattuali Standard approvate dalla Commissione Europea o su garanzie equivalenti (artt. 45-46 GDPR) — vedi la privacy policy di EmailJS su emailjs.com/legal.',
+          'Conservazione: i dati delle richieste di prenotazione/visita non seguite da un contratto sono cancellati entro 12 mesi dalla richiesta. I dati anagrafici legati a un contratto di locazione effettivo sono conservati per il periodo richiesto dagli obblighi fiscali e civilistici (tipicamente 10 anni per la documentazione contrattuale/contabile).',
+          'Sicurezza: i dati sono conservati su infrastruttura Google Cloud (cifrata a riposo e in transito), protetta da controlli di accesso che richiedono sia l\'autenticazione del titolare sia un token di attestazione dell\'app (Firebase App Check), pensati insieme per impedire letture o modifiche dirette ai dati che non passino dal sito o dal proprietario autenticato.',
+          'I tuoi diritti: puoi richiedere accesso, rettifica o cancellazione dei tuoi dati scrivendo a lacasacelestemonopoli@gmail.com. Hai inoltre diritto di proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).',
+          'Nota: questo testo è un modello — si consiglia di farlo revisionare da un consulente legale/privacy prima della pubblicazione definitiva.'
         ],
         en: [
-          'Casa Celeste ("Data Controller") respects the privacy of visitors to this site and of prospective tenants who contact us.',
-          'Data collected: name, email, phone number and messages sent through the contact forms, WhatsApp or email, used exclusively to reply to information requests and manage tour bookings.',
-          'Data is not shared with third parties for commercial purposes and is kept for as long as needed to handle the request, unless otherwise required by law.',
-          'To exercise your rights (access, correction, deletion) write to lacasacelestemonopoli@gmail.com.',
-          'Note: this text is a generic template — we recommend having it reviewed by a legal/privacy advisor before final publication.'
+          'Data Controller: Casa Celeste, Via Giuseppe del Drago 9, Monopoli (BA), Italy, contactable at lacasacelestemonopoli@gmail.com. No Data Protection Officer (DPO) is appointed: it is not mandatory under Art. 37 GDPR given the small scale of processing — for any request, write to the address above regardless.',
+          'Data collected: name, email, phone number and messages sent through the contact forms, WhatsApp or email; room booking-request data (name, contact details, chosen room, period); should an actual lease be signed, the personal details needed for the contract and the deposit.',
+          'Legal basis: contact and booking/tour-request data is based on pre-contractual steps taken at your request; personal details for a signed lease are based on performing that lease contract and the related tax/civil-law obligations (e.g. contract registration).',
+          'Recipients and processors: Google Cloud/Firebase (hosting for the site and the database storing booking requests, region europe-west1 — Belgium); EmailJS (sending booking-related email reminders — a US-based service). Data is never shared with third parties for commercial or marketing purposes.',
+          'Transfers outside the EU: EmailJS may process data outside the European Economic Area; it relies on the Standard Contractual Clauses approved by the European Commission or equivalent safeguards (Articles 45-46 GDPR) — see EmailJS\'s privacy policy at emailjs.com/legal.',
+          'Retention: data from booking/tour requests not followed by a contract is deleted within 12 months of the request. Personal details tied to an actual signed lease are kept for the period required by tax and civil-law obligations (typically 10 years for contract/accounting records).',
+          'Security: data is stored on Google Cloud infrastructure (encrypted at rest and in transit), protected by access controls requiring both the controller\'s authentication and an app-attestation token (Firebase App Check), together designed to prevent direct reads or changes to the data that don\'t go through the site or the authenticated owner.',
+          'Your rights: you may request access, correction or deletion of your data by writing to lacasacelestemonopoli@gmail.com. You also have the right to lodge a complaint with the Italian data protection authority, the Garante per la protezione dei dati personali (www.garanteprivacy.it).',
+          'Note: this text is a template — we recommend having it reviewed by a legal/privacy advisor before final publication.'
         ]
       }
     },
@@ -48,16 +56,18 @@
       title: { it: 'Cookie Policy', en: 'Cookie Policy' },
       paragraphs: {
         it: [
-          'Questo sito utilizza esclusivamente cookie tecnici necessari al funzionamento (es. salvataggio locale delle preferenze e dei dati inseriti nel pannello di gestione stanze).',
+          'Questo sito utilizza cookie/storage tecnici necessari al funzionamento (es. salvataggio locale delle preferenze, dei dati inseriti nel pannello di gestione stanze e della scelta sui cookie stessa) e strettamente necessari alla sicurezza (Firebase App Check/reCAPTCHA, per distinguere visitatori reali da bot automatizzati): questi non richiedono consenso preventivo, per esenzione di legge.',
           'Non vengono utilizzati cookie di profilazione o di tracciamento pubblicitario.',
-          'Alcuni contenuti esterni (Google Maps, Google Fonts) possono impostare propri cookie tecnici secondo le rispettive policy.',
-          'Continuando la navigazione acconsenti all’utilizzo dei cookie tecnici necessari al funzionamento del sito.'
+          'La mappa interattiva di Google Maps mostrata nella sezione "Posizione" è un contenuto facoltativo di terze parti: viene caricata solo se acconsenti dal banner qui sotto (oppure se clicchi esplicitamente "Carica la mappa"), perché il solo caricamento trasmetterebbe il tuo indirizzo IP a Google. In alternativa puoi sempre aprire la posizione direttamente su Google Maps con l\'apposito link, senza alcun caricamento sul sito.',
+          'I font del sito (Sora, Manrope) sono ospitati sul nostro stesso dominio, non su server Google: nessuna richiesta esce verso terzi per mostrarli.',
+          'Puoi cambiare idea in qualsiasi momento riaprendo questa pagina e usando i pulsanti "Accetta"/"Rifiuta" del banner (torna a comparire se cancelli i dati di navigazione del browser).'
         ],
         en: [
-          'This site uses only technical cookies necessary for it to work (e.g. locally saving preferences and data entered in the room management panel).',
+          'This site uses technical cookies/storage necessary for it to work (e.g. locally saving preferences, data entered in the room management panel, and your cookie choice itself) and strictly necessary for security (Firebase App Check/reCAPTCHA, to tell real visitors apart from automated bots): these do not require prior consent, under the relevant legal exemption.',
           'No profiling or advertising tracking cookies are used.',
-          'Some external content (Google Maps, Google Fonts) may set its own technical cookies according to its own policy.',
-          'By continuing to browse you consent to the use of the technical cookies necessary for the site to function.'
+          'The interactive Google Maps view shown in the "Location" section is optional third-party content: it only loads if you consent via the banner below (or if you explicitly click "Load the map"), because loading it alone would transmit your IP address to Google. You can always open the location directly on Google Maps via the dedicated link instead, with nothing loaded on the site.',
+          'The site\'s fonts (Sora, Manrope) are hosted on our own domain, not on Google\'s servers: no request goes to any third party to display them.',
+          'You can change your mind at any time by reopening this page and using the banner\'s "Accept"/"Reject" buttons (it reappears if you clear your browser\'s site data).'
         ]
       }
     },
@@ -1252,22 +1262,51 @@
 
   function renderCookieBanner() {
     var root = document.getElementById('cookie-banner-root');
-    // Se Cookiebot è configurato (CBID reale in index.html) e si è
-    // caricato, è lui a gestire consenso/banner con la propria UI: questo
-    // banner "fatto in casa" resta solo come rete di sicurezza per il
-    // periodo in cui Cookiebot non è ancora configurato (placeholder CBID).
-    if (window.Cookiebot) { root.innerHTML = ''; return; }
     if (!state.showCookieBanner) { root.innerHTML = ''; return; }
     root.innerHTML =
       '<div class="cookie-banner">' +
         '<div class="cookie-text">' + escapeHtml(t('cookie.text')) + ' <button type="button" class="cookie-link" data-open-legal="cookie">' + escapeHtml(t('cookie.more')) + '</button></div>' +
-        '<button type="button" class="btn-cookie-accept" data-accept-cookies>' + escapeHtml(t('cookie.accept')) + '</button>' +
+        '<div class="cookie-actions">' +
+          '<button type="button" class="btn-cookie-reject" data-reject-cookies>' + escapeHtml(t('cookie.reject')) + '</button>' +
+          '<button type="button" class="btn-cookie-accept" data-accept-cookies>' + escapeHtml(t('cookie.accept')) + '</button>' +
+        '</div>' +
       '</div>';
   }
+  // '1' = ha accettato (carica anche i contenuti facoltativi, es. mappa
+  // incorporata), '0' = ha rifiutato esplicitamente (non richiedere di
+  // nuovo ad ogni visita), assente = non ancora chiesto.
   function acceptCookies() {
     try { localStorage.setItem('casaceleste_cookie_consent', '1'); } catch (e) {}
     state.showCookieBanner = false;
     renderCookieBanner();
+    loadAllMapEmbeds();
+  }
+  function rejectCookies() {
+    try { localStorage.setItem('casaceleste_cookie_consent', '0'); } catch (e) {}
+    state.showCookieBanner = false;
+    renderCookieBanner();
+  }
+
+  /* ==========================================================================
+     Mappa Google Maps incorporata — contenuto di terze parti facoltativo
+     (trasmette l'IP del visitatore a Google prima di qualunque consenso se
+     caricata subito): resta come placeholder finché l'utente non accetta i
+     cookie oppure clicca "Carica la mappa" per questa singola mappa (azione
+     esplicita e volontaria, valida come consenso specifico per quel
+     contenuto anche senza accettare il banner per intero).
+     ========================================================================== */
+  function loadMapEmbed(el) {
+    var query = el.getAttribute('data-map-query') || '';
+    el.outerHTML = '<iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=' + encodeURIComponent(query) + '&output=embed" loading="lazy"></iframe>';
+  }
+  function loadAllMapEmbeds() {
+    var placeholders = document.querySelectorAll('[data-map-placeholder]');
+    for (var i = 0; i < placeholders.length; i++) loadMapEmbed(placeholders[i]);
+  }
+  function initMapEmbeds() {
+    try {
+      if (localStorage.getItem('casaceleste_cookie_consent') === '1') loadAllMapEmbeds();
+    } catch (e) {}
   }
 
   /* ==========================================================================
@@ -1344,6 +1383,10 @@
       if (el) { closeLegal(); return; }
       el = e.target.closest('[data-accept-cookies]');
       if (el) { acceptCookies(); return; }
+      el = e.target.closest('[data-reject-cookies]');
+      if (el) { rejectCookies(); return; }
+      el = e.target.closest('[data-load-map]');
+      if (el) { var mapWrap = el.closest('[data-map-placeholder]'); if (mapWrap) loadMapEmbed(mapWrap); return; }
 
       el = e.target.closest('#mono-prev');
       if (el) { monoPrev(); return; }
@@ -1397,6 +1440,7 @@
     renderBookingModal();
     renderLegalModal();
     renderCookieBanner();
+    initMapEmbeds();
     bindGlobalEvents();
     bindCarouselSwipe();
     bindMobileDrawer();

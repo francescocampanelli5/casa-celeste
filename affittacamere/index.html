@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<!-- Cookiebot — DEVE restare il primo script del documento (blocca
-     automaticamente cookie/script di terze parti finché l'ospite non dà il
-     consenso). Sostituisci data-cbid con il tuo Domain Group ID reale:
-     account Cookiebot (cookiebot.com) → Impostazioni → il tuo dominio →
-     "Your Cookiebot ID". Finché resta il placeholder qui sotto, Cookiebot
-     non si attiva e resta in uso il vecchio banner semplice. -->
-<script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="INSERISCI-QUI-IL-TUO-DOMAIN-GROUP-ID-COOKIEBOT" data-blockingmode="auto" type="text/javascript"></script>
 <meta charset="UTF-8">
+<!-- CSP: allow-list solo le origini esterne davvero usate dal sito (SDK
+     Firebase/App Check/reCAPTCHA da gstatic.com/google.com, Stripe.js per i
+     pagamenti, chiamate Cloud Functions su *.cloudfunctions.net, Firestore/
+     Storage/Auth su *.googleapis.com). 'unsafe-inline' su script/style resta
+     necessario: il sito non usa un build step con nonce/hash, ma questo
+     comunque blocca il vettore più comune — caricare uno script da un
+     dominio esterno non autorizzato (skimming/injection di terze parti). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.google.com https://js.stripe.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.cloudfunctions.net https://api.stripe.com https://www.google.com; frame-src https://js.stripe.com https://hooks.stripe.com https://www.google.com https://www.recaptcha.net; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Casa Celeste | Affittacamere e Locazione Turistica a Monopoli — Stanze in Affitto a Notte</title>
 <meta name="description" content="Casa Celeste: locazione turistica indipendente nel cuore di Monopoli. Stanze in affitto a notte, il comfort di una vera casa, niente servizi da hotel. A pochi passi da centro storico e mare. Prenota le tue date su WhatsApp.">
@@ -41,9 +43,10 @@
 {"@type":"Question","name":"Posso cancellare la prenotazione?","acceptedAnswer":{"@type":"Answer","text":"Cancellazione gratuita fino a 48 ore prima dell'orario di check-in, con rimborso automatico. Oltre questa soglia la cancellazione non è più valida e non è possibile alcun rimborso."}}
 ]}
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Font Sora/Manrope self-hosted (non da Google Fonts CDN): evita l'invio
+     dell'IP del visitatore a Google prima di qualunque scelta sui cookie,
+     vedi fonts/fonts.css. -->
+<link rel="stylesheet" href="/fonts/fonts.css?v=1">
 <!-- Preconnect a Stripe: la pagina di pagamento carica js.stripe.com solo
      al momento del pagamento (step 5 del modale prenotazione) — anticipare
      qui la connessione TLS accorcia sensibilmente il caricamento dei campi
@@ -329,7 +332,10 @@
       </div>
       <div class="location-grid">
         <div class="map-frame">
-          <iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia&output=embed" loading="lazy"></iframe>
+          <div class="map-placeholder" data-map-placeholder data-map-query="Via Giuseppe del Drago 9, Monopoli, BA, Italia">
+            <p data-i18n="maps.consent_needed">Per motivi di privacy, la mappa interattiva di Google Maps si carica solo con il tuo consenso.</p>
+            <button type="button" class="btn btn-outline" data-load-map data-i18n="maps.load_anyway">Carica la mappa</button>
+          </div>
         </div>
         <div class="distance-list">
           <button type="button" class="distance-item" data-map-poi="centro"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg><span data-i18n="dist.centro">Centro città</span></span><span class="distance-value" data-i18n="dist.min1">8 min a piedi</span></button>

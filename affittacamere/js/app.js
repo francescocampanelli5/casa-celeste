@@ -62,23 +62,25 @@
       title: { it: 'Privacy Policy', en: 'Privacy Policy' },
       paragraphs: {
         it: [
-          'Titolare del trattamento: Casa Celeste, contattabile a lacasacelestemonopoli@gmail.com.',
-          'Dati raccolti: dati di contatto (nome, email, telefono) al momento della richiesta di prenotazione; dati anagrafici e del documento d\'identità (inclusa una foto del documento) di tutti gli ospiti che soggiornano, raccolti tramite un link sicuro prima del check-in.',
-          'Base giuridica: la raccolta e la verifica dei dati anagrafici e del documento d\'identità NON si basano sul consenso ma sull\'adempimento di un obbligo di legge — l\'identificazione dell\'ospite prevista dall\'art. 109 T.U.L.P.S. (che richiede di verificare, non solo raccogliere, la corrispondenza tra la persona e il documento), le comunicazioni obbligatorie di pubblica sicurezza (Alloggiati Web, Questura), la comunicazione delle presenze e la riscossione della tassa di soggiorno (Comune di Monopoli), e le rilevazioni statistiche regionali (flussi ISTAT). La verifica avviene tramite una breve videochiamata (o, solo alla prima prenotazione, dal vivo al videocitofono): non viene registrata né conservata alcuna immagine o dato biometrico di questa verifica. I dati di contatto raccolti alla richiesta di prenotazione si basano invece sull\'esecuzione di un accordo precontrattuale con te.',
-          'Destinatari dei dati: Questura di Bari, Comune di Monopoli, Regione Puglia, nella misura strettamente necessaria ad adempiere agli obblighi di legge sopra indicati. I dati non sono mai ceduti a terzi per finalità commerciali o di marketing.',
-          'Conservazione della copia del documento: la fotografia del documento d\'identità viene utilizzata esclusivamente per essere trasmessa alla Questura di Bari tramite il portale Alloggiati Web, in adempimento dell\'obbligo di legge previsto dall\'art. 109 del R.D. 773/1931 (T.U.L.P.S.). Una volta effettuata tale trasmissione obbligatoria, la fotografia del documento viene cancellata in modo permanente dai nostri sistemi entro 48 ore dalla data di check-out, e in ogni caso non oltre tale termine dal momento in cui l\'obbligo di trasmissione è stato assolto. Non conserviamo copie del documento oltre questo periodo per nessun\'altra finalità. I soli dati anagrafici in forma testuale (nome, data di nascita, cittadinanza, estremi del documento senza immagine) restano conservati per il periodo ulteriore richiesto dagli obblighi di legge di pubblica sicurezza, secondo quanto indicato dal titolare del trattamento.',
-          'Sicurezza: i dati sono conservati su infrastruttura Google Cloud (cifrata a riposo), accessibili solo al titolare autenticato — mai in lettura pubblica.',
-          'I tuoi diritti: puoi richiedere accesso, rettifica o cancellazione dei tuoi dati (quest\'ultima possibile in autonomia tramite lo stesso link ricevuto, fino al giorno del check-in) scrivendo a lacasacelestemonopoli@gmail.com. Hai inoltre diritto di proporre reclamo al Garante per la protezione dei dati personali.',
+          'Titolare del trattamento: Casa Celeste (locazione turistica esercitata in forma privata — CIN/CIR: [DA INSERIRE, se assegnato dalla Regione Puglia]), Via Giuseppe del Drago 9, Monopoli (BA), contattabile a lacasacelestemonopoli@gmail.com. Non è nominato un Responsabile della Protezione dei Dati (DPO): non è obbligatorio ai sensi dell\'art. 37 GDPR data la scala ridotta del trattamento (una struttura di poche stanze) — per qualunque richiesta scrivi comunque all\'indirizzo sopra.',
+          'Dati raccolti: dati di contatto (nome, email, telefono) al momento della richiesta di prenotazione; dati anagrafici e del documento d\'identità (inclusa una foto del documento) di tutti gli ospiti che soggiornano, raccolti tramite un link sicuro prima del check-in; dati di pagamento (gestiti direttamente da Stripe, vedi sotto — la carta non transita mai sui nostri sistemi).',
+          'Base giuridica: la raccolta e la verifica dei dati anagrafici e del documento d\'identità NON si basano sul consenso ma sull\'adempimento di un obbligo di legge — l\'identificazione dell\'ospite prevista dall\'art. 109 T.U.L.P.S. (che richiede di verificare, non solo raccogliere, la corrispondenza tra la persona e il documento), le comunicazioni obbligatorie di pubblica sicurezza (Alloggiati Web, Questura), la comunicazione delle presenze e la riscossione della tassa di soggiorno (Comune di Monopoli), e le rilevazioni statistiche regionali (flussi ISTAT). La verifica avviene tramite una breve videochiamata (o, solo alla prima prenotazione, dal vivo al videocitofono): non viene registrata né conservata alcuna immagine o dato biometrico di questa verifica. I dati di contatto raccolti alla richiesta di prenotazione e i dati di pagamento si basano invece sull\'esecuzione di un accordo (pre)contrattuale con te.',
+          'Destinatari e responsabili del trattamento: Questura di Bari, Comune di Monopoli, Regione Puglia (nella misura strettamente necessaria ad adempiere agli obblighi di legge sopra indicati); Stripe Payment Europe, Ltd. (elaborazione dei pagamenti con carta — Stripe tratta i dati di pagamento come titolare autonomo, con le proprie garanzie PCI-DSS: vedi la privacy policy di Stripe su stripe.com/privacy); Google Cloud/Firebase (hosting del sito, del database e delle funzioni server, region europe-west1 — Belgio); Google Cloud Vision API (lettura automatica — OCR — dei soli dati testuali stampati sul documento d\'identità caricato, per velocizzare la compilazione: l\'immagine viene inviata a questo servizio solo per l\'elaborazione istantanea, non è conservata da Google oltre il tempo necessario a rispondere alla richiesta); Telegram (bot Telegram usato dal titolare per gestire internamente le prenotazioni — se il titolare acquisisce la foto di un documento tramite il bot invece che dal modulo web, quella foto transita anche sull\'infrastruttura di Telegram Messenger Inc. prima di raggiungere i nostri sistemi). I dati non sono mai ceduti a terzi per finalità commerciali o di marketing.',
+          'Trasferimenti extra-UE: Stripe, Google e Telegram possono trattare dati anche fuori dallo Spazio Economico Europeo. Dove ciò avviene, si basano sulle Clausole Contrattuali Standard approvate dalla Commissione Europea o su altre garanzie equivalenti previste dagli artt. 45-46 GDPR, secondo quanto dichiarato nelle rispettive informative (Stripe: stripe.com/privacy, Google: cloud.google.com/terms/data-processing-addendum, Telegram: telegram.org/privacy).',
+          'Conservazione della copia del documento: la fotografia del documento d\'identità viene utilizzata esclusivamente per essere trasmessa alla Questura di Bari tramite il portale Alloggiati Web, in adempimento dell\'obbligo di legge previsto dall\'art. 109 del R.D. 773/1931 (T.U.L.P.S.). Una volta effettuata tale trasmissione obbligatoria, la fotografia del documento viene cancellata in modo permanente dai nostri sistemi entro 48 ore dalla data di check-out, e in ogni caso non oltre tale termine dal momento in cui l\'obbligo di trasmissione è stato assolto. Non conserviamo copie del documento oltre questo periodo per nessun\'altra finalità. I soli dati anagrafici in forma testuale (nome, data di nascita, cittadinanza, estremi del documento senza immagine) restano conservati per il periodo ulteriore richiesto dagli obblighi di legge di pubblica sicurezza e fiscale (es. registri contabili), secondo quanto indicato dal titolare del trattamento. I dati di contatto delle richieste di prenotazione non concluse sono cancellati entro 12 mesi.',
+          'Sicurezza: i dati sono conservati su infrastruttura Google Cloud (cifrata a riposo e in transito), protetta da controlli di accesso che richiedono sia l\'autenticazione del titolare sia un token di attestazione dell\'app (Firebase App Check) — pensati insieme per impedire letture o modifiche dirette ai dati che non passino dal sito o dal proprietario autenticato. Nessun dato è mai in scrittura pubblica; le sole informazioni in lettura pubblica sono quelle mostrate sul sito stesso (foto stanze, prezzi, disponibilità).',
+          'I tuoi diritti: puoi richiedere accesso, rettifica o cancellazione dei tuoi dati (quest\'ultima possibile in autonomia tramite lo stesso link ricevuto, fino al giorno del check-in) scrivendo a lacasacelestemonopoli@gmail.com. Hai inoltre diritto di proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).',
           'Nota: questo testo è un modello — si consiglia di farlo revisionare da un consulente legale/privacy prima della pubblicazione definitiva.'
         ],
         en: [
-          'Data Controller: Casa Celeste, contactable at lacasacelestemonopoli@gmail.com.',
-          'Data collected: contact details (name, email, phone) when you submit a booking request; personal and ID document details (including a photo of the document) for every guest staying, collected via a secure link before check-in.',
-          'Legal basis: collecting personal and ID document data is NOT based on consent, but on compliance with a legal obligation — mandatory public security reporting (Alloggiati Web, local police), reporting guest presence and collecting the municipal tourist tax, and regional statistical reporting (ISTAT). Contact details collected at booking request are instead based on pre-contractual steps taken at your request.',
-          'Recipients: the Bari police headquarters, the Municipality of Monopoli, the Puglia Region, strictly to the extent required by the legal obligations above. Data is never shared with third parties for commercial or marketing purposes.',
-          'Retention of the document copy: the photo of your ID document is used exclusively to be transmitted to the Bari police headquarters via the "Alloggiati Web" portal, in compliance with the legal obligation set out in art. 109 of Royal Decree 773/1931 (Italian public security law). Once that mandatory transmission has taken place, the document photo is permanently deleted from our systems within 48 hours of your check-out date, and in any case no later than that deadline from when the transmission obligation was fulfilled. We do not keep copies of the document beyond this period for any other purpose. Only the typed personal data (name, date of birth, nationality, document reference without the image) is kept for the further period required by public security legal obligations, as determined by the data controller.',
-          'Security: data is stored on Google Cloud infrastructure (encrypted at rest), accessible only to the authenticated data controller — never publicly readable.',
-          'Your rights: you may request access, correction or deletion of your data (deletion is available on a self-service basis via the same link you received, up until the day of check-in) by writing to lacasacelestemonopoli@gmail.com. You also have the right to lodge a complaint with the data protection authority.',
+          'Data Controller: Casa Celeste (short-term rental operated as a private individual — CIN/regional tourism code: [TO BE FILLED IN, if assigned by Regione Puglia]), Via Giuseppe del Drago 9, Monopoli (BA), Italy, contactable at lacasacelestemonopoli@gmail.com. No Data Protection Officer (DPO) is appointed: it is not mandatory under Art. 37 GDPR given the small scale of processing (a few rooms) — for any request, write to the address above regardless.',
+          'Data collected: contact details (name, email, phone) when you submit a booking request; personal and ID document details (including a photo of the document) for every guest staying, collected via a secure link before check-in; payment data (handled directly by Stripe, see below — your card details never reach our systems).',
+          'Legal basis: collecting personal and ID document data is NOT based on consent, but on compliance with a legal obligation — mandatory public security reporting (Alloggiati Web, local police), reporting guest presence and collecting the municipal tourist tax, and regional statistical reporting (ISTAT). Contact details collected at booking request and payment data are instead based on performing a (pre-)contractual agreement taken at your request.',
+          'Recipients and processors: the Bari police headquarters, the Municipality of Monopoli, the Puglia Region (strictly to the extent required by the legal obligations above); Stripe Payment Europe, Ltd. (card payment processing — Stripe handles payment data as an independent controller, under its own PCI-DSS safeguards: see Stripe\'s privacy policy at stripe.com/privacy); Google Cloud/Firebase (hosting for the site, database and server functions, region europe-west1 — Belgium); Google Cloud Vision API (automatic OCR reading of the printed text on an uploaded ID document, to speed up form-filling: the image is sent to this service only for instant processing and is not retained by Google beyond what\'s needed to answer the request); Telegram (a Telegram bot the owner uses to manage bookings internally — if the owner captures an ID document photo via the bot instead of the web form, that photo also transits Telegram Messenger Inc.\'s infrastructure before reaching our systems). Data is never shared with third parties for commercial or marketing purposes.',
+          'Transfers outside the EU: Stripe, Google and Telegram may process data outside the European Economic Area. Where this happens, they rely on the Standard Contractual Clauses approved by the European Commission or other equivalent safeguards under Articles 45-46 GDPR, as stated in their respective notices (Stripe: stripe.com/privacy, Google: cloud.google.com/terms/data-processing-addendum, Telegram: telegram.org/privacy).',
+          'Retention of the document copy: the photo of your ID document is used exclusively to be transmitted to the Bari police headquarters via the "Alloggiati Web" portal, in compliance with the legal obligation set out in art. 109 of Royal Decree 773/1931 (Italian public security law). Once that mandatory transmission has taken place, the document photo is permanently deleted from our systems within 48 hours of your check-out date, and in any case no later than that deadline from when the transmission obligation was fulfilled. We do not keep copies of the document beyond this period for any other purpose. Only the typed personal data (name, date of birth, nationality, document reference without the image) is kept for the further period required by public security and tax-record legal obligations, as determined by the data controller. Contact details from booking requests that were never completed are deleted within 12 months.',
+          'Security: data is stored on Google Cloud infrastructure (encrypted at rest and in transit), protected by access controls requiring both the controller\'s authentication and an app-attestation token (Firebase App Check) — together designed to prevent direct reads or changes to the data that don\'t go through the site or the authenticated owner. No data is ever publicly writable; the only publicly readable information is what the site itself shows (room photos, prices, availability).',
+          'Your rights: you may request access, correction or deletion of your data (deletion is available on a self-service basis via the same link you received, up until the day of check-in) by writing to lacasacelestemonopoli@gmail.com. You also have the right to lodge a complaint with the Italian data protection authority, the Garante per la protezione dei dati personali (www.garanteprivacy.it).',
           'Note: this text is a template — we recommend having it reviewed by a legal/privacy advisor before final publication.'
         ]
       }
@@ -87,16 +89,18 @@
       title: { it: 'Cookie Policy', en: 'Cookie Policy' },
       paragraphs: {
         it: [
-          'Questo sito utilizza esclusivamente cookie tecnici necessari al funzionamento (es. salvataggio locale delle preferenze di lingua).',
+          'Questo sito utilizza cookie/storage tecnici necessari al funzionamento (es. salvataggio locale delle preferenze di lingua e della scelta sui cookie stessa) e strettamente necessari alla sicurezza (Firebase App Check/reCAPTCHA, per distinguere visitatori reali da bot automatizzati): questi non richiedono consenso preventivo, per esenzione di legge.',
           'Non vengono utilizzati cookie di profilazione o di tracciamento pubblicitario.',
-          'Alcuni contenuti esterni (Google Maps, Google Fonts) possono impostare propri cookie tecnici secondo le rispettive policy.',
-          'Continuando la navigazione acconsenti all\'utilizzo dei cookie tecnici necessari al funzionamento del sito.'
+          'La mappa interattiva di Google Maps mostrata nella sezione "Posizione" è un contenuto facoltativo di terze parti: viene caricata solo se acconsenti dal banner qui sotto (oppure se clicchi esplicitamente "Carica la mappa"), perché il solo caricamento trasmetterebbe il tuo indirizzo IP a Google. In alternativa puoi sempre aprire la posizione direttamente su Google Maps con l\'apposito link, senza alcun caricamento sul sito.',
+          'I font del sito (Sora, Manrope) sono ospitati sul nostro stesso dominio, non su server Google: nessuna richiesta esce verso terzi per mostrarli.',
+          'Puoi cambiare idea in qualsiasi momento riaprendo questa pagina e usando i pulsanti "Accetta"/"Rifiuta" del banner (torna a comparire se cancelli i dati di navigazione del browser).'
         ],
         en: [
-          'This site uses only technical cookies necessary for it to work (e.g. locally saving language preferences).',
+          'This site uses technical cookies/storage necessary for it to work (e.g. locally saving language preferences and your cookie choice itself) and strictly necessary for security (Firebase App Check/reCAPTCHA, to tell real visitors apart from automated bots): these do not require prior consent, under the relevant legal exemption.',
           'No profiling or advertising tracking cookies are used.',
-          'Some external content (Google Maps, Google Fonts) may set its own technical cookies according to its own policy.',
-          'By continuing to browse you consent to the use of the technical cookies necessary for the site to function.'
+          'The interactive Google Maps view shown in the "Location" section is optional third-party content: it only loads if you consent via the banner below (or if you explicitly click "Load the map"), because loading it alone would transmit your IP address to Google. You can always open the location directly on Google Maps via the dedicated link instead, with nothing loaded on the site.',
+          'The site\'s fonts (Sora, Manrope) are hosted on our own domain, not on Google\'s servers: no request goes to any third party to display them.',
+          'You can change your mind at any time by reopening this page and using the banner\'s "Accept"/"Reject" buttons (it reappears if you clear your browser\'s site data).'
         ]
       }
     },
@@ -105,17 +109,21 @@
       paragraphs: {
         it: [
           'Casa Celeste è una locazione turistica indipendente, non un\'attività alberghiera: check-in autonomo dalle 15:00, check-out entro le 10:00.',
-          'Il prezzo indicato al momento della prenotazione è comprensivo di utenze, wifi e pulizie; si aggiunge solo la tassa di soggiorno comunale (2€ a notte a persona, con le esenzioni di legge per i più piccoli), mostrata prima di confermare.',
+          'Il prezzo indicato al momento della prenotazione è comprensivo di utenze, wifi e pulizie; si aggiunge solo la tassa di soggiorno comunale (2€ a notte a persona, con le esenzioni di legge per i più piccoli), mostrata prima di confermare. I pagamenti con carta sono elaborati da Stripe: l\'eventuale commissione di elaborazione mostrata nel riepilogo prima di pagare non viene rimborsata in caso di cancellazione, solo il costo del soggiorno lo è.',
           'Ogni ospite che soggiorna deve fornire i propri dati anagrafici e una foto del documento d\'identità prima del check-in, tramite il link ricevuto dopo la richiesta di prenotazione, ED essere identificato di persona (videochiamata circa un\'ora prima del check-in con documento in mano, oppure — solo la prima volta — al videocitofono all\'arrivo): è un obbligo di legge italiano, non facoltativo.',
           'Regole della casa: divieto di animali, divieto di fumo negli spazi interni, rispetto della quiete dopo le 22, cura degli spazi comuni condivisi con altri ospiti.',
-          'La prenotazione è confermata automaticamente al completamento del pagamento. Cancellazione gratuita fino a 48 ore prima dell\'orario di check-in, con rimborso automatico. Oltre questa soglia la cancellazione non è più valida e non è possibile alcun rimborso.'
+          'La prenotazione è confermata automaticamente al completamento del pagamento. Cancellazione gratuita fino a 48 ore prima dell\'orario di check-in, con rimborso automatico del costo del soggiorno. Oltre questa soglia la cancellazione non è più valida e non è possibile alcun rimborso.',
+          'Diritto di recesso: trattandosi di un servizio di alloggio con date di esecuzione specifiche (il soggiorno prenotato), non si applica il diritto di recesso di 14 giorni previsto in generale per gli acquisti a distanza (art. 59, comma 1, lett. n, Codice del Consumo) — valgono invece esclusivamente i termini di cancellazione descritti sopra, più favorevoli di quanto richiesto dalla legge.',
+          'Per qualunque controversia non risolta direttamente, è competente il foro del consumatore secondo le norme del Codice del Consumo (di norma il luogo di residenza dell\'ospite, se consumatore).'
         ],
         en: [
           'Casa Celeste is an independent short-term rental, not a hotel business: self-service check-in from 3pm, check-out by 10am.',
-          'The price shown at booking time includes utilities, wifi and cleaning; the only addition is the municipal tourist tax (€2 per night per person, with statutory exemptions for younger guests), shown before you confirm.',
+          'The price shown at booking time includes utilities, wifi and cleaning; the only addition is the municipal tourist tax (€2 per night per person, with statutory exemptions for younger guests), shown before you confirm. Card payments are processed by Stripe: any processing fee shown in the summary before you pay is not refunded on cancellation, only the accommodation cost is.',
           'Every guest staying must provide their personal details and a photo of their ID document before check-in, via the link received after the booking request, AND be identified in person (a video call roughly one hour before check-in with the ID in hand, or — only the first time — via the entry video-intercom on arrival): this is an Italian legal obligation, not optional.',
           'House rules: no pets, no smoking indoors, respect quiet hours after 10pm, take care of shared spaces used by other guests.',
-          'The booking is automatically confirmed once payment is completed. Free cancellation up to 48 hours before check-in time, with automatic refund. After that, cancellation is no longer possible and no refund can be issued.'
+          'The booking is automatically confirmed once payment is completed. Free cancellation up to 48 hours before check-in time, with automatic refund of the accommodation cost. After that, cancellation is no longer possible and no refund can be issued.',
+          'Right of withdrawal: since this is an accommodation service with a specified performance date (your booked stay), the general 14-day distance-selling withdrawal right does not apply (per the relevant EU/Italian consumer-code exemption for accommodation services with a specified date) — only the cancellation terms described above apply, which are more generous than what the law requires.',
+          'Any dispute not resolved directly falls under the jurisdiction applicable to consumers under the Italian Consumer Code (typically the guest\'s place of residence, where the guest qualifies as a consumer).'
         ]
       }
     }
@@ -3602,21 +3610,51 @@
 
   function renderCookieBanner() {
     var root = document.getElementById('cookie-banner-root');
-    // Se Cookiebot è configurato (CBID reale in index.html) e si è
-    // caricato, è lui a gestire consenso/banner con la propria UI: questo
-    // banner "fatto in casa" resta solo come rete di sicurezza per il
-    // periodo in cui Cookiebot non è ancora configurato (placeholder CBID).
-    if (window.Cookiebot) { root.innerHTML = ''; return; }
     if (!state.showCookieBanner) { root.innerHTML = ''; return; }
     root.innerHTML =
       '<div class="cookie-banner">' +
         '<div class="cookie-text">' + escapeHtml(t('cookie.text')) + ' <button type="button" class="cookie-link" data-open-legal="cookie">' + escapeHtml(t('cookie.more')) + '</button></div>' +
-        '<button type="button" class="btn-cookie-accept" data-accept-cookies>' + escapeHtml(t('cookie.accept')) + '</button>' +
+        '<div class="cookie-actions">' +
+          '<button type="button" class="btn-cookie-reject" data-reject-cookies>' + escapeHtml(t('cookie.reject')) + '</button>' +
+          '<button type="button" class="btn-cookie-accept" data-accept-cookies>' + escapeHtml(t('cookie.accept')) + '</button>' +
+        '</div>' +
       '</div>';
   }
+  // '1' = ha accettato (carica anche i contenuti facoltativi, es. mappa
+  // incorporata), '0' = ha rifiutato esplicitamente (non richiedere di
+  // nuovo ad ogni visita), assente = non ancora chiesto.
   function acceptCookies() {
     try { localStorage.setItem('casaceleste_cookie_consent', '1'); } catch (e) {}
     state.showCookieBanner = false; renderCookieBanner();
+    loadAllMapEmbeds();
+  }
+  function rejectCookies() {
+    try { localStorage.setItem('casaceleste_cookie_consent', '0'); } catch (e) {}
+    state.showCookieBanner = false; renderCookieBanner();
+  }
+
+  /* ==========================================================================
+     Mappa Google Maps incorporata — contenuto di terze parti facoltativo
+     (trasmette l'IP dell'ospite a Google prima di qualunque consenso se
+     caricata subito): resta come placeholder finché l'ospite non accetta i
+     cookie oppure clicca "Carica la mappa" per questa singola mappa (azione
+     esplicita e volontaria, valida come consenso specifico per quel
+     contenuto anche senza accettare il banner per intero). Non riguarda i
+     link "Apri indicazioni" sui punti d'interesse (data-map-poi), che aprono
+     sempre Google Maps in una nuova scheda, mai la mappa incorporata.
+     ========================================================================== */
+  function loadMapEmbed(el) {
+    var query = el.getAttribute('data-map-query') || '';
+    el.outerHTML = '<iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=' + encodeURIComponent(query) + '&output=embed" loading="lazy"></iframe>';
+  }
+  function loadAllMapEmbeds() {
+    var placeholders = document.querySelectorAll('[data-map-placeholder]');
+    for (var i = 0; i < placeholders.length; i++) loadMapEmbed(placeholders[i]);
+  }
+  function initMapEmbeds() {
+    try {
+      if (localStorage.getItem('casaceleste_cookie_consent') === '1') loadAllMapEmbeds();
+    } catch (e) {}
   }
 
   /* ==========================================================================
@@ -3818,6 +3856,10 @@
       if (el) { closeLegal(); return; }
       el = e.target.closest('[data-accept-cookies]');
       if (el) { acceptCookies(); return; }
+      el = e.target.closest('[data-reject-cookies]');
+      if (el) { rejectCookies(); return; }
+      el = e.target.closest('[data-load-map]');
+      if (el) { var mapWrap = el.closest('[data-map-placeholder]'); if (mapWrap) loadMapEmbed(mapWrap); return; }
 
       el = e.target.closest('[data-open-assist]');
       if (el) { openAssistChat(); return; }
@@ -3997,6 +4039,7 @@
     renderBookingModal();
     renderLegalModal();
     renderCookieBanner();
+    initMapEmbeds();
     renderContactHostBar();
     renderAssistChat();
     bindGlobalEvents();

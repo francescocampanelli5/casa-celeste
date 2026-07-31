@@ -258,9 +258,12 @@ window.CASA_CELESTE_TOURISM_I18N = {
     'legal.cookie_title': 'Cookie Policy',
     'legal.termini_title': 'Condizioni di soggiorno',
 
-    'cookie.text': 'Usiamo solo cookie tecnici necessari al funzionamento del sito.',
+    'cookie.text': 'Usiamo solo cookie tecnici necessari al funzionamento del sito. La mappa di Google Maps qui sotto si carica solo se acconsenti.',
     'cookie.more': 'Scopri di più',
     'cookie.accept': 'Accetta',
+    'cookie.reject': 'Rifiuta',
+    'maps.consent_needed': 'Per motivi di privacy, la mappa interattiva di Google Maps si carica solo con il tuo consenso.',
+    'maps.load_anyway': 'Carica la mappa',
 
     'aria.apri_menu': 'Apri menu',
     'aria.chiudi_menu': 'Chiudi menu',
@@ -633,9 +636,12 @@ window.CASA_CELESTE_TOURISM_I18N = {
     'legal.cookie_title': 'Cookie Policy',
     'legal.termini_title': 'Stay Terms & Conditions',
 
-    'cookie.text': 'We only use technical cookies needed for the site to work.',
+    'cookie.text': 'We only use technical cookies needed for the site to work. The Google Maps view below only loads if you consent.',
     'cookie.more': 'Learn more',
     'cookie.accept': 'Accept',
+    'cookie.reject': 'Reject',
+    'maps.consent_needed': 'For privacy reasons, the interactive Google Maps view only loads with your consent.',
+    'maps.load_anyway': 'Load the map',
 
     'aria.apri_menu': 'Open menu',
     'aria.chiudi_menu': 'Close menu',
