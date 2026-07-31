@@ -608,6 +608,32 @@
       '</div>'
     );
   }
+  // Prezzo manuale per periodo: governa SEMPRE sulle notti che copre,
+  // ignorando il prezzo dinamico stagionale/di domanda (vedi
+  // functions/pricing.js, manualPriceForNight). Utile per un evento
+  // specifico, uno sconto personale, o per bloccare un prezzo fisso in un
+  // periodo che il calcolo automatico altrimenti alzerebbe/abbasserebbe.
+  function manualPricePeriodsEditorHtml(roomId, room) {
+    var periods = Array.isArray(room.manualPricePeriods) ? room.manualPricePeriods : [];
+    var rows = periods.map(function (p, i) {
+      return '<div class="admin-stat-row">' +
+        '<span style="flex:1; font-size:13px;">' + escapeHtml(p.start) + ' → ' + escapeHtml(p.end) + ' — €' + escapeHtml(String(p.price)) + '/notte</span>' +
+        '<button type="button" class="admin-stat-remove" data-price-period-remove data-room-id="' + roomId + '" data-period-index="' + i + '">✕</button>' +
+      '</div>';
+    }).join('') || '<div style="font-size:13px; color:var(--text-muted,#6B7A8C);">Nessun prezzo manuale impostato: fuori dai blocchi qui sotto, il prezzo segue sempre il calcolo dinamico automatico (stagione/festività/domanda).</div>';
+    return (
+      '<div class="admin-field-group admin-field-group--full">' +
+        '<label>Prezzo manuale per periodo (governa sempre, ignora il calcolo automatico)</label>' +
+        '<div class="admin-stats-rows">' + rows + '</div>' +
+        '<div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">' +
+          '<input type="date" class="admin-field" id="price-period-start-' + roomId + '" style="max-width:160px;">' +
+          '<input type="date" class="admin-field" id="price-period-end-' + roomId + '" style="max-width:160px;">' +
+          '<input type="number" class="admin-field" id="price-period-price-' + roomId + '" placeholder="€/notte" min="0" step="1" style="max-width:110px;">' +
+          '<button type="button" class="admin-stat-add" data-price-period-add data-room-id="' + roomId + '">+ Imposta prezzo per queste date</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
   function roomAdminCardHtml(roomId, room) {
     return (
       '<div class="admin-room-card" data-room-id="' + roomId + '">' +
@@ -621,7 +647,7 @@
         photoSlotsHtml('room', roomId, room) +
         statsEditorHtml('room', roomId, room.stats) +
         '<div class="admin-room-type-row">' +
-          '<div class="admin-field-group"><label>Prezzo a notte (€)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="nightlyPrice" value="' + (room.nightlyPrice || 0) + '"></div>' +
+          '<div class="admin-field-group"><label>Prezzo BASE a notte (€) — punto di partenza del calcolo dinamico stagionale, sovrascritto dai prezzi manuali per periodo qui sotto</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="nightlyPrice" value="' + (room.nightlyPrice || 0) + '"></div>' +
           '<div class="admin-field-group"><label>Ospiti massimi</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="maxGuests" min="1" value="' + (room.maxGuests || 1) + '"></div>' +
           '<div class="admin-field-group"><label>Notti minime</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="minNights" min="1" value="' + (room.minNights || 1) + '"></div>' +
           '<div class="admin-field-group"><label>Balcone</label><select class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="balcony">' +
@@ -631,6 +657,7 @@
           '</select></div>' +
           '<div class="admin-field-group"><label>Numero recensioni mostrato (vuoto = automatico)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="reviewCountOverride" min="0" value="' + (room.reviewCountOverride === null || room.reviewCountOverride === undefined ? '' : room.reviewCountOverride) + '"></div>' +
         '</div>' +
+        manualPricePeriodsEditorHtml(roomId, room) +
         blockedRangesEditorHtml(roomId, room) +
       '</div>'
     );
@@ -715,6 +742,27 @@
         }
         ranges.splice(idx, 1);
         window.CasaCelesteTourismDB.setRoom(roomId, { blockedRanges: ranges });
+      });
+    });
+    content.querySelectorAll('[data-price-period-add]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var roomId = el.getAttribute('data-room-id');
+        var start = document.getElementById('price-period-start-' + roomId).value;
+        var end = document.getElementById('price-period-end-' + roomId).value;
+        var price = Number(document.getElementById('price-period-price-' + roomId).value);
+        if (!start || !end || start >= end) { window.alert('Date non valide.'); return; }
+        if (!(price > 0)) { window.alert('Inserisci un prezzo a notte valido.'); return; }
+        var periods = (state.roomsData[roomId].manualPricePeriods || []).slice();
+        periods.push({ start: start, end: end, price: price });
+        window.CasaCelesteTourismDB.setRoom(roomId, { manualPricePeriods: periods });
+      });
+    });
+    content.querySelectorAll('[data-price-period-remove]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var roomId = el.getAttribute('data-room-id'), idx = Number(el.getAttribute('data-period-index'));
+        var periods = (state.roomsData[roomId].manualPricePeriods || []).slice();
+        periods.splice(idx, 1);
+        window.CasaCelesteTourismDB.setRoom(roomId, { manualPricePeriods: periods });
       });
     });
     document.getElementById('seed-btn').addEventListener('click', function () {

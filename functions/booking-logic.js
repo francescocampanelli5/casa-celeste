@@ -13,6 +13,7 @@
 // chi la usa da uno script Node può semplicemente leggere err.code/err.message.
 'use strict';
 const crypto = require('crypto');
+const pricing = require('./pricing');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -97,7 +98,14 @@ async function createBookingCore(admin, db, stripe, data) {
   const email = data.email;
   const phone = data.phone || '';
   const contractAccepted = !!data.contractAccepted;
-  const source = data.source === 'site' ? 'site' : (data.source || 'site');
+  const source = data.source || 'site';
+  // TEMPORANEO — RIMUOVERE PRIMA DEL LANCIO PUBBLICO: 'site_test' salta la
+  // verifica del pagamento Stripe per poter testare l'intero flusso (prezzo
+  // dinamico, sconto di gruppo, email di conferma...) senza pagare davvero.
+  // Vedi il bottone "(TEST) Conferma senza pagare" in affittacamere/js/app.js
+  // (TEMP_TEST_SKIP_PAYMENT) — stesso interruttore da disattivare insieme a
+  // questo. Richiede comunque l'accettazione delle condizioni, come 'site'.
+  const isSiteFlow = source === 'site' || source === 'site_test';
   const bedType = data.bedType === 'singolo' ? 'singolo' : 'matrimoniale';
   const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(data.cribCount) || 0));
   const extraBedCount = Math.max(0, Math.min(EXTRA_BED_MAX, Number(data.extraBedCount) || 0));
@@ -120,7 +128,7 @@ async function createBookingCore(admin, db, stripe, data) {
   if (!isNonEmptyString(name, 200) || !isNonEmptyString(email, 200)) {
     fail('invalid-argument', 'Nome o email mancanti.');
   }
-  if (source === 'site' && !contractAccepted) {
+  if (isSiteFlow && !contractAccepted) {
     fail('failed-precondition', 'Condizioni di soggiorno non accettate.');
   }
   // Le prenotazioni dal sito passano sempre dal pagamento online prima di
@@ -131,25 +139,28 @@ async function createBookingCore(admin, db, stripe, data) {
   if (source === 'site' && !isNonEmptyString(paymentIntentId, 200)) {
     fail('failed-precondition', 'Pagamento mancante.');
   }
-  // Non ci si fida del solo id mandato dal client: si riverifica con Stripe
-  // che quel pagamento sia davvero concluso, per l'importo giusto (calcolato
-  // qui allo stesso modo di createPaymentIntent) e non già usato altrove —
-  // vedi verifyPaidIntent sopra. Se una qualunque di queste condizioni non
-  // regge, la prenotazione NON viene creata e le notti restano libere.
+  // Preventivo autoritativo (prezzo dinamico stagionale/festività + eventuale
+  // prezzo manuale per periodo, vedi functions/pricing.js): calcolato SEMPRE,
+  // non solo per le prenotazioni dal sito, così la prenotazione registrata
+  // usa esattamente gli stessi numeri mostrati/addebitati in preventivo —
+  // mai due calcoli separati che potrebbero disallinearsi. Per le
+  // prenotazioni dal sito, l'importo del pagamento reale deve combaciare con
+  // questo preventivo. Se una qualunque di queste condizioni non regge, la
+  // prenotazione NON viene creata e le notti restano libere.
+  const quote = await computeQuoteCore(db, { roomId: roomId, checkIn: checkIn, checkOut: checkOut, guests: guests, exemptGuests: exemptGuests, cribCount: cribCount, extraBedCount: extraBedCount });
   if (source === 'site') {
-    const quote = await computeQuoteCore(db, data);
     await verifyPaidIntent(db, stripe, paymentIntentId, quote.amount);
   }
+  const roomQuote = quote.rooms[0];
 
   const roomRef = db.collection('tourism_rooms').doc(roomId);
   const settingsRef = db.collection('tourism_settings').doc('site');
   const bookingRef = db.collection('tourism_bookings').doc();
 
   return db.runTransaction(async (tx) => {
-    const [roomSnap, settingsSnap] = await Promise.all([tx.get(roomRef), tx.get(settingsRef)]);
+    const roomSnap = await tx.get(roomRef);
     if (!roomSnap.exists) fail('not-found', 'Stanza non trovata.');
     const room = roomSnap.data();
-    const settings = settingsSnap.exists ? settingsSnap.data() : {};
 
     // Il letto singolo aggiuntivo alza il limite della stanza di 1 posto
     // (es. stanza per 2 -> fino a 3 con letto extra) — i bambini sotto i 3
@@ -165,41 +176,34 @@ async function createBookingCore(admin, db, stripe, data) {
     const overlap = blocked.some((r) => rangesOverlap(checkIn, checkOut, r.start, r.end));
     if (overlap) fail('already-exists', 'dates_taken');
 
-    const taxRate = Number(settings.touristTaxRate) || 0;
-    const taxableGuests = Math.max(0, guests - exemptGuests);
-    const touristTax = {
-      perNight: taxRate, totalGuests: guests, exemptGuests: exemptGuests,
-      totalDue: Math.round(taxRate * taxableGuests * nights * 100) / 100
-    };
     const guestFormToken = crypto.randomBytes(24).toString('hex');
+    const touristTax = roomQuote.touristTax;
 
-    // Prezzo autoritativo: la stanza a notte + tassa di soggiorno + eventuali
-    // opzioni extra (culla, letto singolo aggiuntivo) scelte dall'ospite —
-    // culla/letto extra sono un costo forfettario per l'intero soggiorno,
-    // non moltiplicato per le notti.
-    const roomTotal = Math.round(nights * (Number(room.nightlyPrice) || 0) * 100) / 100;
-    const cribTotal = Math.round(cribCount * CRIB_PRICE * 100) / 100;
-    const extraBedTotal = Math.round(extraBedCount * EXTRA_BED_PRICE * 100) / 100;
-    const pricing = {
-      roomTotal: roomTotal,
-      crib: { count: cribCount, price: CRIB_PRICE, total: cribTotal },
-      extraBed: { count: extraBedCount, price: EXTRA_BED_PRICE, total: extraBedTotal },
-      touristTax: touristTax.totalDue,
-      total: Math.round((roomTotal + touristTax.totalDue + cribTotal + extraBedTotal) * 100) / 100
+    // Prezzo autoritativo, già calcolato in quote sopra (dinamico stagionale/
+    // festività o manuale per periodo, più eventuale sconto di gruppo): mai
+    // ricalcolato qui, per restare sempre allineato a quanto mostrato/
+    // addebitato all'ospite.
+    const pricingData = {
+      roomTotal: roomQuote.roomTotal, roomTotalBeforeDiscount: roomQuote.roomTotalBeforeDiscount,
+      groupDiscountRate: roomQuote.groupDiscountRate, groupDiscountAmount: roomQuote.groupDiscountAmount,
+      crib: roomQuote.crib, extraBed: roomQuote.extraBed,
+      touristTax: touristTax.totalDue, total: roomQuote.total
     };
 
     // Pagata online -> confermata subito (nessuna approvazione manuale del
     // proprietario nel mezzo, vedi Condizioni di soggiorno). Le prenotazioni
     // manuali (bot/dashboard, mai pagate qui) restano 'nuovo' come prima.
-    const status = source === 'site' ? 'confermato' : 'nuovo';
-    const fee = source === 'site' ? computePaymentFee(pricing.total) : 0;
+    // 'site_test' (TEMPORANEO, vedi sopra) si comporta come 'site' per lo
+    // status/consenso ma non ha mai un pagamento reale.
+    const status = isSiteFlow ? 'confermato' : 'nuovo';
+    const fee = source === 'site' ? computePaymentFee(pricingData.total) : 0;
     const bookingData = {
       roomId: roomId, roomLabel: room.name || roomId, checkIn: checkIn, checkOut: checkOut,
       nights: nights, guests: guests, exemptGuests: exemptGuests, name: name, email: email, phone: phone,
-      bedType: bedType, cribCount: cribCount, extraBedCount: extraBedCount, pricing: pricing, lang: lang,
-      source: source, status: status, touristTax: touristTax,
-      payment: paymentIntentId ? { intentId: paymentIntentId, baseTotal: pricing.total, fee: fee, chargedTotal: Math.round((pricing.total + fee) * 100) / 100 } : null,
-      contractAcceptedAt: source === 'site' ? admin.firestore.FieldValue.serverTimestamp() : null,
+      bedType: bedType, cribCount: cribCount, extraBedCount: extraBedCount, pricing: pricingData, lang: lang,
+      source: source, status: status, touristTax: touristTax, testBooking: source === 'site_test',
+      payment: paymentIntentId ? { intentId: paymentIntentId, baseTotal: pricingData.total, fee: fee, chargedTotal: Math.round((pricingData.total + fee) * 100) / 100 } : null,
+      contractAcceptedAt: isSiteFlow ? admin.firestore.FieldValue.serverTimestamp() : null,
       // Prima non veniva mai inizializzato: le query di
       // guest-lifecycle-emails.js filtrano su confirmationEmailSent == false,
       // e Firestore non fa mai match su un campo assente, quindi le email di
@@ -217,7 +221,7 @@ async function createBookingCore(admin, db, stripe, data) {
     const newBlockedRanges = blocked.concat([{ start: checkIn, end: checkOut, source: source === 'site' ? 'booking' : 'manual', bookingId: bookingRef.id }]);
     tx.update(roomRef, { blockedRanges: newBlockedRanges });
 
-    return { id: bookingRef.id, guestFormToken: guestFormToken, nights: nights, touristTax: touristTax, pricing: pricing, roomLabel: bookingData.roomLabel };
+    return { id: bookingRef.id, guestFormToken: guestFormToken, nights: nights, touristTax: touristTax, pricing: pricingData, roomLabel: bookingData.roomLabel };
   });
 }
 
@@ -238,7 +242,10 @@ async function createGroupBookingCore(admin, db, stripe, data) {
   const email = data.email;
   const phone = data.phone || '';
   const contractAccepted = !!data.contractAccepted;
-  const source = data.source === 'site' ? 'site' : (data.source || 'site');
+  const source = data.source || 'site';
+  // TEMPORANEO — RIMUOVERE PRIMA DEL LANCIO PUBBLICO: vedi la stessa nota
+  // in createBookingCore ('site_test' salta la verifica del pagamento).
+  const isSiteFlow = source === 'site' || source === 'site_test';
   const paymentIntentId = data.paymentIntentId || null;
   const lang = data.lang === 'en' ? 'en' : 'it';
 
@@ -247,14 +254,8 @@ async function createGroupBookingCore(admin, db, stripe, data) {
   }
   if (rooms.length < 2 || rooms.length > 10) fail('invalid-argument', 'Numero di stanze del gruppo non valido.');
   if (!isNonEmptyString(name, 200) || !isNonEmptyString(email, 200)) fail('invalid-argument', 'Nome o email mancanti.');
-  if (source === 'site' && !contractAccepted) fail('failed-precondition', 'Condizioni di soggiorno non accettate.');
+  if (isSiteFlow && !contractAccepted) fail('failed-precondition', 'Condizioni di soggiorno non accettate.');
   if (source === 'site' && !isNonEmptyString(paymentIntentId, 200)) fail('failed-precondition', 'Pagamento mancante.');
-  // Stesso controllo di createBookingCore, sull'importo complessivo del
-  // gruppo (un solo PaymentIntent copre tutte le stanze insieme).
-  if (source === 'site') {
-    const quote = await computeQuoteCore(db, data);
-    await verifyPaidIntent(db, stripe, paymentIntentId, quote.amount);
-  }
 
   const roomIds = rooms.map((r) => r.roomId);
   if (new Set(roomIds).size !== roomIds.length) fail('invalid-argument', 'Ogni stanza del gruppo deve essere diversa dalle altre.');
@@ -273,16 +274,22 @@ async function createGroupBookingCore(admin, db, stripe, data) {
     };
   });
 
+  // Preventivo autoritativo condiviso (prezzo dinamico + sconto di gruppo,
+  // vedi createBookingCore per lo stesso ragionamento): calcolato SEMPRE,
+  // non solo per le prenotazioni dal sito, e mai ricalcolato più sotto.
+  const quote = await computeQuoteCore(db, { checkIn: checkIn, checkOut: checkOut, rooms: specs });
+  if (source === 'site') {
+    await verifyPaidIntent(db, stripe, paymentIntentId, quote.amount);
+  }
+  const quoteByRoomId = {};
+  quote.rooms.forEach((rq) => { quoteByRoomId[rq.roomId] = rq; });
+
   const groupId = crypto.randomBytes(12).toString('hex');
   const roomRefs = specs.map((s) => db.collection('tourism_rooms').doc(s.roomId));
-  const settingsRef = db.collection('tourism_settings').doc('site');
   const bookingRefs = specs.map(() => db.collection('tourism_bookings').doc());
 
   return db.runTransaction(async (tx) => {
     const roomSnaps = await Promise.all(roomRefs.map((ref) => tx.get(ref)));
-    const settingsSnap = await tx.get(settingsRef);
-    const settings = settingsSnap.exists ? settingsSnap.data() : {};
-    const taxRate = Number(settings.touristTaxRate) || 0;
 
     const results = [];
     let grandTotal = 0;
@@ -291,6 +298,7 @@ async function createGroupBookingCore(admin, db, stripe, data) {
       const roomSnap = roomSnaps[i];
       if (!roomSnap.exists) fail('not-found', 'Una delle stanze del gruppo non esiste più.');
       const room = roomSnap.data();
+      const roomQuote = quoteByRoomId[spec.roomId];
 
       const effectiveMaxGuests = (room.maxGuests || 1) + (spec.extraBedCount ? 1 : 0);
       if (spec.guests > effectiveMaxGuests) fail('failed-precondition', 'Troppi ospiti per una delle stanze del gruppo.');
@@ -301,40 +309,31 @@ async function createGroupBookingCore(admin, db, stripe, data) {
       const overlap = blocked.some((r) => rangesOverlap(checkIn, checkOut, r.start, r.end));
       if (overlap) fail('already-exists', 'dates_taken');
 
-      const taxableGuests = Math.max(0, spec.guests - spec.exemptGuests);
-      const touristTax = {
-        perNight: taxRate, totalGuests: spec.guests, exemptGuests: spec.exemptGuests,
-        totalDue: Math.round(taxRate * taxableGuests * nights * 100) / 100
-      };
       const guestFormToken = crypto.randomBytes(24).toString('hex');
-
-      const roomTotal = Math.round(nights * (Number(room.nightlyPrice) || 0) * 100) / 100;
-      const cribTotal = Math.round(spec.cribCount * CRIB_PRICE * 100) / 100;
-      const extraBedTotal = Math.round(spec.extraBedCount * EXTRA_BED_PRICE * 100) / 100;
-      const pricing = {
-        roomTotal: roomTotal,
-        crib: { count: spec.cribCount, price: CRIB_PRICE, total: cribTotal },
-        extraBed: { count: spec.extraBedCount, price: EXTRA_BED_PRICE, total: extraBedTotal },
-        touristTax: touristTax.totalDue,
-        total: Math.round((roomTotal + touristTax.totalDue + cribTotal + extraBedTotal) * 100) / 100
+      const touristTax = roomQuote.touristTax;
+      const pricingData = {
+        roomTotal: roomQuote.roomTotal, roomTotalBeforeDiscount: roomQuote.roomTotalBeforeDiscount,
+        groupDiscountRate: roomQuote.groupDiscountRate, groupDiscountAmount: roomQuote.groupDiscountAmount,
+        crib: roomQuote.crib, extraBed: roomQuote.extraBed,
+        touristTax: touristTax.totalDue, total: roomQuote.total
       };
-      grandTotal = Math.round((grandTotal + pricing.total) * 100) / 100;
+      grandTotal = Math.round((grandTotal + pricingData.total) * 100) / 100;
 
       // Pagata online -> confermata subito, stesso ragionamento di
       // createBookingCore. Un solo PaymentIntent copre tutte le stanze del
       // gruppo: ogni prenotazione registra il proprio baseTotal (per capire
       // quanto rimborsarle se il gruppo viene cancellato) più lo stesso
       // intentId condiviso.
-      const status = source === 'site' ? 'confermato' : 'nuovo';
-      const fee = source === 'site' ? computePaymentFee(pricing.total) : 0;
+      const status = isSiteFlow ? 'confermato' : 'nuovo';
+      const fee = source === 'site' ? computePaymentFee(pricingData.total) : 0;
       const bookingData = {
         roomId: spec.roomId, roomLabel: room.name || spec.roomId, checkIn: checkIn, checkOut: checkOut,
         nights: nights, guests: spec.guests, exemptGuests: spec.exemptGuests, name: name, email: email, phone: phone,
-        bedType: spec.bedType, cribCount: spec.cribCount, extraBedCount: spec.extraBedCount, pricing: pricing, lang: lang,
-        source: source, status: status, touristTax: touristTax,
-        payment: paymentIntentId ? { intentId: paymentIntentId, baseTotal: pricing.total, fee: fee, chargedTotal: Math.round((pricing.total + fee) * 100) / 100 } : null,
+        bedType: spec.bedType, cribCount: spec.cribCount, extraBedCount: spec.extraBedCount, pricing: pricingData, lang: lang,
+        source: source, status: status, touristTax: touristTax, testBooking: source === 'site_test',
+        payment: paymentIntentId ? { intentId: paymentIntentId, baseTotal: pricingData.total, fee: fee, chargedTotal: Math.round((pricingData.total + fee) * 100) / 100 } : null,
         groupId: groupId, groupSize: specs.length,
-        contractAcceptedAt: source === 'site' ? admin.firestore.FieldValue.serverTimestamp() : null,
+        contractAcceptedAt: isSiteFlow ? admin.firestore.FieldValue.serverTimestamp() : null,
         confirmationEmailSent: false,
         guestFormToken: guestFormToken, guestDocsComplete: false,
         alloggiatiWeb: { submitted: false, submittedAt: null, error: null },
@@ -346,7 +345,7 @@ async function createGroupBookingCore(admin, db, stripe, data) {
       const newBlockedRanges = blocked.concat([{ start: checkIn, end: checkOut, source: source === 'site' ? 'booking' : 'manual', bookingId: bookingRefs[i].id }]);
       tx.update(roomRefs[i], { blockedRanges: newBlockedRanges });
 
-      results.push({ id: bookingRefs[i].id, roomId: spec.roomId, guestFormToken: guestFormToken, nights: nights, touristTax: touristTax, pricing: pricing, roomLabel: bookingData.roomLabel });
+      results.push({ id: bookingRefs[i].id, roomId: spec.roomId, guestFormToken: guestFormToken, nights: nights, touristTax: touristTax, pricing: pricingData, roomLabel: bookingData.roomLabel });
     }
 
     return { groupId: groupId, bookings: results, grandTotal: grandTotal };
@@ -378,7 +377,15 @@ async function computeQuoteCore(db, data) {
   const settings = settingsSnap.exists ? settingsSnap.data() : {};
   const taxRate = Number(settings.touristTaxRate) || 0;
 
-  let total = 0;
+  // Occupazione attuale della struttura per il periodo cercato — un solo
+  // valore condiviso da tutte le stanze del preventivo (di gruppo o
+  // singola): il "prezzo di domanda" riflette quanto la struttura nel suo
+  // insieme si sta riempiendo per quelle date, non stanza per stanza.
+  const occupancyRatio = await pricing.computeOccupancyRatio(db, checkIn, checkOut);
+  const discountRate = pricing.groupDiscountRate(rooms.length);
+
+  const roomBreakdown = [];
+  let baseTotal = 0;
   for (let i = 0; i < rooms.length; i++) {
     const r = rooms[i];
     if (!isNonEmptyString(r.roomId, 50)) fail('invalid-argument', 'Stanza mancante.');
@@ -389,16 +396,30 @@ async function computeQuoteCore(db, data) {
     const exemptGuests = Math.max(0, Number(r.exemptGuests) || 0);
     const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(r.cribCount) || 0));
     const extraBedCount = Math.max(0, Math.min(EXTRA_BED_MAX, Number(r.extraBedCount) || 0));
-    const roomTotal = nights * (Number(room.nightlyPrice) || 0);
+
+    const roomTotalBeforeDiscount = pricing.roomStayTotal(room, checkIn, checkOut, occupancyRatio);
+    const roomTotal = Math.round(roomTotalBeforeDiscount * (1 - discountRate) * 100) / 100;
+    const groupDiscountAmount = Math.round((roomTotalBeforeDiscount - roomTotal) * 100) / 100;
+
     const taxableGuests = Math.max(0, guests - exemptGuests);
-    const tax = taxRate * taxableGuests * nights;
-    const cribTotal = cribCount * CRIB_PRICE;
-    const extraBedTotal = extraBedCount * EXTRA_BED_PRICE;
-    total += roomTotal + tax + cribTotal + extraBedTotal;
+    const touristTaxDue = Math.round(taxRate * taxableGuests * nights * 100) / 100;
+    const cribTotal = Math.round(cribCount * CRIB_PRICE * 100) / 100;
+    const extraBedTotal = Math.round(extraBedCount * EXTRA_BED_PRICE * 100) / 100;
+    const roomGrandTotal = Math.round((roomTotal + touristTaxDue + cribTotal + extraBedTotal) * 100) / 100;
+
+    baseTotal = Math.round((baseTotal + roomGrandTotal) * 100) / 100;
+    roomBreakdown.push({
+      roomId: r.roomId, nights: nights,
+      roomTotalBeforeDiscount: roomTotalBeforeDiscount, roomTotal: roomTotal,
+      groupDiscountRate: discountRate, groupDiscountAmount: groupDiscountAmount,
+      touristTax: { perNight: taxRate, totalGuests: guests, exemptGuests: exemptGuests, totalDue: touristTaxDue },
+      crib: { count: cribCount, price: CRIB_PRICE, total: cribTotal },
+      extraBed: { count: extraBedCount, price: EXTRA_BED_PRICE, total: extraBedTotal },
+      total: roomGrandTotal
+    });
   }
-  const baseTotal = Math.round(total * 100) / 100;
   const fee = computePaymentFee(baseTotal);
-  return { baseTotal: baseTotal, fee: fee, amount: Math.round((baseTotal + fee) * 100) / 100 };
+  return { baseTotal: baseTotal, fee: fee, amount: Math.round((baseTotal + fee) * 100) / 100, rooms: roomBreakdown, occupancyRatio: occupancyRatio };
 }
 
 // cancelBookingCore — cancellazione self-service da parte dell'ospite

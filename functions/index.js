@@ -60,7 +60,7 @@ async function notifyOwnerNewBooking(result, data) {
     const settingsSnap = await db.collection('tourism_settings').doc('site').get();
     const recipients = ((settingsSnap.exists ? settingsSnap.data() : {}).bookingCommandAuthorized || [])
       .filter((r) => r.enabled && r.chatId);
-    const text = '🛎️ Nuova richiesta di prenotazione\n' + result.roomLabel + ' — ' + data.checkIn + ' → ' + data.checkOut +
+    const text = (data.source === 'site_test' ? '🧪 [TEST — nessun pagamento reale] ' : '🛎️ ') + 'Nuova richiesta di prenotazione\n' + result.roomLabel + ' — ' + data.checkIn + ' → ' + data.checkOut +
       ' (' + result.nights + ' notti, ' + data.guests + ' ospiti)\n' + data.name + ' — ' + data.email + (data.phone ? ' — ' + data.phone : '') +
       '\nConfermala dalla dashboard quando vuoi.';
     await Promise.all(recipients.map((r) => fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
@@ -80,7 +80,7 @@ async function notifyOwnerNewGroupBooking(result, data) {
     const recipients = ((settingsSnap.exists ? settingsSnap.data() : {}).bookingCommandAuthorized || [])
       .filter((r) => r.enabled && r.chatId);
     const roomLabels = result.bookings.map((b) => b.roomLabel).join(', ');
-    const text = '🛎️ Nuova richiesta di prenotazione di gruppo (' + result.bookings.length + ' stanze)\n' +
+    const text = (data.source === 'site_test' ? '🧪 [TEST — nessun pagamento reale] ' : '🛎️ ') + 'Nuova richiesta di prenotazione di gruppo (' + result.bookings.length + ' stanze)\n' +
       roomLabels + ' — ' + data.checkIn + ' → ' + data.checkOut + '\n' +
       data.name + ' — ' + data.email + (data.phone ? ' — ' + data.phone : '') + '\n' +
       'Totale: €' + result.grandTotal.toFixed(2) + '\nConfermala dalla dashboard quando vuoi.';
@@ -124,8 +124,10 @@ const bucket = admin.storage().bucket();
    ========================================================================== */
 exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey], enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
-  const source = data.source === 'site' ? 'site' : (data.source || 'site');
-  if (source !== 'site' && !request.auth) {
+  const source = data.source || 'site';
+  // 'site_test' TEMPORANEO (vedi booking-logic.js) — stessa via pubblica
+  // di 'site' (nessuna autenticazione richiesta), solo salta Stripe.
+  if (source !== 'site' && source !== 'site_test' && !request.auth) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
   // Lo Stripe client serve solo per le richieste dal sito (createBookingCore
@@ -146,7 +148,7 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey], e
   }
   // Notifica Telegram al proprietario per le richieste dal sito (le
   // prenotazioni manuali le crea lui stesso, non serve avvisarlo di nuovo).
-  if (source === 'site') await notifyOwnerNewBooking(result, data);
+  if (source === 'site' || source === 'site_test') await notifyOwnerNewBooking(result, data);
   return result;
 });
 
@@ -157,8 +159,10 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey], e
    ========================================================================== */
 exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey], enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
-  const source = data.source === 'site' ? 'site' : (data.source || 'site');
-  if (source !== 'site' && !request.auth) {
+  const source = data.source || 'site';
+  // 'site_test' TEMPORANEO (vedi booking-logic.js) — stessa via pubblica
+  // di 'site' (nessuna autenticazione richiesta), solo salta Stripe.
+  if (source !== 'site' && source !== 'site_test' && !request.auth) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
   let stripe = null;
@@ -174,7 +178,7 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
     if (err.code) throw new HttpsError(err.code, err.message);
     throw new HttpsError('internal', 'Errore imprevisto: riprova.');
   }
-  if (source === 'site') await notifyOwnerNewGroupBooking(result, data);
+  if (source === 'site' || source === 'site_test') await notifyOwnerNewGroupBooking(result, data);
   return result;
 });
 

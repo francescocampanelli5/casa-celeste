@@ -700,7 +700,7 @@
       : '';
 
     var priceHtml = (searched && nights > 0)
-      ? '<span class="room-list-price">€' + (room.nightlyPrice * nights) + '<span> ' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span></span>'
+      ? '<span class="room-list-price">€' + dynamicRoomTotal(room, s.checkIn, s.checkOut, 1).total + '<span> ' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span></span>'
       : '<span class="room-list-price">€' + room.nightlyPrice + '<span>' + escapeHtml(t('room.per_night')) + '</span></span>';
 
     var bedLabel = roomBedLabel(room);
@@ -1205,7 +1205,7 @@
     var priceHtml, datesHtml;
     if (hasDates) {
       var nights = daysBetween(state.selectedCheckIn, state.selectedCheckOut);
-      priceHtml = '<div class="rd-sticky-price">€' + (room.nightlyPrice * nights) + '<span> ' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span></div>';
+      priceHtml = '<div class="rd-sticky-price">€' + dynamicRoomTotal(room, state.selectedCheckIn, state.selectedCheckOut, 1).total + '<span> ' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span></div>';
       datesHtml = '<div class="rd-sticky-dates">' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div>';
     } else {
       priceHtml = '<div class="rd-sticky-price">' + escapeHtml(tpl(t('roomdetail.sticky_from'), { price: room.nightlyPrice })) + '<span>' + escapeHtml(t('room.per_night')) + '</span></div>';
@@ -1442,12 +1442,33 @@
   // Prezzo forfettario per l'intera durata del soggiorno, non a notte.
   var CRIB_PRICE = 8;
   var EXTRA_BED_PRICE = 15;
+  // TEMPORANEO — RIMUOVERE PRIMA DEL LANCIO PUBBLICO: mostra un bottone
+  // "(TEST) Conferma senza pagare" nello step di pagamento, che crea la
+  // prenotazione con source:'site_test' saltando Stripe (vedi la stessa
+  // nota in functions/booking-logic.js). Per disattivarlo, basta mettere
+  // questa costante a false: il bottone sparisce, tutto il resto (prezzo
+  // dinamico, sconto gruppo) resta invariato perché non dipende da questo.
+  var TEMP_TEST_SKIP_PAYMENT = true;
   // Stessa aliquota di computePaymentFee in functions/booking-logic.js —
   // va tenuta allineata a mano. Mostrata sempre esplicitamente prima del
   // pagamento: se l'ospite cancella entro i termini viene rimborsato solo
   // il costo del soggiorno, mai questa commissione.
   var PAYMENT_FEE_PERCENT = 1.5;
   var PAYMENT_FEE_FIXED = 0.25;
+  // Prezzo dinamico stagionale/festività + prezzo manuale per periodo (vedi
+  // js/pricing.js, porting client di functions/pricing.js): questa è solo
+  // un'anteprima, il prezzo autoritativo che viene davvero addebitato è
+  // sempre ricalcolato dal server (computeQuoteCore). roomCount è il numero
+  // di stanze della prenotazione corrente (1 = singola, >1 = gruppo, per lo
+  // sconto crescente fino al 20%).
+  function dynamicRoomTotal(room, checkIn, checkOut, roomCount) {
+    if (!window.CasaCelestePricing || !checkIn || !checkOut) return { total: 0, totalBeforeDiscount: 0, discountRate: 0 };
+    var occupancy = window.CasaCelestePricing.computeOccupancyRatioClient(state.roomsData, checkIn, checkOut);
+    var totalBeforeDiscount = window.CasaCelestePricing.roomStayTotal(room, checkIn, checkOut, occupancy);
+    var discountRate = window.CasaCelestePricing.groupDiscountRate(roomCount || 1);
+    var total = Math.round(totalBeforeDiscount * (1 - discountRate) * 100) / 100;
+    return { total: total, totalBeforeDiscount: totalBeforeDiscount, discountRate: discountRate };
+  }
   function computePaymentFee(baseTotal) {
     return Math.round((baseTotal * PAYMENT_FEE_PERCENT / 100 + PAYMENT_FEE_FIXED) * 100) / 100;
   }
@@ -2357,7 +2378,7 @@
     var room = currentRoom();
     if (!room) return '';
     var nights = daysBetween(state.selectedCheckIn, state.selectedCheckOut);
-    var roomTotal = nights * room.nightlyPrice;
+    var roomTotal = dynamicRoomTotal(room, state.selectedCheckIn, state.selectedCheckOut, 1).total;
     var taxRate = Number(state.settings && state.settings.touristTaxRate) || 0;
     var taxable = taxablePersons(state.guestsAdults, state.guestsChildAges);
     var tax = Math.round(taxRate * taxable * nights * 100) / 100;
@@ -2455,6 +2476,11 @@
       '<div class="payment-divider" id="payment-divider"><span>' + escapeHtml(t('booking.payment_or_wallet')) + '</span></div>' +
       '<div id="payment-express-container" class="payment-express-container"></div>' +
       '<div class="payment-secure-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>' + escapeHtml(t('booking.payment_secure_note')) + '</div>' +
+      (TEMP_TEST_SKIP_PAYMENT ?
+        '<div style="margin-top:14px; padding:12px; border:2px dashed #C9971A; border-radius:10px; background:#FFF6DD;">' +
+          '<div style="font-size:12px; font-weight:800; color:#C9971A; margin-bottom:8px;">⚠️ SOLO TEST — da rimuovere prima della pubblicazione</div>' +
+          '<button type="button" class="btn btn-outline" style="width:100%;" id="test-skip-payment-btn">🧪 (TEST) Conferma prenotazione senza pagare</button>' +
+        '</div>' : '') +
       '<button type="button" class="link-btn link-btn--centered" data-back-to-contact>' + escapeHtml(t('booking.cambia_contatti')) + '</button>'
     );
   }
@@ -2479,6 +2505,15 @@
     // confermare, sia dal bottone carta che da Apple Pay/Google Pay.
     function billingDetails() {
       return { name: state.contactName, email: state.contactEmail, phone: state.contactPhone };
+    }
+    // TEMPORANEO — RIMUOVERE PRIMA DEL LANCIO PUBBLICO (vedi TEMP_TEST_SKIP_PAYMENT
+    // sopra): bottone di test, bindato PRIMA del controllo "Stripe configurato"
+    // qui sotto, così funziona anche se Stripe non dovesse caricarsi.
+    var testSkipBtn = document.getElementById('test-skip-payment-btn');
+    if (testSkipBtn) {
+      testSkipBtn.addEventListener('click', function () {
+        if (state.groupMode) confirmGroupBooking(null, 'site_test'); else confirmBooking(null, 'site_test');
+      });
     }
     // Pagamento confermato lato Stripe (da bottone carta o da Apple
     // Pay/Google Pay): ora si crea davvero la prenotazione, con l'id del
@@ -3172,7 +3207,8 @@
     var room = state.roomsData[alloc.roomId];
     if (!room) return null;
     var nights = groupNights();
-    var roomTotal = nights * room.nightlyPrice;
+    var dyn = dynamicRoomTotal(room, state.selectedCheckIn, state.selectedCheckOut, state.groupAllocations.length);
+    var roomTotal = dyn.total;
     var taxRate = Number(state.settings && state.settings.touristTaxRate) || 0;
     var allocChildAges = alloc.childIdxs.map(function (ci) { return state.guestsChildAges[ci]; });
     var taxable = taxablePersons(alloc.adults, allocChildAges);
@@ -3180,7 +3216,7 @@
     var cribTotal = cribTotalN(alloc.cribCount);
     var extraBedTotal = extraBedTotalN(alloc.extraBedCount);
     var total = roomTotal + tax + cribTotal + extraBedTotal;
-    return { room: room, nights: nights, roomTotal: roomTotal, tax: tax, cribTotal: cribTotal, extraBedTotal: extraBedTotal, total: total };
+    return { room: room, nights: nights, roomTotal: roomTotal, tax: tax, cribTotal: cribTotal, extraBedTotal: extraBedTotal, total: total, discountRate: dyn.discountRate, totalBeforeDiscount: dyn.totalBeforeDiscount };
   }
   function groupPriceSummaryHtml() {
     var rows = '';
@@ -3192,7 +3228,8 @@
       rows +=
         '<div class="group-price-block">' +
           '<div class="group-price-block-title">' + escapeHtml(tpl(t('booking.group_room_n'), { n: ri + 1 })) + ' — ' + escapeHtml(p.room.name) + '</div>' +
-          '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: p.nights, price: p.room.nightlyPrice })) + '</span><span>€' + p.roomTotal.toFixed(2) + '</span></div>' +
+          '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: p.nights, price: p.room.nightlyPrice })) + '</span><span>€' + p.totalBeforeDiscount.toFixed(2) + '</span></div>' +
+          (p.discountRate ? '<div class="price-summary-row" style="color:var(--blue-deep,#1D6E96);"><span>' + escapeHtml(tpl(t('booking.summary_group_discount'), { pct: Math.round(p.discountRate * 100) })) + '</span><span>−€' + (p.totalBeforeDiscount - p.roomTotal).toFixed(2) + '</span></div>' : '') +
           (p.tax ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + p.tax.toFixed(2) + '</span></div>' : '') +
           (alloc.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + p.cribTotal.toFixed(2) + '</span></div>' : '') +
           (alloc.extraBedCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_extra_bed')) + '</span><span>€' + p.extraBedTotal.toFixed(2) + '</span></div>' : '') +
@@ -3266,7 +3303,7 @@
   function goGroupRoomsStep() { state.bookingStep = 3; renderBookingModal(); }
   function goGroupContactStep() { state.bookingStep = 4; renderBookingModal(); }
   function backToGroupRooms() { state.bookingStep = 2; renderBookingModal(); }
-  function confirmGroupBooking(paymentIntentId) {
+  function confirmGroupBooking(paymentIntentId, sourceOverride) {
     if (!state.contactName || !isValidEmail(state.contactEmail) || !isValidPhone(state.contactPhone) || !state.contractAccepted) return;
     if (!window.CasaCelesteTourismDB) return;
     state.bookingBusy = true; state.bookingError = '';
@@ -3284,7 +3321,7 @@
       checkIn: state.selectedCheckIn, checkOut: state.selectedCheckOut,
       rooms: roomsPayload,
       name: state.contactName, email: state.contactEmail, phone: state.contactPhone,
-      contractAccepted: state.contractAccepted, source: 'site', paymentIntentId: paymentIntentId || null,
+      contractAccepted: state.contractAccepted, source: sourceOverride || 'site', paymentIntentId: paymentIntentId || null,
       lang: state.lang
     }).then(function (res) {
       state.bookingBusy = false;
@@ -3308,7 +3345,7 @@
   // richiesta — niente email doppia "richiesta ricevuta" + "confermata".
   // Il proprietario viene avvisato subito via Telegram (gratis, illimitato,
   // vedi functions/index.js) invece che via email.
-  function confirmBooking(paymentIntentId) {
+  function confirmBooking(paymentIntentId, sourceOverride) {
     if (!state.contactName || !isValidEmail(state.contactEmail) || !isValidPhone(state.contactPhone) || !state.contractAccepted) return;
     if (!window.CasaCelesteTourismDB) return;
     state.bookingBusy = true; state.bookingError = '';
@@ -3332,7 +3369,7 @@
       email: state.contactEmail,
       phone: state.contactPhone,
       contractAccepted: state.contractAccepted,
-      source: 'site',
+      source: sourceOverride || 'site',
       paymentIntentId: paymentIntentId || null,
       lang: state.lang
     }).then(function (res) {
