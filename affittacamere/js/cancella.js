@@ -31,8 +31,16 @@
     var d = new Date(iso + 'T00:00:00');
     return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
   }
+  // 'T00:00:00Z' (UTC esplicito), non 'T00:00:00': senza il suffisso Z la
+  // stringa viene interpretata nel fuso orario LOCALE del browser
+  // dell'ospite, che per un fuso avanti su UTC (l'Italia inclusa, la
+  // maggior parte degli ospiti) anticipa la mezzanotte del check-in di
+  // 1-2 ore rispetto al server (functions/booking-logic.js, stesso calcolo
+  // ma sempre in UTC) — vicino alla soglia delle 48 ore questo può
+  // nascondere il bottone di cancellazione anche quando il server
+  // accetterebbe ancora il rimborso gratuito.
   function hoursToCheckIn(checkIn) {
-    var checkInDate = new Date(checkIn + 'T00:00:00');
+    var checkInDate = new Date(checkIn + 'T00:00:00Z');
     return (checkInDate.getTime() - Date.now()) / 3600000;
   }
 

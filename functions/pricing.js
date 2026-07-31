@@ -70,7 +70,7 @@ function seasonalMultiplier(dateIso) {
 
   if (md === '04-25' || md === '05-01' || md === '06-02') return 1.15; // Ponti nazionali
 
-  if (md >= '11-01' || md <= '02-28') return isWeekendNight ? 0.9 : 0.85; // Bassa stagione invernale
+  if (md >= '11-01' || md <= '02-29') return isWeekendNight ? 0.9 : 0.85; // Bassa stagione invernale (<= '02-29' include il 29 febbraio bisestile)
 
   return isWeekendNight ? 1.1 : 1.0; // Stagione intermedia (mar-mag, ott)
 }

@@ -55,7 +55,7 @@
     if (dateIso >= easterWeekStart && dateIso <= easterWeekEnd) return isWeekendNight ? 1.3 : 1.2;
 
     if (md === '04-25' || md === '05-01' || md === '06-02') return 1.15;
-    if (md >= '11-01' || md <= '02-28') return isWeekendNight ? 0.9 : 0.85;
+    if (md >= '11-01' || md <= '02-29') return isWeekendNight ? 0.9 : 0.85;
     return isWeekendNight ? 1.1 : 1.0;
   }
 

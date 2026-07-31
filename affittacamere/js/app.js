@@ -13,7 +13,7 @@
     { q: { it: 'A che ora è il check-in e il check-out?', en: 'What time is check-in and check-out?' },
       a: { it: 'Check-in dalle 15:00, check-out entro le 10:00. Il check-in è autonomo: ti mandiamo tutte le indicazioni su WhatsApp prima del tuo arrivo.', en: 'Check-in from 3pm, check-out by 10am. Check-in is self-service: we send you all the instructions on WhatsApp before you arrive.' } },
     { q: { it: 'Cosa è incluso nel prezzo?', en: 'What is included in the price?' },
-      a: { it: 'Il prezzo mostrato è tutto incluso (utenze, wifi, pulizie). L\'unico costo che si aggiunge è la tassa di soggiorno comunale (2€ a notte a persona, con esenzioni per i più piccoli), mostrata chiaramente prima di confermare.', en: 'The price shown is all-inclusive (utilities, wifi, cleaning). The only extra cost is the municipal tourist tax (€2 per night per person, with exemptions for younger guests), shown clearly before you confirm.' } },
+      a: { it: 'Il prezzo mostrato è tutto incluso (utenze, wifi, pulizie). Si aggiungono solo la tassa di soggiorno comunale (2€ a notte a persona, con esenzioni per i più piccoli) e, se paghi con carta online, una piccola commissione di elaborazione — entrambe mostrate chiaramente prima di confermare.', en: 'The price shown is all-inclusive (utilities, wifi, cleaning). The only extras are the municipal tourist tax (€2 per night per person, with exemptions for younger guests) and, if you pay by card online, a small payment processing fee — both shown clearly before you confirm.' } },
     { q: { it: 'Serve un documento per prenotare?', en: 'Do I need an ID document to book?' },
       a: { it: 'Sì, ma è più semplice di quanto sembri: prima del check-in ti mandiamo un link sicuro dove inserire i tuoi dati, poi basta una breve videochiamata di un minuto (o, se non dovesse avvenire, due parole al videocitofono al tuo arrivo) — è la normale prassi italiana per le locazioni turistiche, non un controllo in più. Va ripetuto a ogni nuova prenotazione, anche se sei già stato nostro ospite: lo richiede la legge.', en: 'Yes, but it\'s simpler than it sounds: before check-in we send you a secure link to enter your details, then it\'s just a short one-minute video call (or, if that doesn\'t happen, a quick hello at the entry intercom on arrival) — it\'s standard practice for short-term rentals in Italy, not an extra hurdle. It\'s required again for every new booking, even if you\'ve stayed with us before: Italian law requires it.' } },
     { q: { it: 'Posso cancellare la prenotazione?', en: 'Can I cancel my booking?' },
@@ -3215,7 +3215,15 @@
     var room = state.roomsData[alloc.roomId];
     if (!room) return null;
     var nights = groupNights();
-    var dyn = dynamicRoomTotal(room, state.selectedCheckIn, state.selectedCheckOut, state.groupAllocations.length);
+    // Sconto di gruppo basato sul numero di stanze DAVVERO assegnate (con
+    // roomId), non sulla lunghezza grezza di state.groupAllocations: quella
+    // può includere slot ancora vuoti (l'ospite ha aumentato il numero di
+    // stanze ma non le ha ancora tutte compilate), che il server non vede
+    // mai — vengono filtrati prima dell'invio (vedi goGroupContactStep).
+    // Usare lo slot count grezzo qui gonfiava lo sconto mostrato in questo
+    // riepilogo rispetto a quello davvero applicato al pagamento.
+    var assignedRoomCount = state.groupAllocations.filter(function (a) { return a.roomId; }).length;
+    var dyn = dynamicRoomTotal(room, state.selectedCheckIn, state.selectedCheckOut, assignedRoomCount);
     var roomTotal = dyn.total;
     var taxRate = Number(state.settings && state.settings.touristTaxRate) || 0;
     var allocChildAges = alloc.childIdxs.map(function (ci) { return state.guestsChildAges[ci]; });
@@ -4078,7 +4086,14 @@
       state.search.childAges = children.split(',').map(function (a) { return Math.max(0, Math.min(17, Number(a) || 0)); });
     }
     if (rooms) { state.search.rooms = Math.max(1, Number(rooms) || 1); state.search.roomsManual = true; }
-    if (ci && co) state.search.performed = true;
+    // Stesso controllo di submitSearch(): senza questo, un link condiviso
+    // con date invertite (checkout prima di checkin) segnava la ricerca
+    // come "eseguita" e mostrava un fuorviante "tutto occupato" invece del
+    // normale messaggio di date non valide.
+    if (ci && co) {
+      if (co > ci) state.search.performed = true;
+      else state.search.error = t('search.invalid_dates');
+    }
     var roomId = params.get('room');
     if (roomId) state.__deepLinkRoomId = roomId;
     // Link "Contatta l'assistenza" nelle email (vedi guest-lifecycle-emails.js
