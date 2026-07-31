@@ -19,7 +19,7 @@
  */
 (function () {
   'use strict';
-  var ENABLED = true;
+  var ENABLED = false;
   var STORAGE_KEY = 'ccGateOk';
   var PASSWORD_HASH = '1263559ec2687d98bdeeeb127ce5798d80a861b8d99d4e9e9312123a495abc8c';
 
