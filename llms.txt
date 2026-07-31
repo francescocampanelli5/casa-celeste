@@ -26,8 +26,9 @@
 ## Affittacamere (soggiorni brevi, turismo)
 
 - Stanze in affitto a notte, prezzo tutto incluso (utenze, wifi, pulizie);
-  unico costo aggiuntivo la tassa di soggiorno comunale (2€/notte/persona,
-  con esenzioni per i più piccoli)
+  si aggiungono solo la tassa di soggiorno comunale (2€/notte/persona, con
+  esenzioni per i più piccoli) e, per i pagamenti online con carta, una
+  piccola commissione di elaborazione
 - Check-in dalle 15:00, check-out entro le 10:00, check-in autonomo con
   istruzioni via email/WhatsApp
 - Pagamento online (carta, Apple Pay, Google Pay) o richiesta diretta;

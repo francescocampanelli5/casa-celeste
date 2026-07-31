@@ -14,8 +14,7 @@
 <title>Casa Celeste | Studentato e Alloggi per Studenti a Monopoli — Stanze in Affitto</title>
 <meta name="description" content="Casa Celeste: uno studentato e casa in condivisione nel cuore di Monopoli. Stanze singole e doppie in affitto, il comfort di una vera casa con lo spirito di un dormitorio per studenti. A pochi passi da centro storico, mare e Conservatorio. Prenota un tour su WhatsApp.">
 <meta name="keywords" content="studentato Monopoli, dormitorio studenti Monopoli, casa studenti Monopoli, casa in condivisione Monopoli, affittacamere Monopoli, stanze in affitto studenti, alloggi universitari Puglia">
-<!-- PRE-LANCIO: ripristina "index, follow" quando il sito è pronto per il pubblico (vedi GUIDA-PUBBLICAZIONE.md, checklist pre-lancio) -->
-<meta name="robots" content="noindex, nofollow">
+<meta name="robots" content="index, follow">
 <link rel="canonical" href="https://lacasaceleste.it/studentato/">
 <link rel="alternate" hreflang="it" href="https://lacasaceleste.it/studentato/">
 <link rel="alternate" hreflang="en" href="https://lacasaceleste.it/studentato/?lang=en">
@@ -24,15 +23,18 @@
 <meta property="og:title" content="Casa Celeste | Studentato e Alloggi per Studenti a Monopoli">
 <meta property="og:description" content="Uno studentato e casa in condivisione a Monopoli: stanze moderne in affitto, silenzio per lo studio, socialità condivisa, a due passi da centro e mare.">
 <meta property="og:locale" content="it_IT">
-<meta property="og:image" content="https://lacasaceleste.it/studentato/images/facciata-1.jpg">
-<meta name="twitter:card" content="summary_large_image">
+<!-- Niente og:image/twitter:image: nessuna foto reale ancora committata a
+     questo percorso statico (le foto vere si caricano dalla dashboard su
+     Firebase Storage, URL dinamico) — meglio nessuna anteprima che una
+     rotta (og:image punterebbe a un 404 permanente). Da aggiungere non
+     appena ci sono foto vere caricate. -->
+<meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Casa Celeste | Studentato e Alloggi per Studenti a Monopoli">
 <meta name="twitter:description" content="Uno studentato e casa in condivisione a Monopoli: stanze moderne in affitto, silenzio per lo studio, socialità condivisa, a due passi da centro e mare.">
-<meta name="twitter:image" content="https://lacasaceleste.it/studentato/images/facciata-1.jpg">
 <meta name="theme-color" content="#10233B">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232C8FC9'/%3E%3Crect x='14' y='4' width='14' height='14' rx='4' fill='%23FFD24C'/%3E%3C/svg%3E">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"ApartmentComplex","name":"Casa Celeste","alternateName":["Studentato Casa Celeste Monopoli","Casa dello studente Monopoli","Dormitorio studenti Monopoli","Casa in condivisione Monopoli","Affittacamere Monopoli","Casa Celeste Student House Monopoli"],"description":"Studentato e casa in condivisione per studenti universitari e internazionali a Monopoli, con stanze singole e doppie in affitto a pochi passi dal centro storico, dal mare e dal Conservatorio.","keywords":"studentato Monopoli, dormitorio studenti Monopoli, casa studenti Monopoli, casa in condivisione Monopoli, affittacamere Monopoli, stanze in affitto studenti","url":"https://lacasaceleste.it/studentato/","image":"https://lacasaceleste.it/studentato/images/facciata-1.jpg","address":{"@type":"PostalAddress","streetAddress":"Via Giuseppe Can. del Drago 9","addressLocality":"Monopoli","addressRegion":"BA","postalCode":"70043","addressCountry":"IT"},"geo":{"@type":"GeoCoordinates","latitude":40.9539631,"longitude":17.2950498},"telephone":"+393381567389","petsAllowed":false,"smokingAllowed":false,"amenityFeature":[{"@type":"LocationFeatureSpecification","name":"Wi-Fi gratuito","value":true},{"@type":"LocationFeatureSpecification","name":"Cucina condivisa","value":true},{"@type":"LocationFeatureSpecification","name":"Parcheggio gratuito","value":true},{"@type":"LocationFeatureSpecification","name":"Riscaldamento incluso","value":true},{"@type":"LocationFeatureSpecification","name":"Noleggio biciclette","value":true}]}
+{"@context":"https://schema.org","@type":"ApartmentComplex","name":"Casa Celeste","alternateName":["Studentato Casa Celeste Monopoli","Casa dello studente Monopoli","Dormitorio studenti Monopoli","Casa in condivisione Monopoli","Affittacamere Monopoli","Casa Celeste Student House Monopoli"],"description":"Studentato e casa in condivisione per studenti universitari e internazionali a Monopoli, con stanze singole e doppie in affitto a pochi passi dal centro storico, dal mare e dal Conservatorio.","keywords":"studentato Monopoli, dormitorio studenti Monopoli, casa studenti Monopoli, casa in condivisione Monopoli, affittacamere Monopoli, stanze in affitto studenti","url":"https://lacasaceleste.it/studentato/","address":{"@type":"PostalAddress","streetAddress":"Via Giuseppe Can. del Drago 9","addressLocality":"Monopoli","addressRegion":"BA","postalCode":"70043","addressCountry":"IT"},"geo":{"@type":"GeoCoordinates","latitude":40.9539631,"longitude":17.2950498},"telephone":"+393381567389","petsAllowed":false,"smokingAllowed":false,"amenityFeature":[{"@type":"LocationFeatureSpecification","name":"Wi-Fi gratuito","value":true},{"@type":"LocationFeatureSpecification","name":"Cucina condivisa","value":true},{"@type":"LocationFeatureSpecification","name":"Parcheggio gratuito","value":true},{"@type":"LocationFeatureSpecification","name":"Riscaldamento incluso","value":true},{"@type":"LocationFeatureSpecification","name":"Noleggio biciclette","value":true}]}
 </script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
@@ -47,11 +49,10 @@
 <!-- Font Sora/Manrope self-hosted (non da Google Fonts CDN): evita l'invio
      dell'IP del visitatore a Google prima di qualunque scelta sui cookie,
      vedi fonts/fonts.css. -->
-<link rel="stylesheet" href="/fonts/fonts.css?v=1">
+<link rel="stylesheet" href="../fonts/fonts.css?v=1">
 <link rel="stylesheet" href="css/styles.css?v=5">
 </head>
-<body style="visibility:hidden">
-<script src="../site-gate.js?v=2"></script>
+<body>
 <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
   <symbol id="social-facebook" viewBox="0 0 24 24">
     <path fill="currentColor" d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.25-1.5 1.53-1.5H17V3.1C16.4 3 15.2 3 13.9 3 11.4 3 9.7 4.5 9.7 7.3v2.6H7v3.1h2.7V21h3.8z"/>
