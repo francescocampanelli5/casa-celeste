@@ -136,5 +136,13 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
+
+    // Contatori di rate limiting per-IP (functions/rate-limit.js) — solo
+    // l'Admin SDK delle Cloud Function li legge/scrive (bypassa comunque
+    // queste regole); mai accessibili dal client, nemmeno in lettura, per
+    // non rivelare IP/conteggi di altri visitatori.
+    match /rateLimits/{key} {
+      allow read, write: if false;
+    }
   }
 }

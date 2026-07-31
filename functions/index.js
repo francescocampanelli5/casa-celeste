@@ -32,6 +32,7 @@ const { submitAssistMessageCore } = require('./assist-messages');
 const { logRecClickCore } = require('./recs-clicks');
 const { buildBookingIcs } = require('./calendar-ics');
 const { notifyBookingConfirmed, notifyBookingCancelled } = require('./guest-notify');
+const { enforceRateLimit } = require('./rate-limit');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -133,6 +134,7 @@ const bucket = admin.storage().bucket();
    bot Telegram via telegram-bot.js).
    ========================================================================== */
 exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
+  await enforceRateLimit(db, request, 'createBooking', 8, 15);
   const data = request.data || {};
   const source = data.source || 'site';
   // 'site_test' TEMPORANEO (vedi booking-logic.js) — stessa via pubblica
@@ -168,6 +170,7 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] },
    atomica, o tutte le stanze richieste vengono prenotate o nessuna.
    ========================================================================== */
 exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
+  await enforceRateLimit(db, request, 'createGroupBooking', 8, 15);
   const data = request.data || {};
   const source = data.source || 'site';
   // 'site_test' TEMPORANEO (vedi booking-logic.js) — stessa via pubblica
@@ -204,6 +207,7 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
    un errore chiaro invece di rompere il deploy di tutte le altre.
    ========================================================================== */
 exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (request) => {
+  await enforceRateLimit(db, request, 'createPaymentIntent', 20, 15);
   const data = request.data || {};
   const key = stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: manca STRIPE_SECRET_KEY.');
@@ -250,6 +254,7 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
    cancelBookingCore in booking-logic.js.
    ========================================================================== */
 exports.cancelBooking = onCall({ secrets: [stripeSecretKey] }, async (request) => {
+  await enforceRateLimit(db, request, 'cancelBooking', 10, 15);
   const data = request.data || {};
   const key = stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato.');
@@ -276,6 +281,9 @@ exports.cancelBooking = onCall({ secrets: [stripeSecretKey] }, async (request) =
    rivelare quale dato è sbagliato — vedi lookupBookingForCancellationCore.
    ========================================================================== */
 exports.lookupBookingForCancellation = onCall({}, async (request) => {
+  // Limite più stretto: questo endpoint prova a indovinare nome+email+data,
+  // il bersaglio più naturale per un tentativo di enumerazione automatizzato.
+  await enforceRateLimit(db, request, 'lookupBookingForCancellation', 5, 15);
   const data = request.data || {};
   try {
     return await lookupBookingForCancellationCore(db, data);
@@ -295,6 +303,7 @@ exports.lookupBookingForCancellation = onCall({}, async (request) => {
    già usato per le nuove prenotazioni, nessuna quota EmailJS consumata.
    ========================================================================== */
 exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (request) => {
+  await enforceRateLimit(db, request, 'submitAssistMessage', 5, 15);
   const data = request.data || {};
   let result;
   try {
@@ -313,6 +322,7 @@ exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (req
    dashboard quando vuole, non evento per evento).
    ========================================================================== */
 exports.logRecClick = onCall({}, async (request) => {
+  await enforceRateLimit(db, request, 'logRecClick', 30, 15);
   const data = request.data || {};
   try {
     return await logRecClickCore(admin, db, data);
@@ -329,6 +339,7 @@ exports.logRecClick = onCall({}, async (request) => {
    stato interno): il token fa da chiave d'accesso, verificato qui.
    ========================================================================== */
 exports.getBookingForGuestForm = onCall({}, async (request) => {
+  await enforceRateLimit(db, request, 'getBookingForGuestForm', 15, 15);
   const data = request.data || {};
   const bookingId = data.bookingId;
   const token = data.token;
@@ -357,6 +368,7 @@ exports.getBookingForGuestForm = onCall({}, async (request) => {
    guest-documents.js (condivise con functions/telegram-bot.js).
    ========================================================================== */
 exports.submitGuestDocuments = onCall({}, async (request) => {
+  await enforceRateLimit(db, request, 'submitGuestDocuments', 10, 15);
   const data = request.data || {};
   const bookingId = data.bookingId;
   const token = data.token;
