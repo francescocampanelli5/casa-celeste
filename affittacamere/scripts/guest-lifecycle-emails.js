@@ -431,10 +431,15 @@ async function main() {
   counts.checkin = await forEachBookingUnit(docsCompleteConfirmed, sendCheckinInstructions.bind(null, settings), sendCheckinInstructionsGroup.bind(null, settings));
 
   // Ringraziamento + istruzioni check-out — la mattina STESSA del check-out
-  // (non il giorno dopo), finestra 6-8 ora Roma come cleaning-reminders.js:
-  // deve arrivare in tempo utile prima che l'ospite lasci la stanza.
+  // (non il giorno dopo): deve arrivare in tempo utile prima che l'ospite
+  // lasci la stanza. Finestra "mattina" ampia (<12), non più ristretta a
+  // "6-8": verificato sui log reali di affittacamere-hourly.yml che il cron
+  // "orario" di GitHub Actions non scatta in modo affidabile ogni ora esatta
+  // e non è MAI scattato tra le 3 e le 7 (ora Roma) nel campione osservato —
+  // la vecchia finestra stretta non aveva quindi mai una reale occasione di
+  // far partire questa email (stesso bug corretto in cleaning-reminders.js).
   var nowHour = lib.romeNow().hour;
-  if (nowHour >= 6 && nowHour <= 8) {
+  if (nowHour < 12) {
     var thankYouSnap = await db.collection('tourism_bookings')
       .where('checkOut', '==', today).where('thankYouEmailSent', '==', false).get();
     var thankYouConfirmed = thankYouSnap.docs.filter(function (d) { return d.data().status === 'confermato'; });
