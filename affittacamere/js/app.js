@@ -1466,7 +1466,10 @@
     var occupancy = window.CasaCelestePricing.computeOccupancyRatioClient(state.roomsData, checkIn, checkOut);
     var totalBeforeDiscount = window.CasaCelestePricing.roomStayTotal(room, checkIn, checkOut, occupancy);
     var discountRate = window.CasaCelestePricing.groupDiscountRate(roomCount || 1);
-    var total = Math.round(totalBeforeDiscount * (1 - discountRate) * 100) / 100;
+    // Prezzo stanza sempre intero, anche dopo lo sconto di gruppo (stesso
+    // arrotondamento del server in functions/booking-logic.js): tassa di
+    // soggiorno e commissione di pagamento restano invece precise al centesimo.
+    var total = Math.round(totalBeforeDiscount * (1 - discountRate));
     return { total: total, totalBeforeDiscount: totalBeforeDiscount, discountRate: discountRate };
   }
   function computePaymentFee(baseTotal) {
@@ -2390,7 +2393,7 @@
     return (
       '<div class="price-summary">' +
         '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_dates')) + '</span><span>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</span></div>' +
-        '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: nights, price: room.nightlyPrice })) + '</span><span>€' + roomTotal.toFixed(2) + '</span></div>' +
+        '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: nights, price: room.nightlyPrice })) + '</span><span>€' + roomTotal + '</span></div>' +
         (taxRate ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + tax.toFixed(2) + '</span></div>' : '') +
         (taxRate ? '<div class="price-summary-note">' + escapeHtml(tpl(t('booking.summary_tourist_tax_note'), { rate: taxRate })) + '</div>' : '') +
         (state.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + cribAmount.toFixed(2) + '</span></div>' : '') +
@@ -3228,8 +3231,8 @@
       rows +=
         '<div class="group-price-block">' +
           '<div class="group-price-block-title">' + escapeHtml(tpl(t('booking.group_room_n'), { n: ri + 1 })) + ' — ' + escapeHtml(p.room.name) + '</div>' +
-          '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: p.nights, price: p.room.nightlyPrice })) + '</span><span>€' + p.totalBeforeDiscount.toFixed(2) + '</span></div>' +
-          (p.discountRate ? '<div class="price-summary-row" style="color:var(--blue-deep,#1D6E96);"><span>' + escapeHtml(tpl(t('booking.summary_group_discount'), { pct: Math.round(p.discountRate * 100) })) + '</span><span>−€' + (p.totalBeforeDiscount - p.roomTotal).toFixed(2) + '</span></div>' : '') +
+          '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights'), { n: p.nights, price: p.room.nightlyPrice })) + '</span><span>€' + p.totalBeforeDiscount + '</span></div>' +
+          (p.discountRate ? '<div class="price-summary-row" style="color:var(--blue-deep,#1D6E96);"><span>' + escapeHtml(tpl(t('booking.summary_group_discount'), { pct: Math.round(p.discountRate * 100) })) + '</span><span>−€' + (p.totalBeforeDiscount - p.roomTotal) + '</span></div>' : '') +
           (p.tax ? '<div class="price-summary-row"><span>' + escapeHtml(t('booking.summary_tourist_tax')) + '</span><span>€' + p.tax.toFixed(2) + '</span></div>' : '') +
           (alloc.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + p.cribTotal.toFixed(2) + '</span></div>' : '') +
           (alloc.extraBedCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_extra_bed')) + '</span><span>€' + p.extraBedTotal.toFixed(2) + '</span></div>' : '') +

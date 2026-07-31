@@ -101,13 +101,19 @@ function manualPriceForNight(room, dateIso) {
   return null;
 }
 
+// Prezzo della stanza sempre intero (euro pieni, mai centesimi): richiesto
+// esplicitamente dall'utente, si applica solo al costo della stanza (non a
+// tassa di soggiorno/commissione di pagamento, che restano precise al
+// centesimo perché sono importi legali/reali — la tassa di soggiorno deve
+// coincidere esattamente con quanto dovuto al comune, la commissione con
+// quanto trattenuto davvero da Stripe).
 function nightlyPriceFor(room, dateIso, occupancyRatio) {
   const manual = manualPriceForNight(room, dateIso);
-  if (manual !== null) return manual;
+  if (manual !== null) return Math.round(manual);
   const base = Number(room.nightlyPrice) || 0;
   if (!base) return 0;
   const price = base * seasonalMultiplier(dateIso) * demandMultiplier(occupancyRatio);
-  return Math.round(price * 100) / 100;
+  return Math.round(price);
 }
 
 // Somma dei prezzi per-notte su un intero soggiorno [checkIn, checkOut).
@@ -118,7 +124,7 @@ function roomStayTotal(room, checkIn, checkOut, occupancyRatio) {
     total += nightlyPriceFor(room, cursor, occupancyRatio);
     cursor = addDaysIso(cursor, 1);
   }
-  return Math.round(total * 100) / 100;
+  return Math.round(total);
 }
 
 // Sconto crescente per prenotazione di gruppo (più stanze insieme nello

@@ -75,13 +75,18 @@
     return null;
   }
 
+  // Prezzo della stanza sempre intero (euro pieni, mai centesimi): richiesto
+  // esplicitamente dall'utente, si applica solo al costo della stanza (non
+  // a tassa di soggiorno/commissione di pagamento, che restano precise al
+  // centesimo perché sono importi legali/reali — vedi la stessa nota in
+  // functions/pricing.js).
   function nightlyPriceFor(room, dateIso, occupancyRatio) {
     var manual = manualPriceForNight(room, dateIso);
-    if (manual !== null) return manual;
+    if (manual !== null) return Math.round(manual);
     var base = Number(room.nightlyPrice) || 0;
     if (!base) return 0;
     var price = base * seasonalMultiplier(dateIso) * demandMultiplier(occupancyRatio);
-    return Math.round(price * 100) / 100;
+    return Math.round(price);
   }
 
   function roomStayTotal(room, checkIn, checkOut, occupancyRatio) {
@@ -91,7 +96,7 @@
       total += nightlyPriceFor(room, cursor, occupancyRatio);
       cursor = addDaysIso(cursor, 1);
     }
-    return Math.round(total * 100) / 100;
+    return Math.round(total);
   }
 
   var GROUP_DISCOUNT_BY_ROOM_COUNT = { 1: 0, 2: 0.08, 3: 0.14 };

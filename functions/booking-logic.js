@@ -397,9 +397,13 @@ async function computeQuoteCore(db, data) {
     const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(r.cribCount) || 0));
     const extraBedCount = Math.max(0, Math.min(EXTRA_BED_MAX, Number(r.extraBedCount) || 0));
 
+    // Anche dopo lo sconto di gruppo il prezzo stanza resta un euro intero
+    // (mai centesimi): senza questo arrotondamento, applicare una percentuale
+    // a un totale già intero reintrodurrebbe i centesimi (es. 264 * 0.92 =
+    // 242.88).
     const roomTotalBeforeDiscount = pricing.roomStayTotal(room, checkIn, checkOut, occupancyRatio);
-    const roomTotal = Math.round(roomTotalBeforeDiscount * (1 - discountRate) * 100) / 100;
-    const groupDiscountAmount = Math.round((roomTotalBeforeDiscount - roomTotal) * 100) / 100;
+    const roomTotal = Math.round(roomTotalBeforeDiscount * (1 - discountRate));
+    const groupDiscountAmount = Math.round(roomTotalBeforeDiscount - roomTotal);
 
     const taxableGuests = Math.max(0, guests - exemptGuests);
     const touristTaxDue = Math.round(taxRate * taxableGuests * nights * 100) / 100;
