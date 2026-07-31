@@ -724,11 +724,22 @@ async function handlePhotoForDocCapture(ctx, chatId, session, msg) {
   const best = photos[photos.length - 1];
   const fileInfo = await tgGetFile(ctx, best.file_id);
   if (!fileInfo || !fileInfo.file_path) { await tgSendMessage(ctx, chatId, '⚠️ Non sono riuscito a scaricare la foto, riprova.'); return; }
-  const buffer = await tgDownloadFile(ctx, fileInfo.file_path);
   const bookingId = session.bookingId;
   const idx = session.docsGuestIndex || 0;
   const path = 'tourism-guest-docs-tmp/' + bookingId + '/guest' + idx + '.jpg';
-  await ctx.bucket.file(path).save(buffer, { contentType: 'image/jpeg' });
+  // Senza questo try/catch, un fallimento di rete verso Telegram o di quota
+  // Storage risaliva silenziosamente fino al catch generico dell'update
+  // (solo un console.error): il proprietario restava senza risposta, senza
+  // sapere se rimandare la foto.
+  let buffer;
+  try {
+    buffer = await tgDownloadFile(ctx, fileInfo.file_path);
+    await ctx.bucket.file(path).save(buffer, { contentType: 'image/jpeg' });
+  } catch (e) {
+    console.error('Errore download/salvataggio foto documento:', e.message);
+    await tgSendMessage(ctx, chatId, '⚠️ Errore nel salvare la foto, riprova a inviarla.');
+    return;
+  }
 
   let ocrText = null;
   try { ocrText = await visionDocumentText(ctx.visionApiKey, buffer); } catch (e) { console.error('Errore Vision API:', e.message); }

@@ -63,10 +63,16 @@ function isNonEmptyString(v, maxLen) {
 // mandato un paymentIntentId (potrebbe essere inventato, riciclato da un
 // altro pagamento, o corrispondere a un pagamento non ancora davvero
 // concluso): si ricontrolla qui, direttamente con l'API di Stripe, che quel
-// PaymentIntent sia (1) effettivamente 'succeeded', (2) per l'importo giusto
-// (calcolato server-side da computeQuoteCore, mai da un totale inviato dal
-// client) e (3) non già usato per un'altra prenotazione. Solo se tutti e tre
-// i controlli passano la prenotazione viene creata e le notti bloccate.
+// PaymentIntent sia (1) effettivamente 'succeeded' e (2) per l'importo
+// giusto (calcolato server-side da computeQuoteCore, mai da un totale
+// inviato dal client). Il controllo (3) "non già usato per un'altra
+// prenotazione" qui è solo un fast-fail non atomico (query PRIMA della
+// transazione, utile per rifiutare subito un riuso ovvio senza sprecare un
+// tentativo di transazione) — quello autoritativo è claimPaymentIntentTx,
+// eseguito DENTRO la transazione che crea la prenotazione: due richieste
+// quasi simultanee con lo stesso paymentIntentId potrebbero superare
+// entrambe questo controllo prima che una delle due scriva, ma non possono
+// superare entrambe il claim atomico.
 async function verifyPaidIntent(db, stripe, paymentIntentId, expectedAmountEuro) {
   if (!stripe) fail('failed-precondition', 'Pagamento online non configurato lato server.');
   let intent;
@@ -88,6 +94,19 @@ async function verifyPaidIntent(db, stripe, paymentIntentId, expectedAmountEuro)
   }
 }
 
+// Reclama atomicamente il paymentIntentId DENTRO la stessa transazione che
+// crea la prenotazione: tourism_usedPaymentIntents/{paymentIntentId} fa da
+// lock. tx.get + tx.set sullo stesso documento, dentro la stessa
+// transazione della scrittura della prenotazione, garantisce che solo una
+// delle due richieste concorrenti riesca — l'altra fallisce con
+// already-exists prima di scrivere qualunque prenotazione o bloccare notti.
+async function claimPaymentIntentTx(admin, tx, db, paymentIntentId, bookingId) {
+  const usedRef = db.collection('tourism_usedPaymentIntents').doc(paymentIntentId);
+  const usedSnap = await tx.get(usedRef);
+  if (usedSnap.exists) fail('already-exists', 'payment_already_used');
+  tx.set(usedRef, { bookingId: bookingId, claimedAt: admin.firestore.FieldValue.serverTimestamp() });
+}
+
 async function createBookingCore(admin, db, stripe, data) {
   const roomId = data.roomId;
   const checkIn = data.checkIn;
@@ -99,12 +118,15 @@ async function createBookingCore(admin, db, stripe, data) {
   const phone = data.phone || '';
   const contractAccepted = !!data.contractAccepted;
   const source = data.source || 'site';
-  // TEMPORANEO — RIMUOVERE PRIMA DEL LANCIO PUBBLICO: 'site_test' salta la
-  // verifica del pagamento Stripe per poter testare l'intero flusso (prezzo
-  // dinamico, sconto di gruppo, email di conferma...) senza pagare davvero.
-  // Vedi il bottone "(TEST) Conferma senza pagare" in affittacamere/js/app.js
-  // (TEMP_TEST_SKIP_PAYMENT) — stesso interruttore da disattivare insieme a
-  // questo. Richiede comunque l'accettazione delle condizioni, come 'site'.
+  // TEMPORANEO — da rimuovere quando non serve più testare il flusso:
+  // 'site_test' salta la verifica del pagamento Stripe per poter testare
+  // l'intero flusso (prezzo dinamico, sconto di gruppo, email di
+  // conferma...) senza pagare davvero. Vedi il bottone "(TEST) Conferma
+  // senza pagare" in affittacamere/js/app.js (TEMP_TEST_SKIP_PAYMENT) —
+  // stesso interruttore da disattivare insieme a questo. Richiede comunque
+  // l'accettazione delle condizioni, come 'site'. Il bypass è riservato al
+  // proprietario autenticato: functions/index.js rifiuta 'site_test' senza
+  // request.auth, quindi non è più invocabile da un visitatore anonimo.
   const isSiteFlow = source === 'site' || source === 'site_test';
   const bedType = data.bedType === 'singolo' ? 'singolo' : 'matrimoniale';
   const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(data.cribCount) || 0));
@@ -161,6 +183,9 @@ async function createBookingCore(admin, db, stripe, data) {
     const roomSnap = await tx.get(roomRef);
     if (!roomSnap.exists) fail('not-found', 'Stanza non trovata.');
     const room = roomSnap.data();
+    if (source === 'site' && paymentIntentId) {
+      await claimPaymentIntentTx(admin, tx, db, paymentIntentId, bookingRef.id);
+    }
 
     // Il letto singolo aggiuntivo alza il limite della stanza di 1 posto
     // (es. stanza per 2 -> fino a 3 con letto extra) — i bambini sotto i 3
@@ -290,6 +315,12 @@ async function createGroupBookingCore(admin, db, stripe, data) {
 
   return db.runTransaction(async (tx) => {
     const roomSnaps = await Promise.all(roomRefs.map((ref) => tx.get(ref)));
+    // Un solo paymentIntentId condiviso da tutte le stanze del gruppo:
+    // reclamato una volta sola per l'intera transazione (vedi
+    // claimPaymentIntentTx in createBookingCore per il ragionamento).
+    if (source === 'site' && paymentIntentId) {
+      await claimPaymentIntentTx(admin, tx, db, paymentIntentId, groupId);
+    }
 
     const results = [];
     let grandTotal = 0;
@@ -393,6 +424,7 @@ async function computeQuoteCore(db, data) {
     if (!roomSnap.exists) fail('not-found', 'Stanza non trovata.');
     const room = roomSnap.data();
     const guests = Number(r.guests) || 0;
+    if (!Number.isInteger(guests) || guests < 0 || guests > 20) fail('invalid-argument', 'Numero ospiti non valido.');
     const exemptGuests = Math.max(0, Number(r.exemptGuests) || 0);
     const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(r.cribCount) || 0));
     const extraBedCount = Math.max(0, Math.min(EXTRA_BED_MAX, Number(r.extraBedCount) || 0));
@@ -447,8 +479,11 @@ async function cancelBookingCore(admin, db, stripe, data) {
   if (booking.source !== 'site') fail('failed-precondition', 'Questa prenotazione non è stata pagata online: contatta il proprietario per la cancellazione.');
   if (!booking.payment || !booking.payment.intentId) fail('failed-precondition', 'Nessun pagamento registrato per questa prenotazione.');
 
+  // 'T00:00:00Z' esplicito, per restare allineati al calcolo lato client
+  // (affittacamere/js/cancella.js) indipendentemente dal fuso orario di
+  // runtime della Cloud Function.
   const now = new Date();
-  const checkInDate = new Date(booking.checkIn + 'T00:00:00');
+  const checkInDate = new Date(booking.checkIn + 'T00:00:00Z');
   const hoursToCheckIn = (checkInDate.getTime() - now.getTime()) / 3600000;
   if (hoursToCheckIn < CANCELLATION_CUTOFF_HOURS) fail('failed-precondition', 'cancellation_too_late');
 
@@ -464,24 +499,16 @@ async function cancelBookingCore(admin, db, stripe, data) {
   const refundBaseTotal = Math.round(bookingDocs.reduce((sum, b) => sum + (Number(b.data.payment && b.data.payment.baseTotal) || 0), 0) * 100) / 100;
   if (!(refundBaseTotal > 0)) fail('failed-precondition', 'Importo da rimborsare non valido.');
 
-  // Idempotency key stabile per questa cancellazione: se batch.commit() più
-  // sotto fallisce dopo un rimborso già riuscito e il client (o l'ospite)
-  // rilancia cancelBooking, Stripe restituisce lo STESSO rimborso invece di
-  // crearne un secondo. Se la chiave è comunque scaduta (>24h) o il gruppo è
-  // già stato rimborsato per altra via, Stripe risponde con
-  // 'charge_already_refunded': non è un errore reale (il denaro è già
-  // tornato all'ospite), quindi si prosegue alla scrittura Firestore invece
-  // di propagare un codice Stripe non valido per `new HttpsError(err.code,
-  // ...)` in functions/index.js (che altrimenti lancerebbe a sua volta).
-  try {
-    await stripe.refunds.create({
-      payment_intent: booking.payment.intentId,
-      amount: Math.round(refundBaseTotal * 100)
-    }, { idempotencyKey: 'cancel-refund-' + (booking.groupId || bookingId) });
-  } catch (err) {
-    if (err.code !== 'charge_already_refunded') throw err;
-  }
-
+  // Ordine importante: prima la transazione Firestore (annulla + libera le
+  // notti), SOLO DOPO il rimborso Stripe. Se si facesse il rimborso per
+  // primo e la transazione fallisse (rara ma possibile: errore di rete,
+  // permessi, quota), l'ospite avrebbe già i soldi indietro ma la
+  // prenotazione resterebbe 'confermato' con la stanza ancora bloccata e
+  // nessuna traccia del rimborso — un'incoerenza silenziosa. Con questo
+  // ordine, se il rimborso fallisce DOPO che la cancellazione è già
+  // registrata, l'incoerenza resta visibile in Firestore (refunded: false +
+  // refundError) invece di sparire senza lasciare traccia.
+  //
   // Transazione (non un batch): il vecchio codice leggeva room.blockedRanges
   // con una get() semplice e scriveva l'array intero dopo, fuori da qualunque
   // transazione — se createBookingCore committava una prenotazione vera nella
@@ -498,7 +525,7 @@ async function cancelBookingCore(admin, db, stripe, data) {
       const b = bookingDocs[i];
       tx.update(b.ref, {
         status: 'annullato',
-        cancellation: { cancelledAt: cancelledAt, cancelledBy: 'guest', refundAmount: Number(b.data.payment && b.data.payment.baseTotal) || 0, refunded: true }
+        cancellation: { cancelledAt: cancelledAt, cancelledBy: 'guest', refundAmount: Number(b.data.payment && b.data.payment.baseTotal) || 0, refunded: false }
       });
       const roomSnap = roomSnaps[i];
       if (roomSnap.exists) {
@@ -508,6 +535,28 @@ async function cancelBookingCore(admin, db, stripe, data) {
       }
     }
   });
+
+  // Idempotency key stabile per questa cancellazione: se la scrittura del
+  // flag 'refunded: true' più sotto fallisse dopo un rimborso già riuscito
+  // e l'operazione venisse ritentata (es. manualmente dal proprietario),
+  // Stripe restituisce lo STESSO rimborso invece di crearne un secondo. Se
+  // la chiave è comunque scaduta (>24h) o il gruppo è già stato rimborsato
+  // per altra via, Stripe risponde con 'charge_already_refunded': non è un
+  // errore reale (il denaro è già tornato all'ospite).
+  try {
+    await stripe.refunds.create({
+      payment_intent: booking.payment.intentId,
+      amount: Math.round(refundBaseTotal * 100)
+    }, { idempotencyKey: 'cancel-refund-' + (booking.groupId || bookingId) });
+  } catch (err) {
+    if (err.code !== 'charge_already_refunded') {
+      // La cancellazione è già registrata (stanza libera): non annullarla,
+      // ma lasciare traccia esplicita che il rimborso va verificato a mano.
+      await Promise.all(bookingDocs.map((b) => b.ref.update({ 'cancellation.refundError': String(err.message || err) })));
+      throw err;
+    }
+  }
+  await Promise.all(bookingDocs.map((b) => b.ref.update({ 'cancellation.refunded': true })));
 
   return { refundedAmount: refundBaseTotal, bookingIds: bookingDocs.map((b) => b.id) };
 }

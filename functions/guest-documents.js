@@ -25,6 +25,22 @@ function isNonEmptyString(v, maxLen) {
 // sia `docPhotoPath` (path Storage diretto, usata dal bot Telegram che non
 // ha bisogno di fabbricare una URL di download solo per farla riparsare
 // subito dopo — vedi movePhotoToPermanent).
+//
+// SICUREZZA: entrambi i controlli DEVONO essere fatti sul path Storage
+// effettivo (ancorato all'inizio con indexOf === 0), mai su un indexOf !== -1
+// sulla URL grezza — un token/parametro della query string potrebbe
+// contenere la sottostringa "tourism-guest-docs-tmp/" mentre il path reale
+// dopo "/o/" punta altrove (es. al documento PERMANENTE di un'altra
+// prenotazione già confermata). movePhotoToPermanent COPIA quel path e poi
+// CANCELLA l'originale: senza l'ancoraggio, una richiesta creata ad arte
+// potrebbe far rubare/cancellare il documento d'identità di un altro ospite.
+function tempPathFor(g) {
+  if (isNonEmptyString(g.docPhotoPath, 500)) return g.docPhotoPath;
+  if (isNonEmptyString(g.docPhotoUrl, 500)) {
+    try { return storagePathFromUrl(g.docPhotoUrl); } catch (e) { return null; }
+  }
+  return null;
+}
 function validateGuest(g) {
   if (!g || typeof g !== 'object') return 'Dati ospite mancanti.';
   if (!isNonEmptyString(g.firstName, 80)) return 'Nome non valido.';
@@ -35,9 +51,8 @@ function validateGuest(g) {
   if (DOC_TYPES.indexOf(g.docType) === -1) return 'Tipo documento non valido.';
   if (!isNonEmptyString(g.docNumber, 30) || g.docNumber.trim().length < 3) return 'Numero documento non valido.';
   if (!isNonEmptyString(g.docIssuePlace, 100)) return 'Luogo di rilascio non valido.';
-  const hasTempPath = isNonEmptyString(g.docPhotoPath, 500) && g.docPhotoPath.indexOf('tourism-guest-docs-tmp/') === 0;
-  const hasTempUrl = isNonEmptyString(g.docPhotoUrl, 500) && g.docPhotoUrl.indexOf('tourism-guest-docs-tmp/') !== -1;
-  if (!hasTempPath && !hasTempUrl) {
+  const tempPath = tempPathFor(g);
+  if (!tempPath || tempPath.indexOf('tourism-guest-docs-tmp/') !== 0) {
     return 'Foto documento mancante o non caricata correttamente.';
   }
   return null;
@@ -51,7 +66,18 @@ function storagePathFromUrl(url) {
 }
 
 async function movePhotoToPermanent(bucket, bookingId, guestIndex, guest) {
-  const tempPath = guest.docPhotoPath || storagePathFromUrl(guest.docPhotoUrl);
+  const tempPath = tempPathFor(guest);
+  // Ricontrollo difensivo qui, al punto esatto dove si copia/cancella su
+  // Storage con privilegi admin (bypassano le storage.rules): anche se
+  // validateGuest ha già fatto lo stesso controllo, non fidarsi mai di un
+  // singolo checkpoint per un'operazione distruttiva come questa. In più,
+  // il path deve appartenere DAVVERO a questa prenotazione (bookingId nel
+  // path stesso) — altrimenti si potrebbe "rubare"/cancellare il file
+  // temporaneo caricato da un'altra prenotazione ancora in corso.
+  const expectedPrefix = 'tourism-guest-docs-tmp/' + bookingId + '/';
+  if (!tempPath || tempPath.indexOf(expectedPrefix) !== 0) {
+    throw new HttpsError('invalid-argument', 'Foto documento ospite ' + (guestIndex + 1) + ' non valida.');
+  }
   const ext = (tempPath.split('.').pop() || 'jpg').toLowerCase();
   const destPath = 'tourism-guest-docs/' + bookingId + '/guest' + guestIndex + '.' + ext;
   try {

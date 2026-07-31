@@ -137,8 +137,13 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] },
   await enforceRateLimit(db, request, 'createBooking', 8, 15);
   const data = request.data || {};
   const source = data.source || 'site';
-  // 'site_test' TEMPORANEO (vedi booking-logic.js) — stessa via pubblica
-  // di 'site' (nessuna autenticazione richiesta), solo salta Stripe.
+  // 'site_test' TEMPORANEO (vedi booking-logic.js): salta Stripe ma crea una
+  // prenotazione VERA (blocca le date). Deve restare riservato al
+  // proprietario autenticato — mai pubblico, altrimenti chiunque potrebbe
+  // creare prenotazioni reali gratis dal sito pubblico.
+  if (source === 'site_test' && !request.auth) {
+    throw new HttpsError('permission-denied', 'Prenotazione di test riservata al proprietario autenticato.');
+  }
   if (source !== 'site' && source !== 'site_test' && !request.auth) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
@@ -173,8 +178,13 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
   await enforceRateLimit(db, request, 'createGroupBooking', 8, 15);
   const data = request.data || {};
   const source = data.source || 'site';
-  // 'site_test' TEMPORANEO (vedi booking-logic.js) — stessa via pubblica
-  // di 'site' (nessuna autenticazione richiesta), solo salta Stripe.
+  // 'site_test' TEMPORANEO (vedi booking-logic.js): salta Stripe ma crea una
+  // prenotazione VERA (blocca le date). Deve restare riservato al
+  // proprietario autenticato — mai pubblico, altrimenti chiunque potrebbe
+  // creare prenotazioni reali gratis dal sito pubblico.
+  if (source === 'site_test' && !request.auth) {
+    throw new HttpsError('permission-denied', 'Prenotazione di test riservata al proprietario autenticato.');
+  }
   if (source !== 'site' && source !== 'site_test' && !request.auth) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
@@ -498,6 +508,15 @@ exports.telegramWebhook = onRequest({ secrets: [telegramBotToken, telegramWebhoo
 // dallo stesso guestFormToken usato per ospiti.html, non da App Check
 // (che qui non si applica, non è una chiamata dell'SDK client).
 exports.bookingCalendarIcs = onRequest(async (req, res) => {
+  // onRequest (non onCall): niente request.auth/rawRequest nativi, serve un
+  // adattatore minimo per riusare enforceRateLimit (stesso limite degli
+  // altri endpoint pubblici — unico endpoint che ne era rimasto sprovvisto).
+  try {
+    await enforceRateLimit(db, { auth: null, rawRequest: req }, 'bookingCalendarIcs', 30, 15);
+  } catch (err) {
+    res.status(429).send('Troppe richieste da questo indirizzo in poco tempo: riprova tra qualche minuto.');
+    return;
+  }
   const bookingId = String(req.query.booking || '');
   const token = String(req.query.token || '');
   if (!bookingId || !token) {
