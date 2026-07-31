@@ -5,36 +5,46 @@ rules_version = '2';
 //        solo il proprietario autenticato (dashboard) può modificare.
 // bookings: chiunque può CREARE una prenotazione (dal modulo del sito),
 //           ma solo il proprietario autenticato può leggerle, aggiornarle o cancellarle.
+//
+// request.app != null in ogni regola di scrittura: richiede un token App
+// Check valido (il sito lo genera da solo via reCAPTCHA v3, vedi
+// js/firebase-init.js) — blocca script/bot che chiamano l'API Firestore
+// direttamente (via REST/curl) senza passare da una pagina reale del sito,
+// anche se conoscessero/rubassero una sessione autenticata. Va abilitato in
+// modalità "Enforce" anche lato console Firebase (App Check > Firestore) per
+// avere effetto: finché è in "Monitor" le richieste senza token passano lo
+// stesso (solo loggate), vedi GUIDA-PUBBLICAZIONE.md.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     match /rooms/{roomId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
 
     match /commons/{commonId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
 
     match /monoSlides/{slideId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
 
     match /reviews/{reviewId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
 
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
 
     match /bookings/{bookingId} {
-      allow create: if request.resource.data.name is string
+      allow create: if request.app != null
+                    && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() < 200
                     && request.resource.data.email is string
@@ -42,7 +52,7 @@ service cloud.firestore {
                     && request.resource.data.email.size() < 200
                     && request.resource.data.roomLabel is string
                     && request.resource.data.status == 'nuovo';
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if request.auth != null && request.app != null;
     }
 
     // ======================================================================
@@ -53,23 +63,23 @@ service cloud.firestore {
 
     match /tourism_rooms/{roomId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
     match /tourism_commons/{commonId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
     match /tourism_monoSlides/{slideId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
     match /tourism_reviews/{reviewId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
     match /tourism_settings/{settingId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.app != null;
     }
 
     // La creazione di una prenotazione passa SOLO dalla Cloud Function
@@ -79,7 +89,7 @@ service cloud.firestore {
     // scrivere direttamente — evita di aggirare la transazione.
     match /tourism_bookings/{bookingId} {
       allow create: if false;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if request.auth != null && request.app != null;
     }
 
     // Messaggi lasciati dal widget di assistenza — la scrittura passa SOLO
@@ -88,7 +98,7 @@ service cloud.firestore {
     // (proprietario autenticato) legge/aggiorna/cancella direttamente.
     match /tourism_assistMessages/{messageId} {
       allow create: if false;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if request.auth != null && request.app != null;
     }
 
     // Contatore di click sulle card "Consigli & dintorni" — la scrittura
@@ -97,7 +107,7 @@ service cloud.firestore {
     // leggere né alterare i contatori.
     match /tourism_recsClicks/{clickId} {
       allow create: if false;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if request.auth != null && request.app != null;
     }
 
     // Documenti d'identità degli ospiti — dati sensibili, MAI leggibili né
@@ -105,7 +115,7 @@ service cloud.firestore {
     // Function submitGuestDocuments (verifica token + validazione completa
     // lato server, l'Admin SDK bypassa queste regole).
     match /tourism_guestDocuments/{bookingId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && request.app != null;
       allow write: if false;
     }
 
@@ -114,7 +124,7 @@ service cloud.firestore {
     // Function submitGuestDocuments/markIdentityVerified, mai scritti dal
     // client direttamente.
     match /tourism_verifiedGuests/{guestKey} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && request.app != null;
       allow write: if false;
     }
 
@@ -123,7 +133,7 @@ service cloud.firestore {
     // regole); dichiarate qui solo per coerenza/difesa in profondità, come
     // tourism_guestDocuments/tourism_verifiedGuests sopra.
     match /tourism_botSessions/{chatId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && request.app != null;
       allow write: if false;
     }
   }

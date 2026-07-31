@@ -122,7 +122,7 @@ const bucket = admin.storage().bucket();
    createBooking — logica condivisa in booking-logic.js (usata anche dal
    bot Telegram via telegram-bot.js).
    ========================================================================== */
-exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
+exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey], enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
   const source = data.source === 'site' ? 'site' : (data.source || 'site');
   if (source !== 'site' && !request.auth) {
@@ -155,7 +155,7 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] },
    createGroupBookingCore in booking-logic.js): una sola transazione
    atomica, o tutte le stanze richieste vengono prenotate o nessuna.
    ========================================================================== */
-exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
+exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey], enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
   const source = data.source === 'site' ? 'site' : (data.source || 'site');
   if (source !== 'site' && !request.auth) {
@@ -189,7 +189,7 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
    così finché non è installato/configurato solo questa funzione fallisce con
    un errore chiaro invece di rompere il deploy di tutte le altre.
    ========================================================================== */
-exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (request) => {
+exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey], enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
   const key = stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: manca STRIPE_SECRET_KEY.');
@@ -235,7 +235,7 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
    solo entro il termine di 48 ore prima del check-in — vedi
    cancelBookingCore in booking-logic.js.
    ========================================================================== */
-exports.cancelBooking = onCall({ secrets: [stripeSecretKey] }, async (request) => {
+exports.cancelBooking = onCall({ secrets: [stripeSecretKey], enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
   const key = stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato.');
@@ -261,7 +261,7 @@ exports.cancelBooking = onCall({ secrets: [stripeSecretKey] }, async (request) =
    esattamente come dal flusso normale. Errore sempre generico per non
    rivelare quale dato è sbagliato — vedi lookupBookingForCancellationCore.
    ========================================================================== */
-exports.lookupBookingForCancellation = onCall(async (request) => {
+exports.lookupBookingForCancellation = onCall({ enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
   try {
     return await lookupBookingForCancellationCore(db, data);
@@ -280,7 +280,7 @@ exports.lookupBookingForCancellation = onCall(async (request) => {
    Assistenza) e avvisa subito il proprietario su Telegram — stesso canale
    già usato per le nuove prenotazioni, nessuna quota EmailJS consumata.
    ========================================================================== */
-exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (request) => {
+exports.submitAssistMessage = onCall({ secrets: [telegramBotToken], enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
   let result;
   try {
@@ -298,7 +298,7 @@ exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (req
    notifica Telegram: sarebbe rumore, il proprietario guarda i totali in
    dashboard quando vuole, non evento per evento).
    ========================================================================== */
-exports.logRecClick = onCall({}, async (request) => {
+exports.logRecClick = onCall({ enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
   try {
     return await logRecClickCore(admin, db, data);
@@ -314,7 +314,7 @@ exports.logRecClick = onCall({}, async (request) => {
    lettura pubblica diretta di tourism_bookings (che contiene contatti e
    stato interno): il token fa da chiave d'accesso, verificato qui.
    ========================================================================== */
-exports.getBookingForGuestForm = onCall(async (request) => {
+exports.getBookingForGuestForm = onCall({ enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
   const bookingId = data.bookingId;
   const token = data.token;
@@ -342,7 +342,7 @@ exports.getBookingForGuestForm = onCall(async (request) => {
    submitGuestDocuments — validateGuest/movePhotoToPermanent ora in
    guest-documents.js (condivise con functions/telegram-bot.js).
    ========================================================================== */
-exports.submitGuestDocuments = onCall(async (request) => {
+exports.submitGuestDocuments = onCall({ enforceAppCheck: true }, async (request) => {
   const data = request.data || {};
   const bookingId = data.bookingId;
   const token = data.token;
@@ -418,7 +418,7 @@ exports.submitGuestDocuments = onCall(async (request) => {
    videocitofono solo la prima volta) e registra l'ospite come "già
    verificato" per i soggiorni futuri. Solo owner autenticato.
    ========================================================================== */
-exports.markIdentityVerified = onCall(async (request) => {
+exports.markIdentityVerified = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth) throw new HttpsError('permission-denied', 'Solo il proprietario può confermare la verifica.');
   const data = request.data || {};
   const bookingId = data.bookingId;
