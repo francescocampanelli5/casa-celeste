@@ -172,7 +172,6 @@ async function main() {
     // non sono gestiti da questo script: si toccano solo quelli con
     // bookingId riconducibile a una prenotazione creata qui (source =
     // channel.id).
-    var current = (room.blockedRanges || []).slice();
     var toRemoveIds = [];
     var toAddRanges = [];
 
@@ -189,8 +188,19 @@ async function main() {
 
     if (!toRemoveIds.length && !toAddRanges.length) continue;
 
-    var fresh = current.filter(function (r) { return toRemoveIds.indexOf(r.bookingId) === -1; }).concat(toAddRanges);
-    await doc.ref.update({ blockedRanges: fresh });
+    // Rilettura fresca DENTRO una transazione, non un `current` catturato
+    // prima del loop di chiamate di rete qui sopra: quel loop può durare
+    // secondi/minuti (un feed lento, più piattaforme), e se una prenotazione
+    // vera arriva dal sito in quella finestra la sua voce in blockedRanges
+    // non deve sparire quando scriviamo qui sotto. tx.get()+tx.update() fa
+    // riprovare l'intera operazione se il documento stanza cambia nel
+    // frattempo, stesso pattern di functions/booking-logic.js.
+    await db.runTransaction(async function (tx) {
+      var freshSnap = await tx.get(doc.ref);
+      var freshBlocked = (freshSnap.exists && freshSnap.data().blockedRanges) || [];
+      var merged = freshBlocked.filter(function (r) { return toRemoveIds.indexOf(r.bookingId) === -1; }).concat(toAddRanges);
+      tx.update(doc.ref, { blockedRanges: merged });
+    });
     updated++;
   }
   console.log('Import calendari esterni: ' + updated + ' stanze aggiornate.');

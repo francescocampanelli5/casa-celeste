@@ -136,18 +136,26 @@ async function forEachBookingUnit(queryDocs, processOne, processGroup) {
   for (var i = 0; i < queryDocs.length; i++) {
     var doc = queryDocs[i];
     var b = doc.data();
-    if (b.groupId) {
-      if (seenGroups[b.groupId]) continue;
-      seenGroups[b.groupId] = true;
-      var siblings = (await fetchGroupSiblings(b.groupId)).filter(function (d) { return d.data().status !== 'annullato'; });
-      if (siblings.length === 0) continue;
-      if (siblings.length === 1) {
-        if (await processOne(siblings[0], siblings[0].data())) count++;
-        continue;
+    // Isolata per-prenotazione (come guest-docs-reminder.js): un errore su
+    // una singola prenotazione/gruppo non deve saltare conferma/check-in/
+    // ringraziamento/recensione di TUTTE le altre prenotazioni idonee in
+    // questo stesso passaggio orario.
+    try {
+      if (b.groupId) {
+        if (seenGroups[b.groupId]) continue;
+        seenGroups[b.groupId] = true;
+        var siblings = (await fetchGroupSiblings(b.groupId)).filter(function (d) { return d.data().status !== 'annullato'; });
+        if (siblings.length === 0) continue;
+        if (siblings.length === 1) {
+          if (await processOne(siblings[0], siblings[0].data())) count++;
+          continue;
+        }
+        if (await processGroup(siblings)) count++;
+      } else {
+        if (await processOne(doc, b)) count++;
       }
-      if (await processGroup(siblings)) count++;
-    } else {
-      if (await processOne(doc, b)) count++;
+    } catch (err) {
+      console.error('Errore email ciclo di vita per ' + (b.groupId ? 'gruppo ' + b.groupId : doc.id) + ':', err.message);
     }
   }
   return count;

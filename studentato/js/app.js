@@ -162,6 +162,12 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  function normalizeExternalUrl(url) {
+    var u = String(url || '').trim();
+    if (!u) return '';
+    if (/^(https?:|mailto:|tel:)/i.test(u)) return u;
+    return 'https://' + u;
+  }
   // Traduzione del testo "di cornice" del sito (js/i18n.js). Per i contenuti
   // scritti dal proprietario nella dashboard, usare tf() che sceglie il
   // campo giusto da un oggetto { it, en } (con fallback a it se manca en).
@@ -879,7 +885,7 @@
     if (!slot) return;
     var s = state.settings || {};
     if (s.virtualTourEnabled && s.virtualTourUrl) {
-      slot.innerHTML = '<a href="' + escapeHtml(s.virtualTourUrl) + '" target="_blank" rel="noopener" class="btn btn-outline">🧭 Virtual Tour</a>';
+      slot.innerHTML = '<a href="' + escapeHtml(normalizeExternalUrl(s.virtualTourUrl)) + '" target="_blank" rel="noopener" class="btn btn-outline">🧭 Virtual Tour</a>';
     } else {
       slot.innerHTML = '';
     }
@@ -948,7 +954,7 @@
     var html = SOCIAL_PLATFORMS.map(function (platform) {
       var cfg = socials[platform];
       if (!cfg || !cfg.enabled || !cfg.url) return '';
-      return '<a href="' + escapeHtml(cfg.url) + '" target="_blank" rel="noopener" class="social-icon-link" aria-label="' + escapeHtml(SOCIAL_LABELS[platform]) + '">' +
+      return '<a href="' + escapeHtml(normalizeExternalUrl(cfg.url)) + '" target="_blank" rel="noopener" class="social-icon-link" aria-label="' + escapeHtml(SOCIAL_LABELS[platform]) + '">' +
         '<svg width="17" height="17"><use href="#social-' + platform + '"></use></svg>' +
       '</a>';
     }).join('');

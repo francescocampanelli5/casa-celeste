@@ -460,27 +460,50 @@ async function cancelBookingCore(admin, db, stripe, data) {
   const refundBaseTotal = Math.round(bookingDocs.reduce((sum, b) => sum + (Number(b.data.payment && b.data.payment.baseTotal) || 0), 0) * 100) / 100;
   if (!(refundBaseTotal > 0)) fail('failed-precondition', 'Importo da rimborsare non valido.');
 
-  await stripe.refunds.create({
-    payment_intent: booking.payment.intentId,
-    amount: Math.round(refundBaseTotal * 100)
-  });
-
-  const batch = db.batch();
-  const cancelledAt = admin.firestore.FieldValue.serverTimestamp();
-  for (const b of bookingDocs) {
-    batch.update(b.ref, {
-      status: 'annullato',
-      cancellation: { cancelledAt: cancelledAt, cancelledBy: 'guest', refundAmount: Number(b.data.payment && b.data.payment.baseTotal) || 0, refunded: true }
-    });
-    const roomRef = db.collection('tourism_rooms').doc(b.data.roomId);
-    const roomSnap = await roomRef.get();
-    if (roomSnap.exists) {
-      const room = roomSnap.data();
-      const newRanges = (room.blockedRanges || []).filter((r) => r.bookingId !== b.id);
-      batch.update(roomRef, { blockedRanges: newRanges });
-    }
+  // Idempotency key stabile per questa cancellazione: se batch.commit() più
+  // sotto fallisce dopo un rimborso già riuscito e il client (o l'ospite)
+  // rilancia cancelBooking, Stripe restituisce lo STESSO rimborso invece di
+  // crearne un secondo. Se la chiave è comunque scaduta (>24h) o il gruppo è
+  // già stato rimborsato per altra via, Stripe risponde con
+  // 'charge_already_refunded': non è un errore reale (il denaro è già
+  // tornato all'ospite), quindi si prosegue alla scrittura Firestore invece
+  // di propagare un codice Stripe non valido per `new HttpsError(err.code,
+  // ...)` in functions/index.js (che altrimenti lancerebbe a sua volta).
+  try {
+    await stripe.refunds.create({
+      payment_intent: booking.payment.intentId,
+      amount: Math.round(refundBaseTotal * 100)
+    }, { idempotencyKey: 'cancel-refund-' + (booking.groupId || bookingId) });
+  } catch (err) {
+    if (err.code !== 'charge_already_refunded') throw err;
   }
-  await batch.commit();
+
+  // Transazione (non un batch): il vecchio codice leggeva room.blockedRanges
+  // con una get() semplice e scriveva l'array intero dopo, fuori da qualunque
+  // transazione — se createBookingCore committava una prenotazione vera nella
+  // finestra fra la lettura e la scrittura qui, quello sblocco stale poteva
+  // cancellare silenziosamente il blocco appena creato. tx.get()+tx.update()
+  // fa sì che Firestore riprovi l'intera transazione da capo se il documento
+  // stanza cambia nel frattempo, stesso pattern di createBookingCore/
+  // createGroupBookingCore più sopra.
+  const cancelledAt = admin.firestore.FieldValue.serverTimestamp();
+  await db.runTransaction(async (tx) => {
+    const roomRefs = bookingDocs.map((b) => db.collection('tourism_rooms').doc(b.data.roomId));
+    const roomSnaps = await Promise.all(roomRefs.map((ref) => tx.get(ref)));
+    for (let i = 0; i < bookingDocs.length; i++) {
+      const b = bookingDocs[i];
+      tx.update(b.ref, {
+        status: 'annullato',
+        cancellation: { cancelledAt: cancelledAt, cancelledBy: 'guest', refundAmount: Number(b.data.payment && b.data.payment.baseTotal) || 0, refunded: true }
+      });
+      const roomSnap = roomSnaps[i];
+      if (roomSnap.exists) {
+        const room = roomSnap.data();
+        const newRanges = (room.blockedRanges || []).filter((r) => r.bookingId !== b.id);
+        tx.update(roomRefs[i], { blockedRanges: newRanges });
+      }
+    }
+  });
 
   return { refundedAmount: refundBaseTotal, bookingIds: bookingDocs.map((b) => b.id) };
 }

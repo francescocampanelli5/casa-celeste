@@ -23,13 +23,21 @@ async function main() {
     var b = doc.data();
     if (!b.createdAt || b.createdAt.toMillis() > cutoff.toMillis()) continue;
 
-    await doc.ref.update({ status: 'annullato' });
+    // Transazione (non due scritture separate): se una prenotazione vera
+    // committa sulla stessa stanza fra la get() e la update() qui sotto, uno
+    // sblocco calcolato su dati stale potrebbe liberare notti in realtà già
+    // occupate. tx.get()+tx.update() fa riprovare l'intera operazione se il
+    // documento stanza cambia nel frattempo (stesso pattern di
+    // functions/booking-logic.js).
     var roomRef = db.collection('tourism_rooms').doc(b.roomId);
-    var roomSnap = await roomRef.get();
-    if (roomSnap.exists) {
-      var ranges = (roomSnap.data().blockedRanges || []).filter(function (r) { return r.bookingId !== doc.id; });
-      await roomRef.update({ blockedRanges: ranges });
-    }
+    await db.runTransaction(async function (tx) {
+      var roomSnap = await tx.get(roomRef);
+      tx.update(doc.ref, { status: 'annullato' });
+      if (roomSnap.exists) {
+        var ranges = (roomSnap.data().blockedRanges || []).filter(function (r) { return r.bookingId !== doc.id; });
+        tx.update(roomRef, { blockedRanges: ranges });
+      }
+    });
     expired++;
     console.log('Prenotazione scaduta (48h senza conferma) annullata:', doc.id);
   }

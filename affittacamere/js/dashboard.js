@@ -648,7 +648,7 @@
         statsEditorHtml('room', roomId, room.stats) +
         '<div class="admin-room-type-row">' +
           '<div class="admin-field-group"><label>Prezzo BASE a notte (€) — punto di partenza del calcolo dinamico stagionale, sovrascritto dai prezzi manuali per periodo qui sotto</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="nightlyPrice" value="' + (room.nightlyPrice || 0) + '"></div>' +
-          '<div class="admin-field-group"><label>Ospiti massimi</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="maxGuests" min="1" value="' + (room.maxGuests || 1) + '"></div>' +
+          '<div class="admin-field-group"><label>Ospiti massimi (max 3, limite fisico della stanza)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="maxGuests" min="1" max="3" value="' + (room.maxGuests || 1) + '"></div>' +
           '<div class="admin-field-group"><label>Notti minime</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="minNights" min="1" value="' + (room.minNights || 1) + '"></div>' +
           '<div class="admin-field-group"><label>Balcone</label><select class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="balcony">' +
             '<option value="nessuno"' + (room.balcony !== 'privato' && room.balcony !== 'comunicante' ? ' selected' : '') + '>Nessuno</option>' +
@@ -675,6 +675,10 @@
       el.addEventListener('change', function (e) {
         var val = e.target.value;
         if (field === 'nightlyPrice' || field === 'maxGuests' || field === 'minNights') val = Number(val) || 0;
+        // Tetto fisico reale (3 ospiti grandi/stanza, vedi MAX_BIG_GUESTS_PER_ROOM
+        // in affittacamere/js/app.js): un valore più alto qui supererebbe la
+        // capienza reale nel flusso di prenotazione a stanza singola.
+        if (field === 'maxGuests') val = Math.min(3, Math.max(1, val));
         // Vuoto = torna al conteggio automatico (reale o sovrascritto da
         // Impostazioni), non "zero recensioni per questa stanza".
         if (field === 'reviewCountOverride') val = val === '' ? null : (Number(val) || 0);
