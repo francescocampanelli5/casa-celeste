@@ -8,6 +8,10 @@
     user: null,
     loginError: '',
     loginBusy: false,
+    mfaResolver: null,
+    mfaEnrollSecret: null,
+    mfaEnrollError: '',
+    mfaEnrollBusy: false,
     activeTab: 'bookings',
     bookings: [],
     roomsData: JSON.parse(JSON.stringify(SEED_ROOMS)),
@@ -71,6 +75,29 @@
       '<p>Completa <code>affittacamere/js/firebase-config.js</code> con i dati del progetto Firebase (stessi di studentato). Segui <code>GUIDA-PUBBLICAZIONE.md</code>.</p></div></div>';
   }
   function renderLogin() {
+    // Passo 2 (solo se l'account ha attivato la verifica in due passaggi):
+    // email/password già corrette, manca solo il codice a 6 cifre dell'app
+    // autenticatore. state.mfaResolver viene impostato dal catch() sotto.
+    if (state.mfaResolver) {
+      document.getElementById('dash-shell').innerHTML =
+        '<div class="dash-login-wrap"><div class="dash-login-box"><h1>Verifica in due passaggi</h1>' +
+        '<p>Inserisci il codice a 6 cifre generato dalla tua app autenticatore.</p>' +
+        (state.loginError ? '<div class="dash-error">' + escapeHtml(state.loginError) + '</div>' : '') +
+        '<form id="mfa-form">' +
+          '<div class="dash-field"><label for="mfa-code">Codice</label><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" id="mfa-code" required autocomplete="one-time-code"></div>' +
+          '<button type="submit" class="btn btn-primary" style="width:100%;" ' + (state.loginBusy ? 'disabled' : '') + '>' + (state.loginBusy ? 'Verifica in corso…' : 'Verifica') + '</button>' +
+        '</form></div></div>';
+      document.getElementById('mfa-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var code = document.getElementById('mfa-code').value.trim();
+        var factorUid = state.mfaResolver.hints[0].uid;
+        state.loginError = ''; state.loginBusy = true; renderLogin();
+        window.CasaCelesteTourismDB.completeMfaSignIn(state.mfaResolver, factorUid, code).catch(function () {
+          state.loginBusy = false; state.loginError = 'Codice non valido o scaduto: riprova.'; renderLogin();
+        });
+      });
+      return;
+    }
     document.getElementById('dash-shell').innerHTML =
       '<div class="dash-login-wrap"><div class="dash-login-box"><h1>Area riservata — Affittacamere</h1>' +
       '<p>Accedi con lo stesso account proprietario dello studentato.</p>' +
@@ -85,8 +112,14 @@
       var email = document.getElementById('login-email').value.trim();
       var password = document.getElementById('login-password').value;
       state.loginError = ''; state.loginBusy = true; renderLogin();
-      window.CasaCelesteTourismDB.signIn(email, password).catch(function () {
-        state.loginBusy = false; state.loginError = 'Accesso non riuscito: email o password errate.'; renderLogin();
+      window.CasaCelesteTourismDB.signIn(email, password).catch(function (err) {
+        state.loginBusy = false;
+        if (window.CasaCelesteTourismDB.isMfaRequiredError(err)) {
+          state.mfaResolver = window.CasaCelesteTourismDB.getMfaResolver(err);
+          renderLogin();
+          return;
+        }
+        state.loginError = 'Accesso non riuscito: email o password errate.'; renderLogin();
       });
     });
   }
@@ -1155,6 +1188,7 @@
       }).join('');
     }
     content.innerHTML =
+      mfaSecurityCardHtml() +
       '<div class="admin-room-card">' +
         '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '"></div>' +
         '<div class="admin-field-group"><label>Check-in dalle</label><input type="text" class="admin-field" id="settings-checkin" value="' + escapeHtml(s.checkInTime || '15:00') + '"></div>' +
@@ -1346,6 +1380,86 @@
     });
     bindSocialFieldsEvents(content);
     bindPhotoUploadEvents(content);
+    bindMfaSecurityEvents(content);
+  }
+
+  /* ==========================================================================
+     Verifica in due passaggi (MFA/TOTP) — card "Sicurezza account" nel tab
+     Impostazioni. Stesso account Firebase Auth condiviso con lo studentato:
+     iscritta da qui vale anche per l'altra dashboard. Nessun QR code (zero
+     dipendenze esterne): il secret va inserito a mano nell'app
+     autenticatore, opzione supportata da tutte le app comuni (Google
+     Authenticator, Authy, 1Password...) tanto quanto lo scan del QR.
+     ========================================================================== */
+  function mfaSecurityCardHtml() {
+    var factors = (window.CasaCelesteTourismDB.mfaEnrolledFactors || function () { return []; })();
+    var enrolling = state.mfaEnrollSecret;
+    var body;
+    if (enrolling) {
+      body =
+        '<div class="admin-note">1. Apri la tua app autenticatore (Google Authenticator, Authy, 1Password...) e scegli "Aggiungi account" → "Inserisci codice manualmente".<br>' +
+        '2. Nome account: <b>Casa Celeste</b> — Chiave: <code style="user-select:all;">' + escapeHtml(enrolling.secretKey) + '</code><br>' +
+        '3. Inserisci qui sotto il codice a 6 cifre che compare nell\'app per confermare.</div>' +
+        (state.mfaEnrollError ? '<div class="dash-error">' + escapeHtml(state.mfaEnrollError) + '</div>' : '') +
+        '<div class="admin-field-group"><label>Codice a 6 cifre</label><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="admin-field" id="mfa-enroll-code"></div>' +
+        '<button type="button" class="btn btn-primary" id="mfa-enroll-confirm" ' + (state.mfaEnrollBusy ? 'disabled' : '') + '>' + (state.mfaEnrollBusy ? 'Verifica in corso…' : 'Conferma e attiva') + '</button> ' +
+        '<button type="button" class="btn btn-outline" id="mfa-enroll-cancel">Annulla</button>';
+    } else if (factors.length) {
+      body =
+        '<div class="admin-note">✅ Attiva — al login viene richiesto anche il codice dell\'app autenticatore, oltre a email e password.</div>' +
+        factors.map(function (f) {
+          return '<div class="admin-stat-row"><span>' + escapeHtml(f.displayName || 'App autenticatore') + '</span>' +
+            '<button type="button" class="admin-stat-remove" data-mfa-unenroll="' + escapeHtml(f.uid) + '">Disattiva</button></div>';
+        }).join('');
+    } else {
+      body =
+        '<div class="admin-note">Non attiva. Consigliata per proteggere la dashboard anche se qualcuno scoprisse la password: richiede un\'app autenticatore gratuita sul telefono (Google Authenticator, Authy, 1Password...).</div>' +
+        (state.mfaEnrollError ? '<div class="dash-error">' + escapeHtml(state.mfaEnrollError) + '</div>' : '') +
+        '<button type="button" class="btn btn-primary" id="mfa-enroll-start">Attiva verifica in due passaggi</button>';
+    }
+    return '<div class="admin-room-card">' +
+      '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Sicurezza account — verifica in due passaggi</span></div>' +
+      body +
+      '</div>';
+  }
+  function bindMfaSecurityEvents(content) {
+    var startBtn = content.querySelector('#mfa-enroll-start');
+    if (startBtn) startBtn.addEventListener('click', function () {
+      state.mfaEnrollError = '';
+      window.CasaCelesteTourismDB.startTotpEnrollment().then(function (secret) {
+        state.mfaEnrollSecret = secret;
+        renderSettingsTab(content);
+      }).catch(function (err) {
+        state.mfaEnrollError = 'Impossibile avviare l\'attivazione: ' + (err && err.message ? err.message : 'riprova.');
+        renderSettingsTab(content);
+      });
+    });
+    var confirmBtn = content.querySelector('#mfa-enroll-confirm');
+    if (confirmBtn) confirmBtn.addEventListener('click', function () {
+      var code = (content.querySelector('#mfa-enroll-code').value || '').trim();
+      state.mfaEnrollBusy = true; state.mfaEnrollError = ''; renderSettingsTab(content);
+      window.CasaCelesteTourismDB.finishTotpEnrollment(state.mfaEnrollSecret, code, 'App autenticatore').then(function () {
+        state.mfaEnrollBusy = false; state.mfaEnrollSecret = null; renderSettingsTab(content);
+      }).catch(function (err) {
+        state.mfaEnrollBusy = false;
+        state.mfaEnrollError = 'Codice non valido: ' + (err && err.message ? err.message : 'riprova.');
+        renderSettingsTab(content);
+      });
+    });
+    var cancelBtn = content.querySelector('#mfa-enroll-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', function () {
+      state.mfaEnrollSecret = null; state.mfaEnrollError = ''; renderSettingsTab(content);
+    });
+    content.querySelectorAll('[data-mfa-unenroll]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        if (!window.confirm('Disattivare la verifica in due passaggi per questo dispositivo?')) return;
+        window.CasaCelesteTourismDB.unenrollMfaFactor(el.getAttribute('data-mfa-unenroll')).then(function () {
+          renderSettingsTab(content);
+        }).catch(function (err) {
+          window.alert('Errore: ' + (err && err.message ? err.message : 'riprova.'));
+        });
+      });
+    });
   }
 
   /* ==========================================================================
@@ -1376,6 +1490,7 @@
     if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) { renderNotConfigured(); return; }
     window.CasaCelesteTourismDB.onAuthChange(function (user) {
       state.user = user;
+      state.mfaResolver = null;
       if (user) { subscribeToData(); renderDashboard(); } else { renderLogin(); }
     });
   }

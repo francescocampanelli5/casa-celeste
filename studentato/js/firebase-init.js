@@ -6,7 +6,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, connectAuthEmulator,
-  signInWithEmailAndPassword, signOut, onAuthStateChanged
+  signInWithEmailAndPassword, signOut, onAuthStateChanged,
+  multiFactor, getMultiFactorResolver, TotpMultiFactorGenerator
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getStorage, connectStorageEmulator, ref as storageRef,
@@ -278,6 +279,45 @@ window.CasaCelesteDB = {
   onAuthChange: function (callback) {
     if (!configured) { callback(null); return function () {}; }
     return onAuthStateChanged(auth, callback);
+  },
+
+  // ---- verifica in due passaggi (MFA, TOTP — app autenticatore) ----
+  // Stesso utente Firebase Auth dell'affittacamere: un'iscrizione fatta da
+  // qui vale anche per il login su /affittacamere/dashboard.html e
+  // viceversa, non serve ripeterla in entrambe le dashboard.
+  mfaEnrolledFactors: function () {
+    if (!auth.currentUser) return [];
+    return multiFactor(auth.currentUser).enrolledFactors;
+  },
+  // Passo 1 iscrizione: genera un secret TOTP nuovo, da mostrare
+  // all'utente (come testo, per l'inserimento manuale nell'app
+  // autenticatore — niente QR, zero dipendenze esterne).
+  startTotpEnrollment: function () {
+    return multiFactor(auth.currentUser).getSession().then(function (session) {
+      return TotpMultiFactorGenerator.generateSecret(session);
+    });
+  },
+  // Passo 2 iscrizione: l'utente conferma con il codice a 6 cifre generato
+  // dall'app usando il secret del passo 1.
+  finishTotpEnrollment: function (secret, code, displayName) {
+    var assertion = TotpMultiFactorGenerator.assertionForEnrollment(secret, code);
+    return multiFactor(auth.currentUser).enroll(assertion, displayName || 'App autenticatore');
+  },
+  unenrollMfaFactor: function (factorUid) {
+    return multiFactor(auth.currentUser).unenroll(factorUid);
+  },
+  // Al login, se l'account ha la verifica in due passaggi attiva,
+  // signIn() sopra fallisce con error.code === 'auth/multi-factor-auth-required':
+  // questi due helper completano l'accesso con il codice dell'app.
+  isMfaRequiredError: function (error) {
+    return !!(error && error.code === 'auth/multi-factor-auth-required');
+  },
+  getMfaResolver: function (error) {
+    return getMultiFactorResolver(auth, error);
+  },
+  completeMfaSignIn: function (resolver, factorUid, code) {
+    var assertion = TotpMultiFactorGenerator.assertionForSignIn(factorUid, code);
+    return resolver.resolveSignIn(assertion);
   }
 };
 
