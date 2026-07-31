@@ -1341,7 +1341,7 @@ button { font-family: inherit; }
    testo libero dall'ospite, solo bottoni)
    ========================================================================== */
 .assist-chat-panel {
-  position: fixed; right: 18px; bottom: 18px; z-index: 65;
+  position: fixed; right: 18px; bottom: 18px; z-index: 100;
   width: min(340px, calc(100vw - 36px)); max-height: min(480px, calc(100vh - 140px));
   background: var(--white); border-radius: 20px; overflow: hidden;
   box-shadow: 0 24px 48px -18px rgba(16,35,59,0.5);
