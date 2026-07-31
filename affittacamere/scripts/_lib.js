@@ -9,7 +9,11 @@ var admin = require('firebase-admin');
 function initAdmin() {
   if (admin.apps.length) return admin;
   var serviceAccount = JSON.parse((process.env.FIREBASE_SERVICE_ACCOUNT || '{}').trim());
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  // storageBucket serve solo agli script che usano admin.storage() (oggi
+  // cleanup-guest-docs.js) — senza, l'SDK non sa quale bucket usare e va in
+  // errore subito ("Bucket name not specified"). Stesso bucket del progetto
+  // Firebase condiviso, vedi affittacamere/js/firebase-config.js.
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount), storageBucket: 'casa-celeste.firebasestorage.app' });
   return admin;
 }
 
