@@ -3693,7 +3693,31 @@
       var el;
 
       el = e.target.closest('[data-close-drawer]');
-      if (el) closeMobileDrawer();
+      if (el) {
+        // Se il link porta a un'ancora della pagina (#stanze, #faq...),
+        // il history.back() di closeMobileDrawer() (chiude il drawer
+        // "consumando" la voce di history fittizia aperta per farlo
+        // richiudere anche col tasto indietro del telefono, vedi
+        // closeOverlayHistoryState) va in corsa con la navigazione nativa
+        // dell'ancora, che tocca la history nello stesso istante: il back
+        // vince quasi sempre e annulla lo scroll, facendo sembrare il
+        // bottone del menu mobile "rotto". Si previene la navigazione
+        // nativa e si rifà lo scroll a mano dopo che la history si è
+        // assestata (due requestAnimationFrame bastano su tutti i
+        // browser testati, più affidabile di un timeout a tempo fisso).
+        var hashTarget = (el.tagName === 'A' && (el.getAttribute('href') || '').charAt(0) === '#')
+          ? el.getAttribute('href').slice(1) : null;
+        if (hashTarget) e.preventDefault();
+        closeMobileDrawer();
+        if (hashTarget) {
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              var targetEl = document.getElementById(hashTarget);
+              if (targetEl) targetEl.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            });
+          });
+        }
+      }
 
       el = e.target.closest('[data-lang-set]');
       if (el) { setLang(el.getAttribute('data-lang-set')); return; }
