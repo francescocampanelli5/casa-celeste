@@ -1148,6 +1148,13 @@
   function calMonthPrev() { var m = state.calMonth - 1, y = state.calYear; if (m < 0) { m = 11; y -= 1; } state.calMonth = m; state.calYear = y; renderBookingModal(); }
   function calMonthNext() { var m = state.calMonth + 1, y = state.calYear; if (m > 11) { m = 0; y += 1; } state.calMonth = m; state.calYear = y; renderBookingModal(); }
   function pickDate(ts) { state.selectedDate = new Date(ts); state.bookingStep = 2; renderBookingModal(); }
+  // Data selezionata come stringa ISO dai componenti LOCALI (anno/mese/
+  // giorno), mai da toISOString(): state.selectedDate è sempre mezzanotte
+  // locale (new Date(year, month, day)), e toISOString() converte in UTC —
+  // per un fuso avanti su UTC come l'Italia, questo tronca sempre al giorno
+  // precedente. Stesso helper già usato in affittacamere/js/app.js.
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function isoDateLocal(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
   function pickTime(t) { state.selectedTime = t; state.bookingStep = 3; renderBookingModal(); }
   function backToCalendar() { state.bookingStep = 1; renderBookingModal(); }
   function backToTimes() { state.bookingStep = 2; renderBookingModal(); }
@@ -1178,7 +1185,7 @@
     var bookingData = {
       roomLabel: state.bookingRoomLabel || 'Casa Celeste',
       dateLabel: selectedDateLabel(),
-      dateISO: state.selectedDate ? state.selectedDate.toISOString().slice(0, 10) : '',
+      dateISO: state.selectedDate ? isoDateLocal(state.selectedDate) : '',
       time: state.selectedTime || '',
       name: state.contactName,
       email: state.contactEmail,
