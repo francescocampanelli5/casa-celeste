@@ -18,7 +18,16 @@ var db = admin.firestore();
 function isoDate(d) { return d.toISOString().slice(0, 10); }
 function daysBetween(aIso, bIso) { return Math.round((new Date(bIso) - new Date(aIso)) / 86400000); }
 
-async function fetchBusyEvents(url) {
+// Connettore iCal — implementa il contratto standard di canale:
+//   async (config) -> [{ uid, start /* YYYY-MM-DD */, end }, ...]
+// config qui è l'URL del feed iCal incollato in Impostazioni. syncChannel()
+// più sotto lavora solo su questo array, senza sapere da dove arriva: per
+// sostituire iCal con un'API reale quando Airbnb/Booking.com la
+// concederanno (es. tramite un channel manager certificato), basta scrivere
+// una nuova funzione con lo stesso contratto e cambiare il riferimento in
+// CHANNEL_CONNECTORS qui sotto — nessun'altra riga di questo file o della
+// dashboard deve cambiare.
+async function fetchBusyEventsFromIcal(url) {
   var events = await ical.async.fromURL(url);
   var list = [];
   Object.keys(events).forEach(function (k) {
@@ -28,6 +37,11 @@ async function fetchBusyEvents(url) {
   });
   return list;
 }
+
+// Punto di estensione: un connettore per canale. Oggi entrambi usano iCal;
+// il giorno in cui uno dei due passa a un'API reale, sostituisci solo la
+// entry corrispondente (es. manual_booking: fetchBusyEventsFromBookingApi).
+var CHANNEL_CONNECTORS = { manual_airbnb: fetchBusyEventsFromIcal, manual_booking: fetchBusyEventsFromIcal };
 
 var CHANNEL_LABEL = { manual_airbnb: 'Airbnb', manual_booking: 'Booking.com' };
 
@@ -138,19 +152,19 @@ async function main() {
 
     if (urls.airbnb) {
       try {
-        var airbnbEvents = await fetchBusyEvents(urls.airbnb);
+        var airbnbEvents = await CHANNEL_CONNECTORS.manual_airbnb(urls.airbnb);
         var pA = await syncChannel(doc.id, room.name, 'manual_airbnb', airbnbEvents);
         toRemoveIds = toRemoveIds.concat(pA.toRemove);
         toAddRanges = toAddRanges.concat(pA.toAdd.map(function (r) { return { start: r.start, end: r.end, source: 'manual', bookingId: r.bookingId }; }));
-      } catch (err) { console.error('Errore import iCal Airbnb per ' + doc.id + ':', err.message); }
+      } catch (err) { console.error('Errore import Airbnb per ' + doc.id + ':', err.message); }
     }
     if (urls.booking) {
       try {
-        var bookingEvents = await fetchBusyEvents(urls.booking);
+        var bookingEvents = await CHANNEL_CONNECTORS.manual_booking(urls.booking);
         var pB = await syncChannel(doc.id, room.name, 'manual_booking', bookingEvents);
         toRemoveIds = toRemoveIds.concat(pB.toRemove);
         toAddRanges = toAddRanges.concat(pB.toAdd.map(function (r) { return { start: r.start, end: r.end, source: 'manual', bookingId: r.bookingId }; }));
-      } catch (err) { console.error('Errore import iCal Booking.com per ' + doc.id + ':', err.message); }
+      } catch (err) { console.error('Errore import Booking.com per ' + doc.id + ':', err.message); }
     }
 
     if (!toRemoveIds.length && !toAddRanges.length) continue;
@@ -162,7 +176,7 @@ async function main() {
   console.log('Import iCal: ' + updated + ' stanze aggiornate.');
 }
 
-module.exports = { syncChannel: syncChannel, fetchBusyEvents: fetchBusyEvents, main: main };
+module.exports = { syncChannel: syncChannel, fetchBusyEventsFromIcal: fetchBusyEventsFromIcal, CHANNEL_CONNECTORS: CHANNEL_CONNECTORS, main: main };
 
 if (require.main === module) {
   main().catch(function (err) { console.error(err); process.exit(1); });

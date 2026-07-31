@@ -880,6 +880,30 @@ vede occupate le loro date. Per i dati ospite di quelle prenotazioni (Airbnb/
 Booking non li condividono mai via iCal): usa "+ Aggiungi prenotazione
 manuale" in dashboard, o il comando `/nuova` al bot Telegram da telefono.
 
+**Limite di iCal, per aspettative corrette**: la sincronizzazione non è
+istantanea in nessuna delle due direzioni. Il nostro cron orario legge il
+calendario di Airbnb/Booking ogni ora (lato nostro, già veloce), ma è
+**Airbnb/Booking a decidere ogni quanto rileggono il nostro file** — in
+genere ogni poche ore, a volte fino a 24h, e non è regolabile da qui. Un
+aggiornamento davvero istantaneo richiederebbe l'API reale delle
+piattaforme, accessibile solo tramite un channel manager terzo certificato
+(Smoobu, Hostaway, Lodgify...) a pagamento ricorrente — per questo oggi si
+resta su iCal gratuito.
+
+**Predisposto per il giorno in cui avrai delle API vere** (es. se in futuro
+attivi un channel manager, o Booking.com/Airbnb ti concede un accesso
+diretto): `affittacamere/scripts/ical-import.js` è già scritto con un punto
+di estensione dedicato, `CHANNEL_CONNECTORS` — una entry per canale
+(`manual_airbnb`/`manual_booking`), oggi entrambe puntano al connettore
+iCal (`fetchBusyEventsFromIcal`). Il resto dello script (creazione/
+aggiornamento/cancellazione delle prenotazioni, protezione anti-doppia-
+prenotazione) lavora solo sull'elenco di date occupate, senza sapere da
+dove arriva. Per passare a un'API vera basterà che tu mi mandi la
+documentazione/le credenziali di quell'API: scriverò una nuova funzione con
+lo stesso contratto (`async (config) -> [{uid, start, end}, ...]`) e la
+sostituirò in quella entry — una modifica isolata, senza toccare dashboard,
+prenotazioni o il resto del sito.
+
 ### 8.5 Adempimenti normativi (SCIA, SPID, CIS, CIN, RC, Alloggiati Web, PayTourist)
 
 Questi restano azioni **tue**, non automatizzabili (SPID con OTP live,
