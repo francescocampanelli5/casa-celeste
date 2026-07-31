@@ -1,14 +1,18 @@
-// Import iCal (Airbnb/Booking → sito) — legge gli URL iCal incollati in
-// Impostazioni (icalImportUrls). Per ogni prenotazione trovata sul feed
-// esterno crea/aggiorna/elimina una vera prenotazione in tourism_bookings
-// (source 'manual_airbnb'/'manual_booking', externalUid = UID stabile
-// dell'evento iCal per riconoscerla ai run successivi), così che compaia
-// nella tab "Prenotazioni" della Dashboard esattamente come una
-// prenotazione dal sito o inserita a mano — e cancellarla da lì libera le
-// notti bloccate esattamente allo stesso modo (stesso bookingId sul
-// blockedRanges della stanza, stessa deleteBookingAndFreeDates).
-// Non tocca i blocchi 'manual' (blocchi calendario senza ospite, aggiunti
-// dalla tab Stanze) né 'booking' (prenotazioni dal sito/telefono/ecc.).
+// Import calendari esterni (Airbnb/Booking/Vrbo/qualsiasi altra piattaforma
+// con un feed iCal → sito) — legge un numero qualsiasi di piattaforme per
+// stanza, configurate in Impostazioni → Sincronizzazione calendario
+// (icalChannels, vedi affittacamere/js/dashboard.js). Per ogni prenotazione
+// trovata sul feed esterno crea/aggiorna/elimina una vera prenotazione in
+// tourism_bookings (source = id univoco del canale, es. 'manual_airbnb' o
+// 'manual_<id generato per una piattaforma aggiunta dalla dashboard>',
+// externalUid = UID stabile dell'evento iCal per riconoscerla ai run
+// successivi), così che compaia nella tab "Prenotazioni" della Dashboard
+// esattamente come una prenotazione dal sito o inserita a mano — e
+// cancellarla da lì libera le notti bloccate esattamente allo stesso modo
+// (stesso bookingId sul blockedRanges della stanza, stessa
+// deleteBookingAndFreeDates). Non tocca i blocchi 'manual' (blocchi
+// calendario senza ospite, aggiunti dalla tab Stanze) né 'booking'
+// (prenotazioni dal sito/telefono/ecc.).
 'use strict';
 var ical = require('node-ical');
 var lib = require('./_lib');
@@ -38,20 +42,40 @@ async function fetchBusyEventsFromIcal(url) {
   return list;
 }
 
-// Punto di estensione: un connettore per canale. Oggi entrambi usano iCal;
-// il giorno in cui uno dei due passa a un'API reale, sostituisci solo la
-// entry corrispondente (es. manual_booking: fetchBusyEventsFromBookingApi).
-var CHANNEL_CONNECTORS = { manual_airbnb: fetchBusyEventsFromIcal, manual_booking: fetchBusyEventsFromIcal };
+// Punto di estensione: un connettore per canale, indicizzato per id (non per
+// nome piattaforma — un canale aggiunto dalla dashboard può chiamarsi
+// "Vrbo", "Vrbo Italia" o come vuoi, l'id interno resta stabile). Oggi ogni
+// canale, vecchio o nuovo, usa iCal (vedi CHANNEL_CONNECTOR_DEFAULT più
+// sotto). Il giorno in cui UNO specifico canale avrà un'API reale, aggiungi
+// qui la entry con il suo id (es. manual_airbnb: fetchBusyEventsFromApi) —
+// tutti gli altri canali continuano a usare iCal senza altre modifiche.
+var CHANNEL_CONNECTORS = {};
+var CHANNEL_CONNECTOR_DEFAULT = fetchBusyEventsFromIcal;
 
-var CHANNEL_LABEL = { manual_airbnb: 'Airbnb', manual_booking: 'Booking.com' };
+// Un canale legacy (icalImportUrls, prima che esistesse la lista dinamica
+// per stanza) viene incluso solo se non è già presente tra i canali nuovi
+// (icalChannels, stesso id) — evita di sincronizzarlo due volte se la
+// dashboard lo ha già "migrato" al primo edit su quella stanza (vedi
+// dashboard.js, icalChannelsForRoom). Gli id 'manual_airbnb'/'manual_booking'
+// restano fissi qui per continuità con le prenotazioni già sincronizzate in
+// passato sotto questi stessi source.
+function effectiveChannels(newChannels, legacyUrls) {
+  var list = (newChannels || []).slice();
+  var knownIds = {};
+  list.forEach(function (c) { knownIds[c.id] = true; });
+  var legacy = legacyUrls || {};
+  if (legacy.airbnb && !knownIds.manual_airbnb) list.push({ id: 'manual_airbnb', label: 'Airbnb', url: legacy.airbnb });
+  if (legacy.booking && !knownIds.manual_booking) list.push({ id: 'manual_booking', label: 'Booking.com', url: legacy.booking });
+  return list;
+}
 
-// Sincronizza un singolo canale (Airbnb o Booking.com) per una stanza:
-// legge le prenotazioni esterne già note in tourism_bookings (per
+// Sincronizza un singolo canale (una piattaforma, qualsiasi) per una
+// stanza: legge le prenotazioni esterne già note in tourism_bookings (per
 // externalUid), le confronta con quelle appena scaricate dal feed e
 // applica create/aggiorna/elimina. Ritorna il nuovo array di blockedRanges
 // SOLO per le voci di questo canale (bookingId -> {start,end}), da fondere
 // col resto fuori da questa funzione.
-async function syncChannel(roomId, roomLabel, source, freshEvents) {
+async function syncChannel(roomId, roomLabel, source, sourceLabel, freshEvents) {
   var patch = { toAdd: [], toRemove: [] }; // blockedRanges patch: {bookingId,start,end} da aggiungere/rimuovere
   var existingSnap = await db.collection('tourism_bookings')
     .where('roomId', '==', roomId).where('source', '==', source).get();
@@ -76,7 +100,7 @@ async function syncChannel(roomId, roomLabel, source, freshEvents) {
       batch.set(ref, {
         roomId: roomId, roomLabel: roomLabel, checkIn: e.start, checkOut: e.end, nights: nights,
         guests: 0, exemptGuests: 0,
-        name: '(prenotazione ' + CHANNEL_LABEL[source] + ' — dettagli sulla piattaforma)', email: '', phone: '',
+        name: '(prenotazione ' + sourceLabel + ' — dettagli sulla piattaforma)', email: '', phone: '',
         bedType: null, cribCount: 0, extraBedCount: 0, pricing: null, touristTax: null,
         source: source, status: 'confermato', payment: null, contractAcceptedAt: null,
         // Niente email nostre da inviare per un ospite che non ha prenotato
@@ -132,39 +156,35 @@ async function syncChannel(roomId, roomLabel, source, freshEvents) {
 
 async function main() {
   var settingsSnap = await db.collection('tourism_settings').doc('site').get();
-  var icalImportUrls = (settingsSnap.exists ? settingsSnap.data() : {}).icalImportUrls || {};
+  var settings = settingsSnap.exists ? settingsSnap.data() : {};
+  var icalChannelsByRoom = settings.icalChannels || {};
+  var legacyUrlsByRoom = settings.icalImportUrls || {};
 
   var roomsSnap = await db.collection('tourism_rooms').get();
   var updated = 0;
   for (var i = 0; i < roomsSnap.docs.length; i++) {
     var doc = roomsSnap.docs[i];
     var room = doc.data();
-    var urls = icalImportUrls[doc.id] || {};
-    if (!urls.airbnb && !urls.booking) continue;
+    var channels = effectiveChannels(icalChannelsByRoom[doc.id], legacyUrlsByRoom[doc.id]).filter(function (c) { return c.url; });
+    if (!channels.length) continue;
 
     // I blocchi 'manual' (Stanze) e 'booking' (prenotazioni sito/telefono)
     // non sono gestiti da questo script: si toccano solo quelli con
-    // bookingId riconducibile a una prenotazione 'manual_airbnb'/
-    // 'manual_booking' create qui.
+    // bookingId riconducibile a una prenotazione creata qui (source =
+    // channel.id).
     var current = (room.blockedRanges || []).slice();
     var toRemoveIds = [];
     var toAddRanges = [];
 
-    if (urls.airbnb) {
+    for (var c = 0; c < channels.length; c++) {
+      var channel = channels[c];
       try {
-        var airbnbEvents = await CHANNEL_CONNECTORS.manual_airbnb(urls.airbnb);
-        var pA = await syncChannel(doc.id, room.name, 'manual_airbnb', airbnbEvents);
-        toRemoveIds = toRemoveIds.concat(pA.toRemove);
-        toAddRanges = toAddRanges.concat(pA.toAdd.map(function (r) { return { start: r.start, end: r.end, source: 'manual', bookingId: r.bookingId }; }));
-      } catch (err) { console.error('Errore import Airbnb per ' + doc.id + ':', err.message); }
-    }
-    if (urls.booking) {
-      try {
-        var bookingEvents = await CHANNEL_CONNECTORS.manual_booking(urls.booking);
-        var pB = await syncChannel(doc.id, room.name, 'manual_booking', bookingEvents);
-        toRemoveIds = toRemoveIds.concat(pB.toRemove);
-        toAddRanges = toAddRanges.concat(pB.toAdd.map(function (r) { return { start: r.start, end: r.end, source: 'manual', bookingId: r.bookingId }; }));
-      } catch (err) { console.error('Errore import Booking.com per ' + doc.id + ':', err.message); }
+        var connector = CHANNEL_CONNECTORS[channel.id] || CHANNEL_CONNECTOR_DEFAULT;
+        var events = await connector(channel.url);
+        var patch = await syncChannel(doc.id, room.name, channel.id, channel.label || channel.id, events);
+        toRemoveIds = toRemoveIds.concat(patch.toRemove);
+        toAddRanges = toAddRanges.concat(patch.toAdd.map(function (r) { return { start: r.start, end: r.end, source: 'manual', bookingId: r.bookingId }; }));
+      } catch (err) { console.error('Errore import ' + (channel.label || channel.id) + ' per ' + doc.id + ':', err.message); }
     }
 
     if (!toRemoveIds.length && !toAddRanges.length) continue;
@@ -173,10 +193,13 @@ async function main() {
     await doc.ref.update({ blockedRanges: fresh });
     updated++;
   }
-  console.log('Import iCal: ' + updated + ' stanze aggiornate.');
+  console.log('Import calendari esterni: ' + updated + ' stanze aggiornate.');
 }
 
-module.exports = { syncChannel: syncChannel, fetchBusyEventsFromIcal: fetchBusyEventsFromIcal, CHANNEL_CONNECTORS: CHANNEL_CONNECTORS, main: main };
+module.exports = {
+  syncChannel: syncChannel, fetchBusyEventsFromIcal: fetchBusyEventsFromIcal,
+  CHANNEL_CONNECTORS: CHANNEL_CONNECTORS, effectiveChannels: effectiveChannels, main: main
+};
 
 if (require.main === module) {
   main().catch(function (err) { console.error(err); process.exit(1); });

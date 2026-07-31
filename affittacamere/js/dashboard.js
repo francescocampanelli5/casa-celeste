@@ -1118,6 +1118,32 @@
     var phoneVal = s.phone || '393381567389';
     var recipients = s.cleaningRecipients || [];
     var authorized = s.bookingCommandAuthorized || [];
+    // Canali di sincronizzazione calendario per stanza: Airbnb/Booking.com
+    // storici (icalImportUrls) più un numero qualsiasi di piattaforme
+    // aggiunte da qui (icalChannels, es. Vrbo o qualsiasi altro sito con un
+    // link iCal) — stessa logica di affittacamere/scripts/ical-import.js
+    // (effectiveChannels), non duplicano se una stanza è già stata
+    // migrata al nuovo formato.
+    function icalChannelsForRoom(roomId) {
+      var channels = ((s.icalChannels || {})[roomId] || []).slice();
+      if (!channels.length) {
+        var legacy = (s.icalImportUrls || {})[roomId] || {};
+        if (legacy.airbnb) channels.push({ id: 'manual_airbnb', label: 'Airbnb', url: legacy.airbnb });
+        if (legacy.booking) channels.push({ id: 'manual_booking', label: 'Booking.com', url: legacy.booking });
+      }
+      return channels;
+    }
+    function icalChannelRowsHtml(roomId) {
+      var channels = icalChannelsForRoom(roomId);
+      if (!channels.length) return '<div class="admin-note">Nessuna piattaforma collegata per questa stanza.</div>';
+      return channels.map(function (c, i) {
+        return '<div class="admin-stat-row">' +
+          '<input type="text" class="admin-field" placeholder="Nome piattaforma (es. Airbnb, Vrbo...)" data-ical-part="label" data-ical-room="' + roomId + '" data-ical-index="' + i + '" value="' + escapeHtml(c.label || '') + '">' +
+          '<input type="text" class="admin-field" placeholder="URL iCal fornito dalla piattaforma" data-ical-part="url" data-ical-room="' + roomId + '" data-ical-index="' + i + '" value="' + escapeHtml(c.url || '') + '">' +
+          '<button type="button" class="admin-stat-remove" data-ical-remove data-ical-room="' + roomId + '" data-ical-index="' + i + '">✕</button>' +
+        '</div>';
+      }).join('');
+    }
     function recipientsRowsHtml(list, kind) {
       return list.map(function (r, i) {
         return '<div class="admin-stat-row">' +
@@ -1174,12 +1200,13 @@
         '<button type="button" class="admin-stat-add" data-add-recipient="auth">+ Aggiungi autorizzato</button>' +
       '</div>' +
       '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Sincronizzazione calendario (iCal)</span></div>' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Sincronizzazione calendario</span></div>' +
+        '<div class="admin-note">Collega quante piattaforme vuoi per stanza — Airbnb, Booking.com, Vrbo o qualsiasi altro sito che fornisca un link "esporta calendario" (iCal): incolla qui quel link, le prenotazioni trovate compaiono da sole nella tab Prenotazioni. Il link da dare INVECE a quella piattaforma (perché veda occupate le date prenotate sul sito) è il campo di sola lettura in fondo a ogni stanza.</div>' +
         Object.keys(state.roomsData).map(function (id) {
-          var urls = ((s.icalImportUrls || {})[id]) || {};
-          return '<div class="admin-field-group admin-field-group--full"><label>' + escapeHtml(state.roomsData[id].name) + ' — URL iCal Airbnb</label><input type="text" class="admin-field" data-ical-field data-ical-room="' + id + '" data-ical-platform="airbnb" value="' + escapeHtml(urls.airbnb || '') + '"></div>' +
-                 '<div class="admin-field-group admin-field-group--full"><label>' + escapeHtml(state.roomsData[id].name) + ' — URL iCal Booking.com</label><input type="text" class="admin-field" data-ical-field data-ical-room="' + id + '" data-ical-platform="booking" value="' + escapeHtml(urls.booking || '') + '"></div>' +
-                 '<div class="admin-field-group admin-field-group--full"><label>' + escapeHtml(state.roomsData[id].name) + ' — URL export verso Airbnb/Booking (da incollare su quelle piattaforme, una volta attivo)</label><input type="text" class="admin-field" readonly value="' + escapeHtml(window.location.origin + window.location.pathname.replace(/dashboard\.html$/, '') + 'ical/' + id + '.ics') + '"></div>';
+          return '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;"><label style="font-weight:700;">' + escapeHtml(state.roomsData[id].name) + '</label></div>' +
+                 '<div class="admin-stats-rows" data-ical-rows="' + id + '">' + icalChannelRowsHtml(id) + '</div>' +
+                 '<button type="button" class="admin-stat-add" data-ical-add="' + id + '">+ Aggiungi piattaforma</button>' +
+                 '<div class="admin-field-group admin-field-group--full"><label>URL da dare a queste piattaforme (vedono occupate le date prenotate sul sito)</label><input type="text" class="admin-field" readonly value="' + escapeHtml(window.location.origin + window.location.pathname.replace(/dashboard\.html$/, '') + 'ical/' + id + '.ics') + '"></div>';
         }).join('') +
       '</div>' +
       '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' + photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) + '</div>' +
@@ -1259,12 +1286,41 @@
         saveSettingsOrAlert((function () { var p = {}; p[key] = list; return p; })());
       });
     });
-    content.querySelectorAll('[data-ical-field]').forEach(function (el) {
+    // Il primo edit su una stanza (modifica/aggiunta/rimozione di un
+    // canale) la migra definitivamente al nuovo formato icalChannels e
+    // ripulisce l'eventuale icalImportUrls legacy della stessa stanza —
+    // evita che un canale Airbnb/Booking rimosso da qui "risorga" al
+    // render successivo tramite il fallback legacy (vedi
+    // icalChannelsForRoom sopra e affittacamere/scripts/ical-import.js).
+    function icalChannelsSetPatch(roomId, channels) {
+      var icalChannels = Object.assign({}, state.settings.icalChannels);
+      icalChannels[roomId] = channels;
+      var icalImportUrls = Object.assign({}, state.settings.icalImportUrls);
+      icalImportUrls[roomId] = {};
+      return { icalChannels: icalChannels, icalImportUrls: icalImportUrls };
+    }
+    content.querySelectorAll('[data-ical-part]').forEach(function (el) {
       el.addEventListener('change', function (e) {
-        var roomId = el.getAttribute('data-ical-room'), platform = el.getAttribute('data-ical-platform');
-        var icalImportUrls = Object.assign({}, state.settings.icalImportUrls);
-        icalImportUrls[roomId] = Object.assign({}, icalImportUrls[roomId]); icalImportUrls[roomId][platform] = e.target.value.trim();
-        window.CasaCelesteTourismDB.setSettings({ icalImportUrls: icalImportUrls });
+        var roomId = el.getAttribute('data-ical-room'), idx = Number(el.getAttribute('data-ical-index')), part = el.getAttribute('data-ical-part');
+        var channels = icalChannelsForRoom(roomId).slice();
+        channels[idx] = Object.assign({}, channels[idx]); channels[idx][part] = e.target.value.trim();
+        saveSettingsOrAlert(icalChannelsSetPatch(roomId, channels));
+      });
+    });
+    content.querySelectorAll('[data-ical-add]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var roomId = el.getAttribute('data-ical-add');
+        var channels = icalChannelsForRoom(roomId).slice();
+        channels.push({ id: 'manual_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), label: '', url: '' });
+        saveSettingsOrAlert(icalChannelsSetPatch(roomId, channels));
+      });
+    });
+    content.querySelectorAll('[data-ical-remove]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var roomId = el.getAttribute('data-ical-room'), idx = Number(el.getAttribute('data-ical-index'));
+        var channels = icalChannelsForRoom(roomId).slice();
+        channels.splice(idx, 1);
+        saveSettingsOrAlert(icalChannelsSetPatch(roomId, channels));
       });
     });
     content.querySelectorAll('[data-rec-field]').forEach(function (el) {

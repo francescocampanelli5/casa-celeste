@@ -870,38 +870,46 @@ visibili in dashboard e ricevi comunque l'avviso istantaneo su Telegram,
 semplicemente l'ospite non riceve le email automatiche finché non imposti
 i due secret sopra.
 
-### 8.4 Airbnb/Booking (quando avrai quegli account)
+### 8.4 Airbnb/Booking/Vrbo e altre piattaforme (quando avrai quegli account)
 
-Per ogni stanza, in **Impostazioni** trovi l'URL del file `.ics` da incollare
-su Airbnb/Booking come "importa calendario esterno" — blocca automaticamente
-quella piattaforma quando qualcuno prenota dal sito. Nello stesso posto
-incolli l'URL iCal che Airbnb/Booking ti danno in export, così anche il sito
-vede occupate le loro date. Per i dati ospite di quelle prenotazioni (Airbnb/
-Booking non li condividono mai via iCal): usa "+ Aggiungi prenotazione
-manuale" in dashboard, o il comando `/nuova` al bot Telegram da telefono.
+In **Impostazioni → Sincronizzazione calendario** ogni stanza ha una lista
+di piattaforme a scelta libera — non solo Airbnb e Booking.com: **quante
+vuoi, con qualsiasi nome** (Vrbo, o qualunque altro sito che dia un link
+"esporta calendario"/iCal). Per ognuna: un campo Nome (libero, es. "Vrbo")
+e un campo URL iCal — incolla lì il link che quella piattaforma ti dà in
+esportazione, e le sue prenotazioni compaiono da sole nella tab
+Prenotazioni. In fondo a ogni stanza c'è invece l'URL **da dare A quella
+piattaforma** (uno solo, sempre lo stesso per stanza) perché veda occupate
+le date prenotate sul sito — usa "+ Aggiungi piattaforma"/la ✕ per
+aggiungere o rimuovere righe liberamente. Per i dati ospite di quelle
+prenotazioni (nessuna di queste piattaforme li condivide mai via iCal): usa
+"+ Aggiungi prenotazione manuale" in dashboard, o il comando `/nuova` al
+bot Telegram da telefono.
 
 **Limite di iCal, per aspettative corrette**: la sincronizzazione non è
-istantanea in nessuna delle due direzioni. Il nostro cron orario legge il
-calendario di Airbnb/Booking ogni ora (lato nostro, già veloce), ma è
-**Airbnb/Booking a decidere ogni quanto rileggono il nostro file** — in
-genere ogni poche ore, a volte fino a 24h, e non è regolabile da qui. Un
-aggiornamento davvero istantaneo richiederebbe l'API reale delle
-piattaforme, accessibile solo tramite un channel manager terzo certificato
+istantanea in nessuna delle due direzioni, qualunque sia la piattaforma. Il
+nostro cron orario legge ogni calendario collegato ogni ora (lato nostro,
+già veloce), ma è **la piattaforma a decidere ogni quanto rilegge il nostro
+file** — in genere ogni poche ore, a volte fino a 24h, e non è regolabile da
+qui. Un aggiornamento davvero istantaneo richiederebbe l'API reale della
+piattaforma, accessibile solo tramite un channel manager terzo certificato
 (Smoobu, Hostaway, Lodgify...) a pagamento ricorrente — per questo oggi si
 resta su iCal gratuito.
 
 **Predisposto per il giorno in cui avrai delle API vere** (es. se in futuro
-attivi un channel manager, o Booking.com/Airbnb ti concede un accesso
+attivi un channel manager, o una piattaforma ti concede un accesso
 diretto): `affittacamere/scripts/ical-import.js` è già scritto con un punto
-di estensione dedicato, `CHANNEL_CONNECTORS` — una entry per canale
-(`manual_airbnb`/`manual_booking`), oggi entrambe puntano al connettore
-iCal (`fetchBusyEventsFromIcal`). Il resto dello script (creazione/
+di estensione dedicato, `CHANNEL_CONNECTORS` — indicizzato per canale
+(l'id stabile generato quando aggiungi la piattaforma in dashboard, non il
+nome che gli dai). Oggi ogni canale usa lo stesso connettore iCal
+(`fetchBusyEventsFromIcal`). Il resto dello script (creazione/
 aggiornamento/cancellazione delle prenotazioni, protezione anti-doppia-
 prenotazione) lavora solo sull'elenco di date occupate, senza sapere da
-dove arriva. Per passare a un'API vera basterà che tu mi mandi la
-documentazione/le credenziali di quell'API: scriverò una nuova funzione con
-lo stesso contratto (`async (config) -> [{uid, start, end}, ...]`) e la
-sostituirò in quella entry — una modifica isolata, senza toccare dashboard,
+dove arriva. Per passare a un'API vera per UNA piattaforma specifica
+basterà che tu mi mandi la documentazione/le credenziali di quell'API:
+scriverò una nuova funzione con lo stesso contratto (`async (config) ->
+[{uid, start, end}, ...]`) e la registrerò per quel canale — una modifica
+isolata, senza toccare dashboard,
 prenotazioni o il resto del sito.
 
 ### 8.5 Adempimenti normativi (SCIA, SPID, CIS, CIN, RC, Alloggiati Web, PayTourist)
