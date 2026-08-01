@@ -282,6 +282,13 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'submitGuestDocuments')(data).then(function (res) { return res.data; });
   },
+  // Solo proprietario: legge automaticamente nome/cognome/data di nascita/
+  // cittadinanza/tipo e numero documento dalla foto già caricata con
+  // uploadGuestDocPhotoTemp (stessa lettura MRZ già usata dal bot Telegram).
+  parseGuestDocPhoto: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'parseGuestDocPhoto')(data).then(function (res) { return res.data; });
+  },
   getBookingForGuestForm: function (data) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'getBookingForGuestForm')(data).then(function (res) { return res.data; });

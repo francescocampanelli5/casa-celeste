@@ -98,7 +98,33 @@ async function deletePermanentGuestPhoto(bucket, bookingId, guestIndex) {
   await Promise.all(files.map((f) => f.delete().catch(() => {})));
 }
 
+// Spostata qui da telegram-bot.js (era duplicabile identica, la usa anche
+// parseGuestDocPhoto in index.js per lo stesso auto-riconoscimento MRZ dal
+// lato dashboard) — unico punto che chiama la Vision API.
+async function visionDocumentText(apiKey, buffer) {
+  if (!apiKey) return null;
+  const res = await fetch('https://vision.googleapis.com/v1/images:annotate?key=' + apiKey, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests: [{ image: { content: buffer.toString('base64') }, features: [{ type: 'DOCUMENT_TEXT_DETECTION' }] }] })
+  });
+  if (!res.ok) throw new Error('Vision API ' + res.status + ': ' + (await res.text()));
+  const data = await res.json();
+  const r = data.responses && data.responses[0];
+  if (!r || r.error) return null;
+  return (r.fullTextAnnotation && r.fullTextAnnotation.text) || null;
+}
+
+// Trova il file caricato in area temporanea per un ospite, senza dover
+// conoscere l'estensione esatta (jpg/png/pdf...) — stesso prefisso usato da
+// uploadGuestDocPhotoTemp lato client (firebase-init.js) e da
+// movePhotoToPermanent qui sopra.
+async function findTempGuestPhoto(bucket, bookingId, guestIndex) {
+  const [files] = await bucket.getFiles({ prefix: 'tourism-guest-docs-tmp/' + bookingId + '/guest' + guestIndex + '.' });
+  return files[0] || null;
+}
+
 module.exports = {
   DOC_TYPES, isValidDateStr, todayISO, isNonEmptyString,
-  validateGuest, storagePathFromUrl, movePhotoToPermanent, deletePermanentGuestPhoto
+  validateGuest, storagePathFromUrl, movePhotoToPermanent, deletePermanentGuestPhoto,
+  visionDocumentText, findTempGuestPhoto
 };

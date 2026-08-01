@@ -26,7 +26,8 @@ const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBookingCore, lookupBookingForCancellationCore } = require('./booking-logic');
 const { recordVerifiedGuests } = require('./guest-verification');
-const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString } = require('./guest-documents');
+const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString, visionDocumentText, findTempGuestPhoto } = require('./guest-documents');
+const { parseMrzFromText } = require('./mrz-parser');
 const { handleTelegramUpdate } = require('./telegram-bot');
 const { submitAssistMessageCore } = require('./assist-messages');
 const { logRecClickCore } = require('./recs-clicks');
@@ -63,6 +64,15 @@ const gmailAppPassword = defineSecret('GMAIL_APP_PASSWORD');
 // PUBBLICABILE (pk_...) invece va in affittacamere/js/stripe-config.js,
 // non è un segreto.
 const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
+
+// Stesso controllo del custom claim "role: owner" introdotto in
+// firestore.rules/storage.rules (01/08): prima queste funzioni si fidavano
+// di "request.auth" da solo, cioè QUALSIASI account Firebase autenticato,
+// non solo il proprietario — stesso problema già chiuso lato regole,
+// mancava qui lato Cloud Functions.
+function isOwner(request) {
+  return !!(request.auth && request.auth.token && request.auth.token.role === 'owner');
+}
 
 async function notifyOwnerNewBooking(result, data) {
   const token = telegramBotToken.value();
@@ -141,10 +151,10 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] },
   // prenotazione VERA (blocca le date). Deve restare riservato al
   // proprietario autenticato — mai pubblico, altrimenti chiunque potrebbe
   // creare prenotazioni reali gratis dal sito pubblico.
-  if (source === 'site_test' && !request.auth) {
+  if (source === 'site_test' && !isOwner(request)) {
     throw new HttpsError('permission-denied', 'Prenotazione di test riservata al proprietario autenticato.');
   }
-  if (source !== 'site' && source !== 'site_test' && !request.auth) {
+  if (source !== 'site' && source !== 'site_test' && !isOwner(request)) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
   // Lo Stripe client serve solo per le richieste dal sito (createBookingCore
@@ -182,10 +192,10 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
   // prenotazione VERA (blocca le date). Deve restare riservato al
   // proprietario autenticato — mai pubblico, altrimenti chiunque potrebbe
   // creare prenotazioni reali gratis dal sito pubblico.
-  if (source === 'site_test' && !request.auth) {
+  if (source === 'site_test' && !isOwner(request)) {
     throw new HttpsError('permission-denied', 'Prenotazione di test riservata al proprietario autenticato.');
   }
-  if (source !== 'site' && source !== 'site_test' && !request.auth) {
+  if (source !== 'site' && source !== 'site_test' && !isOwner(request)) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
   let stripe = null;
@@ -403,7 +413,7 @@ exports.submitGuestDocuments = onCall({}, async (request) => {
   // Modificabile dall'ospite solo fino al giorno del check-in incluso; dopo,
   // solo il proprietario può correggere i dati (registro del soggiorno già
   // iniziato — vedi nota GDPR/Alloggiati Web in Fase B del piano).
-  if (todayISO() > booking.checkIn && !request.auth) {
+  if (todayISO() > booking.checkIn && !isOwner(request)) {
     throw new HttpsError('permission-denied', 'Il check-in è già passato: contatta il proprietario per correggere i dati.');
   }
 
@@ -455,7 +465,7 @@ exports.submitGuestDocuments = onCall({}, async (request) => {
    verificato" per i soggiorni futuri. Solo owner autenticato.
    ========================================================================== */
 exports.markIdentityVerified = onCall({}, async (request) => {
-  if (!request.auth) throw new HttpsError('permission-denied', 'Solo il proprietario può confermare la verifica.');
+  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può confermare la verifica.');
   const data = request.data || {};
   const bookingId = data.bookingId;
   const method = data.method === 'door_intercom' ? 'door_intercom' : 'video_call';
@@ -469,6 +479,53 @@ exports.markIdentityVerified = onCall({}, async (request) => {
   await recordVerifiedGuests(db, admin, guests, bookingId, method);
   await bookingRef.update({ identityVerified: { method: method, verifiedAt: admin.firestore.FieldValue.serverTimestamp() } });
   return { ok: true };
+});
+
+/* ==========================================================================
+   parseGuestDocPhoto — il proprietario carica dalla dashboard (invece che
+   l'ospite da ospiti.html o via bot Telegram) la foto documento di un
+   ospite in tourism-guest-docs-tmp/{bookingId}/guest{N}.*, poi chiama
+   questa funzione per farsi pre-compilare nome/cognome/data di
+   nascita/cittadinanza/tipo e numero documento via OCR+MRZ — stessa identica
+   logica già usata dal bot Telegram (vedi handlePhotoForDocCapture in
+   telegram-bot.js), qui esposta come funzione standalone per la dashboard.
+   Luogo di nascita e di rilascio non si leggono mai dall'MRZ: restano da
+   inserire a mano, sempre da verificare prima di salvare (submitGuestDocuments
+   fa la validazione finale). Solo owner autenticato.
+   ========================================================================== */
+exports.parseGuestDocPhoto = onCall({ secrets: [visionApiKey] }, async (request) => {
+  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può usare questa funzione.');
+  await enforceRateLimit(db, request, 'parseGuestDocPhoto', 20, 15);
+  const data = request.data || {};
+  const bookingId = data.bookingId;
+  const guestIndex = Number(data.guestIndex);
+  if (!isNonEmptyString(bookingId, 100) || !Number.isInteger(guestIndex) || guestIndex < 0) {
+    throw new HttpsError('invalid-argument', 'Richiesta non valida.');
+  }
+
+  const file = await findTempGuestPhoto(bucket, bookingId, guestIndex);
+  if (!file) throw new HttpsError('not-found', 'Nessuna foto caricata per questo ospite: caricala prima di leggerla automaticamente.');
+
+  let buffer;
+  try {
+    [buffer] = await file.download();
+  } catch (e) {
+    throw new HttpsError('internal', 'Errore nel leggere la foto caricata.');
+  }
+
+  let ocrText = null;
+  try { ocrText = await visionDocumentText(visionApiKey.value(), buffer); } catch (e) { console.error('Errore Vision API:', e.message); }
+  const mrz = ocrText ? parseMrzFromText(ocrText) : null;
+
+  return {
+    recognized: !!mrz,
+    firstName: mrz ? mrz.firstName : '',
+    lastName: mrz ? mrz.lastName : '',
+    birthDate: mrz ? mrz.birthDate : '',
+    nationality: mrz ? mrz.nationality : '',
+    docType: mrz ? mrz.docType : '',
+    docNumber: mrz ? mrz.docNumber : ''
+  };
 });
 
 /* ==========================================================================

@@ -19,7 +19,7 @@
 'use strict';
 const crypto = require('crypto');
 const { createBookingCore } = require('./booking-logic');
-const { validateGuest, movePhotoToPermanent } = require('./guest-documents');
+const { validateGuest, movePhotoToPermanent, visionDocumentText } = require('./guest-documents');
 const { parseMrzFromText } = require('./mrz-parser');
 
 const SOURCE_MAP = { airbnb: 'manual_airbnb', booking: 'manual_booking', phone: 'manual_phone' };
@@ -401,19 +401,6 @@ function docTypeKeyboard() {
    Vision API — DOCUMENT_TEXT_DETECTION via REST diretta (nessuna nuova
    dipendenza npm, coerente con lo stile del resto di functions/).
    ========================================================================== */
-async function visionDocumentText(apiKey, buffer) {
-  if (!apiKey) return null;
-  const res = await fetch('https://vision.googleapis.com/v1/images:annotate?key=' + apiKey, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requests: [{ image: { content: buffer.toString('base64') }, features: [{ type: 'DOCUMENT_TEXT_DETECTION' }] }] })
-  });
-  if (!res.ok) throw new Error('Vision API ' + res.status + ': ' + (await res.text()));
-  const data = await res.json();
-  const r = data.responses && data.responses[0];
-  if (!r || r.error) return null;
-  return (r.fullTextAnnotation && r.fullTextAnnotation.text) || null;
-}
-
 /* ==========================================================================
    Wizard — passi.
    ========================================================================== */

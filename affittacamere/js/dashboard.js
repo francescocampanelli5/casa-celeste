@@ -22,6 +22,13 @@
     assistMessages: [],
     manualBookingOpen: false,
     bookingsFilter: { roomId: '', source: '', status: '', from: '', to: '' },
+    // Pannello "Documenti ospiti" nella tab Prenotazioni: una prenotazione
+    // aperta alla volta, bozze tenute in memoria finché non si salva (stesso
+    // giro di submitGuestDocuments già usato da ospiti.html/bot Telegram).
+    guestDocsPanelBookingId: null,
+    guestDocsDrafts: [],
+    guestDocsBusy: false,
+    guestDocsError: '',
     recsClickCounts: null,
     recsClickCountsLoading: false,
     rerenderPending: false,
@@ -291,9 +298,12 @@
               '<option value="door_intercom">✅ Videocitofono all\'arrivo</option>' +
             '</select>'
           ) : '') +
+          '<button type="button" class="dash-delete-btn" data-toggle-guestdocs data-id="' + b.id + '">' +
+            (state.guestDocsPanelBookingId === b.id ? 'Chiudi documenti ospiti' : '📄 Inserisci documenti ospiti') + '</button>' +
           '<button type="button" class="dash-delete-btn" data-copy-alloggiati data-id="' + b.id + '">Copia dati Alloggiati Web</button>' +
           '<button type="button" class="dash-delete-btn" data-delete-booking data-id="' + b.id + '">Elimina</button>' +
         '</div>' +
+        (state.guestDocsPanelBookingId === b.id ? guestDocsPanelHtml(b) : '') +
       '</div>'
     );
   }
@@ -447,6 +457,32 @@
         });
       });
     });
+    content.querySelectorAll('[data-toggle-guestdocs]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var id = el.getAttribute('data-id');
+        if (state.guestDocsPanelBookingId === id) closeGuestDocsPanel(content);
+        else openGuestDocsPanel(id, content);
+      });
+    });
+    content.querySelectorAll('[data-guestdoc-photo]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        handleGuestDocPhotoUpload(el.getAttribute('data-booking-id'), Number(el.getAttribute('data-guest-index')), file, content);
+      });
+    });
+    content.querySelectorAll('[data-guestdoc-field]').forEach(function (el) {
+      var evt = el.tagName === 'SELECT' ? 'change' : 'input';
+      el.addEventListener(evt, function (e) {
+        var idx = Number(el.getAttribute('data-guest-index'));
+        var draft = state.guestDocsDrafts[idx];
+        if (!draft) return;
+        draft[el.getAttribute('data-part')] = e.target.value;
+      });
+    });
+    content.querySelectorAll('[data-save-guestdocs]').forEach(function (el) {
+      el.addEventListener('click', function () { saveGuestDocs(el.getAttribute('data-id'), content); });
+    });
   }
   // Annullare una prenotazione deve liberare anche le notti bloccate nella
   // stanza (altrimenti restano occupate per sempre) — le due scritture non
@@ -492,6 +528,128 @@
         window.prompt('Copia questi dati:', text);
       }
     }).catch(function (err) { window.alert('Errore: ' + (err && err.message ? err.message : err)); });
+  }
+
+  /* ==========================================================================
+     Documenti ospiti dalla dashboard — per prenotazioni telefoniche/walk-in
+     dove non è l'ospite a compilare ospiti.html. Stessa identica validazione
+     e stesso stesso Cloud Function submitGuestDocuments già usati da
+     ospiti.html e dal bot Telegram (vedi guest-documents.js): qui si
+     riusa solo il pezzo che mancava, l'auto-lettura MRZ dalla dashboard
+     (parseGuestDocPhoto) e il form per inserirla/correggerla a mano.
+     ========================================================================== */
+  function blankGuestDraft() {
+    return { firstName: '', lastName: '', birthDate: '', birthPlace: '', nationality: '', docType: '', docNumber: '', docIssuePlace: '', docPhotoUrl: '', recognized: false };
+  }
+  function openGuestDocsPanel(bookingId, content) {
+    var booking = state.bookings.find(function (b) { return b.id === bookingId; });
+    if (!booking) return;
+    state.guestDocsPanelBookingId = bookingId;
+    state.guestDocsError = '';
+    var count = Number(booking.guests) || 1;
+    var drafts = [];
+    for (var i = 0; i < count; i++) drafts.push(blankGuestDraft());
+    state.guestDocsDrafts = drafts;
+    renderBookingsTab(content);
+    // Precompila dai dati già inviati, se ce ne sono (es. per correggere un
+    // refuso) — ma MAI la foto: quella vecchia è già stata spostata nell'area
+    // permanente dal server, va ricaricata per confermare di nuovo l'ospite
+    // (stessa scelta già fatta in ospiti.js per lo stesso motivo).
+    window.CasaCelesteTourismDB.getGuestDocuments(bookingId).then(function (docs) {
+      if (state.guestDocsPanelBookingId !== bookingId) return;
+      if (docs && docs.guests && docs.guests.length === count) {
+        state.guestDocsDrafts = docs.guests.map(function (g) {
+          return Object.assign(blankGuestDraft(), g, { docPhotoUrl: '', docPhotoPath: '', recognized: false });
+        });
+        renderBookingsTab(content);
+      }
+    }).catch(function () {});
+  }
+  function closeGuestDocsPanel(content) {
+    state.guestDocsPanelBookingId = null;
+    state.guestDocsDrafts = [];
+    state.guestDocsError = '';
+    state.guestDocsBusy = false;
+    renderBookingsTab(content);
+  }
+  function handleGuestDocPhotoUpload(bookingId, guestIndex, file, content) {
+    state.guestDocsError = '';
+    window.CasaCelesteTourismDB.uploadGuestDocPhotoTemp(bookingId, guestIndex, file).then(function (url) {
+      var draft = state.guestDocsDrafts[guestIndex] || blankGuestDraft();
+      draft.docPhotoUrl = url;
+      state.guestDocsDrafts[guestIndex] = draft;
+      renderBookingsTab(content);
+      return window.CasaCelesteTourismDB.parseGuestDocPhoto({ bookingId: bookingId, guestIndex: guestIndex });
+    }).then(function (result) {
+      var draft = state.guestDocsDrafts[guestIndex];
+      if (!draft) return;
+      draft.recognized = !!result.recognized;
+      // Non sovrascrive un campo già compilato a mano nel frattempo — solo
+      // quelli ancora vuoti (luogo di nascita/rilascio non arrivano mai da
+      // qui, restano sempre da inserire a mano).
+      ['firstName', 'lastName', 'birthDate', 'nationality', 'docType', 'docNumber'].forEach(function (part) {
+        if (result[part] && !draft[part]) draft[part] = result[part];
+      });
+      renderBookingsTab(content);
+    }).catch(function (err) {
+      state.guestDocsError = (err && err.message) || 'Errore nel caricamento/lettura della foto.';
+      renderBookingsTab(content);
+    });
+  }
+  function saveGuestDocs(bookingId, content) {
+    var booking = state.bookings.find(function (b) { return b.id === bookingId; });
+    if (!booking) return;
+    state.guestDocsBusy = true;
+    state.guestDocsError = '';
+    renderBookingsTab(content);
+    var guests = state.guestDocsDrafts.map(function (g) {
+      var clean = Object.assign({}, g);
+      delete clean.recognized;
+      return clean;
+    });
+    window.CasaCelesteTourismDB.submitGuestDocuments({ bookingId: bookingId, token: booking.guestFormToken, guests: guests }).then(function () {
+      closeGuestDocsPanel(content);
+    }).catch(function (err) {
+      state.guestDocsBusy = false;
+      state.guestDocsError = (err && err.message) || 'Errore nel salvataggio: controlla i dati inseriti.';
+      renderBookingsTab(content);
+    });
+  }
+  function guestDocGuestFormHtml(bookingId, i, g) {
+    var typeOptions = '<option value="">Tipo documento…</option>' + Object.keys(DOC_TYPE_LABELS).map(function (key) {
+      return '<option value="' + key + '"' + (g.docType === key ? ' selected' : '') + '>' + DOC_TYPE_LABELS[key] + '</option>';
+    }).join('');
+    var idAttr = 'data-guestdoc-field data-guest-index="' + i + '"';
+    return (
+      '<div class="admin-room-card" data-guestdoc-row data-guest-index="' + i + '">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Ospite ' + (i + 1) + '</span></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Foto documento (fronte/retro con banda MRZ se presente)</label>' +
+          '<input type="file" accept="image/*" data-guestdoc-photo data-guest-index="' + i + '" data-booking-id="' + escapeHtml(bookingId) + '">' +
+          (g.docPhotoUrl ? '<div class="admin-note">' + (g.recognized ? 'Foto caricata — dati letti automaticamente, verificali prima di salvare.' : 'Foto caricata — nessun dato leggibile automaticamente, inserisci a mano.') + '</div>' : '') +
+        '</div>' +
+        '<div class="admin-field-group"><label>Nome</label><input type="text" class="admin-field" ' + idAttr + ' data-part="firstName" value="' + escapeHtml(g.firstName || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Cognome</label><input type="text" class="admin-field" ' + idAttr + ' data-part="lastName" value="' + escapeHtml(g.lastName || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Data di nascita</label><input type="date" class="admin-field" ' + idAttr + ' data-part="birthDate" value="' + escapeHtml(g.birthDate || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Luogo di nascita</label><input type="text" class="admin-field" ' + idAttr + ' data-part="birthPlace" value="' + escapeHtml(g.birthPlace || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Cittadinanza</label><input type="text" class="admin-field" ' + idAttr + ' data-part="nationality" value="' + escapeHtml(g.nationality || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Tipo documento</label><select class="admin-field" ' + idAttr + ' data-part="docType">' + typeOptions + '</select></div>' +
+        '<div class="admin-field-group"><label>Numero documento</label><input type="text" class="admin-field" ' + idAttr + ' data-part="docNumber" value="' + escapeHtml(g.docNumber || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Luogo di rilascio</label><input type="text" class="admin-field" ' + idAttr + ' data-part="docIssuePlace" value="' + escapeHtml(g.docIssuePlace || '') + '"></div>' +
+      '</div>'
+    );
+  }
+  function guestDocsPanelHtml(b) {
+    var drafts = state.guestDocsDrafts || [];
+    var rows = drafts.map(function (g, i) { return guestDocGuestFormHtml(b.id, i, g); }).join('');
+    return (
+      '<div class="admin-manual-booking-form" data-guestdocs-panel>' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Documenti ospiti — ' + escapeHtml(b.roomLabel || '') + '</span></div>' +
+        '<div class="admin-note">Per prenotazioni telefoniche o senza check-in online: carica la foto (i dati leggibili vengono pre-compilati automaticamente, verificali sempre) oppure inseriscili a mano. Luogo di nascita e di rilascio non si leggono mai in automatico. Serve una foto per OGNI ospite prima di salvare, anche solo per correggere un dato già inviato.</div>' +
+        (state.guestDocsError ? '<div class="admin-field-error" style="display:block;">' + escapeHtml(state.guestDocsError) + '</div>' : '') +
+        rows +
+        '<button type="button" class="btn btn-primary" data-save-guestdocs data-id="' + b.id + '"' + (state.guestDocsBusy ? ' disabled' : '') + '>' + (state.guestDocsBusy ? 'Salvataggio…' : 'Salva documenti ospiti') + '</button>' +
+      '</div>'
+    );
   }
 
   /* ==========================================================================
