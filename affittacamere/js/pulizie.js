@@ -9,17 +9,28 @@
   var MAINTENANCE_CATEGORY_LABELS = { furto: '🚨 Furto', danno: '🔨 Danno/rottura', manutenzione: '🔧 Manutenzione' };
   var MAINTENANCE_CATEGORIES = ['manutenzione', 'danno', 'furto'];
 
+  var STAFF_NAME_KEY = 'ccStaffName';
   var state = {
     loading: true,
     error: '',
-    rooms: [], // { id, name, cleaningStatus }
+    rooms: [], // { id, name, cleaningStatus, kind, label }
     busyRoomId: null,
     reportOpenRoomId: null,
     reportDraft: { category: 'manutenzione', description: '', start: '', end: '' },
     reportBusy: false,
     reportError: '',
-    reportSuccessRoomId: null
+    reportSuccessRoomId: null,
+    // Nome e cognome di chi usa il link: richiesto per ogni scrittura (vedi
+    // staffNameOrThrow in functions/staff-actions.js), salvato in
+    // localStorage così non va ridigitato a ogni visita sullo stesso telefono.
+    staffName: (function () { try { return window.localStorage.getItem(STAFF_NAME_KEY) || ''; } catch (e) { return ''; } })(),
+    nameError: ''
   };
+
+  function saveStaffName(name) {
+    state.staffName = name;
+    try { window.localStorage.setItem(STAFF_NAME_KEY, name); } catch (e) { /* Safari modalità privata, non bloccante */ }
+  }
 
   function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
@@ -61,10 +72,17 @@
     }).join('');
     var reportOpen = state.reportOpenRoomId === room.id;
     var reportSuccess = state.reportSuccessRoomId === room.id;
+    // Stato "in tempo reale" (occupata oggi/in manutenzione), non solo lo
+    // stato pulizie: chi pulisce deve sapere se può entrare PRIMA di provarci,
+    // non solo se la stanza è segnata come sporca o pronta.
+    var liveNote = (room.kind === 'occupied' || room.kind === 'maintenance')
+      ? '<div class="range-hint" style="margin-top:10px; font-weight:700;">' + escapeHtml(room.label) + (room.kind === 'occupied' ? ' — non entrare senza avvisare' : '') + '</div>'
+      : '';
     return (
       '<div class="admin-room-card">' +
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">' + escapeHtml(room.name) + '</span>' +
           '<span>' + CLEANING_STATUS_LABELS[room.cleaningStatus] + '</span></div>' +
+        liveNote +
         '<div class="rd-bedtype-row" style="margin-top:10px;">' + statusButtons + '</div>' +
         (reportSuccess
           ? '<div class="range-hint range-hint--ok" style="margin-top:12px;">✓ Segnalazione inviata, grazie!</div>'
@@ -74,6 +92,36 @@
           )) +
       '</div>'
     );
+  }
+
+  function nameFieldHtml() {
+    return (
+      '<div class="admin-room-card" style="margin-bottom:16px;">' +
+        '<div class="admin-field-group admin-field-group--full">' +
+          '<label>Il tuo nome e cognome (per sapere chi ha pulito o segnalato)</label>' +
+          '<input type="text" class="admin-field" id="staff-name-field" placeholder="Es. Maria Rossi" value="' + escapeHtml(state.staffName) + '">' +
+        '</div>' +
+        (state.nameError ? '<div class="field-error" style="margin-top:6px;">' + escapeHtml(state.nameError) + '</div>' : '') +
+      '</div>'
+    );
+  }
+
+  // Richiesto prima di ogni scrittura (cambio stato/segnalazione): senza
+  // login, il nome è l'unico modo di sapere chi ha fatto cosa — vedi
+  // staffNameOrThrow lato server in functions/staff-actions.js, che
+  // rifiuterebbe comunque la richiesta senza nome, ma meglio bloccarla qui
+  // prima con un messaggio chiaro invece di un errore di rete.
+  function requireStaffName() {
+    var name = (state.staffName || '').trim();
+    if (name.length < 2) {
+      state.nameError = 'Inserisci il tuo nome e cognome prima di continuare.';
+      render();
+      var el = document.getElementById('staff-name-field');
+      if (el) el.focus();
+      return false;
+    }
+    state.nameError = '';
+    return true;
   }
 
   function render() {
@@ -97,15 +145,16 @@
     }
     subtitleEl.textContent = 'Segna lo stato di ogni stanza o segnala un problema — si aggiorna subito anche in dashboard.';
     errorEl.style.display = 'none';
-    roomsEl.innerHTML = '<div class="dash-room-rows">' + state.rooms.map(roomCardHtml).join('') + '</div>';
+    roomsEl.innerHTML = nameFieldHtml() + '<div class="dash-room-rows">' + state.rooms.map(roomCardHtml).join('') + '</div>';
     bindEvents(roomsEl);
   }
 
   function setStatus(roomId, status) {
     if (state.busyRoomId) return;
+    if (!requireStaffName()) return;
     state.busyRoomId = roomId;
     render();
-    window.CasaCelesteTourismDB.staffSetCleaningStatus({ token: token, roomId: roomId, status: status }).then(function () {
+    window.CasaCelesteTourismDB.staffSetCleaningStatus({ token: token, roomId: roomId, status: status, staffName: state.staffName.trim() }).then(function () {
       var r = state.rooms.find(function (x) { return x.id === roomId; });
       if (r) r.cleaningStatus = status;
       state.busyRoomId = null;
@@ -119,6 +168,7 @@
 
   function submitReport(roomId) {
     if (state.reportBusy) return;
+    if (!requireStaffName()) return;
     var d = state.reportDraft;
     if (!d.description || d.description.trim().length < 2) { state.reportError = 'Descrivi il problema con qualche parola.'; render(); return; }
     var start = d.start || todayIso(), end = d.end || addDaysIso(todayIso(), 1);
@@ -126,7 +176,7 @@
     state.reportBusy = true; state.reportError = '';
     render();
     window.CasaCelesteTourismDB.staffReportMaintenance({
-      token: token, roomId: roomId, category: d.category, description: d.description.trim(), start: start, end: end
+      token: token, roomId: roomId, category: d.category, description: d.description.trim(), start: start, end: end, staffName: state.staffName.trim()
     }).then(function () {
       state.reportBusy = false;
       state.reportOpenRoomId = null;
@@ -141,6 +191,11 @@
   }
 
   function bindEvents(root) {
+    var nameEl = root.querySelector('#staff-name-field');
+    // Solo aggiornamento di stato/localStorage, niente render(): un
+    // render() qui ricostruirebbe l'input a ogni tasto premuto e farebbe
+    // perdere il focus/il cursore mentre si scrive il nome.
+    if (nameEl) nameEl.addEventListener('input', function (e) { saveStaffName(e.target.value); });
     root.querySelectorAll('[data-set-status]').forEach(function (el) {
       el.addEventListener('click', function () {
         setStatus(el.getAttribute('data-room-id'), el.getAttribute('data-status'));
@@ -181,6 +236,8 @@
       document.title = document.title.replace(/Casa Celeste$/, siteName);
       var logoEl = document.querySelector('.logo-text');
       if (logoEl) logoEl.textContent = siteName;
+      document.documentElement.style.setProperty('--blue', (settingsFromDb && settingsFromDb.themeColorPrimary) || '#2C8FC9');
+      document.documentElement.style.setProperty('--yellow', (settingsFromDb && settingsFromDb.themeColorAccent) || '#FFD24C');
     });
   }
 

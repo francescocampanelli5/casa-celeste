@@ -111,6 +111,19 @@
   // 'manutenzione' come default mantiene lo stesso significato di prima
   // (nessuna distinzione), senza dover fare una migrazione dati.
   var MAINTENANCE_CATEGORY_LABELS = { furto: '🚨 Furto', danno: '🔨 Danno/rottura', manutenzione: '🔧 Manutenzione generica' };
+  // Categorie della sotto-navigazione Impostazioni (redesign 01/08): ogni
+  // voce raggruppa uno o più dei blocchi .dash-settings-group esistenti
+  // (vedi data-settings-cat su ciascuno in renderSettingsTab).
+  var SETTINGS_CATEGORIES = [
+    { id: 'struttura', label: 'Struttura & contenuti' },
+    { id: 'aspetto', label: 'Aspetto & personalizzazione' },
+    { id: 'generali', label: 'Generali' },
+    { id: 'comunicazioni', label: 'Comunicazioni & email' },
+    { id: 'sicurezza', label: 'Sicurezza & privacy' },
+    { id: 'integrazioni', label: 'Integrazioni' },
+    { id: 'adempimenti', label: 'Adempimenti' },
+    { id: 'pulizie', label: 'Personale pulizie' }
+  ];
   // Punti d'interesse "Posizione" (sito pubblico) — chiave fissa (icona/
   // categoria restano quelle), ma destinazione e tempo a piedi vanno
   // impostati per città diverse da Monopoli (vedi settings.mapPois in
@@ -636,7 +649,12 @@
     if (type === 'all' || type === 'maintenance') {
       state.maintenanceData.forEach(function (m) {
         if (m.roomId !== roomId || m.status === 'risolta') return;
-        events.push({ kind: 'maintenance', id: m.id, start: m.start, end: m.end, label: m.title || 'Manutenzione' });
+        // Emoji di categoria (🚨 furto / 🔨 danno / 🔧 generica) nel label:
+        // così la segnalazione resta riconoscibile a colpo d'occhio ovunque
+        // questo evento appaia (barre Gantt, chip mese, righe Agenda),
+        // che finora mostravano solo il testo libero senza la categoria.
+        var categoryEmoji = (MAINTENANCE_CATEGORY_LABELS[m.category] || '').split(' ')[0] || '🔧';
+        events.push({ kind: 'maintenance', id: m.id, start: m.start, end: m.end, label: categoryEmoji + ' ' + (m.title || 'Manutenzione') });
       });
     }
     return events;
@@ -674,6 +692,12 @@
     var offset = (jsDay + 6) % 7;
     return addDaysIso(iso, -offset);
   }
+  // "SET" "OTT" "NOV" — abbreviazione mese in maiuscolo per marcare il
+  // cambio di mese nel calendario (Gantt settimanale e griglia mensile),
+  // senza dover mostrare l'anno o il nome intero su ogni cella.
+  function monthAbbrevUpper(d) {
+    return d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '').toUpperCase();
+  }
   function calendarMonthGridDays(monthAnchorIso) {
     var firstIso = monthAnchorIso.slice(0, 8) + '01';
     var gridStartIso = mondayOfWeek(firstIso);
@@ -702,6 +726,15 @@
       var startLabel = wStartD.getDate() + (sameMonth ? '' : ' ' + wStartD.toLocaleDateString('it-IT', { month: 'short' }));
       var endLabel = wEndD.getDate() + ' ' + wEndD.toLocaleDateString('it-IT', { month: 'short' });
       weekLabel = '<span class="cal-week-label">' + escapeHtml(startLabel) + ' – ' + escapeHtml(endLabel) + '</span>';
+    }
+    // Etichetta "Agosto 2026" per la vista mensile: prima la vista mese aveva
+    // le frecce di navigazione ma nessun testo che dicesse quale mese si sta
+    // guardando (il Gantt aveva già weekLabel sopra, il mese no).
+    if (showNav && state.calendarView === 'month' && state.calendarWindowStart) {
+      var mD = new Date(state.calendarWindowStart + 'T00:00:00');
+      var monthYearLabel = mD.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+      monthYearLabel = monthYearLabel.charAt(0).toUpperCase() + monthYearLabel.slice(1);
+      weekLabel = '<span class="cal-week-label">' + escapeHtml(monthYearLabel) + '</span>';
     }
     return (
       '<div class="cal-toolbar">' +
@@ -734,9 +767,14 @@
 
     var header = dayIsos.map(function (iso, i) {
       var d = new Date(iso + 'T00:00:00');
+      // Etichetta mese (SET/OTT/NOV) solo sul primo giorno del mese: segna il
+      // cambio di mese dentro la settimana visibile senza ripeterla ogni
+      // giorno (stessa convenzione di Google Calendar/Outlook).
+      var monthTag = d.getDate() === 1 ? '<span class="cal-gantt-day-month">' + escapeHtml(monthAbbrevUpper(d)) + '</span>' : '';
       return '<div class="cal-gantt-cell cal-gantt-day-header' + (iso === todayIso ? ' is-today' : '') + '" style="grid-column:' + (i + 2) + ';grid-row:1;">' +
         '<span class="cal-gantt-day-weekday">' + escapeHtml(d.toLocaleDateString('it-IT', { weekday: 'short' })) + '</span>' +
         '<span class="cal-gantt-day-num">' + d.getDate() + '</span>' +
+        monthTag +
       '</div>';
     }).join('');
 
@@ -798,8 +836,12 @@
         return '<div class="' + calendarBarClass(ev) + ' cal-month-chip" data-cal-bar data-kind="' + ev.kind + '" data-id="' + ev.id + '" title="' + escapeHtml(text) + '">' + escapeHtml(text) + '</div>';
       }).join('');
       var more = dayEvents.length > 4 ? '<div class="cal-month-more">+' + (dayEvents.length - 4) + ' altro/i</div>' : '';
+      // Etichetta mese sul giorno 1: utile soprattutto sulle celle "fuori
+      // mese" (righe di riempimento a inizio/fine griglia), dove il solo
+      // numero è ambiguo (es. un "28" può essere del mese prima).
+      var monthTag = d.getDate() === 1 ? ' <span class="cal-month-daynum-month">' + escapeHtml(monthAbbrevUpper(d)) + '</span>' : '';
       return '<div class="cal-month-cell' + (d.getMonth() !== monthNum ? ' is-outside' : '') + (iso === todayIso ? ' is-today' : '') + '">' +
-        '<div class="cal-month-daynum">' + d.getDate() + '</div>' + chips + more +
+        '<div class="cal-month-daynum">' + d.getDate() + monthTag + '</div>' + chips + more +
       '</div>';
     }).join('');
     return roomStatusStripHtml(roomIds) + '<div class="cal-month-grid">' + weekdayHeader + cells + '</div>';
@@ -1334,10 +1376,17 @@
     );
   }
   function roomAdminCardHtml(roomId, room) {
+    // Stesso stato "in tempo reale" già mostrato nel Calendario
+    // (roomLiveStatusInfo: manutenzione > occupata oggi > stato pulizie),
+    // ora visibile anche qui — prima chi lavora dalla tab Stanze non vedeva
+    // affatto se una stanza fosse occupata o in manutenzione, solo lo stato
+    // pulizie nella sua sotto-sezione più in basso.
+    var liveStatus = roomLiveStatusInfo(roomId, room);
     return (
       '<div class="admin-room-card" data-room-id="' + roomId + '">' +
         '<div class="admin-room-head">' +
           '<input type="text" class="admin-field admin-room-name" placeholder="Nome stanza" data-room-field data-room-id="' + roomId + '" data-field="name" value="' + escapeHtml(room.name || '') + '">' +
+          '<span class="dash-status-pill ' + liveStatus.pillClass + '" title="Stato oggi, ' + todayISO() + '">' + escapeHtml(liveStatus.label) + '</span>' +
           '<span class="admin-room-slug">' + roomId + '</span>' +
           '<button type="button" class="dash-delete-btn" data-delete-room data-room-id="' + roomId + '">Elimina</button>' +
         '</div>' +
@@ -1410,6 +1459,7 @@
     }).join('');
     var updatedBy = room.cleaningStatusUpdatedBy;
     var updatedByLabel = updatedBy ? ({ dashboard: 'dashboard', telegram: 'bot Telegram', 'auto-cron': 'automatico al check-out', staff_dashboard: 'dashboard pulizie' }[updatedBy.type] || updatedBy.type) : '';
+    if (updatedBy && updatedBy.name) updatedByLabel += ' (' + updatedBy.name + ')';
     return (
       '<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">' +
         '<span class="dash-status-pill ' + (CLEANING_STATUS_PILL_CLASS[current] || 'dash-status-pill--nuovo') + '">' + CLEANING_STATUS_LABELS[current] + '</span>' +
@@ -2109,9 +2159,47 @@
         '</div>'
       );
     }).join('');
+    // Sotto-navigazione per categorie (redesign 01/08): la pagina era un
+    // unico lunghissimo scroll di 9 blocchi senza alcuna indicazione di
+    // dove trovare cosa. I blocchi restano TUTTI nel DOM (nessun binding
+    // sotto rischia un getElementById su un elemento assente) — il click
+    // sulla sotto-nav si limita a nascondere/mostrare via CSS i blocchi
+    // che non appartengono alla categoria attiva, vedi applySettingsCategoryFilter.
+    if (!state.settingsSubTab) state.settingsSubTab = SETTINGS_CATEGORIES[0].id;
+    var settingsSubnavHtml = '<div class="settings-subnav">' + SETTINGS_CATEGORIES.map(function (c) {
+      return '<button type="button" class="settings-subnav-btn' + (state.settingsSubTab === c.id ? ' is-active' : '') + '" data-settings-subnav="' + c.id + '">' + c.label + '</button>';
+    }).join('') + '</div>';
+    var aspettoGroupHtml =
+      '<div class="dash-settings-group" data-settings-cat="aspetto">' +
+        '<div class="dash-settings-group-title">Aspetto &amp; personalizzazione</div>' +
+        '<div class="admin-note">Personalizza colori e testi principali del sito pubblico — si aggiornano subito per chi lo visita, senza toccare il codice. Lascia vuoto per mantenere i default.</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Colori del brand</span></div>' +
+          '<div class="admin-room-type-row">' +
+            '<div class="admin-field-group"><label>Colore primario (bottoni, evidenziazioni)</label><input type="color" class="admin-field" id="settings-theme-primary" value="' + escapeHtml(s.themeColorPrimary || '#2C8FC9') + '" style="height:42px; padding:4px;"></div>' +
+            '<div class="admin-field-group"><label>Colore accento (dettagli decorativi)</label><input type="color" class="admin-field" id="settings-theme-accent" value="' + escapeHtml(s.themeColorAccent || '#FFD24C') + '" style="height:42px; padding:4px;"></div>' +
+          '</div>' +
+          '<div class="admin-note" style="margin-top:8px;">Non tutti i colori del sito derivano da questi due: i toni di testo/sfondo restano fissi per garantire leggibilità. Questi sono i due colori di brand usati per bottoni, badge e dettagli decorativi.</div>' +
+        '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Testo di benvenuto (home)</span></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva sotto il titolo — italiano</label><textarea class="admin-field" id="settings-hero-lead-it" rows="3" placeholder="Lascia vuoto per il testo già scritto di default">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.it) || '') + '</textarea></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva — English</label><textarea class="admin-field" id="settings-hero-lead-en" rows="3">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.en) || '') + '</textarea></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — italiano</label><textarea class="admin-field" id="settings-welcome-text-it" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.it) || '') + '</textarea></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — English</label><textarea class="admin-field" id="settings-welcome-text-en" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.en) || '') + '</textarea></div>' +
+        '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Bottone "Contatta l\'host"</span></div>' +
+          '<div class="admin-room-type-row">' +
+            '<div class="admin-field-group"><label>Etichetta — italiano</label><input type="text" class="admin-field" id="settings-contact-label-it" placeholder="Contatta l\'host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.it) || '') + '"></div>' +
+            '<div class="admin-field-group"><label>Etichetta — English</label><input type="text" class="admin-field" id="settings-contact-label-en" placeholder="Contact the host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.en) || '') + '"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
     content.innerHTML =
       '<h1 class="dash-section-title">Impostazioni</h1>' +
-      '<div class="dash-settings-group">' +
+      settingsSubnavHtml +
+      '<div class="dash-settings-group" data-settings-cat="struttura">' +
         '<div class="dash-settings-group-title">Struttura</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-field-group admin-field-group--full"><label>Nome della struttura</label><input type="text" class="admin-field" id="settings-site-name" value="' + escapeHtml(s.siteName || '') + '" placeholder="Casa Celeste"></div>' +
@@ -2126,7 +2214,8 @@
         '</div>' +
         seasonalPricingHtml +
       '</div>' +
-      '<div class="dash-settings-group">' +
+      aspettoGroupHtml +
+      '<div class="dash-settings-group" data-settings-cat="generali">' +
         '<div class="dash-settings-group-title">Generali</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '"></div>' +
@@ -2137,7 +2226,7 @@
           '<div class="admin-field-group"><label>Numero recensioni mostrato sul sito (facoltativo) — lascia vuoto per usare il conteggio reale del tab Recensioni</label><input type="number" step="1" min="0" class="admin-field" id="settings-review-count" value="' + (s.reviewCountOverride != null ? s.reviewCountOverride : '') + '"></div>' +
         '</div>' +
       '</div>' +
-      '<div class="dash-settings-group">' +
+      '<div class="dash-settings-group" data-settings-cat="struttura">' +
         '<div class="dash-settings-group-title">Contenuti pubblici</div>' +
         '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' + photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) + '</div>' +
         '<div class="admin-room-card">' +
@@ -2149,7 +2238,7 @@
         '</div>' +
         recommendationsEditorHtml(s.recommendations || []) +
       '</div>' +
-      '<div class="dash-settings-group">' +
+      '<div class="dash-settings-group" data-settings-cat="comunicazioni">' +
         '<div class="dash-settings-group-title">Comunicazioni</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Quota email (inviate da Gmail, rete di sicurezza)</span></div>' +
@@ -2186,12 +2275,17 @@
           '<div class="admin-stats-rows">' + recipientsRowsHtml(authorized, 'auth') + '</div>' +
           '<button type="button" class="admin-stat-add" data-add-recipient="auth">+ Aggiungi autorizzato</button>' +
         '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Email — mittente e firma</span></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Nome mittente mostrato all\'ospite (facoltativo — default: nome struttura)</label><input type="text" class="admin-field" id="settings-email-sender-name" placeholder="' + escapeHtml(s.siteName || 'Casa Celeste') + '" value="' + escapeHtml(s.emailSenderName || '') + '"></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Firma in fondo alle email (facoltativa, es. "A presto, il team di Casa Celeste")</label><textarea class="admin-field" id="settings-email-footer-signature" rows="2">' + escapeHtml(s.emailFooterSignature || '') + '</textarea></div>' +
+        '</div>' +
       '</div>' +
-      '<div class="dash-settings-group">' +
+      '<div class="dash-settings-group" data-settings-cat="sicurezza">' +
         '<div class="dash-settings-group-title">Sicurezza account</div>' +
         mfaSecurityCardHtml() +
       '</div>' +
-      '<div class="dash-settings-group">' +
+      '<div class="dash-settings-group" data-settings-cat="integrazioni">' +
         '<div class="dash-settings-group-title">Integrazioni</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Sincronizzazione calendario</span></div>' +
@@ -2205,7 +2299,7 @@
         '</div>' +
         '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Social</span></div>' + socialFieldsHtml(s.socials || {}) + '</div>' +
       '</div>' +
-      '<div class="dash-settings-group">' +
+      '<div class="dash-settings-group" data-settings-cat="sicurezza">' +
         '<div class="dash-settings-group-title">Privacy e conservazione dati</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Conservazione dati documento ospiti</span></div>' +
@@ -2214,7 +2308,7 @@
           '<div class="admin-note">⚠️ Questo riguarda solo la FOTO. Il periodo di conservazione dei dati anagrafici tipizzati (nome, data nascita, documento senza foto) non ha invece un default: confermalo con un consulente legale/commercialista in base agli obblighi di pubblica sicurezza.</div>' +
         '</div>' +
       '</div>' +
-      '<div class="dash-settings-group">' +
+      '<div class="dash-settings-group" data-settings-cat="adempimenti">' +
         '<div class="dash-settings-group-title">Credenziali adempimenti (Alloggiati Web, ISTAT, PayTourist)</div>' +
         '<div class="admin-note">Salvate in un documento SEPARATO dal resto delle Impostazioni, leggibile solo dal proprietario (mai dal sito pubblico) — così ogni struttura che usa questo sistema può inserire le proprie senza toccare file o variabili d\'ambiente.</div>' +
         '<div class="admin-room-card">' +
@@ -2237,7 +2331,7 @@
           '<div class="admin-field-group"><label>API key</label><input type="password" class="admin-field" id="priv-paytourist-apikey" value="' + escapeHtml((sp.payTourist && sp.payTourist.apiKey) || '') + '"></div>' +
         '</div>' +
       '</div>' +
-      '<div class="dash-settings-group">' +
+      '<div class="dash-settings-group" data-settings-cat="pulizie">' +
         '<div class="dash-settings-group-title">Accesso pulizie (link dedicato per il personale)</div>' +
         '<div class="admin-note">Link da inviare a chi si occupa delle pulizie (es. su WhatsApp): apre una pagina semplice per segnare lo stato di ogni stanza e segnalare problemi (furti, danni, manutenzione), senza bisogno di creare un account. Rigenerandolo, il link precedente smette subito di funzionare — usalo se dovesse finire nelle mani sbagliate.</div>' +
         '<div class="admin-room-card">' +
@@ -2249,6 +2343,45 @@
         '</div>' +
       '</div>';
 
+    // Sotto-nav categorie: nasconde/mostra i blocchi via CSS, non tocca il
+    // DOM — tutti i binding sotto restano validi qualunque categoria sia
+    // attiva (vedi commento sopra content.innerHTML).
+    function applySettingsCategoryFilter() {
+      var active = state.settingsSubTab || SETTINGS_CATEGORIES[0].id;
+      content.querySelectorAll('[data-settings-cat]').forEach(function (el) {
+        el.style.display = el.getAttribute('data-settings-cat') === active ? '' : 'none';
+      });
+      content.querySelectorAll('[data-settings-subnav]').forEach(function (btn) {
+        btn.classList.toggle('is-active', btn.getAttribute('data-settings-subnav') === active);
+      });
+    }
+    applySettingsCategoryFilter();
+    content.querySelectorAll('[data-settings-subnav]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state.settingsSubTab = btn.getAttribute('data-settings-subnav');
+        applySettingsCategoryFilter();
+        content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    document.getElementById('settings-theme-primary').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ themeColorPrimary: e.target.value }); });
+    document.getElementById('settings-theme-accent').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ themeColorAccent: e.target.value }); });
+    function bilingualOverrideHandler(field) {
+      return function () {
+        var it = document.getElementById('settings-' + field + '-it').value.trim();
+        var en = document.getElementById('settings-' + field + '-en').value.trim();
+        var patch = {};
+        patch[field === 'hero-lead' ? 'heroLeadOverride' : field === 'welcome-text' ? 'welcomeTextOverride' : 'contactButtonLabelOverride'] = { it: it, en: en };
+        window.CasaCelesteTourismDB.setSettings(patch);
+      };
+    }
+    ['hero-lead', 'welcome-text', 'contact-label'].forEach(function (field) {
+      var itEl = document.getElementById('settings-' + field + '-it');
+      var enEl = document.getElementById('settings-' + field + '-en');
+      if (itEl) itEl.addEventListener('change', bilingualOverrideHandler(field));
+      if (enEl) enEl.addEventListener('change', bilingualOverrideHandler(field));
+    });
+    document.getElementById('settings-email-sender-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailSenderName: e.target.value.trim() }); });
+    document.getElementById('settings-email-footer-signature').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailFooterSignature: e.target.value.trim() }); });
     document.getElementById('settings-site-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ siteName: e.target.value.trim() }); });
     document.getElementById('settings-city').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ city: e.target.value.trim() }); });
     document.getElementById('settings-address').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ address: e.target.value.trim() }); });
@@ -2573,6 +2706,10 @@
       document.title = 'Area riservata — ' + siteName + ' (Affittacamere)';
       var logoEl = document.getElementById('dash-logo-text');
       if (logoEl) logoEl.textContent = siteName;
+      // Stessi colori tema del sito pubblico (Impostazioni → Aspetto),
+      // così l'anteprima in dashboard non stona con quanto vede l'ospite.
+      document.documentElement.style.setProperty('--blue', state.settings.themeColorPrimary || '#2C8FC9');
+      document.documentElement.style.setProperty('--yellow', state.settings.themeColorAccent || '#FFD24C');
       if (state.user) renderTabContent();
     });
     state.unsubAssistMessages = window.CasaCelesteTourismDB.subscribeAssistMessages(function (items) { state.assistMessages = items; if (state.user) renderTabContent(); });

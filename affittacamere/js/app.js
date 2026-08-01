@@ -307,7 +307,33 @@
       address: houseAddress()
     };
   }
-  function bt(key) { return tpl(t(key), brandParams()); }
+  // Testi override da Impostazioni dashboard → Aspetto & personalizzazione
+  // (tourism_settings/site.heroLeadOverride/welcomeTextOverride, oggetti
+  // bilingue {it,en} come room.description): se il proprietario ha scritto
+  // un testo suo per quella chiave, sostituisce il default del dizionario
+  // i18n invece di affiancarlo — stesso helper bilingue tf() già usato per
+  // i campi stanza.
+  var CUSTOM_TEXT_OVERRIDE_KEYS = { 'hero.lead_html': 'heroLeadOverride', 'welcome.text_html': 'welcomeTextOverride' };
+  function bt(key) {
+    var overrideField = CUSTOM_TEXT_OVERRIDE_KEYS[key];
+    if (overrideField) {
+      var overrideText = tf((state.settings || {})[overrideField]);
+      if (overrideText) return tpl(overrideText, brandParams());
+    }
+    return tpl(t(key), brandParams());
+  }
+  // Colori tema da Impostazioni dashboard (Aspetto & personalizzazione):
+  // sovrascrive le due custom property principali del brand con uno stile
+  // inline su <html>, che vince sempre sulla regola :root del foglio di
+  // stile — bottoni/badge/decorazioni che usano var(--blue)/var(--yellow)
+  // cambiano subito, senza toccare styles.css. Le tinte derivate (--navy,
+  // --blue-deep, --yellow-deep/bg-soft...) restano fisse: sono pensate per
+  // il testo/gli sfondi soft, non per il colore di brand vero e proprio.
+  function applyThemeColors() {
+    var s = state.settings || {};
+    document.documentElement.style.setProperty('--blue', s.themeColorPrimary || '#2C8FC9');
+    document.documentElement.style.setProperty('--yellow', s.themeColorAccent || '#FFD24C');
+  }
   function photoTag(src, alt) {
     return '<img src="' + src + '" alt="' + escapeHtml(alt) + '" class="real-photo" loading="lazy" onerror="this.remove()">';
   }
@@ -4148,7 +4174,7 @@
   function renderContactHostBar() {
     var el = document.getElementById('contact-host-bar');
     if (!el) return;
-    var label = t('contact.host_cta');
+    var label = tf((state.settings || {}).contactButtonLabelOverride) || t('contact.host_cta');
     el.innerHTML =
       '<button type="button" data-open-assist class="btn btn-whatsapp contact-host-btn" aria-label="' + escapeHtml(label) + '">' +
         '<svg width="18" height="18"><use href="#icon-chat"></use></svg><span class="contact-host-btn-label">' + escapeHtml(label) + '</span>' +
@@ -4252,8 +4278,9 @@
       });
       window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) {
         state.settings = settingsFromDb || {};
+        applyThemeColors();
         renderManager(); renderSocialLinks(); renderHeroMedia(); renderRecs();
-        applyI18n(); renderRooms(); renderCommon();
+        applyI18n(); renderRooms(); renderCommon(); renderContactHostBar();
       });
     }
   }

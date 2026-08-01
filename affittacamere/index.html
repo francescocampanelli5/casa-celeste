@@ -56,7 +56,7 @@
 <link rel="preconnect" href="https://js.stripe.com">
 <link rel="preconnect" href="https://api.stripe.com">
 <link rel="preconnect" href="https://m.stripe.network">
-<link rel="stylesheet" href="css/styles.css?v=34">
+<link rel="stylesheet" href="css/styles.css?v=35">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
@@ -290,9 +290,23 @@
        dal carosello Monopoli, senza uno stacco netto tra i due -->
   <section id="monopoli" class="section section--tight">
     <div class="container container--narrow welcome">
-      <div class="eyebrow eyebrow--blue" data-i18n="welcome.eyebrow">Benvenuto/a</div>
-      <h2 class="h2" data-i18n="welcome.title">Casa Celeste ti dà il benvenuto.</h2>
-      <p data-i18n-html="welcome.text_html">Qui troverai un luogo accogliente, giovanile e sereno.</p>
+      <!-- Grafica decorativa "sorridente" dietro il testo di benvenuto, per
+           dare profondità — stessa grammatica visiva dello sghiribizzo
+           giallo sotto "casa tua" nell'hero (linee semplici, colori del
+           brand, mai un'emoji vera che stonerebbe con il resto). -->
+      <div class="welcome-decor" aria-hidden="true">
+        <svg width="200" height="200" viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="100" r="96" stroke="#2C8FC9" stroke-width="2"/>
+          <circle cx="70" cy="82" r="6" fill="#2C8FC9"/>
+          <circle cx="130" cy="82" r="6" fill="#2C8FC9"/>
+          <path d="M62 120 Q100 156 138 120" stroke="#FFD24C" stroke-width="7" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="welcome-content">
+        <div class="eyebrow eyebrow--blue" data-i18n="welcome.eyebrow">Benvenuto/a</div>
+        <h2 class="h2" data-i18n="welcome.title">Casa Celeste ti dà il benvenuto.</h2>
+        <p data-i18n-html="welcome.text_html">Qui troverai un luogo accogliente, giovanile e sereno.</p>
+      </div>
     </div>
     <div class="container container--narrow">
       <div class="nav-social nav-social--welcome js-social-slot" id="social-links-slot-welcome"></div>
@@ -501,6 +515,6 @@
 <script type="module" src="js/firebase-init.js?v=13"></script>
 <script src="js/stripe-config.js?v=1" defer></script>
 <script src="https://js.stripe.com/v3/" defer></script>
-<script src="js/app.js?v=31" defer></script>
+<script src="js/app.js?v=32" defer></script>
 </body>
 </html>

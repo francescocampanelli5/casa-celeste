@@ -108,10 +108,15 @@ function getMailTransport(gmailUser, gmailAppPassword) {
   mailTransport = nodemailer.createTransport({ service: 'gmail', auth: { user: gmailUser, pass: gmailAppPassword } });
   return mailTransport;
 }
-async function sendMail(gmailUser, gmailAppPassword, to, subject, html, siteName) {
+// `fromNameOverride` = settings.emailSenderName (Impostazioni → Aspetto &
+// personalizzazione → Email): nome mittente visto dall'ospite nella sua
+// casella, indipendente dal siteName mostrato NEL corpo dell'email — utile
+// per chi vuole firmarsi diversamente (es. "Prenotazioni Casa Celeste")
+// senza cambiare il nome struttura ovunque altrove.
+async function sendMail(gmailUser, gmailAppPassword, to, subject, html, siteName, fromNameOverride) {
   const transport = getMailTransport(gmailUser, gmailAppPassword);
   if (!transport) return { sent: false, reason: 'not_configured' };
-  await transport.sendMail({ from: (siteName || 'Casa Celeste') + ' <' + gmailUser + '>', to: to, subject: subject, html: html });
+  await transport.sendMail({ from: (fromNameOverride || siteName || 'Casa Celeste') + ' <' + gmailUser + '>', to: to, subject: subject, html: html });
   return { sent: true };
 }
 
@@ -221,9 +226,10 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
       googleCalendarLink: googleCalendarLink(repForCalendar, settings, isEn),
       icsLink: icsLink(first.id, first.b.guestFormToken, isGroup ? groupRoomNames : ''),
       assistLink: assistLink(), isEn: isEn, subjectLine: subjectLine,
-      isGroup: isGroup, rooms: isGroup ? rooms : []
+      isGroup: isGroup, rooms: isGroup ? rooms : [],
+      footerSignature: settings.emailFooterSignature || ''
     });
-    const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName);
+    const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName, settings.emailSenderName);
     if (result.sent) await recordEmailSent(db, admin, quota.month);
     else console.log('Conferma immediata non configurata (mancano i secrets Gmail): ' + bookingId);
   } catch (err) {
@@ -288,9 +294,10 @@ async function notifyBookingCancelled(ctx, bookingId, booking) {
       email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
       checkIn: formatDateHuman(rep.checkIn, isEn), checkOut: formatDateHuman(rep.checkOut, isEn),
       hasRefund: hasRefund, refundAmount: totalRefund,
-      assistLink: assistLink(), isEn: isEn, subjectLine: subjectLine, isGroup: isGroup
+      assistLink: assistLink(), isEn: isEn, subjectLine: subjectLine, isGroup: isGroup,
+      footerSignature: settings.emailFooterSignature || ''
     });
-    const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName);
+    const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName, settings.emailSenderName);
     if (result.sent) await recordEmailSent(db, admin, quota.month);
     else console.log('Annullamento immediato non configurato (mancano i secrets Gmail): ' + bookingId);
   } catch (err) {

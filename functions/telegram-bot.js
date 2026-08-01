@@ -216,6 +216,7 @@ function helpText(authorized, chatId, siteName) {
     '/nuova → avvia la compilazione guidata passo-passo (stanza, calendario, ospiti, opzioni, contatti, foto documenti con lettura automatica da confermare).',
     '/nuova <Stanza> <check-in GG/MM/AAAA> <check-out GG/MM/AAAA> <Nome Cognome> <email> <telefono> <ospiti> [canale] → formato veloce su una riga, invariato.',
     '/pulizie → segna lo stato pulizie di una stanza (pronta/sporca/in pulizia/da ispezionare). Anche per chi è solo nell\'elenco pulizie, non serve essere autorizzato a creare prenotazioni.',
+    '/stanze → riepilogo di tutte le stanze in un messaggio solo: quali sono sporche, occupate oggi, in manutenzione o pronte. Utile per chi fa le pulizie e deve sapere dove andare prima.',
     '/manutenzione → registra un problema/lavoro da fare su una stanza, bloccando le date scelte (non prenotabili finché non la risolvi).',
     '/annulla → interrompe la compilazione in corso.',
     '',
@@ -842,7 +843,8 @@ async function notifyOwnerMaintenanceReport(ctx, m) {
       .filter((r) => r.enabled && r.chatId);
     if (!recipients.length) return;
     const emoji = m.category === 'furto' ? '🚨' : '🔧';
-    const sourceLabel = m.createdBy && m.createdBy.type === 'staff_dashboard' ? 'dashboard pulizie' : 'bot Telegram';
+    let sourceLabel = m.createdBy && m.createdBy.type === 'staff_dashboard' ? 'dashboard pulizie' : 'bot Telegram';
+    if (m.createdBy && m.createdBy.name) sourceLabel += ' (' + m.createdBy.name + ')';
     const text = emoji + ' Nuova segnalazione — ' + (MAINTENANCE_CATEGORY_LABELS[m.category] || 'Manutenzione') + '\n' +
       m.roomLabel + ' — ' + isoToItalian(m.start) + ' → ' + isoToItalian(m.end) + '\n' +
       m.title + '\nSegnalato da: ' + sourceLabel + '\nVedi dashboard.html → Stanze per i dettagli.';
@@ -853,6 +855,69 @@ async function notifyOwnerMaintenanceReport(ctx, m) {
   } catch (e) {
     // best-effort, vedi commento sopra
   }
+}
+
+/* ==========================================================================
+   /stanze — riepilogo stato di tutte le stanze (pulizie/occupazione/
+   manutenzione) in un solo messaggio, per chi fa le pulizie e deve sapere
+   dove andare senza aprire /pulizie stanza per stanza. Stessa priorità di
+   roomLiveStatusInfo in affittacamere/js/dashboard.js (manutenzione >
+   occupata oggi > stato pulizie), riscritta qui lato server perché quella
+   è codice client, non richiamabile da una Cloud Function. Esportata perché
+   riusata anche da functions/staff-actions.js (dashboard pulizie via link,
+   stessa logica per non mostrare due stati diversi nei due canali).
+   ========================================================================== */
+async function roomsLiveOverviewCore(ctx) {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [roomsSnap, bookingsSnap, maintSnap] = await Promise.all([
+    ctx.db.collection('tourism_rooms').get(),
+    ctx.db.collection('tourism_bookings').get(),
+    ctx.db.collection('tourism_maintenance').get()
+  ]);
+  const bookings = [];
+  bookingsSnap.forEach((d) => bookings.push(d.data()));
+  const maints = [];
+  maintSnap.forEach((d) => maints.push(d.data()));
+  const rooms = [];
+  roomsSnap.forEach((d) => {
+    const r = d.data();
+    const roomId = d.id;
+    const activeMaint = maints.find((m) => m.roomId === roomId && m.status !== 'risolta' && m.start <= todayIso && todayIso < m.end);
+    const activeBooking = bookings.find((b) => b.roomId === roomId && b.status !== 'annullato' && b.checkIn <= todayIso && todayIso < b.checkOut);
+    let kind, label;
+    if (activeMaint) { kind = 'maintenance'; label = '🔧 In manutenzione'; }
+    else if (activeBooking) { kind = 'occupied'; label = '🚪 Occupata oggi'; }
+    else {
+      const cleaning = r.cleaningStatus || 'pronta';
+      kind = cleaning === 'pronta' ? 'ready' : 'cleaning';
+      label = cleaning === 'pronta' ? '✓ Libera e pronta' : (CLEANING_STATUS_LABELS[cleaning] || cleaning);
+    }
+    rooms.push({ id: roomId, name: r.name || roomId, kind, label, cleaningStatus: r.cleaningStatus || 'pronta' });
+  });
+  rooms.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  return rooms;
+}
+// Messaggio testuale raggruppato per /stanze: le stanze da pulire prima
+// (sporche) in cima, quelle già pronte in fondo — così chi legge sul
+// telefono sa subito dove andare senza dover leggere l'elenco intero.
+function roomsOverviewText(rooms) {
+  const groups = { dirty: [], otherCleaning: [], occupied: [], maintenance: [], ready: [] };
+  rooms.forEach((r) => {
+    if (r.kind === 'maintenance') groups.maintenance.push(r);
+    else if (r.kind === 'occupied') groups.occupied.push(r);
+    else if (r.kind === 'ready') groups.ready.push(r);
+    else if (r.cleaningStatus === 'sporca') groups.dirty.push(r);
+    else groups.otherCleaning.push(r);
+  });
+  const lines = ['🏠 Situazione stanze di oggi:'];
+  const section = (title, list) => { if (list.length) { lines.push('', title); list.forEach((r) => lines.push('• ' + r.name + ' — ' + r.label)); } };
+  section('🔴 Da pulire:', groups.dirty);
+  section('🟡🔵 In pulizia / da ispezionare:', groups.otherCleaning);
+  section('🚪 Occupate oggi (non entrare senza avvisare):', groups.occupied);
+  section('🔧 In manutenzione:', groups.maintenance);
+  section('🟢 Pronte e libere:', groups.ready);
+  if (lines.length === 1) lines.push('', 'Nessuna stanza configurata.');
+  return lines.join('\n');
 }
 
 /* ==========================================================================
@@ -1084,11 +1149,15 @@ async function handleMessage(ctx, msg) {
     await startWizard(ctx, chatId);
     return;
   }
-  if (lower === '/pulizie' || lower === '/manutenzione') {
+  if (lower === '/pulizie' || lower === '/manutenzione' || lower === '/stanze') {
     const authorizedForThis = authorized || await isAuthorizedForCleaning(ctx, chatId);
     if (!authorizedForThis) { await tgSendMessage(ctx, chatId, unauthorizedText(chatId)); return; }
     if (lower === '/pulizie') await startCleaningStatusPick(ctx, chatId);
-    else await startMaintenanceWizard(ctx, chatId);
+    else if (lower === '/manutenzione') await startMaintenanceWizard(ctx, chatId);
+    else {
+      const rooms = await roomsLiveOverviewCore(ctx);
+      await tgSendMessage(ctx, chatId, roomsOverviewText(rooms));
+    }
     return;
   }
 
@@ -1117,4 +1186,4 @@ async function handleTelegramUpdate(ctx, update) {
   }
 }
 
-module.exports = { handleTelegramUpdate, notifyOwnerMaintenanceReport, MAINTENANCE_CATEGORY_LABELS };
+module.exports = { handleTelegramUpdate, notifyOwnerMaintenanceReport, MAINTENANCE_CATEGORY_LABELS, roomsLiveOverviewCore };

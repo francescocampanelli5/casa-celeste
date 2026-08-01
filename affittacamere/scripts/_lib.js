@@ -213,11 +213,16 @@ async function sendGuestEmail(db, settings, templateFile, templateParams, priori
   var vars = Object.assign({
     siteName: siteName,
     city: settings.city || 'Monopoli',
-    address: settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)'
+    address: settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)',
+    // Impostazioni → Aspetto & personalizzazione → Email: riga di firma
+    // facoltativa in fondo a ogni email guidata da qui (promemoria
+    // documenti, istruzioni check-in, andamento soggiorno, ringraziamento,
+    // richiesta recensione) — vuota di default, il footer resta invariato.
+    footerSignature: settings.emailFooterSignature || ''
   }, templateParams);
   var html = renderTemplate(templateFile, vars);
   await transport.sendMail({
-    from: siteName + ' <' + process.env.GMAIL_USER + '>',
+    from: (settings.emailSenderName || siteName) + ' <' + process.env.GMAIL_USER + '>',
     to: templateParams.email,
     subject: templateParams.subjectLine,
     html: html

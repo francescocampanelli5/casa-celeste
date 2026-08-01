@@ -134,6 +134,13 @@ button { font-family: inherit; }
 .btn-whatsapp { background: var(--whatsapp); color: var(--white); padding: 16px 30px; font-size: 15px; }
 .btn-whatsapp:hover { background: var(--whatsapp-hover); color: var(--white); }
 .btn-disabled { background: var(--grey-bg); color: var(--text-faintest); cursor: default; }
+/* Piccolo sollevamento al passaggio del mouse — stessa transizione .15s
+   ease già dichiarata su .btn, prima inutilizzata (transform non aveva
+   mai un valore diverso da none su :hover). Non tocca .btn-disabled o i
+   bottoni con l'attributo disabled, che non devono sembrare cliccabili. */
+@media (hover: hover) {
+  .btn:not(.btn-disabled):not(:disabled):hover { transform: translateY(-1px); }
+}
 
 /* ==========================================================================
    Header
@@ -249,6 +256,23 @@ button { font-family: inherit; }
   position: relative; aspect-ratio: 4/5; border-radius: var(--radius-lg); overflow: visible;
   display: flex; align-items: center; justify-content: center;
 }
+/* Ingresso leggero al caricamento — testo e foto, in leggero sfasamento
+   (.hero-media un po' dopo .hero-text) così la pagina si sente "viva" senza
+   diventare un parco giochi: una sola dissolvenza+risalita di 10px, mai
+   ripetuta, mai un rimbalzo. Disattivata per chi preferisce meno movimento,
+   vedi il blocco prefers-reduced-motion più sotto. */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.hero-text { animation: fadeInUp .55s ease both; }
+.hero-media { animation: fadeInUp .55s ease .08s both; }
+.welcome-content { animation: fadeInUp .55s ease both; }
+/* Prima occorrenza di prefers-reduced-motion in questo foglio di stile:
+   disattiva solo le animazioni decorative appena aggiunte (non il resto
+   delle transizioni esistenti, che sono già minime/funzionali, es. drawer
+   mobile) — chi la richiede vede la pagina "ferma" fin da subito. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-text, .hero-media, .welcome-content { animation: none; }
+  .btn:hover { transform: none; }
+}
 .hero-media-frame {
   position: absolute; inset: 0; border-radius: var(--radius-lg); overflow: hidden;
   background: var(--panel-bg); border: 1px solid rgba(16,35,59,0.05);
@@ -307,9 +331,19 @@ button { font-family: inherit; }
 /* ==========================================================================
    Benvenuto
    ========================================================================== */
-.welcome { text-align: center; }
+.welcome { text-align: center; position: relative; }
 .welcome h2 { font-size: clamp(26px,3.2vw,36px); margin: 0 0 18px; }
 .welcome p { font-size: 16px; line-height: 1.75; color: var(--text-body); margin: 0; }
+/* Cerchio/sorriso sottile dietro il testo: opacità bassa e nessun colore
+   pieno, per dare profondità senza distrarre dal testo (che resta sempre
+   leggibile sopra, vedi .welcome-content). */
+.welcome-decor {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: clamp(160px,20vw,240px); height: clamp(160px,20vw,240px);
+  opacity: 0.14; pointer-events: none;
+}
+.welcome-decor svg { width: 100%; height: 100%; }
+.welcome-content { position: relative; }
 .erasmus-block { margin-top: 40px; padding-top: 40px; border-top: 1px solid var(--border-hairline); }
 
 .outdoor-panel {
@@ -1463,6 +1497,14 @@ button { font-family: inherit; }
 .dash-settings-group { margin-top: var(--dash-space-7); }
 .dash-settings-group:first-child { margin-top: 0; }
 .dash-settings-group-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--blue-deep); margin: 0 0 var(--dash-space-4); padding-bottom: var(--dash-space-2); border-bottom: 1px solid var(--border-hairline); }
+/* Sotto-nav categorie Impostazioni (redesign 01/08): stessa pillola già
+   usata per le viste del Calendario (.cal-view-btn), per coerenza visiva. */
+.settings-subnav { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 var(--dash-space-7); position: sticky; top: 0; background: var(--white); padding: 10px 0; z-index: 5; }
+.settings-subnav-btn {
+  border: 1px solid var(--border-strong); background: var(--white); color: var(--text-body);
+  border-radius: var(--radius-pill); padding: 7px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.settings-subnav-btn.is-active { background: var(--navy); color: var(--white); border-color: var(--navy); }
 
 .dash-login-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; min-height: 100vh; }
 .dash-login-box { width: 100%; max-width: 380px; background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: 36px 32px; }
@@ -1566,6 +1608,10 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 .cal-gantt-day-header.is-today, .cal-gantt-day-cell.is-today { background: var(--blue-bg-soft); }
 .cal-gantt-day-weekday { text-transform: capitalize; }
 .cal-gantt-day-num { font-size: 13px; color: var(--navy); font-weight: 800; }
+.cal-gantt-day-month {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.03em; color: var(--white); background: var(--blue);
+  border-radius: 4px; padding: 0 4px; line-height: 1.5;
+}
 .cal-gantt-room-label {
   position: sticky; left: 0; z-index: 2; background: var(--white); display: flex; flex-direction: column;
   align-items: flex-start; justify-content: center; gap: 3px;
@@ -1608,6 +1654,10 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 .cal-month-cell.is-outside { background: var(--off-white); opacity: 0.55; }
 .cal-month-cell.is-today .cal-month-daynum { background: var(--navy); color: var(--white); border-radius: 100px; padding: 0 6px; }
 .cal-month-daynum { font-size: 12px; font-weight: 800; color: var(--navy); width: fit-content; }
+.cal-month-daynum-month {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.03em; color: var(--white); background: var(--blue);
+  border-radius: 4px; padding: 0 4px; vertical-align: middle;
+}
 /* .cal-bar ha align-self:center (giusto per centrarsi verticalmente nella
    riga del Gantt) — qui nella cella flex-column del mese va invece
    sovrascritto ad align-self:stretch, altrimenti la chip si allarga solo
@@ -1889,21 +1939,24 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 .contact-host-btn { width: 100%; max-width: 420px; justify-content: center; }
 
 /* Da desktop in su, la barra a piena larghezza toglie troppo spazio: diventa
-   un bottone tondo fisso in basso a destra, solo icona (etichetta nascosta,
-   resta leggibile dagli screen reader via aria-label). */
+   una pillola compatta fissa in basso a destra invece del bottone a piena
+   larghezza da mobile — ma con l'etichetta SEMPRE visibile (prima era solo
+   un cerchio con la sola icona, "anonimo": chi non ci passava sopra il
+   mouse non capiva che fosse un invito a scrivere all'host), non invasiva
+   perché resta piccola e in un angolo, non un banner. */
 @media (min-width: 769px) {
   .contact-host-bar {
     left: auto; right: 28px; bottom: 28px;
     padding: 0; background: transparent; box-shadow: none; border-top: none;
     justify-content: flex-end;
-    transform: translateY(12px) scale(.9);
+    transform: translateY(12px) scale(.96);
   }
   .contact-host-bar.is-visible { transform: translateY(0) scale(1); }
   .contact-host-btn {
-    width: 56px; height: 56px; max-width: 56px; padding: 0; border-radius: 50%;
-    box-shadow: 0 6px 20px rgba(16,35,59,0.25);
+    width: auto; max-width: none; padding: 13px 22px 13px 18px; border-radius: var(--radius-pill);
+    box-shadow: 0 6px 20px rgba(16,35,59,0.25); gap: 9px;
   }
-  .contact-host-btn-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .contact-host-btn-label { font-size: 14px; }
 }
 
 /* Modulo documenti ospiti (ospiti.html) */

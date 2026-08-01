@@ -9,7 +9,7 @@
 'use strict';
 const { HttpsError } = require('firebase-functions/v2/https');
 const { isNonEmptyString } = require('./guest-documents');
-const { notifyOwnerMaintenanceReport } = require('./telegram-bot');
+const { notifyOwnerMaintenanceReport, roomsLiveOverviewCore } = require('./telegram-bot');
 
 const CLEANING_STATUSES = ['pronta', 'sporca', 'in_pulizia', 'da_ispezionare'];
 const MAINTENANCE_CATEGORIES = ['furto', 'danno', 'manutenzione'];
@@ -22,6 +22,17 @@ async function verifyStaffToken(db, token) {
   if (!expected || expected !== token) {
     throw new HttpsError('permission-denied', 'Link non valido o scaduto: chiedi al proprietario un nuovo link.');
   }
+}
+
+// Nome e cognome di chi usa il link (richiesto per ogni azione che scrive
+// qualcosa): senza login, è l'unico modo di sapere chi ha segnato una
+// stanza pulita o segnalato un problema — prima veniva salvato solo
+// "dashboard pulizie" senza dire CHI, indistinguibile tra più persone che
+// usano lo stesso link.
+function staffNameOrThrow(data) {
+  const name = String(data.staffName || '').trim();
+  if (!isNonEmptyString(name, 80)) throw new HttpsError('invalid-argument', 'Inserisci il tuo nome e cognome prima di continuare.');
+  return name;
 }
 
 // Stesso confronto già usato in functions/telegram-bot.js (rangeOverlapsBlocked)
@@ -39,14 +50,11 @@ function rangeOverlapsBlocked(ranges, start, end) {
 async function staffGetBoardCore(ctx, data) {
   const { db } = ctx;
   await verifyStaffToken(db, data.token);
-  const snap = await db.collection('tourism_rooms').get();
-  const rooms = [];
-  snap.forEach((d) => {
-    const r = d.data();
-    rooms.push({ id: d.id, name: r.name || d.id, cleaningStatus: r.cleaningStatus || 'pronta' });
-  });
-  rooms.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  return { rooms };
+  // liveStatus (occupata oggi / in manutenzione / stato pulizie) — stessa
+  // priorità già usata dal bot Telegram (/stanze) e dalla dashboard
+  // proprietario, così chi guarda da qui vede se una stanza è occupata o in
+  // manutenzione PRIMA di entrarci, non solo se è "sporca" o "pronta".
+  return { rooms: await roomsLiveOverviewCore(ctx) };
 }
 
 /* ==========================================================================
@@ -56,6 +64,7 @@ async function staffGetBoardCore(ctx, data) {
 async function staffSetCleaningStatusCore(ctx, data) {
   const { db, admin } = ctx;
   await verifyStaffToken(db, data.token);
+  const staffName = staffNameOrThrow(data);
   const roomId = data.roomId;
   const status = data.status;
   if (!isNonEmptyString(roomId, 100)) throw new HttpsError('invalid-argument', 'Stanza non valida.');
@@ -68,7 +77,7 @@ async function staffSetCleaningStatusCore(ctx, data) {
   await roomRef.update({
     cleaningStatus: status,
     cleaningStatusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    cleaningStatusUpdatedBy: { type: 'staff_dashboard' }
+    cleaningStatusUpdatedBy: { type: 'staff_dashboard', name: staffName }
   });
   return { ok: true };
 }
@@ -82,6 +91,7 @@ async function staffSetCleaningStatusCore(ctx, data) {
 async function staffReportMaintenanceCore(ctx, data) {
   const { db, admin, botToken } = ctx;
   await verifyStaffToken(db, data.token);
+  const staffName = staffNameOrThrow(data);
   const roomId = data.roomId;
   const category = data.category;
   const description = String(data.description || '').trim();
@@ -106,14 +116,14 @@ async function staffReportMaintenanceCore(ctx, data) {
     ranges.push({ start, end, source: 'maintenance', maintenanceId: maintRef.id });
     tx.set(maintRef, {
       roomId, roomLabel, title: description.slice(0, 200), category, description: '', status: 'aperta',
-      start, end, createdBy: { type: 'staff_dashboard' },
+      start, end, createdBy: { type: 'staff_dashboard', name: staffName },
       createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
     tx.update(roomRef, { blockedRanges: ranges });
   });
 
   await notifyOwnerMaintenanceReport({ db, botToken }, {
-    roomLabel, category, title: description.slice(0, 200), start, end, createdBy: { type: 'staff_dashboard' }
+    roomLabel, category, title: description.slice(0, 200), start, end, createdBy: { type: 'staff_dashboard', name: staffName }
   });
   return { ok: true };
 }
