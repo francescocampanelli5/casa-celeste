@@ -13,7 +13,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getFirestore, connectFirestoreEmulator,
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc,
-  onSnapshot, query, orderBy, getDocs
+  onSnapshot, query, orderBy, getDocs, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, connectAuthEmulator,
@@ -39,10 +39,15 @@ var configured = !!cfg.apiKey && cfg.apiKey.indexOf('INCOLLA_QUI') === -1;
 var app = null, db = null, auth = null, storage = null, functions = null;
 if (configured) {
   app = initializeApp(cfg);
-  if (window.USE_FIREBASE_EMULATOR) {
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  // Con gli emulatori niente App Check: gli emulatori Auth/Firestore/Storage
+  // non lo applicano comunque, e il tentativo di scambiare il debug token
+  // con il backend REALE di App Check (che non conosce quel token finché
+  // non lo registri a mano in console) falliva con 403 e bloccava anche il
+  // login — il resto dell'SDK considerava fallita ogni chiamata in attesa
+  // di un token App Check che non arrivava mai.
+  if (!window.USE_FIREBASE_EMULATOR) {
+    initializeAppCheck(app, { provider: new ReCaptchaV3Provider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
   }
-  initializeAppCheck(app, { provider: new ReCaptchaV3Provider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
   db = getFirestore(app);
   auth = getAuth(app);
   storage = getStorage(app);
@@ -62,6 +67,10 @@ function requireDb() {
 
 window.CasaCelesteTourismDB = {
   isConfigured: function () { return configured; },
+  // dashboard.js è uno script classico (non un modulo): non può importare
+  // serverTimestamp() direttamente dall'SDK, quindi lo si espone qui come
+  // per ogni altra funzione Firestore usata dalla dashboard.
+  serverTimestamp: function () { return serverTimestamp(); },
 
   // ---- rooms ----
   subscribeRooms: function (callback) {
@@ -198,6 +207,66 @@ window.CasaCelesteTourismDB = {
   },
   setSettings: function (data) {
     return setDoc(doc(requireDb(), 'tourism_settings', 'site'), data, { merge: true });
+  },
+
+  // ---- settings privati (credenziali adempimenti: Alloggiati Web/ISTAT/
+  // PayTourist) — documento SEPARATO da tourism_settings apposta, perché
+  // quello è leggibile pubblicamente (vedi firestore.rules); solo il
+  // proprietario legge/scrive qui.
+  subscribeSettingsPrivate: function (callback) {
+    if (!configured) return function () {};
+    return onSnapshot(doc(requireDb(), 'tourism_settingsPrivate', 'site'), function (snap) {
+      callback(snap.exists() ? snap.data() : {});
+    });
+  },
+  setSettingsPrivate: function (data) {
+    return setDoc(doc(requireDb(), 'tourism_settingsPrivate', 'site'), data, { merge: true });
+  },
+
+  // ---- manutenzioni stanza ----
+  subscribeMaintenance: function (callback) {
+    if (!configured) return function () {};
+    var q = query(collection(requireDb(), 'tourism_maintenance'), orderBy('start', 'asc'));
+    return onSnapshot(q, function (snap) {
+      var items = [];
+      snap.forEach(function (d) { items.push(Object.assign({ id: d.id }, d.data())); });
+      callback(items);
+    });
+  },
+  // Crea la manutenzione E blocca le date sulla stanza (stesso meccanismo
+  // già usato per le prenotazioni: senza questo la stanza resterebbe
+  // prenotabile durante la manutenzione).
+  createMaintenance: function (data) {
+    var db_ = requireDb();
+    var maintRef = doc(collection(db_, 'tourism_maintenance'));
+    var maintenance = Object.assign({}, data, { status: data.status || 'aperta', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    return runTransaction(db_, function (tx) {
+      var roomRef = doc(db_, 'tourism_rooms', data.roomId);
+      return tx.get(roomRef).then(function (roomSnap) {
+        var room = roomSnap.exists() ? roomSnap.data() : {};
+        var ranges = (room.blockedRanges || []).slice();
+        ranges.push({ start: data.start, end: data.end, source: 'maintenance', maintenanceId: maintRef.id });
+        tx.set(maintRef, maintenance);
+        tx.update(roomRef, { blockedRanges: ranges });
+      });
+    }).then(function () { return maintRef.id; });
+  },
+  setMaintenance: function (maintenanceId, data) {
+    return setDoc(doc(requireDb(), 'tourism_maintenance', maintenanceId), Object.assign({}, data, { updatedAt: serverTimestamp() }), { merge: true });
+  },
+  // Cancella la manutenzione E libera le notti bloccate sulla stanza.
+  deleteMaintenance: function (maintenanceId, roomId) {
+    var db_ = requireDb();
+    return runTransaction(db_, function (tx) {
+      var maintRef = doc(db_, 'tourism_maintenance', maintenanceId);
+      var roomRef = doc(db_, 'tourism_rooms', roomId);
+      return tx.get(roomRef).then(function (roomSnap) {
+        var room = roomSnap.exists() ? roomSnap.data() : {};
+        var ranges = (room.blockedRanges || []).filter(function (r) { return r.maintenanceId !== maintenanceId; });
+        tx.delete(maintRef);
+        tx.update(roomRef, { blockedRanges: ranges });
+      });
+    });
   },
 
   // ---- upload foto stanze/spazi comuni/facciata (Storage, piano Blaze) ----
@@ -344,6 +413,35 @@ window.CasaCelesteTourismDB = {
   },
   deleteBooking: function (id) {
     return deleteDoc(doc(requireDb(), 'tourism_bookings', id));
+  },
+  // Sposta una prenotazione a nuove date (drag&drop nel calendario). Rilegge
+  // la stanza DENTRO la transazione (non fidandosi dello stato client, che
+  // può essere pochi istanti vecchio) e rifiuta se le nuove date si
+  // sovrappongono a un altro blocco — stessa logica anti-doppia-prenotazione
+  // della Cloud Function createBooking, qui lato client perché non esiste
+  // ancora una Cloud Function dedicata per lo spostamento.
+  moveBooking: function (bookingId, roomId, newCheckIn, newCheckOut) {
+    var db_ = requireDb();
+    return runTransaction(db_, function (tx) {
+      var roomRef = doc(db_, 'tourism_rooms', roomId);
+      var bookingRef = doc(db_, 'tourism_bookings', bookingId);
+      return tx.get(roomRef).then(function (roomSnap) {
+        if (!roomSnap.exists()) throw new Error('Stanza non trovata.');
+        var room = roomSnap.data();
+        var ranges = room.blockedRanges || [];
+        var overlaps = ranges.some(function (r) {
+          if (r.bookingId === bookingId) return false; // il proprio blocco, si sposta
+          return newCheckIn < r.end && newCheckOut > r.start;
+        });
+        if (overlaps) throw new Error('Le nuove date si sovrappongono a un\'altra prenotazione/blocco su questa stanza.');
+        var nights = Math.round((new Date(newCheckOut) - new Date(newCheckIn)) / 86400000);
+        var newRanges = ranges.map(function (r) {
+          return r.bookingId === bookingId ? Object.assign({}, r, { start: newCheckIn, end: newCheckOut }) : r;
+        });
+        tx.update(roomRef, { blockedRanges: newRanges });
+        tx.update(bookingRef, { checkIn: newCheckIn, checkOut: newCheckOut, nights: nights });
+      });
+    });
   },
 
   // ---- messaggi widget di assistenza (dashboard, tab Assistenza) ----

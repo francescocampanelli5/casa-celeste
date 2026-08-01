@@ -17,19 +17,33 @@ var lib = require('./_lib');
 var admin = lib.initAdmin();
 var db = admin.firestore();
 
-function isConfigured() {
-  return !!process.env.ALLOGGIATI_WEB_USER && !!process.env.ALLOGGIATI_WEB_PASSWORD && !!process.env.ALLOGGIATI_WEB_WSKEY;
+// Le credenziali si leggono PRIMA da tourism_settingsPrivate/site (dashboard
+// → Impostazioni → Credenziali adempimenti — così una struttura che usa
+// questo sistema le inserisce da lì, senza toccare i secret di GitHub
+// Actions), con fallback sulle variabili d'ambiente per chi le aveva già
+// configurate solo lì. Documento SEPARATO da tourism_settings apposta:
+// quello è leggibile pubblicamente, queste credenziali no (vedi
+// firestore.rules).
+async function loadCredentials() {
+  const snap = await db.collection('tourism_settingsPrivate').doc('site').get();
+  const stored = (snap.exists ? snap.data() : {}).alloggiatiWeb || {};
+  return {
+    user: stored.username || process.env.ALLOGGIATI_WEB_USER || '',
+    password: stored.password || process.env.ALLOGGIATI_WEB_PASSWORD || '',
+    wsKey: stored.wsKey || process.env.ALLOGGIATI_WEB_WSKEY || ''
+  };
 }
 
 // TODO: completare con la vera chiamata SOAP/XML al web service Alloggiati
 // Web quando disponibili credenziali + WSDL ufficiali della Questura.
-async function submitToAlloggiatiWeb(booking, guestDocs) {
+async function submitToAlloggiatiWeb(booking, guestDocs, credentials) {
   throw new Error('submitToAlloggiatiWeb non ancora implementata: serve il WSDL ufficiale fornito dalla Questura di Bari (vedi commento in cima al file).');
 }
 
 async function main() {
-  if (!isConfigured()) {
-    console.log('Alloggiati Web non configurato (ALLOGGIATI_WEB_USER/PASSWORD/WSKEY mancanti): esco senza fare nulla.');
+  const credentials = await loadCredentials();
+  if (!credentials.user || !credentials.password || !credentials.wsKey) {
+    console.log('Alloggiati Web non configurato (credenziali mancanti in tourism_settingsPrivate/site o nelle variabili ALLOGGIATI_WEB_*): esco senza fare nulla.');
     return;
   }
   var now = lib.romeNow();
@@ -48,7 +62,7 @@ async function main() {
     try {
       var guestDocsSnap = await db.collection('tourism_guestDocuments').doc(doc.id).get();
       if (!guestDocsSnap.exists) continue;
-      await submitToAlloggiatiWeb(b, guestDocsSnap.data());
+      await submitToAlloggiatiWeb(b, guestDocsSnap.data(), credentials);
       await doc.ref.update({ alloggiatiWeb: { submitted: true, submittedAt: admin.firestore.FieldValue.serverTimestamp(), error: null } });
       sent++;
     } catch (err) {

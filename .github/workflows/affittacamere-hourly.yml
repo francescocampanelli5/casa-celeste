@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Installa dipendenze
         working-directory: affittacamere/scripts
         run: npm install
@@ -25,6 +25,11 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      - name: Stato pulizie automatico a "sporca" dopo il check-out
+        working-directory: affittacamere/scripts
+        run: node cleaning-status-auto.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       - name: Libera le prenotazioni scadute (48h senza conferma)
         working-directory: affittacamere/scripts
         run: node expire-stale-bookings.js

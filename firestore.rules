@@ -93,6 +93,24 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
+    // Documento SEPARATO da tourism_settings apposta: quello sopra è
+    // leggibile pubblicamente (il sito pubblico legge telefono/orari da
+    // lì), quindi credenziali sensibili (Alloggiati Web/ISTAT/PayTourist)
+    // non possono starci — chiunque le leggerebbe dalla console del
+    // browser. Qui invece lettura e scrittura sono SOLO del proprietario.
+    match /tourism_settingsPrivate/{settingId} {
+      allow read, write: if isOwner();
+    }
+
+    // Manutenzioni stanza: nessuna lettura pubblica necessaria (il sito
+    // pubblico legge solo tourism_rooms.blockedRanges per la disponibilità,
+    // mai questa collection direttamente); solo il proprietario (dashboard
+    // o bot Telegram via Admin SDK, che bypassa comunque queste regole)
+    // crea/legge/modifica/cancella.
+    match /tourism_maintenance/{maintenanceId} {
+      allow read, write: if isOwner();
+    }
+
     // La creazione di una prenotazione passa SOLO dalla Cloud Function
     // createBooking (transazione anti-doppia-prenotazione + validazione
     // completa, vedi functions/index.js): l'Admin SDK che usa bypassa

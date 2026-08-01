@@ -19,9 +19,19 @@
     reviewsData: JSON.parse(JSON.stringify(window.CASA_CELESTE_TOURISM_DATA.SEED_REVIEWS)),
     monoSlidesData: JSON.parse(JSON.stringify(window.CASA_CELESTE_TOURISM_DATA.SEED_MONO_SLIDES)),
     settings: {},
+    settingsPrivate: {},
+    maintenanceData: [],
     assistMessages: [],
     manualBookingOpen: false,
     bookingsFilter: { roomId: '', source: '', status: '', from: '', to: '' },
+    maintenanceFormOpen: false,
+    calendarView: 'gantt',
+    calendarFilters: { roomId: '', type: 'all' },
+    calendarWindowStart: null,
+    calendarWindowDays: 21,
+    calendarModalBookingId: null,
+    dragInProgress: false,
+    justDragged: false,
     // Pannello "Documenti ospiti" nella tab Prenotazioni: una prenotazione
     // aperta alla volta, bozze tenute in memoria finché non si salva (stesso
     // giro di submitGuestDocuments già usato da ospiti.html/bot Telegram).
@@ -32,7 +42,8 @@
     recsClickCounts: null,
     recsClickCountsLoading: false,
     rerenderPending: false,
-    unsubBookings: null, unsubRooms: null, unsubCommons: null, unsubReviews: null, unsubMonoSlides: null, unsubSettings: null, unsubAssistMessages: null
+    unsubBookings: null, unsubRooms: null, unsubCommons: null, unsubReviews: null, unsubMonoSlides: null, unsubSettings: null, unsubAssistMessages: null,
+    unsubSettingsPrivate: null, unsubMaintenance: null
   };
 
   function slugify(str) {
@@ -63,7 +74,23 @@
     return one('it', 'italiano') + one('en', 'inglese');
   }
   function todayISO() { return new Date().toISOString().slice(0, 10); }
-  function addDaysIso(iso, days) { var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); }
+  // Suffisso Z esplicito e setUTCDate/getUTCDate (non setDate/getDate):
+  // senza, la stringa data viene interpretata come mezzanotte LOCALE e poi
+  // riconvertita in UTC — in un fuso avanti su UTC (es. Europe/Rome
+  // d'estate, +2h) questo fa perdere un giorno a ogni passaggio (bug reale
+  // trovato qui: bloccava il salvataggio del form manutenzione con le date
+  // di default uguali, e spostava di un giorno la finestra/l'evidenziazione
+  // "oggi" del calendario). Stessa tecnica già corretta in
+  // affittacamere/scripts/_lib.js — qui allineata alla versione server.
+  function addDaysIso(iso, days) { var d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); }
+  // Senza suffisso orario apposta (a differenza di addDaysIso): entrambi gli
+  // operandi vengono interpretati come mezzanotte UTC allo stesso modo, quindi
+  // la SOTTRAZIONE resta corretta a prescindere dal fuso orario del browser
+  // (stessa tecnica già usata in app.js/pricing.js per calcolare le notti).
+  function diffDaysIso(aIso, bIso) { return Math.round((new Date(bIso) - new Date(aIso)) / 86400000); }
+  function sortedRoomIds() {
+    return Object.keys(state.roomsData).sort(function (a, b) { return (state.roomsData[a].order || 999999) - (state.roomsData[b].order || 999999); });
+  }
   function formatCreatedAt(ts) {
     try { if (ts && typeof ts.toDate === 'function') return ts.toDate().toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) {}
     return '—';
@@ -72,6 +99,15 @@
   var STATUS_LABELS = { nuovo: 'Nuova', confermato: 'Confermata', annullato: 'Annullata' };
   var SOURCE_LABELS = { site: 'Sito', manual_airbnb: 'Airbnb', manual_booking: 'Booking.com', manual_phone: 'Telefono', manual_other: 'Altro' };
   var DOC_TYPE_LABELS = { carta_identita: 'Carta d\'identità', passaporto: 'Passaporto', patente: 'Patente' };
+  var CLEANING_STATUS_LABELS = { pronta: 'Pronta', sporca: 'Sporca', in_pulizia: 'In pulizia', da_ispezionare: 'Da ispezionare' };
+  var CLEANING_STATUS_ORDER = ['sporca', 'in_pulizia', 'da_ispezionare', 'pronta'];
+  var MAINTENANCE_STATUS_LABELS = { aperta: 'Aperta', in_corso: 'In corso', risolta: 'Risolta' };
+  function roomSourceLabel(source) {
+    if (source === 'maintenance') return 'Manutenzione';
+    if (source === 'booking') return 'Prenotazione';
+    if (source === 'manual') return 'Blocco manuale';
+    return SOURCE_LABELS[source] || source || '';
+  }
 
   /* ==========================================================================
      Screens
@@ -135,6 +171,7 @@
   // voce di menu, invece di dover toccare sia l'elenco piatto sia lo stile.
   var SIDEBAR_GROUPS = [
     { title: 'Operativo', items: [
+      { tab: 'calendar', label: 'Calendario' },
       { tab: 'bookings', label: 'Prenotazioni' },
       { tab: 'assist', label: 'Assistenza', badge: function () { return assistUnreadCount(); } }
     ] },
@@ -149,7 +186,7 @@
       { tab: 'settings', label: 'Impostazioni' }
     ] }
   ];
-  var TAB_TITLES = { bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'Monopoli', compliance: 'Adempimenti', settings: 'Impostazioni' };
+  var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'Monopoli', compliance: 'Adempimenti', settings: 'Impostazioni' };
 
   function sidebarLinksHtml() {
     return SIDEBAR_GROUPS.map(function (group) {
@@ -206,12 +243,16 @@
     // scrivendo, facendo sparire il testo appena inserito prima ancora che
     // possa salvarsi. Si rimanda il render a quando il campo perde il focus.
     var active = document.activeElement;
-    if (active && content.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+    // Stessa logica, estesa: un ridisegno a metà trascinamento nel Calendario
+    // interromperebbe il drag&drop nativo esattamente come distruggerebbe un
+    // input col focus — vedi bindCalendarEvents/dragstart.
+    if (state.dragInProgress || (active && content.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT'))) {
       state.rerenderPending = true;
       return;
     }
     state.rerenderPending = false;
-    if (state.activeTab === 'bookings') renderBookingsTab(content);
+    if (state.activeTab === 'calendar') renderCalendarTab(content);
+    else if (state.activeTab === 'bookings') renderBookingsTab(content);
     else if (state.activeTab === 'commons') renderCommonsTab(content);
     else if (state.activeTab === 'reviews') renderReviewsTab(content);
     else if (state.activeTab === 'assist') renderAssistTab(content);
@@ -429,23 +470,34 @@
       });
     });
 
-    content.querySelectorAll('[data-status-select]').forEach(function (el) {
+    bindBookingCardEvents(content, function () { renderBookingsTab(content); });
+  }
+  // Estratto da renderBookingsTab (era inline lì): agganciare gli eventi di
+  // una o più booking-card renderizzate con bookingCardHtml() dentro un
+  // qualsiasi container — riusato anche dal modale di dettaglio del
+  // calendario, così non serve reimplementare cambio stato/elimina/copia
+  // dati/documenti ospiti/verifica identità una seconda volta lì. `rerender`
+  // è cosa richiamare dopo un'azione che cambia lo stato locale (es. aprire
+  // il pannello documenti ospiti) — la tab Prenotazioni si ridisegna intera,
+  // il modale del calendario ridisegna solo se stesso.
+  function bindBookingCardEvents(container, rerender) {
+    container.querySelectorAll('[data-status-select]').forEach(function (el) {
       el.addEventListener('change', function (e) { setBookingStatus(el.getAttribute('data-id'), e.target.value); });
     });
-    content.querySelectorAll('[data-delete-booking]').forEach(function (el) {
+    container.querySelectorAll('[data-delete-booking]').forEach(function (el) {
       el.addEventListener('click', function () {
         if (window.confirm('Eliminare definitivamente questa prenotazione?')) deleteBookingAndFreeDates(el.getAttribute('data-id'));
       });
     });
-    content.querySelectorAll('[data-copy-alloggiati]').forEach(function (el) {
+    container.querySelectorAll('[data-copy-alloggiati]').forEach(function (el) {
       el.addEventListener('click', function () { copyAlloggiatiData(el.getAttribute('data-id')); });
     });
-    content.querySelectorAll('[data-room-access-code]').forEach(function (el) {
+    container.querySelectorAll('[data-room-access-code]').forEach(function (el) {
       el.addEventListener('change', function (e) {
         window.CasaCelesteTourismDB.updateBookingRoomAccessCode(el.getAttribute('data-id'), e.target.value);
       });
     });
-    content.querySelectorAll('[data-mark-verified-select]').forEach(function (el) {
+    container.querySelectorAll('[data-mark-verified-select]').forEach(function (el) {
       el.addEventListener('change', function (e) {
         var method = e.target.value;
         if (!method) return;
@@ -457,21 +509,21 @@
         });
       });
     });
-    content.querySelectorAll('[data-toggle-guestdocs]').forEach(function (el) {
+    container.querySelectorAll('[data-toggle-guestdocs]').forEach(function (el) {
       el.addEventListener('click', function () {
         var id = el.getAttribute('data-id');
-        if (state.guestDocsPanelBookingId === id) closeGuestDocsPanel(content);
-        else openGuestDocsPanel(id, content);
+        if (state.guestDocsPanelBookingId === id) closeGuestDocsPanel(container, rerender);
+        else openGuestDocsPanel(id, container, rerender);
       });
     });
-    content.querySelectorAll('[data-guestdoc-photo]').forEach(function (el) {
+    container.querySelectorAll('[data-guestdoc-photo]').forEach(function (el) {
       el.addEventListener('change', function (e) {
         var file = e.target.files && e.target.files[0];
         if (!file) return;
-        handleGuestDocPhotoUpload(el.getAttribute('data-booking-id'), Number(el.getAttribute('data-guest-index')), file, content);
+        handleGuestDocPhotoUpload(el.getAttribute('data-booking-id'), Number(el.getAttribute('data-guest-index')), file, container, rerender);
       });
     });
-    content.querySelectorAll('[data-guestdoc-field]').forEach(function (el) {
+    container.querySelectorAll('[data-guestdoc-field]').forEach(function (el) {
       var evt = el.tagName === 'SELECT' ? 'change' : 'input';
       el.addEventListener(evt, function (e) {
         var idx = Number(el.getAttribute('data-guest-index'));
@@ -480,8 +532,8 @@
         draft[el.getAttribute('data-part')] = e.target.value;
       });
     });
-    content.querySelectorAll('[data-save-guestdocs]').forEach(function (el) {
-      el.addEventListener('click', function () { saveGuestDocs(el.getAttribute('data-id'), content); });
+    container.querySelectorAll('[data-save-guestdocs]').forEach(function (el) {
+      el.addEventListener('click', function () { saveGuestDocs(el.getAttribute('data-id'), container, rerender); });
     });
   }
   // Annullare una prenotazione deve liberare anche le notti bloccate nella
@@ -531,6 +583,303 @@
   }
 
   /* ==========================================================================
+     Calendario — vista unica di tutte le stanze: prenotazioni, manutenzioni,
+     stato pulizie. Non è un fetch separato: filtra/raggruppa sugli stessi
+     array live già sottoscritti (state.bookings, state.roomsData,
+     state.maintenanceData), esattamente come ogni altra tab.
+     ========================================================================== */
+  function calendarBarClass(ev) {
+    if (ev.kind === 'maintenance') return 'cal-bar cal-bar--maintenance';
+    var known = { site: 'site', manual_airbnb: 'airbnb', manual_booking: 'booking', manual_phone: 'phone' };
+    var cls = known[ev.source] || 'other';
+    return 'cal-bar cal-bar--' + cls + (ev.status === 'nuovo' ? ' cal-bar--pending' : '');
+  }
+  // Eventi di UNA stanza secondo il filtro tipo attivo (tutto/solo
+  // prenotazioni/solo manutenzioni) — "solo pulizie" non passa da qui, vedi
+  // housekeepingBoardHtml più sotto (è stato attuale, non un intervallo).
+  function calendarEventsForRoom(roomId) {
+    var type = state.calendarFilters.type;
+    var events = [];
+    if (type === 'all' || type === 'bookings') {
+      state.bookings.forEach(function (b) {
+        if (b.roomId !== roomId || b.status === 'annullato') return;
+        events.push({ kind: 'booking', id: b.id, start: b.checkIn, end: b.checkOut, source: b.source, status: b.status, label: (b.name || 'Ospite') + ' · ' + (SOURCE_LABELS[b.source] || b.source || 'Sito') });
+      });
+    }
+    if (type === 'all' || type === 'maintenance') {
+      state.maintenanceData.forEach(function (m) {
+        if (m.roomId !== roomId || m.status === 'risolta') return;
+        events.push({ kind: 'maintenance', id: m.id, start: m.start, end: m.end, label: m.title || 'Manutenzione' });
+      });
+    }
+    return events;
+  }
+  function calendarMonthGridDays(monthAnchorIso) {
+    var firstIso = monthAnchorIso.slice(0, 8) + '01';
+    var jsDay = new Date(firstIso + 'T00:00:00').getDay();
+    var mondayOffset = (jsDay + 6) % 7; // giorni dal lunedì precedente (o pari)
+    var gridStartIso = addDaysIso(firstIso, -mondayOffset);
+    var days = [];
+    for (var i = 0; i < 42; i++) days.push(addDaysIso(gridStartIso, i));
+    return days;
+  }
+  function calendarToolbarHtml() {
+    var f = state.calendarFilters;
+    var roomOptions = '<option value="">Tutte le stanze</option>' + sortedRoomIds().map(function (id) {
+      return '<option value="' + id + '"' + (f.roomId === id ? ' selected' : '') + '>' + escapeHtml(state.roomsData[id].name) + '</option>';
+    }).join('');
+    var viewLabels = { gantt: 'Stanze', month: 'Mese', agenda: 'Agenda' };
+    var viewButtons = ['gantt', 'month', 'agenda'].map(function (v) {
+      return '<button type="button" class="cal-view-btn' + (state.calendarView === v ? ' is-active' : '') + '" data-calendar-view="' + v + '">' + viewLabels[v] + '</button>';
+    }).join('');
+    var showNav = f.type !== 'cleaning' && state.calendarView !== 'agenda';
+    return (
+      '<div class="cal-toolbar">' +
+        (f.type === 'cleaning' ? '' : '<div class="cal-toolbar-views">' + viewButtons + '</div>') +
+        '<div class="cal-toolbar-filters">' +
+          '<select class="dash-select" data-calendar-room-filter>' + roomOptions + '</select>' +
+          '<select class="dash-select" data-calendar-type-filter>' +
+            '<option value="all"' + (f.type === 'all' ? ' selected' : '') + '>Tutto</option>' +
+            '<option value="bookings"' + (f.type === 'bookings' ? ' selected' : '') + '>Solo prenotazioni</option>' +
+            '<option value="maintenance"' + (f.type === 'maintenance' ? ' selected' : '') + '>Solo manutenzioni</option>' +
+            '<option value="cleaning"' + (f.type === 'cleaning' ? ' selected' : '') + '>Solo pulizie</option>' +
+          '</select>' +
+        '</div>' +
+        (showNav ?
+          '<div class="cal-toolbar-nav">' +
+            '<button type="button" class="link-btn" data-calendar-nav="-1">&larr;</button>' +
+            '<button type="button" class="link-btn" data-calendar-nav="0">Oggi</button>' +
+            '<button type="button" class="link-btn" data-calendar-nav="1">&rarr;</button>' +
+          '</div>' : '') +
+      '</div>'
+    );
+  }
+  function calendarGanttHtml(roomIds) {
+    var days = state.calendarWindowDays;
+    var start = state.calendarWindowStart;
+    var dayIsos = [];
+    for (var i = 0; i < days; i++) dayIsos.push(addDaysIso(start, i));
+    var todayIso = todayISO();
+
+    var header = dayIsos.map(function (iso, i) {
+      var d = new Date(iso + 'T00:00:00');
+      return '<div class="cal-gantt-cell cal-gantt-day-header' + (iso === todayIso ? ' is-today' : '') + '" style="grid-column:' + (i + 2) + ';grid-row:1;">' +
+        '<span class="cal-gantt-day-weekday">' + escapeHtml(d.toLocaleDateString('it-IT', { weekday: 'short' })) + '</span>' +
+        '<span class="cal-gantt-day-num">' + d.getDate() + '</span>' +
+      '</div>';
+    }).join('');
+
+    var rowsHtml = '', barsHtml = '';
+    roomIds.forEach(function (roomId, rIdx) {
+      var rowLine = rIdx + 2;
+      var room = state.roomsData[roomId] || {};
+      rowsHtml += '<div class="cal-gantt-cell cal-gantt-room-label" style="grid-column:1;grid-row:' + rowLine + ';">' + escapeHtml(room.name || roomId) + '</div>';
+      dayIsos.forEach(function (iso, i) {
+        rowsHtml += '<div class="cal-gantt-cell cal-gantt-day-cell' + (iso === todayIso ? ' is-today' : '') + '" data-cal-daycell data-room-id="' + roomId + '" data-day-iso="' + iso + '" style="grid-column:' + (i + 2) + ';grid-row:' + rowLine + ';"></div>';
+      });
+      calendarEventsForRoom(roomId).forEach(function (ev) {
+        var startIdx = diffDaysIso(start, ev.start), endIdx = diffDaysIso(start, ev.end);
+        if (endIdx <= 0 || startIdx >= days) return; // fuori dalla finestra visibile
+        var clampedStart = Math.max(0, startIdx), clampedEnd = Math.min(days, endIdx);
+        barsHtml += '<div class="' + calendarBarClass(ev) + '" draggable="' + (ev.kind === 'booking' ? 'true' : 'false') + '" data-cal-bar data-kind="' + ev.kind + '" data-id="' + ev.id + '" data-room-id="' + roomId + '" style="grid-column:' + (clampedStart + 2) + ' / ' + (clampedEnd + 2) + ';grid-row:' + rowLine + ';" title="' + escapeHtml(ev.label) + '">' + escapeHtml(ev.label) + '</div>';
+      });
+    });
+
+    return '<div class="cal-gantt" style="grid-template-columns:180px repeat(' + days + ',minmax(34px,1fr));grid-template-rows:40px repeat(' + roomIds.length + ',46px);">' +
+      '<div class="cal-gantt-cell cal-gantt-corner" style="grid-column:1;grid-row:1;"></div>' + header + rowsHtml + barsHtml +
+    '</div>';
+  }
+  function calendarMonthHtml(roomIds) {
+    var days = calendarMonthGridDays(state.calendarWindowStart);
+    var monthNum = new Date(state.calendarWindowStart + 'T00:00:00').getMonth();
+    var todayIso = todayISO();
+    var weekdayHeader = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(function (w) {
+      return '<div class="cal-month-weekday">' + w + '</div>';
+    }).join('');
+    var cells = days.map(function (iso) {
+      var d = new Date(iso + 'T00:00:00');
+      var dayEvents = [];
+      roomIds.forEach(function (roomId) {
+        calendarEventsForRoom(roomId).forEach(function (ev) {
+          if (iso >= ev.start && iso < ev.end) dayEvents.push(Object.assign({ roomId: roomId }, ev));
+        });
+      });
+      var chips = dayEvents.slice(0, 4).map(function (ev) {
+        var room = state.roomsData[ev.roomId];
+        var text = (room ? room.name : ev.roomId) + ' — ' + ev.label;
+        return '<div class="' + calendarBarClass(ev) + ' cal-month-chip" data-cal-bar data-kind="' + ev.kind + '" data-id="' + ev.id + '" title="' + escapeHtml(text) + '">' + escapeHtml(text) + '</div>';
+      }).join('');
+      var more = dayEvents.length > 4 ? '<div class="cal-month-more">+' + (dayEvents.length - 4) + ' altro/i</div>' : '';
+      return '<div class="cal-month-cell' + (d.getMonth() !== monthNum ? ' is-outside' : '') + (iso === todayIso ? ' is-today' : '') + '">' +
+        '<div class="cal-month-daynum">' + d.getDate() + '</div>' + chips + more +
+      '</div>';
+    }).join('');
+    return '<div class="cal-month-grid">' + weekdayHeader + cells + '</div>';
+  }
+  function calendarAgendaHtml(roomIds) {
+    var horizonStart = todayISO(), horizonEnd = addDaysIso(horizonStart, 60);
+    var byDate = {};
+    roomIds.forEach(function (roomId) {
+      calendarEventsForRoom(roomId).forEach(function (ev) {
+        if (ev.end <= horizonStart || ev.start >= horizonEnd) return;
+        if (!byDate[ev.start]) byDate[ev.start] = [];
+        byDate[ev.start].push(Object.assign({ roomId: roomId }, ev));
+      });
+    });
+    var dates = Object.keys(byDate).sort();
+    if (!dates.length) return '<div class="dash-empty">Nessun evento nei prossimi 60 giorni per i filtri scelti.</div>';
+    return dates.map(function (dateIso) {
+      var d = new Date(dateIso + 'T00:00:00');
+      var rows = byDate[dateIso].map(function (ev) {
+        var room = state.roomsData[ev.roomId];
+        return '<div class="cal-agenda-row ' + calendarBarClass(ev) + '" data-cal-bar data-kind="' + ev.kind + '" data-id="' + ev.id + '">' +
+          '<span class="cal-agenda-room">' + escapeHtml(room ? room.name : ev.roomId) + '</span>' +
+          '<span class="cal-agenda-label">' + escapeHtml(ev.label) + '</span>' +
+          '<span class="cal-agenda-nights">' + diffDaysIso(ev.start, ev.end) + ' notti</span>' +
+        '</div>';
+      }).join('');
+      return '<div class="cal-agenda-group">' +
+        '<div class="cal-agenda-date">' + escapeHtml(d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })) + '</div>' +
+        rows +
+      '</div>';
+    }).join('');
+  }
+  function housekeepingBoardHtml(roomIds) {
+    var cards = roomIds.map(function (roomId) {
+      var room = state.roomsData[roomId] || {};
+      return '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">' + escapeHtml(room.name || roomId) + '</span></div>' +
+        cleaningStatusEditorHtml(roomId, room) +
+      '</div>';
+    }).join('');
+    return '<div class="dash-room-rows">' + cards + '</div>';
+  }
+  function bookingDetailModalHtml(bookingId) {
+    var booking = state.bookings.find(function (b) { return b.id === bookingId; });
+    if (!booking) return '';
+    return (
+      '<div class="cal-modal-overlay" data-cal-modal-overlay>' +
+        '<div class="cal-modal">' +
+          '<button type="button" class="cal-modal-close" data-cal-modal-close aria-label="Chiudi">✕</button>' +
+          bookingCardHtml(booking) +
+        '</div>' +
+      '</div>'
+    );
+  }
+  function renderCalendarTab(content) {
+    if (!state.calendarWindowStart) state.calendarWindowStart = todayISO();
+    // Se la prenotazione aperta nel modale è stata eliminata/cancellata da
+    // sotto (es. onSnapshot remoto), chiude il modale invece di lasciarlo
+    // aperto su dati fantasma.
+    if (state.calendarModalBookingId && !state.bookings.some(function (b) { return b.id === state.calendarModalBookingId; })) {
+      state.calendarModalBookingId = null;
+    }
+    var f = state.calendarFilters;
+    var roomIds = f.roomId ? [f.roomId] : sortedRoomIds();
+    var body = f.type === 'cleaning' ? housekeepingBoardHtml(roomIds)
+      : state.calendarView === 'month' ? calendarMonthHtml(roomIds)
+      : state.calendarView === 'agenda' ? calendarAgendaHtml(roomIds)
+      : calendarGanttHtml(roomIds);
+
+    content.innerHTML =
+      '<h1 class="dash-section-title">Calendario</h1>' +
+      calendarToolbarHtml() +
+      (roomIds.length ? body : '<div class="dash-empty">Nessuna stanza configurata.</div>') +
+      (state.calendarModalBookingId ? bookingDetailModalHtml(state.calendarModalBookingId) : '');
+
+    bindCalendarEvents(content);
+  }
+  function bindCalendarEvents(content) {
+    content.querySelectorAll('[data-calendar-view]').forEach(function (el) {
+      el.addEventListener('click', function () { state.calendarView = el.getAttribute('data-calendar-view'); renderCalendarTab(content); });
+    });
+    var roomFilterEl = content.querySelector('[data-calendar-room-filter]');
+    if (roomFilterEl) roomFilterEl.addEventListener('change', function (e) { state.calendarFilters.roomId = e.target.value; renderCalendarTab(content); });
+    var typeFilterEl = content.querySelector('[data-calendar-type-filter]');
+    if (typeFilterEl) typeFilterEl.addEventListener('change', function (e) { state.calendarFilters.type = e.target.value; renderCalendarTab(content); });
+    content.querySelectorAll('[data-calendar-nav]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var dir = el.getAttribute('data-calendar-nav');
+        if (dir === '0') {
+          state.calendarWindowStart = todayISO();
+        } else if (state.calendarView === 'month') {
+          var d = new Date(state.calendarWindowStart + 'T00:00:00');
+          d.setMonth(d.getMonth() + Number(dir));
+          state.calendarWindowStart = d.toISOString().slice(0, 10);
+        } else {
+          state.calendarWindowStart = addDaysIso(state.calendarWindowStart, Number(dir) * state.calendarWindowDays);
+        }
+        renderCalendarTab(content);
+      });
+    });
+    bindCleaningStatusEvents(content);
+
+    // Drag&drop: sposta una prenotazione trascinandola su un'altra cella
+    // data (stessa stanza/riga — cambiare stanza da qui non è supportato,
+    // vedi messaggio sotto). La scrittura vera passa da moveBooking, una
+    // transazione Firestore che rilegge la stanza e rifiuta in caso di
+    // sovrapposizione (vedi firebase-init.js).
+    content.querySelectorAll('[data-cal-daycell]').forEach(function (el) {
+      el.addEventListener('dragover', function (e) { e.preventDefault(); });
+      el.addEventListener('drop', function (e) {
+        e.preventDefault();
+        var bookingId = e.dataTransfer.getData('text/plain');
+        if (!bookingId) return;
+        var booking = state.bookings.find(function (b) { return b.id === bookingId; });
+        if (!booking) return;
+        var newRoomId = el.getAttribute('data-room-id');
+        if (newRoomId !== booking.roomId) {
+          window.alert('Trascinala solo entro la stessa riga per cambiare le date. Per cambiare stanza, elimina e ricrea la prenotazione.');
+          return;
+        }
+        var newCheckIn = el.getAttribute('data-day-iso');
+        var nights = booking.nights || diffDaysIso(booking.checkIn, booking.checkOut) || 1;
+        var newCheckOut = addDaysIso(newCheckIn, nights);
+        if (newCheckIn === booking.checkIn) return; // stessa data, niente da fare
+        window.CasaCelesteTourismDB.moveBooking(bookingId, newRoomId, newCheckIn, newCheckOut).catch(function (err) {
+          window.alert('Spostamento non riuscito: ' + (err && err.message ? err.message : err));
+        });
+      });
+    });
+    content.querySelectorAll('[data-cal-bar][data-kind="booking"]').forEach(function (el) {
+      el.addEventListener('dragstart', function (e) {
+        state.dragInProgress = true;
+        state.justDragged = true;
+        e.dataTransfer.setData('text/plain', el.getAttribute('data-id'));
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      el.addEventListener('dragend', function () {
+        state.dragInProgress = false;
+        setTimeout(function () { state.justDragged = false; }, 0);
+        if (state.rerenderPending) renderTabContent();
+      });
+      el.addEventListener('click', function () {
+        if (state.justDragged) return;
+        state.calendarModalBookingId = el.getAttribute('data-id');
+        renderCalendarTab(content);
+      });
+    });
+    content.querySelectorAll('[data-cal-bar][data-kind="maintenance"]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var m = state.maintenanceData.find(function (x) { return x.id === el.getAttribute('data-id'); });
+        if (!m) return;
+        if (window.confirm((m.title || 'Manutenzione') + ' — ' + m.start + ' → ' + m.end + '.\nOK per segnarla RISOLTA (libera le date solo eliminandola dalla tab Stanze), Annulla per lasciarla com\'è.')) {
+          window.CasaCelesteTourismDB.setMaintenance(m.id, { status: 'risolta', resolvedAt: window.CasaCelesteTourismDB.serverTimestamp() });
+        }
+      });
+    });
+    var modalOverlay = content.querySelector('[data-cal-modal-overlay]');
+    if (modalOverlay) {
+      modalOverlay.addEventListener('click', function (e) {
+        if (e.target === modalOverlay) { state.calendarModalBookingId = null; renderCalendarTab(content); }
+      });
+      var closeBtn = content.querySelector('[data-cal-modal-close]');
+      if (closeBtn) closeBtn.addEventListener('click', function () { state.calendarModalBookingId = null; renderCalendarTab(content); });
+      bindBookingCardEvents(content.querySelector('.cal-modal'), function () { renderCalendarTab(content); });
+    }
+  }
+
+  /* ==========================================================================
      Documenti ospiti dalla dashboard — per prenotazioni telefoniche/walk-in
      dove non è l'ospite a compilare ospiti.html. Stessa identica validazione
      e stesso stesso Cloud Function submitGuestDocuments già usati da
@@ -541,7 +890,11 @@
   function blankGuestDraft() {
     return { firstName: '', lastName: '', birthDate: '', birthPlace: '', nationality: '', docType: '', docNumber: '', docIssuePlace: '', docPhotoUrl: '', recognized: false };
   }
-  function openGuestDocsPanel(bookingId, content) {
+  // `rerender` invece di richiamare sempre renderBookingsTab(content): così
+  // queste funzioni restano riusabili anche dal modale di dettaglio del
+  // calendario (bindBookingCardEvents), che deve ridisegnare solo il
+  // modale e non l'intera tab Prenotazioni sotto.
+  function openGuestDocsPanel(bookingId, content, rerender) {
     var booking = state.bookings.find(function (b) { return b.id === bookingId; });
     if (!booking) return;
     state.guestDocsPanelBookingId = bookingId;
@@ -550,7 +903,7 @@
     var drafts = [];
     for (var i = 0; i < count; i++) drafts.push(blankGuestDraft());
     state.guestDocsDrafts = drafts;
-    renderBookingsTab(content);
+    rerender();
     // Precompila dai dati già inviati, se ce ne sono (es. per correggere un
     // refuso) — ma MAI la foto: quella vecchia è già stata spostata nell'area
     // permanente dal server, va ricaricata per confermare di nuovo l'ospite
@@ -561,24 +914,24 @@
         state.guestDocsDrafts = docs.guests.map(function (g) {
           return Object.assign(blankGuestDraft(), g, { docPhotoUrl: '', docPhotoPath: '', recognized: false });
         });
-        renderBookingsTab(content);
+        rerender();
       }
     }).catch(function () {});
   }
-  function closeGuestDocsPanel(content) {
+  function closeGuestDocsPanel(content, rerender) {
     state.guestDocsPanelBookingId = null;
     state.guestDocsDrafts = [];
     state.guestDocsError = '';
     state.guestDocsBusy = false;
-    renderBookingsTab(content);
+    rerender();
   }
-  function handleGuestDocPhotoUpload(bookingId, guestIndex, file, content) {
+  function handleGuestDocPhotoUpload(bookingId, guestIndex, file, content, rerender) {
     state.guestDocsError = '';
     window.CasaCelesteTourismDB.uploadGuestDocPhotoTemp(bookingId, guestIndex, file).then(function (url) {
       var draft = state.guestDocsDrafts[guestIndex] || blankGuestDraft();
       draft.docPhotoUrl = url;
       state.guestDocsDrafts[guestIndex] = draft;
-      renderBookingsTab(content);
+      rerender();
       return window.CasaCelesteTourismDB.parseGuestDocPhoto({ bookingId: bookingId, guestIndex: guestIndex });
     }).then(function (result) {
       var draft = state.guestDocsDrafts[guestIndex];
@@ -590,29 +943,29 @@
       ['firstName', 'lastName', 'birthDate', 'nationality', 'docType', 'docNumber'].forEach(function (part) {
         if (result[part] && !draft[part]) draft[part] = result[part];
       });
-      renderBookingsTab(content);
+      rerender();
     }).catch(function (err) {
       state.guestDocsError = (err && err.message) || 'Errore nel caricamento/lettura della foto.';
-      renderBookingsTab(content);
+      rerender();
     });
   }
-  function saveGuestDocs(bookingId, content) {
+  function saveGuestDocs(bookingId, content, rerender) {
     var booking = state.bookings.find(function (b) { return b.id === bookingId; });
     if (!booking) return;
     state.guestDocsBusy = true;
     state.guestDocsError = '';
-    renderBookingsTab(content);
+    rerender();
     var guests = state.guestDocsDrafts.map(function (g) {
       var clean = Object.assign({}, g);
       delete clean.recognized;
       return clean;
     });
     window.CasaCelesteTourismDB.submitGuestDocuments({ bookingId: bookingId, token: booking.guestFormToken, guests: guests }).then(function () {
-      closeGuestDocsPanel(content);
+      closeGuestDocsPanel(content, rerender);
     }).catch(function (err) {
       state.guestDocsBusy = false;
       state.guestDocsError = (err && err.message) || 'Errore nel salvataggio: controlla i dati inseriti.';
-      renderBookingsTab(content);
+      rerender();
     });
   }
   function guestDocGuestFormHtml(bookingId, i, g) {
@@ -796,10 +1149,14 @@
       // generico "manual"/"booking" — così le due tab restano leggibili
       // come un'unica fonte di verità, non due elenchi scollegati.
       var booking = r.bookingId ? state.bookings.find(function (b) { return b.id === r.bookingId; }) : null;
-      var badgeText = booking ? (SOURCE_LABELS[booking.source] || booking.source || 'Prenotazione') + (booking.name ? ' — ' + booking.name : '') : (r.source || '');
+      var maintenance = r.maintenanceId ? state.maintenanceData.find(function (m) { return m.id === r.maintenanceId; }) : null;
+      var badgeText = booking ? (SOURCE_LABELS[booking.source] || booking.source || 'Prenotazione') + (booking.name ? ' — ' + booking.name : '')
+        : maintenance ? 'Manutenzione — ' + (maintenance.title || '')
+        : roomSourceLabel(r.source);
+      var removeTitle = r.bookingId ? 'Elimina la prenotazione (libera queste notti)' : (r.maintenanceId ? 'Elimina la manutenzione (libera queste notti)' : 'Rimuovi blocco');
       return '<div class="admin-stat-row">' +
         '<span style="flex:1; font-size:13px;">' + escapeHtml(r.start) + ' → ' + escapeHtml(r.end) + ' <span class="booking-source-badge">' + escapeHtml(badgeText) + '</span></span>' +
-        '<button type="button" class="admin-stat-remove" data-block-remove data-room-id="' + roomId + '" data-block-index="' + i + '" title="' + (r.bookingId ? 'Elimina la prenotazione (libera queste notti)' : 'Rimuovi blocco') + '">✕</button>' +
+        '<button type="button" class="admin-stat-remove" data-block-remove data-room-id="' + roomId + '" data-block-index="' + i + '" title="' + removeTitle + '">✕</button>' +
       '</div>';
     }).join('') || '<div style="font-size:13px; color:var(--text-muted,#6B7A8C);">Nessuna notte bloccata.</div>';
     return (
@@ -880,10 +1237,72 @@
           manualPricePeriodsEditorHtml(roomId, room) +
         '</div>' +
         '<div class="admin-card-section">' +
+          '<div class="admin-card-section-title">Stato pulizie</div>' +
+          cleaningStatusEditorHtml(roomId, room) +
+        '</div>' +
+        '<div class="admin-card-section">' +
+          '<div class="admin-card-section-title">Manutenzioni</div>' +
+          maintenanceEditorHtml(roomId) +
+        '</div>' +
+        '<div class="admin-card-section">' +
           '<div class="admin-card-section-title">Notti bloccate</div>' +
           blockedRangesEditorHtml(roomId, room) +
         '</div>' +
       '</div>'
+    );
+  }
+  // Riusata sia dalla tab Stanze sia dalla lavagna pulizie del Calendario
+  // (housekeepingBoardHtml): stesso controllo, stesso comportamento, un
+  // solo posto dove aggiornare come si scrive lo stato pulizie.
+  function bindCleaningStatusEvents(container) {
+    container.querySelectorAll('[data-cleaning-status-select]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var roomId = el.getAttribute('data-room-id');
+        window.CasaCelesteTourismDB.setRoom(roomId, {
+          cleaningStatus: e.target.value,
+          cleaningStatusUpdatedAt: window.CasaCelesteTourismDB.serverTimestamp(),
+          cleaningStatusUpdatedBy: { type: 'dashboard' }
+        });
+      });
+    });
+  }
+  var CLEANING_STATUS_PILL_CLASS = { pronta: 'dash-status-pill--confermato', sporca: 'dash-status-pill--nuovo', in_pulizia: 'dash-status-pill--nuovo', da_ispezionare: 'dash-status-pill--confermato' };
+  function cleaningStatusEditorHtml(roomId, room) {
+    var current = room.cleaningStatus || 'pronta';
+    var options = CLEANING_STATUS_ORDER.map(function (key) {
+      return '<option value="' + key + '"' + (current === key ? ' selected' : '') + '>' + CLEANING_STATUS_LABELS[key] + '</option>';
+    }).join('');
+    var updatedBy = room.cleaningStatusUpdatedBy;
+    var updatedByLabel = updatedBy ? ({ dashboard: 'dashboard', telegram: 'bot Telegram', 'auto-cron': 'automatico al check-out' }[updatedBy.type] || updatedBy.type) : '';
+    return (
+      '<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">' +
+        '<span class="dash-status-pill ' + (CLEANING_STATUS_PILL_CLASS[current] || 'dash-status-pill--nuovo') + '">' + CLEANING_STATUS_LABELS[current] + '</span>' +
+        '<select class="dash-select" data-cleaning-status-select data-room-id="' + roomId + '">' + options + '</select>' +
+        (updatedByLabel ? '<span class="admin-note" style="margin:0;">Ultimo aggiornamento: ' + escapeHtml(updatedByLabel) + '</span>' : '') +
+      '</div>'
+    );
+  }
+  function maintenanceEditorHtml(roomId) {
+    var items = state.maintenanceData.filter(function (m) { return m.roomId === roomId && m.status !== 'risolta'; });
+    var rows = items.map(function (m) {
+      return (
+        '<div class="admin-stat-row">' +
+          '<span>' + escapeHtml(m.title || 'Manutenzione') + ' — ' + escapeHtml(m.start) + ' → ' + escapeHtml(m.end) + ' (' + (MAINTENANCE_STATUS_LABELS[m.status] || m.status) + ')</span>' +
+          '<button type="button" class="admin-stat-remove" data-resolve-maintenance data-maintenance-id="' + m.id + '" title="Segna come risolta e libera le date">✓</button>' +
+          '<button type="button" class="admin-stat-remove" data-delete-maintenance data-maintenance-id="' + m.id + '" data-room-id="' + roomId + '" title="Elimina">✕</button>' +
+        '</div>'
+      );
+    }).join('') || '<div class="admin-note" style="margin:0;">Nessuna manutenzione aperta.</div>';
+    return (
+      rows +
+      '<button type="button" class="dash-add-room-btn" data-add-maintenance-toggle data-room-id="' + roomId + '" style="margin-top:8px;">+ Aggiungi manutenzione</button>' +
+      (state.maintenanceFormOpen === roomId ?
+        '<div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">' +
+          '<input type="text" class="admin-field" data-maintenance-title placeholder="Cosa c\'è da fare (es. rubinetto bagno)">' +
+          '<input type="date" class="admin-field" data-maintenance-start value="' + todayISO() + '">' +
+          '<input type="date" class="admin-field" data-maintenance-end value="' + addDaysIso(todayISO(), 1) + '">' +
+          '<button type="button" class="btn btn-primary" data-save-maintenance data-room-id="' + roomId + '">Blocca e salva</button>' +
+        '</div>' : '')
     );
   }
   function renderRoomsTab(content) {
@@ -969,8 +1388,49 @@
           deleteBookingAndFreeDates(target.bookingId);
           return;
         }
+        // Se il blocco appartiene a una manutenzione, va rimossa lì (stesso
+        // motivo del ramo prenotazione sopra: altrimenti resterebbe nella
+        // lista manutenzioni mentre le notti sul calendario tornano libere).
+        if (target && target.maintenanceId) {
+          window.CasaCelesteTourismDB.deleteMaintenance(target.maintenanceId, roomId);
+          return;
+        }
         ranges.splice(idx, 1);
         window.CasaCelesteTourismDB.setRoom(roomId, { blockedRanges: ranges });
+      });
+    });
+    bindCleaningStatusEvents(content);
+    content.querySelectorAll('[data-add-maintenance-toggle]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var roomId = el.getAttribute('data-room-id');
+        state.maintenanceFormOpen = state.maintenanceFormOpen === roomId ? false : roomId;
+        renderTabContent();
+      });
+    });
+    content.querySelectorAll('[data-save-maintenance]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var roomId = el.getAttribute('data-room-id');
+        var card = el.closest('.admin-room-card');
+        var title = card.querySelector('[data-maintenance-title]').value.trim();
+        var start = card.querySelector('[data-maintenance-start]').value;
+        var end = card.querySelector('[data-maintenance-end]').value;
+        if (!title) { window.alert('Descrivi cosa c\'è da fare.'); return; }
+        if (!start || !end || start >= end) { window.alert('Date non valide.'); return; }
+        var roomLabel = (state.roomsData[roomId] && state.roomsData[roomId].name) || roomId;
+        window.CasaCelesteTourismDB.createMaintenance({ roomId: roomId, roomLabel: roomLabel, title: title, start: start, end: end, createdBy: { type: 'dashboard' } })
+          .catch(function (err) { window.alert('Errore: ' + err.message); });
+        state.maintenanceFormOpen = false;
+      });
+    });
+    content.querySelectorAll('[data-resolve-maintenance]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        window.CasaCelesteTourismDB.setMaintenance(el.getAttribute('data-maintenance-id'), { status: 'risolta', resolvedAt: window.CasaCelesteTourismDB.serverTimestamp() });
+      });
+    });
+    content.querySelectorAll('[data-delete-maintenance]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        if (!window.confirm('Eliminare questa manutenzione e liberare le date?')) return;
+        window.CasaCelesteTourismDB.deleteMaintenance(el.getAttribute('data-maintenance-id'), el.getAttribute('data-room-id'));
       });
     });
     content.querySelectorAll('[data-price-period-add]').forEach(function (el) {
@@ -1430,6 +1890,7 @@
       }).catch(function () { state.recsClickCountsLoading = false; });
     }
     var s = state.settings || {};
+    var sp = state.settingsPrivate || {};
     var phoneVal = s.phone || '393381567389';
     var recipients = s.cleaningRecipients || [];
     var authorized = s.bookingCommandAuthorized || [];
@@ -1553,6 +2014,29 @@
           '<div class="admin-field-group"><label>Ore minime dopo il check-out</label><input type="number" class="admin-field" id="settings-retention-hours" min="1" value="' + (s.guestDocsRetentionHours != null ? s.guestDocsRetentionHours : 48) + '"></div>' +
           '<div class="admin-note">⚠️ Questo riguarda solo la FOTO. Il periodo di conservazione dei dati anagrafici tipizzati (nome, data nascita, documento senza foto) non ha invece un default: confermalo con un consulente legale/commercialista in base agli obblighi di pubblica sicurezza.</div>' +
         '</div>' +
+      '</div>' +
+      '<div class="dash-settings-group">' +
+        '<div class="dash-settings-group-title">Credenziali adempimenti (Alloggiati Web, ISTAT, PayTourist)</div>' +
+        '<div class="admin-note">Salvate in un documento SEPARATO dal resto delle Impostazioni, leggibile solo dal proprietario (mai dal sito pubblico) — così ogni struttura che usa questo sistema può inserire le proprie senza toccare file o variabili d\'ambiente.</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Alloggiati Web (Questura)</span></div>' +
+          '<div class="admin-note">L\'invio automatico resta uno scaffold in attesa del WSDL ufficiale fornito dalla Questura (vedi affittacamere/scripts/alloggiati-web-submit.js): salvare le credenziali qui le rende disponibili allo script per quando l\'invio sarà completato, ma la chiamata vera non è ancora implementata.</div>' +
+          '<div class="admin-field-group"><label>Utente</label><input type="text" class="admin-field" id="priv-alloggiati-user" value="' + escapeHtml((sp.alloggiatiWeb && sp.alloggiatiWeb.username) || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Password</label><input type="password" class="admin-field" id="priv-alloggiati-password" value="' + escapeHtml((sp.alloggiatiWeb && sp.alloggiatiWeb.password) || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Chiave WS (WSKey)</label><input type="password" class="admin-field" id="priv-alloggiati-wskey" value="' + escapeHtml((sp.alloggiatiWeb && sp.alloggiatiWeb.wsKey) || '') + '"></div>' +
+        '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">ISTAT / SPOT</span></div>' +
+          '<div class="admin-note">Segnaposto: nessuna automazione ancora disponibile — da verificare quale sistema di rilevazione statistica usa il tuo comune/regione prima di collegarlo.</div>' +
+          '<div class="admin-field-group"><label>Utente</label><input type="text" class="admin-field" id="priv-istat-user" value="' + escapeHtml((sp.istat && sp.istat.username) || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Password</label><input type="password" class="admin-field" id="priv-istat-password" value="' + escapeHtml((sp.istat && sp.istat.password) || '') + '"></div>' +
+        '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">PayTourist / PagoPA</span></div>' +
+          '<div class="admin-note">Segnaposto: il pagamento automatico della tassa di soggiorno richiede prima di verificare se PayTourist espone un\'API pubblica. Per ora la tab Adempimenti mostra solo calcolo, promemoria e link di versamento manuale.</div>' +
+          '<div class="admin-field-group"><label>ID commerciante</label><input type="text" class="admin-field" id="priv-paytourist-merchant" value="' + escapeHtml((sp.payTourist && sp.payTourist.merchantId) || '') + '"></div>' +
+          '<div class="admin-field-group"><label>API key</label><input type="password" class="admin-field" id="priv-paytourist-apikey" value="' + escapeHtml((sp.payTourist && sp.payTourist.apiKey) || '') + '"></div>' +
+        '</div>' +
       '</div>';
 
     document.getElementById('settings-phone').addEventListener('change', function (e) {
@@ -1570,6 +2054,32 @@
       window.CasaCelesteTourismDB.setSettings({ reviewCountOverride: (v == null || isNaN(v)) ? null : Math.round(v) });
     });
     document.getElementById('settings-retention-hours').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ guestDocsRetentionHours: Number(e.target.value) || 48 }); });
+    function savePrivateOrAlert(patch) {
+      window.CasaCelesteTourismDB.setSettingsPrivate(patch).catch(function (err) {
+        window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err));
+      });
+    }
+    document.getElementById('priv-alloggiati-user').addEventListener('change', function (e) {
+      savePrivateOrAlert({ alloggiatiWeb: Object.assign({}, sp.alloggiatiWeb, { username: e.target.value.trim() }) });
+    });
+    document.getElementById('priv-alloggiati-password').addEventListener('change', function (e) {
+      savePrivateOrAlert({ alloggiatiWeb: Object.assign({}, sp.alloggiatiWeb, { password: e.target.value }) });
+    });
+    document.getElementById('priv-alloggiati-wskey').addEventListener('change', function (e) {
+      savePrivateOrAlert({ alloggiatiWeb: Object.assign({}, sp.alloggiatiWeb, { wsKey: e.target.value }) });
+    });
+    document.getElementById('priv-istat-user').addEventListener('change', function (e) {
+      savePrivateOrAlert({ istat: Object.assign({}, sp.istat, { username: e.target.value.trim() }) });
+    });
+    document.getElementById('priv-istat-password').addEventListener('change', function (e) {
+      savePrivateOrAlert({ istat: Object.assign({}, sp.istat, { password: e.target.value }) });
+    });
+    document.getElementById('priv-paytourist-merchant').addEventListener('change', function (e) {
+      savePrivateOrAlert({ payTourist: Object.assign({}, sp.payTourist, { merchantId: e.target.value.trim() }) });
+    });
+    document.getElementById('priv-paytourist-apikey').addEventListener('change', function (e) {
+      savePrivateOrAlert({ payTourist: Object.assign({}, sp.payTourist, { apiKey: e.target.value }) });
+    });
     document.getElementById('settings-email-budget').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaMonthlyBudget: Number(e.target.value) || 500 }); });
     document.getElementById('settings-wifi-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiName: e.target.value.trim() }); });
     document.getElementById('settings-wifi-password').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiPassword: e.target.value }); });
@@ -1774,6 +2284,8 @@
     if (state.unsubMonoSlides) state.unsubMonoSlides();
     if (state.unsubSettings) state.unsubSettings();
     if (state.unsubAssistMessages) state.unsubAssistMessages();
+    if (state.unsubSettingsPrivate) state.unsubSettingsPrivate();
+    if (state.unsubMaintenance) state.unsubMaintenance();
     state.unsubBookings = window.CasaCelesteTourismDB.subscribeBookings(function (items) {
       state.bookings = items;
       // Precarica i documenti ospiti delle prenotazioni con check-in vicino,
@@ -1786,6 +2298,8 @@
     state.unsubMonoSlides = window.CasaCelesteTourismDB.subscribeMonoSlides(function (slidesFromDb) { state.monoSlidesData = slidesFromDb; if (state.user) renderTabContent(); });
     state.unsubSettings = window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) { state.settings = settingsFromDb || {}; if (state.user) renderTabContent(); });
     state.unsubAssistMessages = window.CasaCelesteTourismDB.subscribeAssistMessages(function (items) { state.assistMessages = items; if (state.user) renderTabContent(); });
+    state.unsubSettingsPrivate = window.CasaCelesteTourismDB.subscribeSettingsPrivate(function (data) { state.settingsPrivate = data || {}; if (state.user) renderTabContent(); });
+    state.unsubMaintenance = window.CasaCelesteTourismDB.subscribeMaintenance(function (items) { state.maintenanceData = items; if (state.user) renderTabContent(); });
   }
   function init() {
     if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) { renderNotConfigured(); return; }

@@ -191,6 +191,15 @@ async function isAuthorized(ctx, chatId) {
   const list = await getAuthorizedChatIds(ctx);
   return list.indexOf(String(chatId)) !== -1;
 }
+// /pulizie e /manutenzione servono anche a chi fa le pulizie, elencato in
+// settings.cleaningRecipients — una lista DIVERSA da bookingCommandAuthorized
+// (chi crea prenotazioni). Autorizzato chi è in uno dei due elenchi.
+async function isAuthorizedForCleaning(ctx, chatId) {
+  const snap = await ctx.db.collection('tourism_settings').doc('site').get();
+  const settings = snap.exists ? snap.data() : {};
+  const list = (settings.cleaningRecipients || []).filter((r) => r.enabled && r.chatId).map((r) => String(r.chatId));
+  return list.indexOf(String(chatId)) !== -1;
+}
 function unauthorizedText(chatId) {
   return 'Non sei autorizzato a creare prenotazioni da qui (chat-id: ' + chatId + '). Chiedi al proprietario di aggiungerti da dashboard.html → Impostazioni, oppure scrivi /aiuto.';
 }
@@ -206,6 +215,8 @@ function helpText(authorized, chatId) {
     'Comandi che puoi usare, se sei autorizzato:',
     '/nuova → avvia la compilazione guidata passo-passo (stanza, calendario, ospiti, opzioni, contatti, foto documenti con lettura automatica da confermare).',
     '/nuova <Stanza> <check-in GG/MM/AAAA> <check-out GG/MM/AAAA> <Nome Cognome> <email> <telefono> <ospiti> [canale] → formato veloce su una riga, invariato.',
+    '/pulizie → segna lo stato pulizie di una stanza (pronta/sporca/in pulizia/da ispezionare). Anche per chi è solo nell\'elenco pulizie, non serve essere autorizzato a creare prenotazioni.',
+    '/manutenzione → registra un problema/lavoro da fare su una stanza, bloccando le date scelte (non prenotabili finché non la risolvi).',
     '/annulla → interrompe la compilazione in corso.',
     '',
     'Esempio formato veloce:',
@@ -280,8 +291,9 @@ async function handleLegacyNuovaCommand(ctx, chatId, text) {
 /* ==========================================================================
    Wizard — tastiere.
    ========================================================================== */
-function roomsKeyboard(rooms) {
-  const rows = rooms.map((r) => [{ text: r.name || r.id, callback_data: 'rm:' + r.id }]);
+function roomsKeyboard(rooms, prefix) {
+  const p = prefix || 'rm:';
+  const rows = rooms.map((r) => [{ text: r.name || r.id, callback_data: p + r.id }]);
   rows.push([{ text: '❌ Annulla', callback_data: 'cancel' }]);
   return { inline_keyboard: rows };
 }
@@ -359,6 +371,21 @@ function channelKeyboard() {
 function confirmBookingKeyboard() {
   return { inline_keyboard: [[{ text: '✅ Conferma prenotazione', callback_data: 'confirm:booking' }], [{ text: '❌ Annulla', callback_data: 'cancel' }]] };
 }
+function confirmMaintenanceKeyboard() {
+  return { inline_keyboard: [[{ text: '✅ Conferma manutenzione', callback_data: 'confirm:maintenance' }], [{ text: '❌ Annulla', callback_data: 'cancel' }]] };
+}
+// /pulizie — nessuna sessione: tutto lo stato serve nel callback_data
+// stesso (roomId + stato), due tap in croce.
+const CLEANING_STATUS_LABELS = { pronta: '🟢 Pronta', sporca: '🔴 Sporca', in_pulizia: '🟡 In pulizia', da_ispezionare: '🔵 Da ispezionare' };
+function cleaningStatusKeyboard(roomId) {
+  return {
+    inline_keyboard: [
+      [{ text: '🟢 Pronta', callback_data: 'clns:' + roomId + ':pronta' }, { text: '🔴 Sporca', callback_data: 'clns:' + roomId + ':sporca' }],
+      [{ text: '🟡 In pulizia', callback_data: 'clns:' + roomId + ':in_pulizia' }, { text: '🔵 Da ispezionare', callback_data: 'clns:' + roomId + ':da_ispezionare' }],
+      [{ text: '❌ Annulla', callback_data: 'cancel' }]
+    ]
+  };
+}
 function docsOfferKeyboard() {
   return { inline_keyboard: [[{ text: '📎 Carica ora', callback_data: 'docs:yes' }, { text: '⏭️ Più tardi', callback_data: 'docs:skip' }]] };
 }
@@ -409,8 +436,27 @@ async function startWizard(ctx, chatId) {
   const rooms = [];
   snap.forEach((d) => rooms.push(Object.assign({ id: d.id }, d.data())));
   if (!rooms.length) { await tgSendMessage(ctx, chatId, 'Nessuna stanza trovata.'); return; }
-  const session = { step: 'room', draft: {}, messageId: null };
+  const session = { mode: 'booking', step: 'room', draft: {}, messageId: null };
   await commitStep(ctx, chatId, session, '🏠 Quale stanza?', roomsKeyboard(rooms));
+}
+// /manutenzione — riusa lo STESSO meccanismo di sessione/wizard di /nuova
+// (stanza poi calendario), ma con `session.mode` a 'maintenance': onRoomPick
+// e onCalendar leggono questo campo per saltare i passi specifici delle
+// prenotazioni (ospiti, canale, contatti) e andare dritti al titolo.
+async function startMaintenanceWizard(ctx, chatId) {
+  const snap = await ctx.db.collection('tourism_rooms').get();
+  const rooms = [];
+  snap.forEach((d) => rooms.push(Object.assign({ id: d.id }, d.data())));
+  if (!rooms.length) { await tgSendMessage(ctx, chatId, 'Nessuna stanza trovata.'); return; }
+  const session = { mode: 'maintenance', step: 'room', draft: {}, messageId: null };
+  await commitStep(ctx, chatId, session, '🔧 Manutenzione — quale stanza?', roomsKeyboard(rooms));
+}
+async function startCleaningStatusPick(ctx, chatId) {
+  const snap = await ctx.db.collection('tourism_rooms').get();
+  const rooms = [];
+  snap.forEach((d) => rooms.push(Object.assign({ id: d.id }, d.data())));
+  if (!rooms.length) { await tgSendMessage(ctx, chatId, 'Nessuna stanza trovata.'); return; }
+  await tgSendMessage(ctx, chatId, '🧹 Quale stanza?', roomsKeyboard(rooms, 'cln:'));
 }
 
 function datesPromptText(session, errorText) {
@@ -428,11 +474,17 @@ async function onRoomPick(ctx, chatId, session, roomId) {
   const room = snap.data();
   session.draft.roomId = roomId;
   session.draft.roomLabel = room.name || roomId;
-  session.draft.maxGuests = room.maxGuests || 1;
-  session.draft.minNights = room.minNights || 1;
   session.draft.blockedRanges = room.blockedRanges || [];
   session.draft.checkIn = null;
   session.draft.checkOut = null;
+  // Una manutenzione non ha un minimo notti legato alla tariffa stanza
+  // (quello vale solo per le prenotazioni paganti): sempre 1.
+  if (session.mode === 'maintenance') {
+    session.draft.minNights = 1;
+  } else {
+    session.draft.maxGuests = room.maxGuests || 1;
+    session.draft.minNights = room.minNights || 1;
+  }
   session.step = 'dates';
   const today = todayIso();
   const y = Number(today.slice(0, 4)), m = Number(today.slice(5, 7));
@@ -479,6 +531,11 @@ async function onCalendar(ctx, chatId, session, data) {
       return;
     }
     d.checkOut = value;
+    if (session.mode === 'maintenance') {
+      session.step = 'maintTitle';
+      await commitStep(ctx, chatId, session, '🔧 ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(value) + '\n✍️ Cosa c\'è da fare? (breve descrizione, es. "rubinetto bagno che perde")', null);
+      return;
+    }
     // Le Opzioni (letto/culla/letto extra) vengono chieste PRIMA degli
     // ospiti, come sul sito (dove si scelgono nella pagina stanza prima del
     // calendario): serve sapere se c'è il letto extra per calcolare il
@@ -630,6 +687,16 @@ async function handleWizardTextInput(ctx, chatId, session, text) {
     await commitStep(ctx, chatId, session, bookingSummaryText(session.draft), confirmBookingKeyboard());
     return true;
   }
+  if (step === 'maintTitle') {
+    if (text.trim().length < 2) { await commitStep(ctx, chatId, session, '⚠️ Scrivi una breve descrizione (almeno qualche parola):', null); return true; }
+    session.draft.title = text.trim().slice(0, 200);
+    session.step = 'maintConfirm';
+    const d = session.draft;
+    const summary = '🔧 Riepilogo manutenzione:\n' + d.roomLabel + ' — ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(d.checkOut) + '\n' + d.title +
+      '\n\nConfermi? Le date verranno bloccate su questa stanza (non prenotabili finché non risolvi la manutenzione da dashboard.html → Stanze).';
+    await commitStep(ctx, chatId, session, summary, confirmMaintenanceKeyboard());
+    return true;
+  }
   if (step === 'guestsChildAge') {
     const raw = text.trim();
     const age = Number(raw);
@@ -691,6 +758,59 @@ async function onConfirmBooking(ctx, chatId, session) {
   const text = '✅ Prenotazione creata: ' + result.roomLabel + ' dal ' + isoToItalian(d.checkIn) + ' al ' + isoToItalian(d.checkOut) + ' (' + result.nights + ' notti).\n' +
     pricingSummaryText(result) + '\nLink documenti da inoltrare all\'ospite:\n' + link + '\n\nVuoi caricare subito le foto documento degli ospiti?';
   await commitStep(ctx, chatId, session, text, docsOfferKeyboard());
+}
+
+// Stessa logica di createMaintenance in affittacamere/js/firebase-init.js
+// (crea il documento E blocca le date sulla stanza), qui in una transazione
+// Admin SDK invece che client — rifiuta se nel frattempo quelle notti sono
+// state occupate da un'altra prenotazione/manutenzione.
+async function onConfirmMaintenance(ctx, chatId, session) {
+  if (session.step !== 'maintConfirm') return;
+  const d = session.draft;
+  const maintRef = ctx.db.collection('tourism_maintenance').doc();
+  try {
+    await ctx.db.runTransaction(async (tx) => {
+      const roomRef = ctx.db.collection('tourism_rooms').doc(d.roomId);
+      const roomSnap = await tx.get(roomRef);
+      if (!roomSnap.exists) throw new Error('Stanza non trovata.');
+      const room = roomSnap.data();
+      const ranges = (room.blockedRanges || []).slice();
+      if (rangeOverlapsBlocked(ranges, d.checkIn, d.checkOut)) throw new Error('Quelle date sono appena state occupate.');
+      ranges.push({ start: d.checkIn, end: d.checkOut, source: 'maintenance', maintenanceId: maintRef.id });
+      tx.set(maintRef, {
+        roomId: d.roomId, roomLabel: d.roomLabel, title: d.title, description: '', status: 'aperta',
+        start: d.checkIn, end: d.checkOut, createdBy: { type: 'telegram', chatId: chatId },
+        createdAt: ctx.admin.firestore.FieldValue.serverTimestamp(), updatedAt: ctx.admin.firestore.FieldValue.serverTimestamp()
+      });
+      tx.update(roomRef, { blockedRanges: ranges });
+    });
+    await tgEditMessageText(ctx, chatId, session.messageId, '✅ Manutenzione registrata: ' + d.roomLabel + ' dal ' + isoToItalian(d.checkIn) + ' al ' + isoToItalian(d.checkOut) + '. Date bloccate.', { inline_keyboard: [] });
+  } catch (err) {
+    await tgEditMessageText(ctx, chatId, session.messageId, '❌ Errore: ' + err.message, { inline_keyboard: [] });
+  }
+  await clearSession(ctx, chatId);
+}
+
+/* ==========================================================================
+   /pulizie — nessuna sessione: stanza poi stato, due tap, tutto lo stato
+   nel callback_data stesso.
+   ========================================================================== */
+async function onCleaningRoomPick(ctx, chatId, cq, roomId) {
+  const snap = await ctx.db.collection('tourism_rooms').doc(roomId).get();
+  if (!snap.exists) { await tgEditMessageText(ctx, chatId, cq.message.message_id, 'Stanza non trovata.', { inline_keyboard: [] }); return; }
+  const room = snap.data();
+  await tgEditMessageText(ctx, chatId, cq.message.message_id, '🧹 ' + (room.name || roomId) + ' — che stato ha?', cleaningStatusKeyboard(roomId));
+}
+async function onCleaningStatusPick(ctx, chatId, cq, data) {
+  const parts = data.split(':'); // clns:roomId:status
+  const roomId = parts[1], status = parts[2];
+  if (!CLEANING_STATUS_LABELS[status]) return;
+  await ctx.db.collection('tourism_rooms').doc(roomId).update({
+    cleaningStatus: status,
+    cleaningStatusUpdatedAt: ctx.admin.firestore.FieldValue.serverTimestamp(),
+    cleaningStatusUpdatedBy: { type: 'telegram', chatId: chatId }
+  });
+  await tgEditMessageText(ctx, chatId, cq.message.message_id, '✅ Stato aggiornato: ' + CLEANING_STATUS_LABELS[status] + '.', { inline_keyboard: [] });
 }
 
 async function onDocsOffer(ctx, chatId, session, data) {
@@ -833,6 +953,7 @@ async function routeCallback(ctx, chatId, session, data) {
   if (data.startsWith('gcc:')) return onChildrenCountPick(ctx, chatId, session, data);
   if (data.startsWith('ch:')) return onChannel(ctx, chatId, session, data);
   if (data === 'confirm:booking') return onConfirmBooking(ctx, chatId, session);
+  if (data === 'confirm:maintenance') return onConfirmMaintenance(ctx, chatId, session);
   if (data.startsWith('docs:')) return onDocsOffer(ctx, chatId, session, data);
   if (data.startsWith('doc:field:')) return onDocFieldPick(ctx, chatId, session, data);
   if (data.startsWith('dt:')) return onDocTypePick(ctx, chatId, session, data);
@@ -844,8 +965,15 @@ async function handleCallbackQuery(ctx, cq) {
   if (!cq.message || !cq.message.chat) return;
   const chatId = String(cq.message.chat.id);
   const data = cq.data || '';
+  // Un solo controllo per tutti i flussi bottone (prenotazioni, pulizie,
+  // manutenzioni): chi è SOLO nell'elenco pulizie non può avviare /nuova
+  // (quel gate resta più stretto in handleMessage), ma può rispondere ai
+  // bottoni di una sessione — che esiste solo se è stata creata da
+  // un'azione già autorizzata a monte, quindi allargare qui non apre nulla
+  // di nuovo.
   const authorized = await isAuthorized(ctx, chatId);
-  if (!authorized) { await tgAnswerCallbackQuery(ctx, cq.id, 'Non autorizzato'); return; }
+  const allowed = authorized || await isAuthorizedForCleaning(ctx, chatId);
+  if (!allowed) { await tgAnswerCallbackQuery(ctx, cq.id, 'Non autorizzato'); return; }
   if (data === 'noop') { await tgAnswerCallbackQuery(ctx, cq.id); return; }
   if (data === 'cancel') {
     await tgAnswerCallbackQuery(ctx, cq.id, 'Annullato');
@@ -853,8 +981,14 @@ async function handleCallbackQuery(ctx, cq) {
     await clearSession(ctx, chatId);
     return;
   }
+  if (data.startsWith('cln:') || data.startsWith('clns:')) {
+    await tgAnswerCallbackQuery(ctx, cq.id);
+    if (data.startsWith('clns:')) await onCleaningStatusPick(ctx, chatId, cq, data);
+    else await onCleaningRoomPick(ctx, chatId, cq, data.slice(4));
+    return;
+  }
   const session = await getSession(ctx, chatId);
-  if (!session) { await tgAnswerCallbackQuery(ctx, cq.id, 'Sessione scaduta, scrivi di nuovo /nuova'); return; }
+  if (!session) { await tgAnswerCallbackQuery(ctx, cq.id, 'Sessione scaduta, scrivi di nuovo /nuova o /manutenzione'); return; }
   session.messageId = cq.message.message_id;
   await tgAnswerCallbackQuery(ctx, cq.id);
   await routeCallback(ctx, chatId, session, data);
@@ -883,9 +1017,21 @@ async function handleMessage(ctx, msg) {
     await startWizard(ctx, chatId);
     return;
   }
+  if (lower === '/pulizie' || lower === '/manutenzione') {
+    const authorizedForThis = authorized || await isAuthorizedForCleaning(ctx, chatId);
+    if (!authorizedForThis) { await tgSendMessage(ctx, chatId, unauthorizedText(chatId)); return; }
+    if (lower === '/pulizie') await startCleaningStatusPick(ctx, chatId);
+    else await startMaintenanceWizard(ctx, chatId);
+    return;
+  }
 
   const session = await getSession(ctx, chatId);
-  if (session && authorized) {
+  // Stesso ragionamento di handleCallbackQuery: una sessione esiste solo se
+  // creata da un comando già gate-ato a monte (/nuova o /manutenzione), quindi
+  // qui basta verificare che l'utente sia autorizzato per QUALCHE motivo,
+  // altrimenti /manutenzione si romperebbe per chi è solo nell'elenco pulizie.
+  const authorizedForSession = authorized || await isAuthorizedForCleaning(ctx, chatId);
+  if (session && authorizedForSession) {
     if (msg.photo && session.step === 'docCapture') { await handlePhotoForDocCapture(ctx, chatId, session, msg); return; }
     if (text) { const handled = await handleWizardTextInput(ctx, chatId, session, text); if (handled) return; }
   }
