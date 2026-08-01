@@ -34,7 +34,7 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
     <tr>
       <td style="background:#10233B; padding:24px 32px;">
         <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2C8FC9; margin-right:2px;"></span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#FFD24C; margin-right:8px;"></span>
-        <span style="color:#FFFFFF; font-size:18px; font-weight:700; vertical-align:middle;">Casa Celeste</span>
+        <span style="color:#FFFFFF; font-size:18px; font-weight:700; vertical-align:middle;">{{siteName}}</span>
       </td>
     </tr>
     <tr>
@@ -86,12 +86,12 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
 
         {{^isGroup}}
         <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px;">
-          {{^isEn}}Speriamo che il tuo soggiorno nella stanza <strong>{{roomLabel}}</strong> ti sia piaciuto e che tu abbia trovato Monopoli bella quanto la vediamo noi ogni giorno. Se ti va di lasciarci due righe prima di partire, ci aiuta moltissimo:{{/isEn}}{{#isEn}}We hope you enjoyed your stay in the <strong>{{roomLabel}}</strong> and that you found Monopoli as beautiful as we see it every day. If you have a moment to leave us a few words before you go, it helps us enormously:{{/isEn}}
+          {{^isEn}}Speriamo che il tuo soggiorno nella stanza <strong>{{roomLabel}}</strong> ti sia piaciuto e che tu abbia trovato {{city}} bella quanto la vediamo noi ogni giorno. Se ti va di lasciarci due righe prima di partire, ci aiuta moltissimo:{{/isEn}}{{#isEn}}We hope you enjoyed your stay in the <strong>{{roomLabel}}</strong> and that you found {{city}} as beautiful as we see it every day. If you have a moment to leave us a few words before you go, it helps us enormously:{{/isEn}}
         </p>
         {{/isGroup}}
         {{#isGroup}}
         <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px;">
-          {{^isEn}}Speriamo che il vostro soggiorno vi sia piaciuto e che abbiate trovato Monopoli bella quanto la vediamo noi ogni giorno. Se vi va di lasciarci due righe prima di partire, ci aiuta moltissimo:{{/isEn}}{{#isEn}}We hope you enjoyed your stay and that you found Monopoli as beautiful as we see it every day. If you have a moment to leave us a few words before you go, it helps us enormously:{{/isEn}}
+          {{^isEn}}Speriamo che il vostro soggiorno vi sia piaciuto e che abbiate trovato {{city}} bella quanto la vediamo noi ogni giorno. Se vi va di lasciarci due righe prima di partire, ci aiuta moltissimo:{{/isEn}}{{#isEn}}We hope you enjoyed your stay and that you found {{city}} as beautiful as we see it every day. If you have a moment to leave us a few words before you go, it helps us enormously:{{/isEn}}
         </p>
         {{/isGroup}}
 
@@ -102,13 +102,13 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
         </table>
 
         <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0;">
-          {{^isEn}}{{^isGroup}}E se dovessi tornare a Monopoli, la porta di Casa Celeste è sempre aperta. Grazie ancora, e buon viaggio!{{/isGroup}}{{#isGroup}}E se doveste tornare a Monopoli, la porta di Casa Celeste è sempre aperta. Grazie ancora, e buon viaggio!{{/isGroup}}{{/isEn}}{{#isEn}}And if you ever come back to Monopoli, Casa Celeste's door is always open. Thanks again, and safe travels!{{/isEn}}
+          {{^isEn}}{{^isGroup}}E se dovessi tornare a {{city}}, la porta di {{siteName}} è sempre aperta. Grazie ancora, e buon viaggio!{{/isGroup}}{{#isGroup}}E se doveste tornare a {{city}}, la porta di {{siteName}} è sempre aperta. Grazie ancora, e buon viaggio!{{/isGroup}}{{/isEn}}{{#isEn}}And if you ever come back to {{city}}, {{siteName}}'s door is always open. Thanks again, and safe travels!{{/isEn}}
         </p>
       </td>
     </tr>
     <tr>
       <td style="background:#F5FAFD; padding:20px 32px; text-align:center;">
-        <p style="font-size:12px; color:#6B7A8C; margin:0;">Casa Celeste — Via Giuseppe Can. del Drago 9, Monopoli (BA)</p>
+        <p style="font-size:12px; color:#6B7A8C; margin:0;">{{siteName}} — {{address}}</p>
       </td>
     </tr>
   </table>

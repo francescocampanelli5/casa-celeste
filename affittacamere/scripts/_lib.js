@@ -58,8 +58,8 @@ function addDaysIso(iso, days) {
 // email di prenotazioni di gruppo (più stanze insieme, stesso groupId) per
 // elencare tutte le stanze in una frase, condiviso da guest-lifecycle-emails.js
 // e guest-docs-reminder.js.
-function joinRoomNames(bookings, isEn) {
-  var names = bookings.map(function (b) { return b.roomLabel || 'Casa Celeste'; });
+function joinRoomNames(bookings, isEn, siteName) {
+  var names = bookings.map(function (b) { return b.roomLabel || siteName || 'Casa Celeste'; });
   if (names.length <= 1) return names[0] || '';
   var last = names[names.length - 1];
   var head = names.slice(0, -1).join(', ');
@@ -209,9 +209,15 @@ async function sendGuestEmail(db, settings, templateFile, templateParams, priori
     await telegramBroadcast(authorized, '⚠️ Quota email quasi esaurita (' + quota.sent + '/' + quota.effectiveBudget + ' questo mese): email "' + label + '" NON inviata. Valuta un contatto manuale.');
     return { sent: false, reason: 'quota_exceeded' };
   }
-  var html = renderTemplate(templateFile, templateParams);
+  var siteName = settings.siteName || 'Casa Celeste';
+  var vars = Object.assign({
+    siteName: siteName,
+    city: settings.city || 'Monopoli',
+    address: settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)'
+  }, templateParams);
+  var html = renderTemplate(templateFile, vars);
   await transport.sendMail({
-    from: 'Casa Celeste <' + process.env.GMAIL_USER + '>',
+    from: siteName + ' <' + process.env.GMAIL_USER + '>',
     to: templateParams.email,
     subject: templateParams.subjectLine,
     html: html

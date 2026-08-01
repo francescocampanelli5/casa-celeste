@@ -20,16 +20,16 @@ var OUT_DIR = path.join(__dirname, '..', 'ical');
 function icsDate(iso) { return iso.replace(/-/g, ''); }
 function foldLine(line) { return line; }
 
-function buildIcs(roomId, ranges) {
+function buildIcs(roomId, ranges, siteName) {
   var now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Casa Celeste//Affittacamere//IT', 'CALSCALE:GREGORIAN'];
+  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//' + siteName + '//Affittacamere//IT', 'CALSCALE:GREGORIAN'];
   ranges.forEach(function (r, i) {
     lines.push('BEGIN:VEVENT');
     lines.push('UID:' + roomId + '-' + (r.bookingId || i) + '@lacasaceleste.it');
     lines.push('DTSTAMP:' + now);
     lines.push('DTSTART;VALUE=DATE:' + icsDate(r.start));
     lines.push('DTEND;VALUE=DATE:' + icsDate(r.end));
-    lines.push('SUMMARY:Non disponibile - Casa Celeste');
+    lines.push('SUMMARY:Non disponibile - ' + siteName);
     lines.push('END:VEVENT');
   });
   lines.push('END:VCALENDAR');
@@ -38,12 +38,14 @@ function buildIcs(roomId, ranges) {
 
 async function main() {
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
+  var settingsSnap = await db.collection('tourism_settings').doc('site').get();
+  var siteName = (settingsSnap.exists && settingsSnap.data().siteName) || 'Casa Celeste';
   var snap = await db.collection('tourism_rooms').get();
   var written = 0;
   snap.forEach(function (doc) {
     var room = doc.data();
     var ranges = (room.blockedRanges || []).filter(function (r) { return r.source === 'manual' || r.source === 'booking'; });
-    var ics = buildIcs(doc.id, ranges);
+    var ics = buildIcs(doc.id, ranges, siteName);
     fs.writeFileSync(path.join(OUT_DIR, doc.id + '.ics'), ics);
     written++;
   });

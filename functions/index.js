@@ -234,6 +234,9 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
   const key = stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: manca STRIPE_SECRET_KEY.');
 
+  const settingsSnap = await db.collection('tourism_settings').doc('site').get();
+  const settings = settingsSnap.exists ? settingsSnap.data() : {};
+
   let quote;
   try {
     quote = await computeQuoteCore(db, data);
@@ -262,7 +265,7 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
     // Google Pay restano disponibili comunque: viaggiano sul metodo 'card',
     // li mostra l'Express Checkout Element lato client.
     payment_method_types: ['card'],
-    description: 'Casa Celeste — prenotazione stanza',
+    description: (settings.siteName || 'Casa Celeste') + ' — prenotazione stanza',
     metadata: { checkIn: data.checkIn || '', checkOut: data.checkOut || '', roomId: data.roomId || '', groupBooking: Array.isArray(data.rooms) ? 'si' : 'no' }
   });
   return { clientSecret: intent.client_secret, amount: quote.amount, baseTotal: quote.baseTotal, fee: quote.fee, paymentIntentId: intent.id };
@@ -651,7 +654,8 @@ exports.bookingCalendarIcs = onRequest(async (req, res) => {
   // del solo nome di questa (vedi icsLink in guest-lifecycle-emails.js).
   const labelOverride = req.query.label ? String(req.query.label) : '';
   const ics = buildBookingIcs(Object.assign({ id: bookingId }, b, labelOverride ? { roomLabel: labelOverride } : {}), {
-    checkInTime: settings.checkInTime, checkOutTime: settings.checkOutTime
+    checkInTime: settings.checkInTime, checkOutTime: settings.checkOutTime,
+    siteName: settings.siteName, address: settings.address
   });
   res.set('Content-Type', 'text/calendar; charset=utf-8');
   res.set('Content-Disposition', 'attachment; filename="casa-celeste.ics"');

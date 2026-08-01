@@ -59,19 +59,19 @@ async function loadBookingForSignature(db, bookingId, token) {
   return { bookingRef, booking };
 }
 
-function otpEmailHtml(booking, code, isEn) {
+function otpEmailHtml(booking, code, isEn, siteName) {
   const name = booking.name || '';
   if (isEn) {
     return '<div style="font-family:sans-serif;font-size:15px;color:#1a2733;">' +
       '<p>Hi ' + name + ',</p>' +
-      '<p>Your verification code to sign the rental agreement for Casa Celeste is:</p>' +
+      '<p>Your verification code to sign the rental agreement for ' + siteName + ' is:</p>' +
       '<p style="font-size:32px;font-weight:700;letter-spacing:4px;margin:20px 0;">' + code + '</p>' +
       '<p>This code expires in ' + OTP_TTL_MINUTES + ' minutes and can be used once. If you didn’t request it, ignore this email.</p>' +
       '</div>';
   }
   return '<div style="font-family:sans-serif;font-size:15px;color:#1a2733;">' +
     '<p>Ciao ' + name + ',</p>' +
-    '<p>Il tuo codice di verifica per firmare il contratto di locazione di Casa Celeste è:</p>' +
+    '<p>Il tuo codice di verifica per firmare il contratto di locazione di ' + siteName + ' è:</p>' +
     '<p style="font-size:32px;font-weight:700;letter-spacing:4px;margin:20px 0;">' + code + '</p>' +
     '<p>Il codice scade tra ' + OTP_TTL_MINUTES + ' minuti ed è valido una sola volta. Se non l’hai richiesto tu, ignora questa email.</p>' +
     '</div>';
@@ -128,8 +128,9 @@ async function requestSignatureOtpCore(ctx, data) {
   });
 
   const isEn = booking.lang === 'en';
-  const subject = isEn ? 'Your Casa Celeste verification code' : 'Il tuo codice di verifica Casa Celeste';
-  const result = await sendMail(gmailUser, gmailAppPassword, booking.email, subject, otpEmailHtml(booking, code, isEn));
+  const siteName = settings.siteName || 'Casa Celeste';
+  const subject = isEn ? ('Your ' + siteName + ' verification code') : ('Il tuo codice di verifica ' + siteName);
+  const result = await sendMail(gmailUser, gmailAppPassword, booking.email, subject, otpEmailHtml(booking, code, isEn, siteName), siteName);
   const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
   if (result.sent) {
     await recordEmailSent(db, admin, quota.month);

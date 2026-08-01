@@ -30,7 +30,7 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
     <tr>
       <td style="background:#10233B; padding:24px 32px;">
         <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2C8FC9; margin-right:2px;"></span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#FFD24C; margin-right:8px;"></span>
-        <span style="color:#FFFFFF; font-size:18px; font-weight:700; vertical-align:middle;">Casa Celeste</span>
+        <span style="color:#FFFFFF; font-size:18px; font-weight:700; vertical-align:middle;">{{siteName}}</span>
       </td>
     </tr>
     <tr>
@@ -72,7 +72,7 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
           </td></tr>
         </table>
         <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px;">
-          {{^isEn}}{{^isGroup}}Nel frattempo, qualche idea per il resto del tuo soggiorno a Monopoli:{{/isGroup}}{{#isGroup}}Nel frattempo, qualche idea per il resto del vostro soggiorno a Monopoli:{{/isGroup}}{{/isEn}}{{#isEn}}In the meantime, a few ideas for the rest of your stay in Monopoli:{{/isEn}}
+          {{^isEn}}{{^isGroup}}Nel frattempo, qualche idea per il resto del tuo soggiorno a {{city}}:{{/isGroup}}{{#isGroup}}Nel frattempo, qualche idea per il resto del vostro soggiorno a {{city}}:{{/isGroup}}{{/isEn}}{{#isEn}}In the meantime, a few ideas for the rest of your stay in {{city}}:{{/isEn}}
         </p>
 
         {{#recs}}
@@ -91,7 +91,7 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
     </tr>
     <tr>
       <td style="background:#F5FAFD; padding:20px 32px; text-align:center;">
-        <p style="font-size:12px; color:#6B7A8C; margin:0;">Casa Celeste — Via Giuseppe Can. del Drago 9, Monopoli (BA)</p>
+        <p style="font-size:12px; color:#6B7A8C; margin:0;">{{siteName}} — {{address}}</p>
       </td>
     </tr>
   </table>

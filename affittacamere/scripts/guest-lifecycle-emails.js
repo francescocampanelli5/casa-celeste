@@ -79,11 +79,12 @@ function googleCalendarLink(b, settings, isEn) {
   var checkOutTime = settings.checkOutTime || '10:00';
   var startUtc = toGCalUtc(lib.romeWallTimeToUtcIso(b.checkIn, checkInTime));
   var endUtc = toGCalUtc(lib.romeWallTimeToUtcIso(b.checkOut, checkOutTime));
-  var text = 'Casa Celeste — ' + (b.roomLabel || (isEn ? 'stay' : 'soggiorno'));
+  var siteName = settings.siteName || 'Casa Celeste';
+  var text = siteName + ' — ' + (b.roomLabel || (isEn ? 'stay' : 'soggiorno'));
   var details = isEn
     ? ('Check-in: ' + checkInTime + '. Check-out: ' + checkOutTime + '.')
     : ('Check-in: ore ' + checkInTime + '. Check-out: ore ' + checkOutTime + '.');
-  var location = 'Via Giuseppe Can. del Drago 9, Monopoli (BA), Italia';
+  var location = settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA), Italia';
   return 'https://www.google.com/calendar/render?action=TEMPLATE'
     + '&text=' + encodeURIComponent(text)
     + '&dates=' + startUtc + '/' + endUtc
@@ -104,15 +105,18 @@ function isEnglish(b) { return b.lang === 'en'; }
 // documentata con certezza) — il template su EmailJS ha semplicemente
 // Subject = {{subjectLine}}.
 var SUBJECTS = {
-  confirmation: { it: '✅ Prenotazione confermata — {{roomLabel}}, Casa Celeste', en: '✅ Booking confirmed — {{roomLabel}}, Casa Celeste' },
-  checkin: { it: '🔑 Le tue istruzioni per il check-in — Casa Celeste', en: '🔑 Your check-in instructions — Casa Celeste' },
-  thankyou: { it: '🔑 Istruzioni per il check-out — Casa Celeste', en: '🔑 Check-out instructions — Casa Celeste' },
-  wellness: { it: 'Tutto bene, {{name}}? Qualche consiglio per Monopoli 🌤️', en: 'All good, {{name}}? A few tips for Monopoli 🌤️' },
-  reviewRequest: { it: 'Hai un attimo per Casa Celeste, {{name}}? 🌤️', en: 'Got a minute for Casa Celeste, {{name}}? 🌤️' }
+  confirmation: { it: '✅ Prenotazione confermata — {{roomLabel}}, {{siteName}}', en: '✅ Booking confirmed — {{roomLabel}}, {{siteName}}' },
+  checkin: { it: '🔑 Le tue istruzioni per il check-in — {{siteName}}', en: '🔑 Your check-in instructions — {{siteName}}' },
+  thankyou: { it: '🔑 Istruzioni per il check-out — {{siteName}}', en: '🔑 Check-out instructions — {{siteName}}' },
+  wellness: { it: 'Tutto bene, {{name}}? Qualche consiglio per {{city}} 🌤️', en: 'All good, {{name}}? A few tips for {{city}} 🌤️' },
+  reviewRequest: { it: 'Hai un attimo per {{siteName}}, {{name}}? 🌤️', en: 'Got a minute for {{siteName}}, {{name}}? 🌤️' }
 };
-function subjectFor(key, isEn, b) {
+function subjectFor(key, isEn, b, settings) {
+  var siteName = (settings && settings.siteName) || 'Casa Celeste';
+  var city = (settings && settings.city) || 'Monopoli';
   var s = SUBJECTS[key][isEn ? 'en' : 'it'];
-  return s.replace('{{roomLabel}}', b.roomLabel || 'Casa Celeste').replace('{{name}}', b.name || '');
+  return s.replace('{{roomLabel}}', b.roomLabel || siteName).replace('{{name}}', b.name || '')
+    .replace('{{siteName}}', siteName).replace('{{city}}', city);
 }
 
 /* ==========================================================================
@@ -165,6 +169,7 @@ async function forEachBookingUnit(queryDocs, processOne, processGroup) {
    Conferma prenotazione
    ========================================================================== */
 async function composeAndSendConfirmation(settings, docsGroup) {
+  var siteName = settings.siteName || 'Casa Celeste';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
@@ -175,25 +180,25 @@ async function composeAndSendConfirmation(settings, docsGroup) {
     totalGuests += item.b.guests || 0;
     totalDue += due;
     return {
-      roomLabel: item.b.roomLabel || 'Casa Celeste',
+      roomLabel: item.b.roomLabel || siteName,
       docsLink: siteOrigin() + 'ospiti.html?booking=' + item.doc.id + '&token=' + item.b.guestFormToken,
       totalDue: due
     };
   });
   totalDue = Math.round(totalDue * 100) / 100;
-  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn);
+  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn, siteName);
   var repForCalendar = isGroup ? Object.assign({}, rep, { roomLabel: groupRoomNames }) : rep;
   var subjectRep = isGroup ? Object.assign({}, rep, { roomLabel: groupRoomNames }) : rep;
 
   var result = await lib.sendGuestEmail(db, settings, TPL_CONFIRMATION, {
-    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || 'Casa Celeste'),
+    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     checkIn: lib.formatDateHuman(rep.checkIn, isEn), checkOut: lib.formatDateHuman(rep.checkOut, isEn),
     nights: rep.nights || 0, guests: totalGuests, totalDue: totalDue,
     docsLink: rooms[0].docsLink,
     checkInTime: settings.checkInTime || '15:00', checkOutTime: settings.checkOutTime || '10:00',
     googleCalendarLink: googleCalendarLink(repForCalendar, settings, isEn),
     icsLink: icsLink(first.doc.id, first.b.guestFormToken, isGroup ? groupRoomNames : ''),
-    assistLink: assistLink(), isEn: isEn, subjectLine: subjectFor('confirmation', isEn, subjectRep),
+    assistLink: assistLink(), isEn: isEn, subjectLine: subjectFor('confirmation', isEn, subjectRep, settings),
     isGroup: isGroup, rooms: isGroup ? rooms : []
   }, 2, isGroup
     ? ('conferma prenotazione di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
@@ -227,12 +232,13 @@ function subtractOneHour(hhmm) {
 }
 
 async function composeAndSendCheckin(settings, docsGroup) {
+  var siteName = settings.siteName || 'Casa Celeste';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
   var isEn = isEnglish(rep);
   var checkInTime = settings.checkInTime || '15:00';
-  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn);
+  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn, siteName);
 
   // Nessuno skip per "ospite già verificato in un soggiorno precedente": la
   // legge impone di verificare l'identità al primo ingresso di OGNI NUOVA
@@ -254,7 +260,7 @@ async function composeAndSendCheckin(settings, docsGroup) {
     // Programmata 1h prima del check-in (ora Europe/Rome, a prova di cambio
     // ora legale/solare): l'ospite deve avere il documento in mano.
     var callStartIso = lib.romeWallTimeToUtcIso(rep.checkIn, subtractOneHour(checkInTime));
-    var meetSummary = isGroup ? ('Casa Celeste — verifica documenti, ' + groupRoomNames) : ('Casa Celeste — verifica documento, ' + rep.roomLabel);
+    var meetSummary = isGroup ? (siteName + ' — verifica documenti, ' + groupRoomNames) : (siteName + ' — verifica documento, ' + rep.roomLabel);
     var meetDescription = isGroup
       ? ('Videochiamata per verificare i documenti del gruppo di ' + rep.name + ' (' + groupRoomNames + ') un\'ora prima del check-in del ' + lib.formatDateHuman(rep.checkIn, false) + '. Tenete i documenti in mano durante la chiamata.')
       : ('Videochiamata per verificare il documento di ' + rep.name + ' un\'ora prima del check-in del ' + lib.formatDateHuman(rep.checkIn, false) + '. Tieni il documento in mano durante la chiamata.');
@@ -276,19 +282,19 @@ async function composeAndSendCheckin(settings, docsGroup) {
   // roomAccessCode: codice/link per aprire la singola stanza, inserito a
   // mano dal proprietario in dashboard (campo "da creare" a ogni nuova
   // prenotazione, non generato dal sistema — vedi affittacamere/js/dashboard.js).
-  var rooms = docsGroup.map(function (item) { return { roomLabel: item.b.roomLabel || 'Casa Celeste', roomAccessCode: item.b.roomAccessCode || '' }; });
+  var rooms = docsGroup.map(function (item) { return { roomLabel: item.b.roomLabel || siteName, roomAccessCode: item.b.roomAccessCode || '' }; });
   var hasRoomAccessCode = isGroup ? rooms.some(function (r) { return r.roomAccessCode; }) : !!rep.roomAccessCode;
 
   var result = await lib.sendGuestEmail(db, settings, TPL_CHECKIN, {
-    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || 'Casa Celeste'),
+    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     checkIn: lib.formatDateHuman(rep.checkIn, isEn), checkInTime: checkInTime,
-    address: 'Via Giuseppe Can. del Drago 9, Monopoli (BA)',
+    address: settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)',
     checkInInstructions: (settings.checkInInstructionsText && settings.checkInInstructionsText[isEn ? 'en' : 'it']) || '',
     wifiName: settings.wifiName || '', wifiPassword: settings.wifiPassword || '',
     streetGateLink: lib.normalizeExternalUrl(settings.streetGateLink), roomAccessCode: rep.roomAccessCode || '', hasRoomAccessCode: hasRoomAccessCode,
     videoCallLink: meetLink || '', videoCallNote: videoCallNote,
     isGroup: isGroup, rooms: isGroup ? rooms : [], groupRoomNames: groupRoomNames,
-    assistLink: assistLink(), isEn: isEn, subjectLine: subjectFor('checkin', isEn, rep)
+    assistLink: assistLink(), isEn: isEn, subjectLine: subjectFor('checkin', isEn, rep, settings)
   }, 1, isGroup
     ? ('istruzioni check-in di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
     : ('istruzioni check-in (' + first.doc.id + ')'));
@@ -323,16 +329,17 @@ async function sendCheckinInstructionsGroup(settings, siblingDocs) {
    (non il giorno dopo), finestra 6-8 ora Roma come cleaning-reminders.js.
    ========================================================================== */
 async function composeAndSendThankYou(settings, docsGroup) {
+  var siteName = settings.siteName || 'Casa Celeste';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
   var isEn = isEnglish(rep);
-  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn);
+  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn, siteName);
   var result = await lib.sendGuestEmail(db, settings, TPL_THANKYOU, {
-    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || 'Casa Celeste'),
+    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     checkOutTime: settings.checkOutTime || '10:00',
     checkOutInstructions: (settings.checkOutInstructionsText && settings.checkOutInstructionsText[isEn ? 'en' : 'it']) || '',
-    assistLink: assistLink(), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('thankyou', isEn, rep),
+    assistLink: assistLink(), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('thankyou', isEn, rep, settings),
     reviewLink: lib.normalizeExternalUrl(settings.reviewLink)
   }, 3, isGroup
     ? ('ringraziamento di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
@@ -355,17 +362,18 @@ async function sendThankYouGroup(settings, siblingDocs) {
    altre notti) — fino a 4 consigli & dintorni presi da Impostazioni.
    ========================================================================== */
 async function composeAndSendWellness(settings, docsGroup) {
+  var siteName = settings.siteName || 'Casa Celeste';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
   var isEn = isEnglish(rep);
-  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn);
+  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn, siteName);
   var recs = (settings.recommendations || []).slice(0, 4).map(function (r) {
     return { title: r.title || '', category: r.category || '', url: lib.normalizeExternalUrl(r.url) };
   });
   var result = await lib.sendGuestEmail(db, settings, TPL_WELLNESS, {
-    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || 'Casa Celeste'),
-    assistLink: assistLink(), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('wellness', isEn, rep), recs: recs
+    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
+    assistLink: assistLink(), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('wellness', isEn, rep, settings), recs: recs
   }, 4, isGroup
     ? ('consigli metà soggiorno di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
     : ('consigli a metà soggiorno (' + first.doc.id + ')'));
@@ -387,14 +395,15 @@ async function sendWellnessCheckGroup(settings, siblingDocs) {
    Promemoria recensione "leggero", qualche giorno dopo il check-out.
    ========================================================================== */
 async function composeAndSendReviewRequest(settings, docsGroup) {
+  var siteName = settings.siteName || 'Casa Celeste';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
   var isEn = isEnglish(rep);
-  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn);
+  var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn, siteName);
   var result = await lib.sendGuestEmail(db, settings, TPL_REVIEW_REQUEST, {
-    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || 'Casa Celeste'),
-    reviewLink: lib.normalizeExternalUrl(settings.reviewLink), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('reviewRequest', isEn, rep)
+    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
+    reviewLink: lib.normalizeExternalUrl(settings.reviewLink), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('reviewRequest', isEn, rep, settings)
   }, 4, isGroup
     ? ('richiesta recensione di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
     : ('richiesta recensione (' + first.doc.id + ')'));

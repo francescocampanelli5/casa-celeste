@@ -39,8 +39,8 @@ function formatDateHuman(iso, isEn) {
   const locale = isEn ? 'en-GB' : 'it-IT';
   return d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
-function joinRoomNames(bookings, isEn) {
-  const names = bookings.map((b) => b.roomLabel || 'Casa Celeste');
+function joinRoomNames(bookings, isEn, siteName) {
+  const names = bookings.map((b) => b.roomLabel || siteName);
   if (names.length <= 1) return names[0] || '';
   const last = names[names.length - 1];
   const head = names.slice(0, -1).join(', ');
@@ -72,11 +72,12 @@ function googleCalendarLink(b, settings, isEn) {
   const checkOutTime = settings.checkOutTime || '10:00';
   const startUtc = toGCalUtc(romeWallTimeToUtcIso(b.checkIn, checkInTime));
   const endUtc = toGCalUtc(romeWallTimeToUtcIso(b.checkOut, checkOutTime));
-  const text = 'Casa Celeste — ' + (b.roomLabel || (isEn ? 'stay' : 'soggiorno'));
+  const siteName = settings.siteName || 'Casa Celeste';
+  const text = siteName + ' — ' + (b.roomLabel || (isEn ? 'stay' : 'soggiorno'));
   const details = isEn
     ? ('Check-in: ' + checkInTime + '. Check-out: ' + checkOutTime + '.')
     : ('Check-in: ore ' + checkInTime + '. Check-out: ore ' + checkOutTime + '.');
-  const location = 'Via Giuseppe Can. del Drago 9, Monopoli (BA), Italia';
+  const location = settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA), Italia';
   return 'https://www.google.com/calendar/render?action=TEMPLATE'
     + '&text=' + encodeURIComponent(text)
     + '&dates=' + startUtc + '/' + endUtc
@@ -91,12 +92,12 @@ function icsLink(bookingId, token, labelOverride) {
 }
 
 const SUBJECTS = {
-  confirmation: { it: '✅ Prenotazione confermata — {{roomLabel}}, Casa Celeste', en: '✅ Booking confirmed — {{roomLabel}}, Casa Celeste' },
-  cancellation: { it: 'Prenotazione annullata — Casa Celeste', en: 'Booking cancelled — Casa Celeste' }
+  confirmation: { it: '✅ Prenotazione confermata — {{roomLabel}}, {{siteName}}', en: '✅ Booking confirmed — {{roomLabel}}, {{siteName}}' },
+  cancellation: { it: 'Prenotazione annullata — {{siteName}}', en: 'Booking cancelled — {{siteName}}' }
 };
-function subjectFor(key, isEn, b) {
+function subjectFor(key, isEn, b, siteName) {
   const s = SUBJECTS[key][isEn ? 'en' : 'it'];
-  return s.replace('{{roomLabel}}', b.roomLabel || 'Casa Celeste');
+  return s.replace('{{roomLabel}}', b.roomLabel || siteName).replace('{{siteName}}', siteName);
 }
 
 // ---- Gmail (Nodemailer) ----
@@ -107,10 +108,10 @@ function getMailTransport(gmailUser, gmailAppPassword) {
   mailTransport = nodemailer.createTransport({ service: 'gmail', auth: { user: gmailUser, pass: gmailAppPassword } });
   return mailTransport;
 }
-async function sendMail(gmailUser, gmailAppPassword, to, subject, html) {
+async function sendMail(gmailUser, gmailAppPassword, to, subject, html, siteName) {
   const transport = getMailTransport(gmailUser, gmailAppPassword);
   if (!transport) return { sent: false, reason: 'not_configured' };
-  await transport.sendMail({ from: 'Casa Celeste <' + gmailUser + '>', to: to, subject: subject, html: html });
+  await transport.sendMail({ from: (siteName || 'Casa Celeste') + ' <' + gmailUser + '>', to: to, subject: subject, html: html });
   return { sent: true };
 }
 
@@ -188,6 +189,9 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
     return;
   }
 
+  const siteName = settings.siteName || 'Casa Celeste';
+  const city = settings.city || 'Monopoli';
+  const address = settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)';
   const isGroup = docsGroup.length > 1;
   const first = docsGroup[0];
   const rep = first.b;
@@ -197,18 +201,19 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
     const due = (item.b.touristTax && item.b.touristTax.totalDue) || 0;
     totalGuests += item.b.guests || 0;
     totalDue += due;
-    return { roomLabel: item.b.roomLabel || 'Casa Celeste', docsLink: docsLinkFor(item.id, item.b.guestFormToken), totalDue: due };
+    return { roomLabel: item.b.roomLabel || siteName, docsLink: docsLinkFor(item.id, item.b.guestFormToken), totalDue: due };
   });
   totalDue = Math.round(totalDue * 100) / 100;
-  const groupRoomNames = joinRoomNames(docsGroup.map((item) => item.b), isEn);
+  const groupRoomNames = joinRoomNames(docsGroup.map((item) => item.b), isEn, siteName);
   const repForCalendar = isGroup ? Object.assign({}, rep, { roomLabel: groupRoomNames }) : rep;
   const subjectRep = isGroup ? Object.assign({}, rep, { roomLabel: groupRoomNames }) : rep;
-  const subjectLine = subjectFor('confirmation', isEn, subjectRep);
+  const subjectLine = subjectFor('confirmation', isEn, subjectRep, siteName);
 
   let html;
   try {
     html = renderTemplate('1-conferma-prenotazione.html', {
-      email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || 'Casa Celeste'),
+      siteName: siteName, city: city, address: address,
+      email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
       checkIn: formatDateHuman(rep.checkIn, isEn), checkOut: formatDateHuman(rep.checkOut, isEn),
       nights: rep.nights || 0, guests: totalGuests, totalDue: totalDue,
       docsLink: rooms[0].docsLink,
@@ -218,7 +223,7 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
       assistLink: assistLink(), isEn: isEn, subjectLine: subjectLine,
       isGroup: isGroup, rooms: isGroup ? rooms : []
     });
-    const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html);
+    const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName);
     if (result.sent) await recordEmailSent(db, admin, quota.month);
     else console.log('Conferma immediata non configurata (mancano i secrets Gmail): ' + bookingId);
   } catch (err) {
@@ -261,27 +266,31 @@ async function notifyBookingCancelled(ctx, bookingId, booking) {
     return;
   }
 
+  const siteName = settings.siteName || 'Casa Celeste';
+  const city = settings.city || 'Monopoli';
+  const address = settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)';
   const isGroup = docsGroup.length > 1;
   const first = docsGroup[0];
   const rep = first.b;
   const isEn = rep.lang === 'en';
-  const groupRoomNames = joinRoomNames(docsGroup.map((item) => item.b), isEn);
+  const groupRoomNames = joinRoomNames(docsGroup.map((item) => item.b), isEn, siteName);
   let totalRefund = 0, hasRefund = false;
   docsGroup.forEach((item) => {
     const c = item.b.cancellation;
     if (c && c.refunded) { hasRefund = true; totalRefund += Number(c.refundAmount) || 0; }
   });
   totalRefund = Math.round(totalRefund * 100) / 100;
-  const subjectLine = subjectFor('cancellation', isEn, isGroup ? Object.assign({}, rep, { roomLabel: groupRoomNames }) : rep);
+  const subjectLine = subjectFor('cancellation', isEn, isGroup ? Object.assign({}, rep, { roomLabel: groupRoomNames }) : rep, siteName);
 
   try {
     const html = renderTemplate('7-annullamento-prenotazione.html', {
-      email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || 'Casa Celeste'),
+      siteName: siteName, city: city, address: address,
+      email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
       checkIn: formatDateHuman(rep.checkIn, isEn), checkOut: formatDateHuman(rep.checkOut, isEn),
       hasRefund: hasRefund, refundAmount: totalRefund,
       assistLink: assistLink(), isEn: isEn, subjectLine: subjectLine, isGroup: isGroup
     });
-    const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html);
+    const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName);
     if (result.sent) await recordEmailSent(db, admin, quota.month);
     else console.log('Annullamento immediato non configurato (mancano i secrets Gmail): ' + bookingId);
   } catch (err) {

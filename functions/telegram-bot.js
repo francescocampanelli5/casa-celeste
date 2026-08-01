@@ -203,9 +203,9 @@ async function isAuthorizedForCleaning(ctx, chatId) {
 function unauthorizedText(chatId) {
   return 'Non sei autorizzato a creare prenotazioni da qui (chat-id: ' + chatId + '). Chiedi al proprietario di aggiungerti da dashboard.html → Impostazioni, oppure scrivi /aiuto.';
 }
-function helpText(authorized, chatId) {
+function helpText(authorized, chatId, siteName) {
   return [
-    '👋 Ciao! Sono il bot di Casa Celeste.',
+    '👋 Ciao! Sono il bot di ' + (siteName || 'Casa Celeste') + '.',
     '',
     'Cosa faccio automaticamente, se sei autorizzato:',
     '• ti avviso appena arriva una nuova prenotazione dal sito;',
@@ -1067,7 +1067,9 @@ async function handleMessage(ctx, msg) {
   const lower = text.toLowerCase();
 
   if (lower === '/start' || lower === '/aiuto' || lower === '/help') {
-    await tgSendMessage(ctx, chatId, helpText(authorized, chatId));
+    const settingsSnap = await ctx.db.collection('tourism_settings').doc('site').get();
+    const siteName = settingsSnap.exists ? settingsSnap.data().siteName : null;
+    await tgSendMessage(ctx, chatId, helpText(authorized, chatId, siteName));
     return;
   }
   if (lower === '/annulla') {

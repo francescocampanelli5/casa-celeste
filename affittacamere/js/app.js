@@ -39,7 +39,7 @@
       { id: 'document', question: t('assist.opt_document'), answer: t('assist.document_text'), actionType: 'none', actionLabel: '' },
       { id: 'cancel', question: t('assist.opt_cancel'), answer: t('assist.cancel_text'), actionType: 'openCancelLookup', actionLabel: t('assist.cancel_cta') },
       { id: 'checkin', question: t('assist.opt_checkin'), answer: tpl(t('assist.checkin_text'), { checkin: checkinTime, checkout: checkoutTime }), actionType: 'none', actionLabel: '' },
-      { id: 'location', question: t('assist.opt_location'), answer: t('assist.location_text'), actionType: 'scrollLocation', actionLabel: t('assist.location_cta') }
+      { id: 'location', question: t('assist.opt_location'), answer: bt('assist.location_text'), actionType: 'scrollLocation', actionLabel: t('assist.location_cta') }
     ];
   }
   function assistTopics() {
@@ -297,6 +297,17 @@
   function tpl(str, params) {
     return str.replace(/\{(\w+)\}/g, function (_, k) { return params[k] != null ? params[k] : ''; });
   }
+  // Nome struttura/città/indirizzo configurabili da Impostazioni dashboard
+  // (tourism_settings/site), con fallback ai valori storici di Casa Celeste —
+  // usati per sostituire {siteName}/{city}/{address} nelle stringhe i18n.
+  function brandParams() {
+    return {
+      siteName: (state.settings && state.settings.siteName) || 'Casa Celeste',
+      city: (state.settings && state.settings.city) || 'Monopoli',
+      address: houseAddress()
+    };
+  }
+  function bt(key) { return tpl(t(key), brandParams()); }
   function photoTag(src, alt) {
     return '<img src="' + src + '" alt="' + escapeHtml(alt) + '" class="real-photo" loading="lazy" onerror="this.remove()">';
   }
@@ -312,7 +323,8 @@
     if (!container) return;
     var uploaded = (state.settings && state.settings.facadePhotos) || [];
     function srcFor(i) { return uploaded[i - 1] || ('images/facciata-' + i + '.jpg'); }
-    var html = '<div class="hero-media-slide"><span class="photo-placeholder">' + t('photo.prefix') + ' ' + t('photo.facade') + '</span>' + photoTag(srcFor(1), 'Facciata di Casa Celeste') + '</div>';
+    var siteNameForAlt = (state.settings && state.settings.siteName) || 'Casa Celeste';
+    var html = '<div class="hero-media-slide"><span class="photo-placeholder">' + t('photo.prefix') + ' ' + tpl(t('photo.facade'), { siteName: siteNameForAlt }) + '</span>' + photoTag(srcFor(1), 'Facciata di ' + siteNameForAlt) + '</div>';
     for (var i = 2; i <= 6; i++) {
       html += '<div class="hero-media-slide"><img src="' + srcFor(i) + '" alt="Facciata di Casa Celeste, vista ' + i + '" class="real-photo" loading="lazy" onerror="window.__ccHeroSlideError(this)"></div>';
     }
@@ -457,33 +469,54 @@
   /* ==========================================================================
      i18n
      ========================================================================== */
-  var SEO_META = {
+  var SEO_META_TEMPLATE = {
     it: {
-      title: 'Casa Celeste | Affittacamere e Locazione Turistica a Monopoli — Stanze in Affitto a Notte',
-      description: 'Casa Celeste: locazione turistica indipendente nel cuore di Monopoli. Stanze in affitto a notte, niente servizi da hotel. Prenota le tue date su WhatsApp.'
+      title: '{siteName} | Affittacamere e Locazione Turistica a {city} — Stanze in Affitto a Notte',
+      description: '{siteName}: locazione turistica indipendente nel cuore di {city}. Stanze in affitto a notte, niente servizi da hotel. Prenota le tue date su WhatsApp.'
     },
     en: {
-      title: 'Casa Celeste | Independent Vacation Rental in Monopoli, Italy — Rooms by the Night',
-      description: 'Casa Celeste: an independent short-term rental in the heart of Monopoli, Italy. Rooms by the night, no hotel-style services. Book your dates on WhatsApp.'
+      title: '{siteName} | Independent Vacation Rental in {city}, Italy — Rooms by the Night',
+      description: '{siteName}: an independent short-term rental in the heart of {city}, Italy. Rooms by the night, no hotel-style services. Book your dates on WhatsApp.'
     }
   };
+  function seoMetaFor(lang) {
+    var siteName = (state.settings && state.settings.siteName) || 'Casa Celeste';
+    var city = (state.settings && state.settings.city) || 'Monopoli';
+    var tpl = SEO_META_TEMPLATE[lang];
+    return {
+      title: tpl.title.replace(/\{siteName\}/g, siteName).replace(/\{city\}/g, city),
+      description: tpl.description.replace(/\{siteName\}/g, siteName).replace(/\{city\}/g, city)
+    };
+  }
   function applyI18n() {
     document.documentElement.lang = state.lang;
-    document.title = SEO_META[state.lang].title;
+    var seoMeta = seoMetaFor(state.lang);
+    document.title = seoMeta.title;
     var metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc) metaDesc.setAttribute('content', SEO_META[state.lang].description);
+    if (metaDesc) metaDesc.setAttribute('content', seoMeta.description);
     var ogDesc = document.querySelector('meta[property="og:description"]');
-    if (ogDesc) ogDesc.setAttribute('content', SEO_META[state.lang].description);
+    if (ogDesc) ogDesc.setAttribute('content', seoMeta.description);
     var ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) ogTitle.setAttribute('content', SEO_META[state.lang].title);
+    if (ogTitle) ogTitle.setAttribute('content', seoMeta.title);
+    var twTitle = document.querySelector('meta[name="twitter:title"]');
+    if (twTitle) twTitle.setAttribute('content', seoMeta.title);
+    var twDesc = document.querySelector('meta[name="twitter:description"]');
+    if (twDesc) twDesc.setAttribute('content', seoMeta.description);
     var ogLocale = document.querySelector('meta[property="og:locale"]');
     if (ogLocale) ogLocale.setAttribute('content', state.lang === 'en' ? 'en_GB' : 'it_IT');
 
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
-      el.textContent = t(el.getAttribute('data-i18n'));
+      el.textContent = bt(el.getAttribute('data-i18n'));
     });
     document.querySelectorAll('[data-i18n-html]').forEach(function (el) {
-      el.innerHTML = t(el.getAttribute('data-i18n-html'));
+      el.innerHTML = bt(el.getAttribute('data-i18n-html'));
+    });
+    // Testo statico non tradotto (nome struttura/indirizzo nel logo e nel
+    // footer) — non passa da data-i18n perché non cambia con la lingua,
+    // ma va comunque letto da Impostazioni invece che restare fisso.
+    var brand = brandParams();
+    document.querySelectorAll('[data-brand]').forEach(function (el) {
+      el.textContent = brand[el.getAttribute('data-brand')] || '';
     });
     document.querySelectorAll('[data-lang-set]').forEach(function (el) {
       el.classList.toggle('is-active', el.getAttribute('data-lang-set') === state.lang);
@@ -599,7 +632,7 @@
   }
   function commonDetailHtml(id, def) {
     var name = tf(def.name);
-    var link = waLink(tpl(t('common.wa_info'), { name: name }));
+    var link = waLink(tpl(t('common.wa_info'), { name: name, siteName: (state.settings && state.settings.siteName) || 'Casa Celeste' }));
     var statsHtml = (def.stats || []).map(function (s) {
       return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(tf(s.label)) + '</div><div class="stat-value">' + escapeHtml(tf(s.value)) + '</div></div>';
     }).join('');
@@ -632,7 +665,7 @@
       '<div class="section-intro">' +
         '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('common.eyebrow')) + '</div>' +
         '<h2 class="h2" style="margin:0 0 14px;">' + escapeHtml(t('common.title')) + '</h2>' +
-        '<p>' + t('common.text_html') + '</p>' +
+        '<p>' + bt('common.text_html') + '</p>' +
       '</div>';
     var detailHtml = activeId ? '<div class="detail-expanded">' + commonDetailHtml(activeId, commons[activeId]) + '</div>' : '';
     var cardsHtml = otherIds.map(function (id) { return commonCardHtml(id, commons[id]); }).join('');
@@ -827,7 +860,7 @@
       '<div class="admin-toggle-row">' +
         '<div style="max-width:560px;">' +
           '<div class="eyebrow eyebrow--blue">' + escapeHtml(t('stanze.eyebrow')) + '</div>' +
-          '<h2 class="h2" style="margin:0 0 12px;">' + escapeHtml(t('stanze.title')) + '</h2>' +
+          '<h2 class="h2" style="margin:0 0 12px;">' + escapeHtml(bt('stanze.title')) + '</h2>' +
           '<p style="font-size:15.5px; line-height:1.65; color:var(--text-body); margin:0;">' + escapeHtml(t('stanze.text')) + '</p>' +
         '</div>' +
       '</div>' +
@@ -852,7 +885,7 @@
      porta al wizard esistente già allo step ospiti se le date sono già
      scelte qui.
      ========================================================================== */
-  var HOUSE_ADDRESS = 'Via Giuseppe Can. del Drago 9, Monopoli (BA)';
+  function houseAddress() { return (state.settings && state.settings.address) || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)'; }
   // Destinazione reale per ciascun punto d'interesse elencato in "Posizione"
   // (voce cliccabile -> conferma -> Google Maps con il percorso a piedi
   // dalla casa). Chiave = lo stesso data-map-poi usato sia nell'HTML
@@ -874,8 +907,8 @@
   function openMapsDirectionsToPoi(poiKey, label) {
     var dest = MAP_POI_DESTINATIONS[poiKey];
     if (!dest) return;
-    if (!window.confirm(tpl(t('roomdetail.maps_confirm'), { place: label || dest }))) return;
-    var url = 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(HOUSE_ADDRESS) + '&destination=' + encodeURIComponent(dest) + '&travelmode=walking';
+    if (!window.confirm(tpl(t('roomdetail.maps_confirm'), { place: label || dest, siteName: (state.settings && state.settings.siteName) || 'Casa Celeste' }))) return;
+    var url = 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(houseAddress()) + '&destination=' + encodeURIComponent(dest) + '&travelmode=walking';
     window.open(url, '_blank', 'noopener');
   }
   function roomPhotos(id, room) {
@@ -1122,7 +1155,7 @@
     if (state.guestsChildAges.length) url.searchParams.set('children', state.guestsChildAges.join(',')); else url.searchParams.delete('children');
     if (state.search.rooms > 1) url.searchParams.set('rooms', state.search.rooms); else url.searchParams.delete('rooms');
     var shareUrl = url.toString();
-    var shareText = tpl(t('roomdetail.share_text'), { room: room.name });
+    var shareText = tpl(t('roomdetail.share_text'), { room: room.name, siteName: (state.settings && state.settings.siteName) || 'Casa Celeste', city: (state.settings && state.settings.city) || 'Monopoli' });
     if (navigator.share) { navigator.share({ title: 'Casa Celeste — ' + room.name, text: shareText, url: shareUrl }).catch(function () {}); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(shareUrl).then(function () { if (onCopied) onCopied(); }).catch(function () {});
@@ -1179,7 +1212,7 @@
   function roomDetailLocationHtml() {
     return (
       '<div class="location-grid rd-location-grid">' +
-        '<div class="map-frame"><iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=Via+Giuseppe+del+Drago+9,+Monopoli,+BA,+Italia&output=embed" loading="lazy"></iframe></div>' +
+        '<div class="map-frame"><iframe title="' + escapeHtml('Mappa ' + ((state.settings && state.settings.siteName) || 'Casa Celeste')) + '" src="https://www.google.com/maps?q=' + encodeURIComponent(houseAddress()) + '&output=embed" loading="lazy"></iframe></div>' +
         '<div class="distance-list">' +
           '<button type="button" class="distance-item" data-map-poi="centro"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.centro')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min1')) + '</span></button>' +
           '<button type="button" class="distance-item" data-map-poi="super"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.super')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min2')) + '</span></button>' +
@@ -1315,7 +1348,7 @@
 
     var reviewCount = effectiveReviewCountForRoom(room);
     var ratingHtml = '<div class="rd-rating-block"><svg width="16" height="16"><use href="#icon-star"></use></svg><strong>' + escapeHtml(siteRatingValue()) + '</strong></div>';
-    var reviewsLabel = reviewCount === 0 ? t('hero.reviews_none') : (reviewCount === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: reviewCount }));
+    var reviewsLabel = reviewCount === 0 ? bt('hero.reviews_none') : (reviewCount === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: reviewCount }));
 
     var favoriteBadgeLabel = tf(room.favoriteBadge) || t('roomdetail.guest_favorite');
     var reviewsRowHtml =
@@ -1390,7 +1423,7 @@
           '<div class="rd-body">' +
             '<button type="button" data-open-assist class="btn btn-whatsapp rd-chat-btn">' + escapeHtml(t('roomdetail.chat_host')) + '</button>' +
             '<h1 class="rd-room-name">' + escapeHtml(room.name) + '</h1>' +
-            '<div class="rd-address"><svg width="14" height="14"><use href="#icon-pin"></use></svg>' + escapeHtml(HOUSE_ADDRESS) + '</div>' +
+            '<div class="rd-address"><svg width="14" height="14"><use href="#icon-pin"></use></svg>' + escapeHtml(houseAddress()) + '</div>' +
             '<div class="rd-meta-line">' + escapeHtml(metaLine) + '</div>' +
             '<div class="rd-meta-line">' + escapeHtml(t('roomdetail.crib_extrabed_available')) + '</div>' +
             '<div class="rd-separator"></div>' +
@@ -1791,7 +1824,7 @@
   }
   function reviewsBadgeHtml(room) {
     var n = effectiveReviewCountForRoom(room);
-    var label = n === 0 ? t('hero.reviews_none') : (n === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: n }));
+    var label = n === 0 ? bt('hero.reviews_none') : (n === 1 ? t('hero.reviews_1') : tpl(t('hero.reviews_n'), { n: n }));
     return '<span class="room-list-meta-item room-list-reviews"><svg width="14" height="14"><use href="#icon-star"></use></svg>' + escapeHtml(label) + '</span>';
   }
   function searchCalendarPopoverHtml() {
@@ -2430,7 +2463,7 @@
           formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) +
           ' · ' + escapeHtml(tpl(t('booking.summary_nights_n'), { n: nights })) + '</div>' +
         '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsLabel) + '</div>' +
-        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(HOUSE_ADDRESS) + '</div>' +
+        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(houseAddress()) + '</div>' +
       '</div>' +
       priceSummaryHtml() +
       '<div class="contact-form">' +
@@ -2660,7 +2693,7 @@
     if (!bookingId) return '';
     return (
       '<div class="referral-code-panel">' +
-        '<div class="referral-code-title">' + escapeHtml(t('booking.referral_title')) + '</div>' +
+        '<div class="referral-code-title">' + escapeHtml(bt('booking.referral_title')) + '</div>' +
         '<div class="referral-code-value">' + escapeHtml(referralCodeForBooking(bookingId)) + '</div>' +
         '<div class="referral-code-text">' + escapeHtml(t('booking.referral_text')) + '</div>' +
       '</div>'
@@ -3310,7 +3343,7 @@
           ' · ' + escapeHtml(tpl(t('booking.summary_nights_n'), { n: nights })) + '</div>' +
         '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-house"></use></svg>' + escapeHtml(roomNames) + '</div>' +
         '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsSummaryLabel(state.guestsAdults, state.guestsChildAges)) + '</div>' +
-        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(HOUSE_ADDRESS) + '</div>' +
+        '<div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(houseAddress()) + '</div>' +
       '</div>' +
       groupPriceSummaryHtml() +
       '<div class="contact-form">' +
@@ -3514,7 +3547,7 @@
   }
   function runAssistChatAction(action) {
     if (action === 'openWhatsappDirect') {
-      window.open(waLink(t('assist.whatsapp_prefill')), '_blank', 'noopener');
+      window.open(waLink(bt('assist.whatsapp_prefill')), '_blank', 'noopener');
     }
   }
   // Azione opzionale associata a un argomento del menu (modificabile dalla
@@ -3737,8 +3770,9 @@
      sempre Google Maps in una nuova scheda, mai la mappa incorporata.
      ========================================================================== */
   function loadMapEmbed(el) {
-    var query = el.getAttribute('data-map-query') || '';
-    el.outerHTML = '<iframe title="Mappa Casa Celeste" src="https://www.google.com/maps?q=' + encodeURIComponent(query) + '&output=embed" loading="lazy"></iframe>';
+    var query = houseAddress() || el.getAttribute('data-map-query') || '';
+    var siteName = (state.settings && state.settings.siteName) || 'Casa Celeste';
+    el.outerHTML = '<iframe title="' + escapeHtml('Mappa ' + siteName) + '" src="https://www.google.com/maps?q=' + encodeURIComponent(query) + '&output=embed" loading="lazy"></iframe>';
   }
   function loadAllMapEmbeds() {
     var placeholders = document.querySelectorAll('[data-map-placeholder]');

@@ -31,7 +31,7 @@ arriva qualche giorno dopo per chi non ha ancora avuto tempo di scriverla.
     <tr>
       <td style="background:#10233B; padding:24px 32px;">
         <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#2C8FC9; margin-right:2px;"></span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#FFD24C; margin-right:8px;"></span>
-        <span style="color:#FFFFFF; font-size:18px; font-weight:700; vertical-align:middle;">Casa Celeste</span>
+        <span style="color:#FFFFFF; font-size:18px; font-weight:700; vertical-align:middle;">{{siteName}}</span>
       </td>
     </tr>
     <tr>
@@ -41,12 +41,12 @@ arriva qualche giorno dopo per chi non ha ancora avuto tempo di scriverla.
         <h1 style="font-size:22px; color:#10233B; margin:0 0 16px; word-break:break-word;">Hai un attimo, {{name}}?</h1>
         {{^isGroup}}
         <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 20px;">
-          Speriamo che il ricordo del tuo soggiorno nella {{roomLabel}} sia ancora bello quanto Monopoli vista dal terrazzo. Se non hai ancora avuto un attimo per lasciarci due righe, ci farebbe davvero piacere — bastano trenta secondi:
+          Speriamo che il ricordo del tuo soggiorno nella {{roomLabel}} sia ancora bello quanto {{city}} vista dal terrazzo. Se non hai ancora avuto un attimo per lasciarci due righe, ci farebbe davvero piacere — bastano trenta secondi:
         </p>
         {{/isGroup}}
         {{#isGroup}}
         <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 20px;">
-          Speriamo che il ricordo del vostro soggiorno ({{roomLabel}}) sia ancora bello quanto Monopoli vista dal terrazzo. Se non avete ancora avuto un attimo per lasciarci due righe, ci farebbe davvero piacere — bastano trenta secondi:
+          Speriamo che il ricordo del vostro soggiorno ({{roomLabel}}) sia ancora bello quanto {{city}} vista dal terrazzo. Se non avete ancora avuto un attimo per lasciarci due righe, ci farebbe davvero piacere — bastano trenta secondi:
         </p>
         {{/isGroup}}
         {{/isEn}}
@@ -55,12 +55,12 @@ arriva qualche giorno dopo per chi non ha ancora avuto tempo di scriverla.
         <h1 style="font-size:22px; color:#10233B; margin:0 0 16px; word-break:break-word;">Got a minute, {{name}}?</h1>
         {{^isGroup}}
         <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 20px;">
-          We hope the memory of your stay in the {{roomLabel}} is still as lovely as Monopoli seen from the terrace. If you haven't had a chance to leave us a few words yet, it would really mean a lot to us — it only takes thirty seconds:
+          We hope the memory of your stay in the {{roomLabel}} is still as lovely as {{city}} seen from the terrace. If you haven't had a chance to leave us a few words yet, it would really mean a lot to us — it only takes thirty seconds:
         </p>
         {{/isGroup}}
         {{#isGroup}}
         <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 20px;">
-          We hope the memory of your stay ({{roomLabel}}) is still as lovely as Monopoli seen from the terrace. If you haven't had a chance to leave us a few words yet, it would really mean a lot to us — it only takes thirty seconds:
+          We hope the memory of your stay ({{roomLabel}}) is still as lovely as {{city}} seen from the terrace. If you haven't had a chance to leave us a few words yet, it would really mean a lot to us — it only takes thirty seconds:
         </p>
         {{/isGroup}}
         {{/isEn}}
@@ -78,7 +78,7 @@ arriva qualche giorno dopo per chi non ha ancora avuto tempo di scriverla.
     </tr>
     <tr>
       <td style="background:#F5FAFD; padding:20px 32px; text-align:center;">
-        <p style="font-size:12px; color:#6B7A8C; margin:0;">Casa Celeste — Via Giuseppe Can. del Drago 9, Monopoli (BA)</p>
+        <p style="font-size:12px; color:#6B7A8C; margin:0;">{{siteName}} — {{address}}</p>
       </td>
     </tr>
   </table>

@@ -1977,6 +1977,15 @@
     content.innerHTML =
       '<h1 class="dash-section-title">Impostazioni</h1>' +
       '<div class="dash-settings-group">' +
+        '<div class="dash-settings-group-title">Struttura</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-field-group admin-field-group--full"><label>Nome della struttura</label><input type="text" class="admin-field" id="settings-site-name" value="' + escapeHtml(s.siteName || '') + '" placeholder="Casa Celeste"></div>' +
+          '<div class="admin-field-group"><label>Città</label><input type="text" class="admin-field" id="settings-city" value="' + escapeHtml(s.city || '') + '" placeholder="Monopoli"></div>' +
+          '<div class="admin-field-group"><label>Indirizzo completo</label><input type="text" class="admin-field" id="settings-address" value="' + escapeHtml(s.address || '') + '" placeholder="Via Giuseppe Can. del Drago 9, Monopoli (BA)"></div>' +
+          '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usati su sito, email, bot Telegram e mappa al posto dei valori di default. Lascia vuoto per mantenere i default attuali.</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="dash-settings-group">' +
         '<div class="dash-settings-group-title">Generali</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '"></div>' +
@@ -2099,6 +2108,9 @@
         '</div>' +
       '</div>';
 
+    document.getElementById('settings-site-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ siteName: e.target.value.trim() }); });
+    document.getElementById('settings-city').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ city: e.target.value.trim() }); });
+    document.getElementById('settings-address').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ address: e.target.value.trim() }); });
     document.getElementById('settings-phone').addEventListener('change', function (e) {
       window.CasaCelesteTourismDB.setSettings({ phone: e.target.value.replace(/\D/g, '') });
     });

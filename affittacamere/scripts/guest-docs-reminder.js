@@ -24,20 +24,21 @@ function docsLinkFor(doc, b) { return siteOrigin() + 'ospiti.html?booking=' + do
 // docsGroup: array di {doc, b} — solo le stanze ancora incomplete (per una
 // prenotazione singola, un solo elemento).
 async function sendReminder(settings, docsGroup) {
+  var siteName = settings.siteName || 'Casa Celeste';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
   var isEn = rep.lang === 'en';
-  var groupRoomNames = lib.joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn);
+  var groupRoomNames = lib.joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn, siteName);
   var subjectLine = isEn
-    ? '📄 One last step before your arrival — Casa Celeste'
-    : '📄 Manca solo un passo prima del tuo arrivo — Casa Celeste';
+    ? ('📄 One last step before your arrival — ' + siteName)
+    : ('📄 Manca solo un passo prima del tuo arrivo — ' + siteName);
   var rooms = docsGroup.map(function (item) {
-    return { roomLabel: item.b.roomLabel || 'Casa Celeste', docsLink: docsLinkFor(item.doc, item.b) };
+    return { roomLabel: item.b.roomLabel || siteName, docsLink: docsLinkFor(item.doc, item.b) };
   });
 
   var result = await lib.sendGuestEmail(db, settings, TEMPLATE_FILE, {
-    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || 'Casa Celeste'),
+    email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     checkIn: lib.formatDateHuman(rep.checkIn, isEn), docsLink: rooms[0].docsLink,
     isEn: isEn, subjectLine: subjectLine, assistLink: assistLink(),
     isGroup: isGroup, rooms: isGroup ? rooms : []
