@@ -18,7 +18,11 @@ const path = require('path');
 const Mustache = require('mustache');
 const nodemailer = require('nodemailer');
 
-const TEMPLATES_DIR = path.join(__dirname, '..', 'affittacamere', 'email-templates');
+// I template vivono anche dentro functions/ (copia di affittacamere/email-templates/):
+// il pacchetto delle Cloud Functions carica SOLO il contenuto di functions/,
+// un percorso "../affittacamere/..." punterebbe a una cartella che nell'ambiente
+// di runtime non esiste (causa dell'errore ENOENT visto in produzione).
+const TEMPLATES_DIR = path.join(__dirname, 'email-templates');
 
 function stripDocComment(html) {
   return html.replace(/^\s*<!--[\s\S]*?-->\s*/, '');
