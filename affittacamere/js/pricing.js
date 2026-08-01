@@ -38,11 +38,33 @@
     return year + '-' + pad2(month) + '-' + pad2(day);
   }
 
-  function seasonalMultiplier(dateIso) {
+  function monthDayInRange(md, startMD, endMD) {
+    if (startMD <= endMD) return md >= startMD && md <= endMD;
+    return md >= startMD || md <= endMD;
+  }
+  function customSeasonalMultiplier(dateIso, periods, isWeekendNight) {
+    var md = mmdd(dateIso);
+    for (var i = 0; i < periods.length; i++) {
+      var p = periods[i];
+      if (!p || !p.startMD || !p.endMD) continue;
+      if (!monthDayInRange(md, p.startMD, p.endMD)) continue;
+      if (isWeekendNight && Number(p.weekendMultiplier) > 0) return Number(p.weekendMultiplier);
+      var mult = Number(p.multiplier);
+      if (mult > 0) return mult;
+    }
+    return 1.0;
+  }
+  // `settings` opzionale: se settings.seasonalPeriods è impostato (array non
+  // vuoto), sostituisce interamente il calendario Monopoli qui sotto — stessa
+  // logica di functions/pricing.js, tenere allineate.
+  function seasonalMultiplier(dateIso, settings) {
     var year = Number(dateIso.slice(0, 4));
     var md = mmdd(dateIso);
     var dow = new Date(dateIso + 'T00:00:00Z').getUTCDay();
     var isWeekendNight = dow === 5 || dow === 6;
+
+    var customPeriods = settings && Array.isArray(settings.seasonalPeriods) ? settings.seasonalPeriods : null;
+    if (customPeriods && customPeriods.length) return customSeasonalMultiplier(dateIso, customPeriods, isWeekendNight);
 
     if (md >= '08-08' && md <= '08-20') return 1.75;
     if (md >= '07-01' && md <= '08-31') return isWeekendNight ? 1.6 : 1.5;
@@ -80,20 +102,21 @@
   // a tassa di soggiorno/commissione di pagamento, che restano precise al
   // centesimo perché sono importi legali/reali — vedi la stessa nota in
   // functions/pricing.js).
-  function nightlyPriceFor(room, dateIso, occupancyRatio) {
+  function nightlyPriceFor(room, dateIso, occupancyRatio, settings) {
     var manual = manualPriceForNight(room, dateIso);
     if (manual !== null) return Math.round(manual);
     var base = Number(room.nightlyPrice) || 0;
     if (!base) return 0;
-    var price = base * seasonalMultiplier(dateIso) * demandMultiplier(occupancyRatio);
+    if (settings && settings.dynamicPricingEnabled === false) return Math.round(base);
+    var price = base * seasonalMultiplier(dateIso, settings) * demandMultiplier(occupancyRatio);
     return Math.round(price);
   }
 
-  function roomStayTotal(room, checkIn, checkOut, occupancyRatio) {
+  function roomStayTotal(room, checkIn, checkOut, occupancyRatio, settings) {
     var total = 0;
     var cursor = checkIn;
     while (cursor < checkOut) {
-      total += nightlyPriceFor(room, cursor, occupancyRatio);
+      total += nightlyPriceFor(room, cursor, occupancyRatio, settings);
       cursor = addDaysIso(cursor, 1);
     }
     return Math.round(total);

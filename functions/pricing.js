@@ -47,16 +47,49 @@ function easterSundayIso(year) {
   return year + '-' + pad2(month) + '-' + pad2(day);
 }
 
+// MM-DD dentro un intervallo [startMD, endMD], con supporto al periodo che
+// attraversa il capodanno (es. 12-24 -> 01-06, startMD > endMD).
+function monthDayInRange(md, startMD, endMD) {
+  if (startMD <= endMD) return md >= startMD && md <= endMD;
+  return md >= startMD || md <= endMD;
+}
+
+// Stagionalità personalizzata da Impostazioni dashboard
+// (settings.seasonalPeriods, array di {startMD, endMD, multiplier,
+// weekendMultiplier?}) — indispensabile per un tenant fuori Monopoli/Puglia,
+// dove l'alta stagione balneare di giugno-settembre non ha senso (altra
+// città, altro clima, altra clientela). Se non impostata (array vuoto o
+// assente) resta il calendario storico calibrato su Monopoli qui sotto.
+// Notti fuori da ogni periodo definito: moltiplicatore neutro (1.0), il
+// prezzo resta quello base impostato sulla stanza.
+function customSeasonalMultiplier(dateIso, periods, isWeekendNight) {
+  const md = mmdd(dateIso);
+  for (let i = 0; i < periods.length; i++) {
+    const p = periods[i];
+    if (!p || !p.startMD || !p.endMD) continue;
+    if (!monthDayInRange(md, p.startMD, p.endMD)) continue;
+    if (isWeekendNight && Number(p.weekendMultiplier) > 0) return Number(p.weekendMultiplier);
+    const mult = Number(p.multiplier);
+    if (mult > 0) return mult;
+  }
+  return 1.0;
+}
+
 // Moltiplicatore stagionale/festività per la notte che INIZIA in dateIso.
 // Calibrato su Monopoli/Puglia: alta stagione balneare giugno-settembre con
 // picco a Ferragosto, festività nazionali/ponti, bassa stagione invernale,
 // piccolo sovrapprezzo weekend (venerdì/sabato notte) applicato sopra la
-// stagione tranne nel picco assoluto (già al tetto).
-function seasonalMultiplier(dateIso) {
+// stagione tranne nel picco assoluto (già al tetto). `settings` opzionale:
+// se il proprietario ha definito settings.seasonalPeriods, quello vince
+// interamente su questo calendario predefinito (vedi customSeasonalMultiplier).
+function seasonalMultiplier(dateIso, settings) {
   const year = Number(dateIso.slice(0, 4));
   const md = mmdd(dateIso);
   const dow = new Date(dateIso + 'T00:00:00Z').getUTCDay();
   const isWeekendNight = dow === 5 || dow === 6;
+
+  const customPeriods = settings && Array.isArray(settings.seasonalPeriods) ? settings.seasonalPeriods : null;
+  if (customPeriods && customPeriods.length) return customSeasonalMultiplier(dateIso, customPeriods, isWeekendNight);
 
   if (md >= '08-08' && md <= '08-20') return 1.75; // Ferragosto: picco assoluto
   if (md >= '07-01' && md <= '08-31') return isWeekendNight ? 1.6 : 1.5; // Alta stagione balneare
@@ -107,21 +140,27 @@ function manualPriceForNight(room, dateIso) {
 // centesimo perché sono importi legali/reali — la tassa di soggiorno deve
 // coincidere esattamente con quanto dovuto al comune, la commissione con
 // quanto trattenuto davvero da Stripe).
-function nightlyPriceFor(room, dateIso, occupancyRatio) {
+// `settings` opzionale: se settings.dynamicPricingEnabled === false, niente
+// moltiplicatore stagionale né di domanda — il prezzo è sempre esattamente
+// quello base della stanza (il prezzo manuale per periodo resta comunque
+// prioritario, come sempre). Utile per un tenant che vuole prezzi fissi
+// tutto l'anno invece dell'algoritmo dinamico.
+function nightlyPriceFor(room, dateIso, occupancyRatio, settings) {
   const manual = manualPriceForNight(room, dateIso);
   if (manual !== null) return Math.round(manual);
   const base = Number(room.nightlyPrice) || 0;
   if (!base) return 0;
-  const price = base * seasonalMultiplier(dateIso) * demandMultiplier(occupancyRatio);
+  if (settings && settings.dynamicPricingEnabled === false) return Math.round(base);
+  const price = base * seasonalMultiplier(dateIso, settings) * demandMultiplier(occupancyRatio);
   return Math.round(price);
 }
 
 // Somma dei prezzi per-notte su un intero soggiorno [checkIn, checkOut).
-function roomStayTotal(room, checkIn, checkOut, occupancyRatio) {
+function roomStayTotal(room, checkIn, checkOut, occupancyRatio, settings) {
   let total = 0;
   let cursor = checkIn;
   while (cursor < checkOut) {
-    total += nightlyPriceFor(room, cursor, occupancyRatio);
+    total += nightlyPriceFor(room, cursor, occupancyRatio, settings);
     cursor = addDaysIso(cursor, 1);
   }
   return Math.round(total);

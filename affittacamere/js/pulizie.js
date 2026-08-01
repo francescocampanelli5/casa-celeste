@@ -172,7 +172,20 @@
     });
   }
 
+  // Nome struttura in title/logo, letto da Impostazioni dashboard
+  // (tourism_settings/site.siteName) invece del fisso "Casa Celeste".
+  function applyBranding() {
+    if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) return;
+    window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) {
+      var siteName = (settingsFromDb && settingsFromDb.siteName) || 'Casa Celeste';
+      document.title = document.title.replace(/Casa Celeste$/, siteName);
+      var logoEl = document.querySelector('.logo-text');
+      if (logoEl) logoEl.textContent = siteName;
+    });
+  }
+
   function init() {
+    applyBranding();
     if (!token) { state.loading = false; render(); return; }
     if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) {
       state.loading = false; state.error = 'Servizio non configurato.'; render(); return;

@@ -518,6 +518,15 @@
     document.querySelectorAll('[data-brand]').forEach(function (el) {
       el.textContent = brand[el.getAttribute('data-brand')] || '';
     });
+    // Tempo a piedi per i punti d'interesse — sovrascrive il default i18n
+    // SOLO se il proprietario ha impostato una destinazione/tempo custom da
+    // Impostazioni (settings.mapPois), altrimenti resta il testo i18n.
+    document.querySelectorAll('[data-poi-distance]').forEach(function (el) {
+      var override = mapPoiOverride(el.getAttribute('data-poi-distance')).distance;
+      if (override) el.textContent = override;
+    });
+    var mapsCtaLink = document.getElementById('maps-cta-link');
+    if (mapsCtaLink) mapsCtaLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(houseAddress());
     document.querySelectorAll('[data-lang-set]').forEach(function (el) {
       el.classList.toggle('is-active', el.getAttribute('data-lang-set') === state.lang);
     });
@@ -890,12 +899,21 @@
   // (voce cliccabile -> conferma -> Google Maps con il percorso a piedi
   // dalla casa). Chiave = lo stesso data-map-poi usato sia nell'HTML
   // statico della home (index.html) sia in roomDetailLocationHtml().
-  var MAP_POI_DESTINATIONS = {
+  // Editabili da Impostazioni dashboard (settings.mapPois[key].query/
+  // .distance) — indispensabile per un tenant fuori Monopoli, altrimenti i
+  // 4 punti d'interesse "Centro/Supermercato/Stazione/Porto" punterebbero
+  // sempre a Monopoli anche per un'altra città.
+  var MAP_POI_DESTINATIONS_DEFAULT = {
     centro: 'Piazza Vittorio Emanuele II, Monopoli BA',
     super: 'Supermercato, Monopoli BA',
     stazione: 'Stazione di Monopoli, Monopoli BA',
     conservatorio: 'Porto di Monopoli, Monopoli BA'
   };
+  function mapPoiOverride(key) {
+    return (state.settings && state.settings.mapPois && state.settings.mapPois[key]) || {};
+  }
+  function mapPoiQuery(key) { return mapPoiOverride(key).query || MAP_POI_DESTINATIONS_DEFAULT[key]; }
+  function mapPoiDistanceText(key, fallbackI18nKey) { return mapPoiOverride(key).distance || t(fallbackI18nKey); }
   // Codice referral per i locali convenzionati (accordo verbale col
   // proprietario, nessuna piattaforma di affiliazione reale collegata):
   // derivato dall'id prenotazione stesso, niente da salvare in più — il
@@ -905,7 +923,7 @@
     return 'CC-' + String(id || '').slice(-6).toUpperCase();
   }
   function openMapsDirectionsToPoi(poiKey, label) {
-    var dest = MAP_POI_DESTINATIONS[poiKey];
+    var dest = mapPoiQuery(poiKey);
     if (!dest) return;
     if (!window.confirm(tpl(t('roomdetail.maps_confirm'), { place: label || dest, siteName: (state.settings && state.settings.siteName) || 'Casa Celeste' }))) return;
     var url = 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(houseAddress()) + '&destination=' + encodeURIComponent(dest) + '&travelmode=walking';
@@ -1214,10 +1232,10 @@
       '<div class="location-grid rd-location-grid">' +
         '<div class="map-frame"><iframe title="' + escapeHtml('Mappa ' + ((state.settings && state.settings.siteName) || 'Casa Celeste')) + '" src="https://www.google.com/maps?q=' + encodeURIComponent(houseAddress()) + '&output=embed" loading="lazy"></iframe></div>' +
         '<div class="distance-list">' +
-          '<button type="button" class="distance-item" data-map-poi="centro"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.centro')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min1')) + '</span></button>' +
-          '<button type="button" class="distance-item" data-map-poi="super"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.super')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min2')) + '</span></button>' +
-          '<button type="button" class="distance-item" data-map-poi="stazione"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.stazione')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min3')) + '</span></button>' +
-          '<button type="button" class="distance-item" data-map-poi="conservatorio"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.conservatorio')) + '</span><span class="distance-value">' + escapeHtml(t('dist.min4')) + '</span></button>' +
+          '<button type="button" class="distance-item" data-map-poi="centro"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.centro')) + '</span><span class="distance-value">' + escapeHtml(mapPoiDistanceText('centro', 'dist.min1')) + '</span></button>' +
+          '<button type="button" class="distance-item" data-map-poi="super"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.super')) + '</span><span class="distance-value">' + escapeHtml(mapPoiDistanceText('super', 'dist.min2')) + '</span></button>' +
+          '<button type="button" class="distance-item" data-map-poi="stazione"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.stazione')) + '</span><span class="distance-value">' + escapeHtml(mapPoiDistanceText('stazione', 'dist.min3')) + '</span></button>' +
+          '<button type="button" class="distance-item" data-map-poi="conservatorio"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.conservatorio')) + '</span><span class="distance-value">' + escapeHtml(mapPoiDistanceText('conservatorio', 'dist.min4')) + '</span></button>' +
           '<div class="parking-callout">' +
             '<span class="parking-callout-icon"><svg width="20" height="20"><use href="#icon-parking"></use></svg></span>' +
             '<div><div class="parking-callout-title">' + escapeHtml(t('parking.title')) + '</div><div class="parking-callout-desc">' + escapeHtml(t('parking.desc')) + '</div></div>' +
@@ -1508,7 +1526,7 @@
   function dynamicRoomTotal(room, checkIn, checkOut, roomCount) {
     if (!window.CasaCelestePricing || !checkIn || !checkOut) return { total: 0, totalBeforeDiscount: 0, discountRate: 0 };
     var occupancy = window.CasaCelestePricing.computeOccupancyRatioClient(state.roomsData, checkIn, checkOut);
-    var totalBeforeDiscount = window.CasaCelestePricing.roomStayTotal(room, checkIn, checkOut, occupancy);
+    var totalBeforeDiscount = window.CasaCelestePricing.roomStayTotal(room, checkIn, checkOut, occupancy, state.settings);
     var discountRate = window.CasaCelestePricing.groupDiscountRate(roomCount || 1);
     // Prezzo stanza sempre intero, anche dopo lo sconto di gruppo (stesso
     // arrotondamento del server in functions/booking-logic.js): tassa di
@@ -4130,9 +4148,10 @@
   function renderContactHostBar() {
     var el = document.getElementById('contact-host-bar');
     if (!el) return;
+    var label = t('contact.host_cta');
     el.innerHTML =
-      '<button type="button" data-open-assist class="btn btn-whatsapp contact-host-btn">' +
-        '<svg width="18" height="18"><use href="#icon-chat"></use></svg>' + escapeHtml(t('contact.host_cta')) +
+      '<button type="button" data-open-assist class="btn btn-whatsapp contact-host-btn" aria-label="' + escapeHtml(label) + '">' +
+        '<svg width="18" height="18"><use href="#icon-chat"></use></svg><span class="contact-host-btn-label">' + escapeHtml(label) + '</span>' +
       '</button>';
   }
   function updateStickyBarVisibility() {

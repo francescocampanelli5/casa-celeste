@@ -110,6 +110,17 @@
   // 'manutenzione' come default mantiene lo stesso significato di prima
   // (nessuna distinzione), senza dover fare una migrazione dati.
   var MAINTENANCE_CATEGORY_LABELS = { furto: '🚨 Furto', danno: '🔨 Danno/rottura', manutenzione: '🔧 Manutenzione generica' };
+  // Punti d'interesse "Posizione" (sito pubblico) — chiave fissa (icona/
+  // categoria restano quelle), ma destinazione e tempo a piedi vanno
+  // impostati per città diverse da Monopoli (vedi settings.mapPois in
+  // affittacamere/js/app.js, stessa chiave).
+  var MAP_POI_DEFAULTS = {
+    centro: { label: 'Centro città', query: 'Piazza Vittorio Emanuele II, Monopoli BA', distance: '8 min a piedi' },
+    super: { label: 'Supermercato', query: 'Supermercato, Monopoli BA', distance: '5 min a piedi' },
+    stazione: { label: 'Stazione', query: 'Stazione di Monopoli, Monopoli BA', distance: '3 min a piedi' },
+    conservatorio: { label: 'Porto e lungomare', query: 'Porto di Monopoli, Monopoli BA', distance: '10 min a piedi' }
+  };
+  var MAP_POI_ORDER = ['centro', 'super', 'stazione', 'conservatorio'];
   function roomSourceLabel(source) {
     if (source === 'maintenance') return 'Manutenzione';
     if (source === 'booking') return 'Prenotazione';
@@ -212,7 +223,7 @@
     document.getElementById('dash-shell').innerHTML =
       '<div class="dash-sidebar-overlay" id="dash-sidebar-overlay"></div>' +
       '<aside class="dash-sidebar" id="dash-sidebar">' +
-        '<a href="index.html" class="dash-sidebar-logo logo"><span class="logo-dot logo-dot--blue"></span><span class="logo-dot logo-dot--yellow"></span><span class="logo-text">Casa Celeste</span></a>' +
+        '<a href="index.html" class="dash-sidebar-logo logo"><span class="logo-dot logo-dot--blue"></span><span class="logo-dot logo-dot--yellow"></span><span class="logo-text" id="dash-logo-text">' + escapeHtml((state.settings && state.settings.siteName) || 'Casa Celeste') + '</span></a>' +
         '<nav class="dash-sidebar-nav">' + sidebarLinksHtml() + '</nav>' +
         '<button type="button" class="dash-sidebar-logout" id="logout-btn">Esci</button>' +
       '</aside>' +
@@ -629,6 +640,26 @@
     }
     return events;
   }
+  // Stato "in tempo reale" di una stanza per oggi — pensato per chi si
+  // presenta di persona e chiede una stanza subito: non basta sapere se è
+  // pulita, serve sapere se è anche libera ORA (nessun ospite dentro, nessuna
+  // manutenzione aperta che la blocca). Manutenzione/occupazione vincono
+  // sempre sullo stato pulizia, perché anche una stanza "Pronta" non è
+  // assegnabile se c'è già qualcuno dentro o è bloccata per un guasto.
+  function roomLiveStatusInfo(roomId, room) {
+    var todayIso = todayISO();
+    var occupiedToday = state.bookings.some(function (b) {
+      return b.roomId === roomId && b.status !== 'annullato' && b.checkIn <= todayIso && todayIso < b.checkOut;
+    });
+    var maintenanceToday = state.maintenanceData.some(function (m) {
+      return m.roomId === roomId && m.status !== 'risolta' && m.start <= todayIso && todayIso < m.end;
+    });
+    if (maintenanceToday) return { label: '🔧 In manutenzione', pillClass: 'dash-status-pill--nuovo' };
+    if (occupiedToday) return { label: '🚪 Occupata oggi', pillClass: 'dash-status-pill--nuovo' };
+    var cleaning = room.cleaningStatus || 'pronta';
+    if (cleaning === 'pronta') return { label: '✓ Libera e pronta', pillClass: 'dash-status-pill--confermato' };
+    return { label: CLEANING_STATUS_LABELS[cleaning] || cleaning, pillClass: CLEANING_STATUS_PILL_CLASS[cleaning] || 'dash-status-pill--nuovo' };
+  }
   // Lunedì della settimana che contiene iso — stesso calcolo già usato qui
   // sotto per la griglia del mese, estratto perché ora serve anche per
   // allineare la finestra settimanale del Gantt.
@@ -707,7 +738,11 @@
     roomIds.forEach(function (roomId, rIdx) {
       var rowLine = rIdx + 2;
       var room = state.roomsData[roomId] || {};
-      rowsHtml += '<div class="cal-gantt-cell cal-gantt-room-label" style="grid-column:1;grid-row:' + rowLine + ';">' + escapeHtml(room.name || roomId) + '</div>';
+      var liveStatus = roomLiveStatusInfo(roomId, room);
+      rowsHtml += '<div class="cal-gantt-cell cal-gantt-room-label" style="grid-column:1;grid-row:' + rowLine + ';">' +
+        '<span>' + escapeHtml(room.name || roomId) + '</span>' +
+        '<span class="dash-status-pill cal-gantt-room-status ' + liveStatus.pillClass + '" title="Stato oggi, ' + todayISO() + '">' + escapeHtml(liveStatus.label) + '</span>' +
+      '</div>';
       dayIsos.forEach(function (iso, i) {
         rowsHtml += '<div class="cal-gantt-cell cal-gantt-day-cell' + (iso === todayIso ? ' is-today' : '') + '" data-cal-daycell data-room-id="' + roomId + '" data-day-iso="' + iso + '" style="grid-column:' + (i + 2) + ';grid-row:' + rowLine + ';"></div>';
       });
@@ -719,7 +754,7 @@
       });
     });
 
-    return '<div class="cal-gantt" style="grid-template-columns:180px repeat(' + days + ',minmax(34px,1fr));grid-template-rows:40px repeat(' + roomIds.length + ',46px);">' +
+    return '<div class="cal-gantt" style="grid-template-columns:190px repeat(' + days + ',minmax(34px,1fr));grid-template-rows:40px repeat(' + roomIds.length + ',58px);">' +
       '<div class="cal-gantt-cell cal-gantt-corner" style="grid-column:1;grid-row:1;"></div>' + header + rowsHtml + barsHtml +
     '</div>';
   }
@@ -1974,6 +2009,39 @@
         '</div>';
       }).join('');
     }
+    var seasonalPeriods = Array.isArray(s.seasonalPeriods) ? s.seasonalPeriods : [];
+    var seasonalRowsHtml = seasonalPeriods.map(function (p, i) {
+      return (
+        '<div class="admin-stat-row" data-season-row-index="' + i + '">' +
+          '<input type="text" class="admin-field" style="max-width:90px;" placeholder="gg-mm inizio (es. 07-01)" data-season-field="startMD" data-season-index="' + i + '" value="' + escapeHtml(p.startMD || '') + '">' +
+          '<input type="text" class="admin-field" style="max-width:90px;" placeholder="gg-mm fine (es. 08-31)" data-season-field="endMD" data-season-index="' + i + '" value="' + escapeHtml(p.endMD || '') + '">' +
+          '<input type="number" step="0.05" min="0" class="admin-field" style="max-width:100px;" placeholder="× feriale" data-season-field="multiplier" data-season-index="' + i + '" value="' + (p.multiplier != null ? p.multiplier : '') + '">' +
+          '<input type="number" step="0.05" min="0" class="admin-field" style="max-width:110px;" placeholder="× ven/sab (opz.)" data-season-field="weekendMultiplier" data-season-index="' + i + '" value="' + (p.weekendMultiplier != null ? p.weekendMultiplier : '') + '">' +
+          '<button type="button" class="admin-stat-remove" data-season-remove data-season-index="' + i + '">✕</button>' +
+        '</div>'
+      );
+    }).join('') || '<div class="admin-note" style="margin:0;">Nessun periodo personalizzato: resta attivo il calendario stagionale predefinito (tarato su Monopoli/Puglia).</div>';
+    var seasonalPricingHtml =
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Prezzo dinamico stagionale</span></div>' +
+        '<label class="admin-social-toggle" style="margin-bottom:10px;"><input type="checkbox" id="settings-dynamic-pricing-enabled"' + (s.dynamicPricingEnabled === false ? '' : ' checked') + '> Prezzo dinamico attivo (stagionalità + domanda in base all\'occupazione)</label>' +
+        '<div class="admin-note" style="margin:0 0 10px;">Se disattivato, ogni stanza costa sempre il prezzo base impostato (il prezzo manuale per periodo continua comunque a valere sempre).</div>' +
+        '<div class="admin-note" style="margin:0 0 10px;">Periodi personalizzati (formato gg-mm, es. "07-01"–"08-31"): se ne aggiungi almeno uno, sostituiscono INTERAMENTE il calendario stagionale predefinito di Monopoli/Puglia — indispensabile per una struttura in un\'altra località/clima. Le notti fuori da ogni periodo qui sotto restano al prezzo base (×1).</div>' +
+        seasonalRowsHtml +
+        '<button type="button" class="dash-add-room-btn" id="add-season-btn" style="margin-top:8px;">+ Aggiungi periodo</button>' +
+      '</div>';
+    var mapPois = s.mapPois || {};
+    var mapPoiRowsHtml = MAP_POI_ORDER.map(function (key) {
+      var def = MAP_POI_DEFAULTS[key];
+      var cur = mapPois[key] || {};
+      return (
+        '<div class="admin-stat-row">' +
+          '<span style="min-width:120px; font-weight:700; font-size:13px;">' + escapeHtml(def.label) + '</span>' +
+          '<input type="text" class="admin-field" placeholder="' + escapeHtml(def.query) + '" data-poi-field="query" data-poi-key="' + key + '" value="' + escapeHtml(cur.query || '') + '">' +
+          '<input type="text" class="admin-field" placeholder="' + escapeHtml(def.distance) + '" data-poi-field="distance" data-poi-key="' + key + '" value="' + escapeHtml(cur.distance || '') + '">' +
+        '</div>'
+      );
+    }).join('');
     content.innerHTML =
       '<h1 class="dash-section-title">Impostazioni</h1>' +
       '<div class="dash-settings-group">' +
@@ -1984,6 +2052,12 @@
           '<div class="admin-field-group"><label>Indirizzo completo</label><input type="text" class="admin-field" id="settings-address" value="' + escapeHtml(s.address || '') + '" placeholder="Via Giuseppe Can. del Drago 9, Monopoli (BA)"></div>' +
           '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usati su sito, email, bot Telegram e mappa al posto dei valori di default. Lascia vuoto per mantenere i default attuali.</div>' +
         '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Punti d\'interesse vicini (sezione "Posizione" del sito)</span></div>' +
+          '<div class="admin-note" style="margin:0 0 10px;">Destinazione (per "indicazioni stradali" su Google Maps) e tempo a piedi da casa. Lascia vuoto per mantenere i default di Monopoli.</div>' +
+          mapPoiRowsHtml +
+        '</div>' +
+        seasonalPricingHtml +
       '</div>' +
       '<div class="dash-settings-group">' +
         '<div class="dash-settings-group-title">Generali</div>' +
@@ -2111,6 +2185,46 @@
     document.getElementById('settings-site-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ siteName: e.target.value.trim() }); });
     document.getElementById('settings-city').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ city: e.target.value.trim() }); });
     document.getElementById('settings-address').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ address: e.target.value.trim() }); });
+    document.querySelectorAll('[data-poi-field]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var key = e.target.getAttribute('data-poi-key');
+        var field = e.target.getAttribute('data-poi-field');
+        var updated = Object.assign({}, s.mapPois || {});
+        updated[key] = Object.assign({}, updated[key] || {});
+        updated[key][field] = e.target.value.trim();
+        window.CasaCelesteTourismDB.setSettings({ mapPois: updated });
+      });
+    });
+    var dynPricingToggle = document.getElementById('settings-dynamic-pricing-enabled');
+    if (dynPricingToggle) dynPricingToggle.addEventListener('change', function (e) {
+      window.CasaCelesteTourismDB.setSettings({ dynamicPricingEnabled: !!e.target.checked });
+    });
+    content.querySelectorAll('[data-season-field]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var idx = Number(e.target.getAttribute('data-season-index'));
+        var field = e.target.getAttribute('data-season-field');
+        var list = (Array.isArray(s.seasonalPeriods) ? s.seasonalPeriods : []).slice();
+        list[idx] = Object.assign({}, list[idx]);
+        list[idx][field] = (field === 'multiplier' || field === 'weekendMultiplier')
+          ? (e.target.value === '' ? null : Number(e.target.value))
+          : e.target.value.trim();
+        window.CasaCelesteTourismDB.setSettings({ seasonalPeriods: list });
+      });
+    });
+    var addSeasonBtn = document.getElementById('add-season-btn');
+    if (addSeasonBtn) addSeasonBtn.addEventListener('click', function () {
+      var list = (Array.isArray(s.seasonalPeriods) ? s.seasonalPeriods : []).slice();
+      list.push({ startMD: '', endMD: '', multiplier: 1, weekendMultiplier: null });
+      window.CasaCelesteTourismDB.setSettings({ seasonalPeriods: list });
+    });
+    content.querySelectorAll('[data-season-remove]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var idx = Number(el.getAttribute('data-season-index'));
+        var list = (Array.isArray(s.seasonalPeriods) ? s.seasonalPeriods : []).slice();
+        list.splice(idx, 1);
+        window.CasaCelesteTourismDB.setSettings({ seasonalPeriods: list });
+      });
+    });
     document.getElementById('settings-phone').addEventListener('change', function (e) {
       window.CasaCelesteTourismDB.setSettings({ phone: e.target.value.replace(/\D/g, '') });
     });
@@ -2386,7 +2500,14 @@
     state.unsubCommons = window.CasaCelesteTourismDB.subscribeCommons(function (commonsFromDb) { state.commonsData = commonsFromDb; if (state.user) renderTabContent(); });
     state.unsubReviews = window.CasaCelesteTourismDB.subscribeReviews(function (reviewsFromDb) { state.reviewsData = reviewsFromDb; if (state.user) renderTabContent(); });
     state.unsubMonoSlides = window.CasaCelesteTourismDB.subscribeMonoSlides(function (slidesFromDb) { state.monoSlidesData = slidesFromDb; if (state.user) renderTabContent(); });
-    state.unsubSettings = window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) { state.settings = settingsFromDb || {}; if (state.user) renderTabContent(); });
+    state.unsubSettings = window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) {
+      state.settings = settingsFromDb || {};
+      var siteName = state.settings.siteName || 'Casa Celeste';
+      document.title = 'Area riservata — ' + siteName + ' (Affittacamere)';
+      var logoEl = document.getElementById('dash-logo-text');
+      if (logoEl) logoEl.textContent = siteName;
+      if (state.user) renderTabContent();
+    });
     state.unsubAssistMessages = window.CasaCelesteTourismDB.subscribeAssistMessages(function (items) { state.assistMessages = items; if (state.user) renderTabContent(); });
     state.unsubSettingsPrivate = window.CasaCelesteTourismDB.subscribeSettingsPrivate(function (data) { state.settingsPrivate = data || {}; if (state.user) renderTabContent(); });
     state.unsubMaintenance = window.CasaCelesteTourismDB.subscribeMaintenance(function (items) { state.maintenanceData = items; if (state.user) renderTabContent(); });

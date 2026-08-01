@@ -433,7 +433,7 @@ async function computeQuoteCore(db, data) {
     // (mai centesimi): senza questo arrotondamento, applicare una percentuale
     // a un totale già intero reintrodurrebbe i centesimi (es. 264 * 0.92 =
     // 242.88).
-    const roomTotalBeforeDiscount = pricing.roomStayTotal(room, checkIn, checkOut, occupancyRatio);
+    const roomTotalBeforeDiscount = pricing.roomStayTotal(room, checkIn, checkOut, occupancyRatio, settings);
     const roomTotal = Math.round(roomTotalBeforeDiscount * (1 - discountRate));
     const groupDiscountAmount = Math.round(roomTotalBeforeDiscount - roomTotal);
 
