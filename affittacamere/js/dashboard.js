@@ -283,6 +283,13 @@
     if (!iv) return '⏳ da verificare (obbligo di legge: identificazione documento-persona)';
     return '✅ verificata (' + (IDENTITY_METHOD_LABELS[iv.method] || iv.method) + ')';
   }
+  // Mostrata solo se la firma OTP è attiva in Impostazioni (altrimenti la
+  // voce non ha senso: nessun ospite vede mai la sezione contratto).
+  function contractSignedMeta(b) {
+    if (!state.settings || !state.settings.contractSignatureEnabled) return '';
+    var label = b.contractSigned ? '✅ firmato il ' + formatCreatedAt(b.contractSigned.signedAt) : '⏳ contratto non ancora firmato';
+    return ' · Contratto: ' + label;
+  }
   function bookingAlertHtml(b) {
     if (b.status === 'annullato') return '';
     var soon = b.checkIn <= addDaysIso(todayISO(), 1);
@@ -323,7 +330,7 @@
           // referral interno) raggruppato in una riga sola, piccola e
           // separata: informazioni utili ma non da leggere per prime.
           '<div class="booking-footer-meta">Ricevuta il ' + formatCreatedAt(b.createdAt) + ' · Documenti: ' + (b.guestDocsComplete ? 'completi' : 'mancanti') +
-            ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + ' · Rif. CC-' + escapeHtml(String(b.id || '').slice(-6).toUpperCase()) + '</div>' +
+            ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + escapeHtml(contractSignedMeta(b)) + ' · Rif. CC-' + escapeHtml(String(b.id || '').slice(-6).toUpperCase()) + '</div>' +
         '</div>' +
         '<div class="booking-actions">' +
           '<span class="dash-status-pill ' + statusClass + '">' + (STATUS_LABELS[b.status] || 'Nuova') + '</span>' +
@@ -1977,6 +1984,11 @@
           '<div class="admin-note">Ogni NUOVA prenotazione richiede la verifica dell\'identità al primo ingresso (obbligo di legge, nessuna eccezione per ospiti già soggiornati in passato) — con questa casella attiva il sistema genera da solo (gratis) un link Google Meet un\'ora prima del check-in, una volta autorizzato Google Calendar (vedi GUIDA-PUBBLICAZIONE.md Parte 8.6); se non è ancora autorizzato, l\'email di check-in parte comunque, semplicemente senza link video. Disattiva la casella se per un periodo NON vuoi offrire la videochiamata: l\'email dirà semplicemente che la verifica avverrà dal vivo al videocitofono all\'arrivo.</div>' +
         '</div>' +
         '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Firma OTP del contratto di locazione</span></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label class="admin-social-toggle"><input type="checkbox" id="settings-contract-signature-enabled"' + (s.contractSignatureEnabled ? ' checked' : '') + '> Attiva la firma elettronica del contratto via codice OTP via email</label></div>' +
+          '<div class="admin-note">Quando è attiva, dopo aver inviato i documenti su ospiti.html l\'ospite può firmare il contratto di locazione ricevendo un codice a 6 cifre via email (stesso account Gmail già usato per le altre email, nessun costo aggiuntivo) e inserendolo sul sito. Il codice scade dopo 10 minuti, è utilizzabile una sola volta e si blocca dopo 3 tentativi errati. Data/ora, indirizzo IP ed email di invio vengono registrati come prova della firma. Il testo del contratto mostrato è un modello generato automaticamente: fanne revisionare il contenuto da un legale prima di considerarlo definitivo.</div>' +
+        '</div>' +
+        '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Notifiche pulizie (bot Telegram)</span></div>' +
           '<div class="admin-stats-rows">' + recipientsRowsHtml(recipients, 'cleaning') + '</div>' +
           '<button type="button" class="admin-stat-add" data-add-recipient="cleaning">+ Aggiungi destinatario pulizie</button>' +
@@ -2085,6 +2097,7 @@
     document.getElementById('settings-wifi-password').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiPassword: e.target.value }); });
     document.getElementById('settings-street-gate-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ streetGateLink: e.target.value }); });
     document.getElementById('settings-video-call-enabled').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ videoCallEnabled: e.target.checked }); });
+    document.getElementById('settings-contract-signature-enabled').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ contractSignatureEnabled: e.target.checked }); });
     document.getElementById('settings-checkin-instructions').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkInInstructionsText: { it: e.target.value, en: (state.settings.checkInInstructionsText && state.settings.checkInInstructionsText.en) || '' } }); });
     document.getElementById('settings-checkin-instructions-en').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkInInstructionsText: { it: (state.settings.checkInInstructionsText && state.settings.checkInInstructionsText.it) || '', en: e.target.value } }); });
     document.getElementById('settings-checkout-instructions').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutInstructionsText: { it: e.target.value, en: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.en) || '' } }); });

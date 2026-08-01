@@ -17,8 +17,21 @@
     guests: [], // { firstName, lastName, birthDate, birthPlace, nationality, docType, docNumber, docIssuePlace, docPhotoUrl, uploading }
     submitting: false,
     submitted: false,
-    error: ''
+    error: '',
+    contractSignatureEnabled: false,
+    contractSigned: null,
+    signature: {
+      step: 'contract', // 'contract' | 'otp' | 'signed'
+      accepted: false,
+      code: '',
+      error: '',
+      requesting: false,
+      verifying: false,
+      emailMasked: '',
+      expiresAt: 0
+    }
   };
+  var signatureCountdownTimer = null;
 
   function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
@@ -77,7 +90,153 @@
     );
   }
 
+  /* ==========================================================================
+     Firma OTP del contratto di locazione (FES) — sezione mostrata solo se
+     il proprietario l'ha attivata in Impostazioni E i documenti ospiti sono
+     già completi (stesso gate applicato lato server in requestSignatureOtp).
+     ========================================================================== */
+  function contractTextHtml(b) {
+    var priceLine = (b.pricing && b.pricing.total != null) ? ('€' + Number(b.pricing.total).toFixed(2)) : 'da confermare';
+    var taxDue = (b.touristTax && b.touristTax.totalDue) || 0;
+    return (
+      '<p><strong>Locatore:</strong> Casa Celeste, Via Giuseppe Can. del Drago 9, Monopoli (BA).</p>' +
+      '<p><strong>Conduttore:</strong> ' + escapeHtml(b.name || '') + ' (' + escapeHtml(b.email || '') + ')</p>' +
+      '<p><strong>Immobile:</strong> ' + escapeHtml(b.roomLabel || '') + ' — Casa Celeste, Monopoli (BA).</p>' +
+      '<p><strong>Periodo:</strong> dal ' + escapeHtml(b.checkIn || '') + ' al ' + escapeHtml(b.checkOut || '') + ' (' + (b.nights || 0) + ' notti), ' + (b.guests || 0) + ' ospiti.</p>' +
+      '<p><strong>Corrispettivo pattuito:</strong> ' + priceLine + ' comprensivo di tassa di soggiorno ove dovuta (€' + taxDue.toFixed(2) + ').</p>' +
+      '<p>Il conduttore dichiara di aver letto e accettato i <button type="button" class="link-btn" id="signature-terms-link" style="display:inline; padding:0;">Termini e Condizioni</button> del sito, comprese le clausole su recesso e foro competente, e sottoscrive elettronicamente il presente contratto tramite codice OTP inviato all\'indirizzo email indicato sopra, ai sensi dell\'art. 20 del D.Lgs. 82/2005 (Firma Elettronica Semplice).</p>' +
+      '<p style="font-size:12px; color:var(--text-muted, #6B7A8C);">Testo generato automaticamente a titolo indicativo, non sostituisce una revisione legale del contratto.</p>'
+    );
+  }
+  function signatureContractStepHtml() {
+    var b = state.booking;
+    return (
+      '<div class="admin-room-card" style="margin-top:24px;">' +
+        '<div class="eyebrow eyebrow--blue">Contratto di locazione</div>' +
+        '<h4 class="success-title" style="margin-bottom:12px;">Firma il contratto</h4>' +
+        contractTextHtml(b) +
+        '<label style="display:flex; gap:8px; align-items:flex-start; margin:16px 0; font-size:14px;"><input type="checkbox" id="signature-accept"' + (state.signature.accepted ? ' checked' : '') + '> Ho letto e accetto i termini del contratto sopra riportato.</label>' +
+        (state.signature.error ? '<div class="field-error" style="margin-bottom:12px;">' + escapeHtml(state.signature.error) + '</div>' : '') +
+        '<button type="button" class="btn btn-primary" style="width:100%;" id="signature-request-btn"' + (!state.signature.accepted || state.signature.requesting ? ' disabled' : '') + '>' + (state.signature.requesting ? 'Invio del codice…' : 'Firma con OTP') + '</button>' +
+      '</div>'
+    );
+  }
+  function signatureOtpStepHtml() {
+    var remaining = Math.max(0, Math.round((state.signature.expiresAt - Date.now()) / 1000));
+    var mm = Math.floor(remaining / 60), ss = remaining % 60;
+    var timeStr = mm + ':' + (ss < 10 ? '0' : '') + ss;
+    return (
+      '<div class="admin-room-card" style="margin-top:24px;">' +
+        '<div class="eyebrow eyebrow--blue">Contratto di locazione</div>' +
+        '<h4 class="success-title" style="margin-bottom:8px;">Inserisci il codice</h4>' +
+        '<p style="color:var(--text-body); margin-bottom:16px;">Codice inviato a ' + escapeHtml(state.signature.emailMasked) + '. ' + (remaining > 0 ? ('Scade tra ' + timeStr + '.') : 'Codice scaduto.') + '</p>' +
+        '<div class="admin-field-group"><input type="text" inputmode="numeric" maxlength="6" class="admin-field" id="signature-otp-input" placeholder="123456" value="' + escapeHtml(state.signature.code) + '" style="letter-spacing:6px; font-size:20px; text-align:center;"></div>' +
+        (state.signature.error ? '<div class="field-error" style="margin:8px 0;">' + escapeHtml(state.signature.error) + '</div>' : '') +
+        '<button type="button" class="btn btn-primary" style="width:100%; margin-top:8px;" id="signature-verify-btn"' + (state.signature.code.length !== 6 || state.signature.verifying || remaining <= 0 ? ' disabled' : '') + '>' + (state.signature.verifying ? 'Verifica in corso…' : 'Verifica') + '</button>' +
+        '<button type="button" class="link-btn" id="signature-resend-btn" style="margin-top:12px;"' + (state.signature.requesting ? ' disabled' : '') + '>' + (state.signature.requesting ? 'Invio…' : 'Invia di nuovo il codice') + '</button>' +
+      '</div>'
+    );
+  }
+  function signatureSignedHtml() {
+    return (
+      '<div class="booking-success" style="margin-top:24px;">' +
+        '<div class="success-icon">✓</div>' +
+        '<h4 class="success-title">Contratto firmato</h4>' +
+        '<p class="success-text">La firma elettronica del contratto di locazione è stata registrata con successo.</p>' +
+      '</div>'
+    );
+  }
+  function requestOtp() {
+    if (!state.signature.accepted || state.signature.requesting) return;
+    state.signature.requesting = true; state.signature.error = '';
+    renderSignatureSection();
+    window.CasaCelesteTourismDB.requestSignatureOtp({ bookingId: bookingId, token: token }).then(function (res) {
+      state.signature.requesting = false;
+      if (res.alreadySigned) {
+        state.contractSigned = state.contractSigned || { signedAt: new Date() };
+        state.signature.step = 'signed';
+        renderSignatureSection();
+        return;
+      }
+      state.signature.step = 'otp';
+      state.signature.emailMasked = res.emailMasked || '';
+      state.signature.expiresAt = Date.now() + (res.expiresInSeconds || 600) * 1000;
+      state.signature.code = '';
+      if (res.debugOtp) console.log('[debug emulatore] codice OTP:', res.debugOtp);
+      renderSignatureSection();
+    }).catch(function (err) {
+      state.signature.requesting = false;
+      state.signature.error = (err && err.message) || 'Errore, riprova.';
+      renderSignatureSection();
+    });
+  }
+  function verifyOtp() {
+    if (state.signature.code.length !== 6 || state.signature.verifying) return;
+    state.signature.verifying = true; state.signature.error = '';
+    renderSignatureSection();
+    window.CasaCelesteTourismDB.verifySignatureOtp({ bookingId: bookingId, token: token, code: state.signature.code }).then(function () {
+      state.signature.verifying = false;
+      state.contractSigned = { signedAt: new Date() };
+      state.signature.step = 'signed';
+      renderSignatureSection();
+    }).catch(function (err) {
+      state.signature.verifying = false;
+      var msg = (err && err.message) || '';
+      state.signature.code = '';
+      if (msg === 'otp_wrong') { state.signature.error = 'Codice errato, riprova.'; }
+      else if (msg === 'otp_expired') { state.signature.error = 'Codice scaduto: richiedi un nuovo codice.'; state.signature.step = 'contract'; }
+      else if (msg === 'otp_locked') { state.signature.error = 'Troppi tentativi errati: richiedi un nuovo codice.'; state.signature.step = 'contract'; }
+      else { state.signature.error = msg || 'Errore, riprova.'; }
+      renderSignatureSection();
+    });
+  }
+  function bindSignatureEvents() {
+    var accept = document.getElementById('signature-accept');
+    if (accept) accept.addEventListener('change', function (e) { state.signature.accepted = e.target.checked; renderSignatureSection(); });
+    var termsLink = document.getElementById('signature-terms-link');
+    if (termsLink) termsLink.addEventListener('click', function () { window.location.href = 'index.html#top'; });
+    var requestBtn = document.getElementById('signature-request-btn');
+    if (requestBtn) requestBtn.addEventListener('click', requestOtp);
+    var input = document.getElementById('signature-otp-input');
+    if (input) input.addEventListener('input', function (e) {
+      state.signature.code = e.target.value.replace(/\D/g, '').slice(0, 6);
+      renderSignatureSection();
+    });
+    var verifyBtn = document.getElementById('signature-verify-btn');
+    if (verifyBtn) verifyBtn.addEventListener('click', verifyOtp);
+    var resendBtn = document.getElementById('signature-resend-btn');
+    if (resendBtn) resendBtn.addEventListener('click', requestOtp);
+    if (state.signature.step === 'otp' && !signatureCountdownTimer) {
+      signatureCountdownTimer = setInterval(function () {
+        if (state.signature.step !== 'otp') { clearInterval(signatureCountdownTimer); signatureCountdownTimer = null; return; }
+        renderSignatureSection();
+      }, 1000);
+    } else if (state.signature.step !== 'otp' && signatureCountdownTimer) {
+      clearInterval(signatureCountdownTimer); signatureCountdownTimer = null;
+    }
+  }
+  function renderSignatureSection() {
+    var el = document.getElementById('signature-section');
+    if (!el) return;
+    var b = state.booking;
+    var docsComplete = state.submitted || (b && b.guestDocsComplete);
+    if (!b || b.checkInPassed || !state.contractSignatureEnabled || !docsComplete) {
+      el.style.display = 'none'; el.innerHTML = '';
+      if (signatureCountdownTimer) { clearInterval(signatureCountdownTimer); signatureCountdownTimer = null; }
+      return;
+    }
+    el.style.display = '';
+    if (state.contractSigned || state.signature.step === 'signed') {
+      el.innerHTML = signatureSignedHtml();
+      if (signatureCountdownTimer) { clearInterval(signatureCountdownTimer); signatureCountdownTimer = null; }
+      return;
+    }
+    el.innerHTML = state.signature.step === 'otp' ? signatureOtpStepHtml() : signatureContractStepHtml();
+    bindSignatureEvents();
+  }
+
   function render() {
+    renderSignatureSection();
     var titleEl = document.getElementById('guestdoc-title');
     var subtitleEl = document.getElementById('guestdoc-subtitle');
     var noticeEl = document.getElementById('guestdoc-notice');
@@ -182,6 +341,9 @@
     window.CasaCelesteTourismDB.getBookingForGuestForm({ bookingId: bookingId, token: token }).then(function (b) {
       state.booking = b;
       state.guestCount = b.guests;
+      state.contractSignatureEnabled = !!b.contractSignatureEnabled;
+      state.contractSigned = b.contractSigned || null;
+      if (state.contractSigned) state.signature.step = 'signed';
       if (b.existingGuests && b.existingGuests.length === b.guests) {
         state.guests = b.existingGuests.map(function (g) { return Object.assign(emptyGuest(), g, { docPhotoUrl: '' }); });
       } else {

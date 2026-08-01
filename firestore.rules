@@ -157,6 +157,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Firma OTP del contratto di locazione (FES) — hash dell'OTP e audit
+    // trail (IP/timestamp/email/user-agent al momento della firma). Stesso
+    // pattern di tourism_guestDocuments: mai leggibile/scrivibile dal
+    // client pubblico, la scrittura passa solo dalle Cloud Function
+    // requestSignatureOtp/verifySignatureOtp (Admin SDK, bypassa queste
+    // regole). Se il client potesse leggere questo documento vedrebbe
+    // l'hash dell'OTP: nessun problema di per sé (non è invertibile), ma
+    // meglio non esporlo comunque.
+    match /tourism_guestSignatures/{bookingId} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
     // Sessioni del wizard bot Telegram (functions/telegram-bot.js) — solo
     // l'Admin SDK della Cloud Function le scrive (bypassa comunque queste
     // regole); dichiarate qui solo per coerenza/difesa in profondità, come

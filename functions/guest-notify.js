@@ -290,4 +290,8 @@ async function notifyBookingCancelled(ctx, bookingId, booking) {
   }
 }
 
-module.exports = { notifyBookingConfirmed, notifyBookingCancelled, renderTemplate };
+// sendMail/checkEmailQuota/recordEmailSent esportate anche per
+// guest-signature.js (email OTP firma contratto): stesso transport Gmail
+// cache-ato e stessa guardia quota condivisa (tourism_settings/emailQuota),
+// nessun conteggio doppio tra i due percorsi di invio.
+module.exports = { notifyBookingConfirmed, notifyBookingCancelled, renderTemplate, sendMail, checkEmailQuota, recordEmailSent };

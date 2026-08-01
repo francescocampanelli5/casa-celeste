@@ -34,6 +34,7 @@ const { logRecClickCore } = require('./recs-clicks');
 const { buildBookingIcs } = require('./calendar-ics');
 const { notifyBookingConfirmed, notifyBookingCancelled } = require('./guest-notify');
 const { enforceRateLimit } = require('./rate-limit');
+const { requestSignatureOtpCore, verifySignatureOtpCore } = require('./guest-signature');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -375,11 +376,22 @@ exports.getBookingForGuestForm = onCall({}, async (request) => {
     throw new HttpsError('failed-precondition', 'Questa prenotazione è stata annullata.');
   }
   const existing = await db.collection('tourism_guestDocuments').doc(bookingId).get();
+  const settingsSnap = await db.collection('tourism_settings').doc('site').get();
+  const settings = settingsSnap.exists ? settingsSnap.data() : {};
   return {
     roomLabel: b.roomLabel, guests: b.guests, checkIn: b.checkIn, checkOut: b.checkOut,
     checkInPassed: todayISO() > b.checkIn,
     existingGuests: existing.exists ? (existing.data().guests || []).map((g) => Object.assign({}, g, { docPhotoUrl: undefined })) : null,
-    status: b.status, source: b.source, payment: b.payment || null, groupId: b.groupId || null
+    status: b.status, source: b.source, payment: b.payment || null, groupId: b.groupId || null,
+    // Firma OTP contratto di locazione (FES) — vedi guest-signature.js:
+    // ospiti.js mostra la sezione firma solo se il proprietario l'ha
+    // attivata E i documenti sono già completi (gate coerente con
+    // requestSignatureOtpCore, che rifiuta comunque lato server).
+    guestDocsComplete: !!b.guestDocsComplete,
+    contractSignatureEnabled: !!settings.contractSignatureEnabled,
+    contractSigned: b.contractSigned || null,
+    name: b.name || '', email: b.email || '', nights: b.nights || 0,
+    touristTax: b.touristTax || null, pricing: b.pricing || null, lang: b.lang || 'it'
   };
 });
 
@@ -456,6 +468,24 @@ exports.submitGuestDocuments = onCall({}, async (request) => {
   await bookingRef.update({ guestDocsComplete: true });
 
   return { ok: true };
+});
+
+/* ==========================================================================
+   requestSignatureOtp / verifySignatureOtp — firma OTP del contratto di
+   locazione (FES), vedi guest-signature.js per tutta la logica. Attivabile/
+   disattivabile da dashboard (tourism_settings/site.contractSignatureEnabled);
+   riusa gli stessi secret Gmail già configurati per onBookingStatusChange,
+   nessun nuovo servizio/costo.
+   ========================================================================== */
+exports.requestSignatureOtp = onCall({ secrets: [gmailUser, gmailAppPassword] }, async (request) => {
+  await enforceRateLimit(db, request, 'requestSignatureOtp', 5, 15);
+  return requestSignatureOtpCore({
+    admin, db, request, gmailUser: gmailUser.value(), gmailAppPassword: gmailAppPassword.value()
+  }, request.data || {});
+});
+exports.verifySignatureOtp = onCall({}, async (request) => {
+  await enforceRateLimit(db, request, 'verifySignatureOtp', 10, 15);
+  return verifySignatureOtpCore({ db, request }, request.data || {});
 });
 
 /* ==========================================================================

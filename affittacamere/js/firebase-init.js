@@ -362,6 +362,15 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'getBookingForGuestForm')(data).then(function (res) { return res.data; });
   },
+  // Firma OTP del contratto di locazione (FES) — vedi functions/guest-signature.js.
+  requestSignatureOtp: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'requestSignatureOtp')(data).then(function (res) { return res.data; });
+  },
+  verifySignatureOtp: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'verifySignatureOtp')(data).then(function (res) { return res.data; });
+  },
   // Ritrova bookingId/token da nome+email+data di check-in, per chi vuole
   // cancellare dal widget di assistenza senza avere più sottomano il link
   // con token dell'email di conferma — vedi lookupBookingForCancellationCore
