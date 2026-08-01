@@ -3121,6 +3121,22 @@
     var chosenIds = state.groupAllocations.map(function (a) { return a.roomId; }).filter(Boolean);
     var availForDates = availableRoomsCountForDates(state.selectedCheckIn, state.selectedCheckOut);
     var hasShortfall = groupHasCapacityShortfall();
+    // Bug reale (segnalato dall'utente, 2026-08-01): con "Stanze: 2" e
+    // entrambi gli adulti messi nella STESSA stanza, la Stanza 1 restava
+    // scelta-o-non-scelta ma comunque senza ospiti — il vecchio controllo
+    // "((big+infants)===0 || !!roomId)" trattava una stanza vuota come
+    // "va bene così" (per non bloccare chi aumenta lo stepper prima di aver
+    // ancora smistato gli ospiti), quindi il bottone restava abilitato e la
+    // prenotazione proseguiva su UNA sola stanza — sparendo silenziosamente
+    // sia la seconda stanza sia lo sconto di gruppo, che quindi risultava
+    // "invisibile" (in realtà non si applicava affatto, perché di fatto non
+    // era più una prenotazione di gruppo). Ora una stanza scelta E VISIBILE
+    // nello stepper "Stanze" DEVE avere almeno un ospite prima di poter
+    // procedere: forza a smistare davvero gli ospiti (o a ridurre lo
+    // stepper) invece di scoprire il problema solo al riepilogo finale.
+    var hasEmptyRoomSlot = !hasShortfall && state.groupAllocations.some(function (a) {
+      return (groupAllocBigCount(a) + groupAllocInfantCount(a)) === 0;
+    });
     var cardsHtml = state.groupAllocations.map(function (alloc, ri) {
       var big = groupAllocBigCount(alloc), infants = groupAllocInfantCount(alloc);
       var incDisabled = big >= groupAllocBigCap(alloc) || unallocAdults <= 0;
@@ -3179,9 +3195,21 @@
     }).join('');
     var poolHint = hasShortfall ? '' : ((unallocAdults > 0 || unallocChildren > 0)
       ? '<div class="booking-alert">' + escapeHtml(tpl(t('booking.group_unallocated_hint'), { adults: unallocAdults, children: unallocChildren })) + '</div>'
-      : '<div class="range-hint range-hint--ok">' + escapeHtml(t('booking.group_all_allocated')) + '</div>');
+      : (hasEmptyRoomSlot
+        ? '<div class="booking-alert">' + escapeHtml(t('booking.group_empty_room_hint')) + '</div>'
+        : '<div class="range-hint range-hint--ok">' + escapeHtml(t('booking.group_all_allocated')) + '</div>'));
     var allRoomsPicked = state.groupAllocations.every(function (a) { return (groupAllocBigCount(a) + groupAllocInfantCount(a)) === 0 || !!a.roomId; });
-    var complete = groupAllComplete() && allRoomsPicked;
+    var complete = groupAllComplete() && allRoomsPicked && !hasEmptyRoomSlot;
+    // Incentivo sconto — visibile SUBITO in questo step (non solo nel
+    // riepilogo del passo successivo), così chi sta smistando gli ospiti
+    // vede chiaramente il vantaggio di riempire davvero tutte le stanze
+    // scelte invece di lasciarne una vuota. Percentuale reale
+    // (window.CasaCelestePricing.groupDiscountRate), stessa fonte usata per
+    // il calcolo del prezzo — mai un numero inventato lato copy.
+    var discountRateNow = window.CasaCelestePricing ? window.CasaCelestePricing.groupDiscountRate(state.groupAllocations.length) : 0;
+    var discountBannerHtml = discountRateNow > 0
+      ? '<div class="group-discount-banner">' + escapeHtml(tpl(t('booking.group_discount_incentive'), { pct: Math.round(discountRateNow * 100) })) + '</div>'
+      : '';
     // Il gruppo non entra per intero nelle stanze disponibili per queste
     // date: avvisiamo subito (invece di far scoprire il problema dopo aver
     // già compilato tutto) e proponiamo di procedere comunque con le
@@ -3205,6 +3233,7 @@
           '<button type="button" class="search-stepper-btn" data-group-rooms-inc' + (state.groupAllocations.length >= Math.min(totalRoomsCount(), availForDates || totalRoomsCount()) ? ' disabled' : '') + '>+</button>' +
         '</div>' +
       '</div>' +
+      discountBannerHtml +
       '<div class="group-room-cards">' + cardsHtml + '</div>' +
       poolHint +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +

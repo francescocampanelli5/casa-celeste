@@ -1732,6 +1732,10 @@ button { font-family: inherit; }
 .range-hint--ok { color: var(--green, #2E8B57); font-weight: 700; }
 
 /* Prenotazione di gruppo (più stanze insieme nel modale) */
+.group-discount-banner {
+  background: var(--blue-bg, #EAF4FB); color: var(--blue-deep, #1D6E96); font-weight: 700; font-size: 13.5px;
+  border-radius: var(--radius-md); padding: 10px 14px; margin: 10px 0 14px; text-align: center;
+}
 .group-room-cards { display: flex; flex-direction: column; gap: 14px; margin-bottom: 8px; }
 .group-room-card {
   background: var(--off-white); border-radius: var(--radius-md); padding: 16px 18px;
