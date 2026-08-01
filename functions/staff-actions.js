@@ -31,7 +31,11 @@ async function verifyStaffToken(db, token) {
 // usano lo stesso link.
 function staffNameOrThrow(data) {
   const name = String(data.staffName || '').trim();
-  if (!isNonEmptyString(name, 80)) throw new HttpsError('invalid-argument', 'Inserisci il tuo nome e cognome prima di continuare.');
+  // Soglia allineata al controllo lato client in pulizie.js (name.length < 2):
+  // senza questo, un client modificato/un test manuale potrebbe mandare un
+  // singolo carattere e passare comunque la validazione server, rendendo
+  // inutile il controllo client.
+  if (!isNonEmptyString(name, 80) || name.length < 2) throw new HttpsError('invalid-argument', 'Inserisci il tuo nome e cognome prima di continuare.');
   return name;
 }
 

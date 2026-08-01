@@ -205,6 +205,20 @@ window.CasaCelesteTourismDB = {
       callback(snap.exists() ? snap.data() : {});
     });
   },
+  // Colori tema (Impostazioni → Aspetto & personalizzazione): un'unica
+  // implementazione condivisa da ogni pagina che carica questo file (sito
+  // pubblico, dashboard, pulizie.html, cancella.html, ospiti.html) — prima
+  // le prime tre duplicavano le stesse due righe con lo stesso colore di
+  // fallback scritto a mano tre volte, e le ultime due non applicavano
+  // affatto il colore scelto. removeProperty (invece di riscrivere
+  // l'esadecimale di default) lascia semplicemente valere il valore in
+  // :root di styles.css quando non c'è un override.
+  applyThemeColors: function (settings) {
+    var s = settings || {};
+    var root = document.documentElement.style;
+    if (s.themeColorPrimary) root.setProperty('--blue', s.themeColorPrimary); else root.removeProperty('--blue');
+    if (s.themeColorAccent) root.setProperty('--yellow', s.themeColorAccent); else root.removeProperty('--yellow');
+  },
   setSettings: function (data) {
     return setDoc(doc(requireDb(), 'tourism_settings', 'site'), data, { merge: true });
   },

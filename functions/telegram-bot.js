@@ -874,25 +874,42 @@ async function roomsLiveOverviewCore(ctx) {
     ctx.db.collection('tourism_bookings').get(),
     ctx.db.collection('tourism_maintenance').get()
   ]);
-  const bookings = [];
-  bookingsSnap.forEach((d) => bookings.push(d.data()));
-  const maints = [];
-  maintSnap.forEach((d) => maints.push(d.data()));
+  // Mappe roomId -> primo record attivo trovato, costruite in un solo
+  // passaggio su ciascuna collezione invece di uno .find() per stanza
+  // (che riscansionerebbe l'intero elenco prenotazioni/manutenzioni una
+  // volta per ogni stanza — trascurabile al volume di questo B&B, ma
+  // comunque uno scan invece di due).
+  const activeMaintByRoom = new Map();
+  maintSnap.forEach((d) => {
+    const m = d.data();
+    if (m.status !== 'risolta' && m.start <= todayIso && todayIso < m.end && !activeMaintByRoom.has(m.roomId)) {
+      activeMaintByRoom.set(m.roomId, m);
+    }
+  });
+  const activeBookingByRoom = new Map();
+  bookingsSnap.forEach((d) => {
+    const b = d.data();
+    if (b.status !== 'annullato' && b.checkIn <= todayIso && todayIso < b.checkOut && !activeBookingByRoom.has(b.roomId)) {
+      activeBookingByRoom.set(b.roomId, b);
+    }
+  });
   const rooms = [];
   roomsSnap.forEach((d) => {
     const r = d.data();
     const roomId = d.id;
-    const activeMaint = maints.find((m) => m.roomId === roomId && m.status !== 'risolta' && m.start <= todayIso && todayIso < m.end);
-    const activeBooking = bookings.find((b) => b.roomId === roomId && b.status !== 'annullato' && b.checkIn <= todayIso && todayIso < b.checkOut);
+    const cleaning = r.cleaningStatus || 'pronta';
     let kind, label;
-    if (activeMaint) { kind = 'maintenance'; label = '🔧 In manutenzione'; }
-    else if (activeBooking) { kind = 'occupied'; label = '🚪 Occupata oggi'; }
+    if (activeMaintByRoom.has(roomId)) { kind = 'maintenance'; label = '🔧 In manutenzione'; }
+    else if (activeBookingByRoom.has(roomId)) { kind = 'occupied'; label = '🚪 Occupata oggi'; }
     else {
-      const cleaning = r.cleaningStatus || 'pronta';
-      kind = cleaning === 'pronta' ? 'ready' : 'cleaning';
+      // Stesso vocabolario di roomLiveStatusInfo in affittacamere/js/dashboard.js
+      // (solo maintenance/occupied/cleaning — mai un quarto valore "ready"),
+      // per non tenere due elenchi di stati che possono disallinearsi:
+      // chi vuole distinguere "pronta" guarda cleaningStatus, non kind.
+      kind = 'cleaning';
       label = cleaning === 'pronta' ? '✓ Libera e pronta' : (CLEANING_STATUS_LABELS[cleaning] || cleaning);
     }
-    rooms.push({ id: roomId, name: r.name || roomId, kind, label, cleaningStatus: r.cleaningStatus || 'pronta' });
+    rooms.push({ id: roomId, name: r.name || roomId, kind, label, cleaningStatus: cleaning });
   });
   rooms.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   return rooms;
@@ -905,7 +922,7 @@ function roomsOverviewText(rooms) {
   rooms.forEach((r) => {
     if (r.kind === 'maintenance') groups.maintenance.push(r);
     else if (r.kind === 'occupied') groups.occupied.push(r);
-    else if (r.kind === 'ready') groups.ready.push(r);
+    else if (r.cleaningStatus === 'pronta') groups.ready.push(r);
     else if (r.cleaningStatus === 'sporca') groups.dirty.push(r);
     else groups.otherCleaning.push(r);
   });

@@ -692,11 +692,25 @@
     var offset = (jsDay + 6) % 7;
     return addDaysIso(iso, -offset);
   }
-  // "SET" "OTT" "NOV" — abbreviazione mese in maiuscolo per marcare il
-  // cambio di mese nel calendario (Gantt settimanale e griglia mensile),
-  // senza dover mostrare l'anno o il nome intero su ogni cella.
-  function monthAbbrevUpper(d) {
-    return d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '').toUpperCase();
+  // Titolo "Agosto 2026" (o "Luglio – Agosto 2026" se la settimana visibile
+  // attraversa due mesi) sopra il calendario — un'unica intestazione chiara
+  // invece di un'etichetta per ogni giorno (prima versione: un badge per
+  // cella, finito schiacciato dentro il cerchio "oggi" ed effettivamente
+  // illeggibile). Non serve in vista Agenda: ogni riga mostra già la data
+  // completa con il nome del mese.
+  var MONTH_NAMES_IT = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+  function calendarPeriodHeadingHtml() {
+    if (state.calendarView === 'agenda' || !state.calendarWindowStart) return '';
+    if (state.calendarView === 'month') {
+      var mD = new Date(state.calendarWindowStart + 'T00:00:00');
+      return '<div class="cal-period-heading">' + MONTH_NAMES_IT[mD.getMonth()] + ' ' + mD.getFullYear() + '</div>';
+    }
+    var endIso = addDaysIso(state.calendarWindowStart, state.calendarWindowDays - 1);
+    var sD = new Date(state.calendarWindowStart + 'T00:00:00'), eD = new Date(endIso + 'T00:00:00');
+    var label = sD.getMonth() === eD.getMonth()
+      ? MONTH_NAMES_IT[sD.getMonth()] + ' ' + sD.getFullYear()
+      : MONTH_NAMES_IT[sD.getMonth()] + ' – ' + MONTH_NAMES_IT[eD.getMonth()] + ' ' + eD.getFullYear();
+    return '<div class="cal-period-heading">' + escapeHtml(label) + '</div>';
   }
   function calendarMonthGridDays(monthAnchorIso) {
     var firstIso = monthAnchorIso.slice(0, 8) + '01';
@@ -726,15 +740,6 @@
       var startLabel = wStartD.getDate() + (sameMonth ? '' : ' ' + wStartD.toLocaleDateString('it-IT', { month: 'short' }));
       var endLabel = wEndD.getDate() + ' ' + wEndD.toLocaleDateString('it-IT', { month: 'short' });
       weekLabel = '<span class="cal-week-label">' + escapeHtml(startLabel) + ' – ' + escapeHtml(endLabel) + '</span>';
-    }
-    // Etichetta "Agosto 2026" per la vista mensile: prima la vista mese aveva
-    // le frecce di navigazione ma nessun testo che dicesse quale mese si sta
-    // guardando (il Gantt aveva già weekLabel sopra, il mese no).
-    if (showNav && state.calendarView === 'month' && state.calendarWindowStart) {
-      var mD = new Date(state.calendarWindowStart + 'T00:00:00');
-      var monthYearLabel = mD.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
-      monthYearLabel = monthYearLabel.charAt(0).toUpperCase() + monthYearLabel.slice(1);
-      weekLabel = '<span class="cal-week-label">' + escapeHtml(monthYearLabel) + '</span>';
     }
     return (
       '<div class="cal-toolbar">' +
@@ -767,14 +772,9 @@
 
     var header = dayIsos.map(function (iso, i) {
       var d = new Date(iso + 'T00:00:00');
-      // Etichetta mese (SET/OTT/NOV) solo sul primo giorno del mese: segna il
-      // cambio di mese dentro la settimana visibile senza ripeterla ogni
-      // giorno (stessa convenzione di Google Calendar/Outlook).
-      var monthTag = d.getDate() === 1 ? '<span class="cal-gantt-day-month">' + escapeHtml(monthAbbrevUpper(d)) + '</span>' : '';
       return '<div class="cal-gantt-cell cal-gantt-day-header' + (iso === todayIso ? ' is-today' : '') + '" style="grid-column:' + (i + 2) + ';grid-row:1;">' +
         '<span class="cal-gantt-day-weekday">' + escapeHtml(d.toLocaleDateString('it-IT', { weekday: 'short' })) + '</span>' +
         '<span class="cal-gantt-day-num">' + d.getDate() + '</span>' +
-        monthTag +
       '</div>';
     }).join('');
 
@@ -836,12 +836,8 @@
         return '<div class="' + calendarBarClass(ev) + ' cal-month-chip" data-cal-bar data-kind="' + ev.kind + '" data-id="' + ev.id + '" title="' + escapeHtml(text) + '">' + escapeHtml(text) + '</div>';
       }).join('');
       var more = dayEvents.length > 4 ? '<div class="cal-month-more">+' + (dayEvents.length - 4) + ' altro/i</div>' : '';
-      // Etichetta mese sul giorno 1: utile soprattutto sulle celle "fuori
-      // mese" (righe di riempimento a inizio/fine griglia), dove il solo
-      // numero è ambiguo (es. un "28" può essere del mese prima).
-      var monthTag = d.getDate() === 1 ? ' <span class="cal-month-daynum-month">' + escapeHtml(monthAbbrevUpper(d)) + '</span>' : '';
       return '<div class="cal-month-cell' + (d.getMonth() !== monthNum ? ' is-outside' : '') + (iso === todayIso ? ' is-today' : '') + '">' +
-        '<div class="cal-month-daynum">' + d.getDate() + monthTag + '</div>' + chips + more +
+        '<div class="cal-month-daynum">' + d.getDate() + '</div>' + chips + more +
       '</div>';
     }).join('');
     return roomStatusStripHtml(roomIds) + '<div class="cal-month-grid">' + weekdayHeader + cells + '</div>';
@@ -934,6 +930,7 @@
 
     content.innerHTML =
       '<h1 class="dash-section-title">Calendario</h1>' +
+      calendarPeriodHeadingHtml() +
       calendarToolbarHtml() +
       (roomIds.length ? body : '<div class="dash-empty">Nessuna stanza configurata.</div>') +
       (state.calendarModalBookingId ? bookingDetailModalHtml(state.calendarModalBookingId) : '') +
@@ -2708,8 +2705,7 @@
       if (logoEl) logoEl.textContent = siteName;
       // Stessi colori tema del sito pubblico (Impostazioni → Aspetto),
       // così l'anteprima in dashboard non stona con quanto vede l'ospite.
-      document.documentElement.style.setProperty('--blue', state.settings.themeColorPrimary || '#2C8FC9');
-      document.documentElement.style.setProperty('--yellow', state.settings.themeColorAccent || '#FFD24C');
+      window.CasaCelesteTourismDB.applyThemeColors(state.settings);
       if (state.user) renderTabContent();
     });
     state.unsubAssistMessages = window.CasaCelesteTourismDB.subscribeAssistMessages(function (items) { state.assistMessages = items; if (state.user) renderTabContent(); });

@@ -323,16 +323,14 @@
     return tpl(t(key), brandParams());
   }
   // Colori tema da Impostazioni dashboard (Aspetto & personalizzazione):
-  // sovrascrive le due custom property principali del brand con uno stile
-  // inline su <html>, che vince sempre sulla regola :root del foglio di
-  // stile — bottoni/badge/decorazioni che usano var(--blue)/var(--yellow)
-  // cambiano subito, senza toccare styles.css. Le tinte derivate (--navy,
-  // --blue-deep, --yellow-deep/bg-soft...) restano fisse: sono pensate per
-  // il testo/gli sfondi soft, non per il colore di brand vero e proprio.
+  // applicati da window.CasaCelesteTourismDB.applyThemeColors (firebase-init.js),
+  // un'unica implementazione condivisa da tutte le pagine invece di
+  // duplicare le stesse due righe qui, in dashboard.js, pulizie.js,
+  // cancella.js e ospiti.js. Le tinte derivate (--navy, --blue-deep,
+  // --yellow-deep/bg-soft...) restano fisse: sono pensate per il testo/gli
+  // sfondi soft, non per il colore di brand vero e proprio.
   function applyThemeColors() {
-    var s = state.settings || {};
-    document.documentElement.style.setProperty('--blue', s.themeColorPrimary || '#2C8FC9');
-    document.documentElement.style.setProperty('--yellow', s.themeColorAccent || '#FFD24C');
+    if (window.CasaCelesteTourismDB) window.CasaCelesteTourismDB.applyThemeColors(state.settings);
   }
   function photoTag(src, alt) {
     return '<img src="' + src + '" alt="' + escapeHtml(alt) + '" class="real-photo" loading="lazy" onerror="this.remove()">';

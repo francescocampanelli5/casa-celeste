@@ -339,6 +339,7 @@
       document.title = document.title.replace(/Casa Celeste$/, siteName);
       var logoEl = document.querySelector('.logo-text');
       if (logoEl) logoEl.textContent = siteName;
+      window.CasaCelesteTourismDB.applyThemeColors(settingsFromDb);
     });
   }
 
