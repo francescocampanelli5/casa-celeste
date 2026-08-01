@@ -18,17 +18,17 @@ async function main() {
     return;
   }
   var now = lib.romeNow();
-  // Finestre ampie e SENZA buchi (ogni ora del giorno ricade in una delle
-  // due), non più ristrette a "18-20"/"6-8": verificato sui log reali delle
-  // ultime ~18 esecuzioni che il cron orario di GitHub Actions NON scatta in
-  // modo affidabile ogni ora esatta — nel campione osservato non è MAI
-  // scattato tra le 3 e le 7 del mattino (ora Roma), che è esattamente la
-  // vecchia finestra "sameDay": il promemoria del giorno stesso del
-  // check-out non aveva quindi mai avuto una reale occasione di partire.
-  // L'idempotenza (cleaningNotified.*) resta comunque garantita: cambia solo
-  // QUANDO nella giornata può partire, mai se viene inviato due volte.
+  // Finestre ampie (non un singolo minuto esatto) perché il cron orario di
+  // GitHub Actions non scatta in modo perfettamente puntuale — ma "ampie"
+  // non deve più voler dire "qualunque ora prima di mezzogiorno": la
+  // vecchia finestra sameDay (0-11) ha fatto arrivare un promemoria alle
+  // 2 di notte quando il cron è scattato fuori orario. Target reale: le
+  // 8:00. Finestra 6-11 tiene abbastanza margine per il cron orario senza
+  // più notifiche notturne. L'idempotenza (cleaningNotified.*) resta
+  // comunque garantita: cambia solo QUANDO nella giornata può partire, mai
+  // se viene inviato due volte.
   var doDayBefore = now.hour >= 12; // pomeriggio/sera del giorno prima del check-out
-  var doSameDay = now.hour < 12; // mattina del giorno stesso, prima del check-out
+  var doSameDay = now.hour >= 6 && now.hour < 11; // mattina del giorno stesso, target 8:00
 
   var settingsSnap = await db.collection('tourism_settings').doc('site').get();
   var settings = settingsSnap.exists ? settingsSnap.data() : {};
