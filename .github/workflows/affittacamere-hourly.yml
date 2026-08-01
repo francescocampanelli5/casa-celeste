@@ -59,3 +59,9 @@ jobs:
           ALLOGGIATI_WEB_USER: ${{ secrets.ALLOGGIATI_WEB_USER }}
           ALLOGGIATI_WEB_PASSWORD: ${{ secrets.ALLOGGIATI_WEB_PASSWORD }}
           ALLOGGIATI_WEB_WSKEY: ${{ secrets.ALLOGGIATI_WEB_WSKEY }}
+      - name: Promemoria adempimenti (tassa di soggiorno, ISTAT/SPOT mensile)
+        working-directory: affittacamere/scripts
+        run: node compliance-reminders.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

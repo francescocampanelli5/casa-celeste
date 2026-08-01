@@ -107,5 +107,14 @@ service firebase.storage {
       allow read: if isOwner();
       allow write: if false;
     }
+
+    // Backup settimanale (prenotazioni, documenti ospiti, stanze,
+    // impostazioni) — scritto solo dallo script backup-export.js via Admin
+    // SDK (bypassa queste regole), mai dal client. Dati sensibili: lettura
+    // riservata al proprietario, come i documenti d'identità sopra.
+    match /tourism-backups/{fileName} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
   }
 }

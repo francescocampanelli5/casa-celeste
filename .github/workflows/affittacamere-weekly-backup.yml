@@ -1,0 +1,25 @@
+name: Affittacamere — backup settimanale dati
+
+on:
+  schedule:
+    # Ogni domenica alle 3:00 UTC (fuori orario, nessun impatto su ospiti/host)
+    - cron: '0 3 * * 0'
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Installa dipendenze
+        working-directory: affittacamere/scripts
+        run: npm install
+      - name: Backup prenotazioni/documenti ospiti/stanze/impostazioni (in Firebase Storage, mai nel repo pubblico)
+        working-directory: affittacamere/scripts
+        run: node backup-export.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
