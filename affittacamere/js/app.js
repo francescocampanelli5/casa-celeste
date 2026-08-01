@@ -701,9 +701,14 @@
           escapeHtml(available ? t('search.tag_available') : t('search.tag_occupied')) + '</span>'
       : '';
 
+    // Senza date scelte il prezzo per notte "fisso" (room.nightlyPrice) può
+    // essere sbagliato per il soggiorno reale (prezzo dinamico stagionale/
+    // di domanda, vedi dynamicRoomTotal) — mostrarlo comunque confonde
+    // l'ospite, che potrebbe aspettarsi proprio quella cifra al momento di
+    // pagare. Meglio non mostrare nessun prezzo finché non sceglie le date.
     var priceHtml = (searched && nights > 0)
       ? '<span class="room-list-price">€' + dynamicRoomTotal(room, s.checkIn, s.checkOut, 1).total + '<span> ' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span></span>'
-      : '<span class="room-list-price">€' + room.nightlyPrice + '<span>' + escapeHtml(t('room.per_night')) + '</span></span>';
+      : '<span class="room-list-price room-list-price--prompt">' + escapeHtml(t('room.price_needs_dates')) + '</span>';
 
     var bedLabel = roomBedLabel(room);
     var shortDescHtml = bedLabel ? '<div class="room-list-desc">' + escapeHtml(tpl(t('room.short_desc'), { bed: bedLabel })) + '</div>' : '';
@@ -1210,8 +1215,12 @@
       priceHtml = '<div class="rd-sticky-price">€' + dynamicRoomTotal(room, state.selectedCheckIn, state.selectedCheckOut, 1).total + '<span> ' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span></div>';
       datesHtml = '<div class="rd-sticky-dates">' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div>';
     } else {
-      priceHtml = '<div class="rd-sticky-price">' + escapeHtml(tpl(t('roomdetail.sticky_from'), { price: room.nightlyPrice })) + '<span>' + escapeHtml(t('room.per_night')) + '</span></div>';
-      datesHtml = '<div class="rd-sticky-dates">' + escapeHtml(t('roomdetail.sticky_select_dates')) + '</div>';
+      // Stesso motivo del prezzo nelle card (vedi roomCardHtml): senza date
+      // scelte, "da €X/notte" può non corrispondere al prezzo reale del
+      // soggiorno (dinamico per stagione/domanda) — meglio non mostrare
+      // nessuna cifra finché l'ospite non sceglie le date.
+      priceHtml = '';
+      datesHtml = '<div class="rd-sticky-dates rd-sticky-dates--prompt">' + escapeHtml(t('roomdetail.sticky_select_dates')) + '</div>';
     }
     return (
       '<div class="rd-sticky-bar">' +
