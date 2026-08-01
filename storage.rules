@@ -14,30 +14,39 @@ rules_version = '2';
 // sia registrato con la chiave/dominio corretti.
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // isOwner(): vedi firestore.rules per il perché — prima di 01/08 tutte
+    // le regole sotto controllavano solo "request.auth != null", chiunque
+    // avesse un account Firebase autenticato poteva caricare/cancellare
+    // foto e leggere i documenti d'identità ospiti.
+    function isOwner() {
+      return request.auth != null && request.auth.token.role == 'owner';
+    }
+
     match /rooms/{roomId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow write: if isOwner()
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
 
     match /commons/{commonId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow write: if isOwner()
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
 
     match /monoSlides/{slideId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow write: if isOwner()
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
 
     match /site/{fileName=**} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow write: if isOwner()
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
@@ -48,25 +57,25 @@ service firebase.storage {
 
     match /tourism-rooms/{roomId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow write: if isOwner()
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
     match /tourism-commons/{commonId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow write: if isOwner()
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
     match /tourism-monoSlides/{slideId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow write: if isOwner()
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
     match /tourism-site/{fileName=**} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow write: if isOwner()
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
@@ -84,7 +93,7 @@ service firebase.storage {
     // dimensione/tipo file finché l'App Check non viene riabilitato — quello
     // da riabilitare con più priorità, appena sistemata la console.
     match /tourism-guest-docs-tmp/{bookingId}/{fileName} {
-      allow read: if request.auth != null;
+      allow read: if isOwner();
       allow write: if request.resource.size < 10 * 1024 * 1024
                    && (request.resource.contentType.matches('image/.*')
                        || request.resource.contentType == 'application/pdf');
@@ -95,7 +104,7 @@ service firebase.storage {
     // avviene solo lato server (Cloud Function/Admin SDK, che bypassa
     // queste regole), mai dal client.
     match /tourism-guest-docs/{bookingId}/{fileName} {
-      allow read: if request.auth != null;
+      allow read: if isOwner();
       allow write: if false;
     }
   }
