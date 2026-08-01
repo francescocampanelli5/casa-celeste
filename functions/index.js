@@ -35,6 +35,7 @@ const { buildBookingIcs } = require('./calendar-ics');
 const { notifyBookingConfirmed, notifyBookingCancelled } = require('./guest-notify');
 const { enforceRateLimit } = require('./rate-limit');
 const { requestSignatureOtpCore, verifySignatureOtpCore } = require('./guest-signature');
+const { staffGetBoardCore, staffSetCleaningStatusCore, staffReportMaintenanceCore } = require('./staff-actions');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -486,6 +487,29 @@ exports.requestSignatureOtp = onCall({ secrets: [gmailUser, gmailAppPassword] },
 exports.verifySignatureOtp = onCall({}, async (request) => {
   await enforceRateLimit(db, request, 'verifySignatureOtp', 10, 15);
   return verifySignatureOtpCore({ db, request }, request.data || {});
+});
+
+/* ==========================================================================
+   staffGetBoard / staffSetCleaningStatus / staffReportMaintenance — la
+   "dashboard limitata" del personale (affittacamere/pulizie.html), vedi
+   functions/staff-actions.js per tutta la logica. Nessun login Firebase:
+   un token in tourism_settingsPrivate/site (rigenerabile dal proprietario)
+   verificato dentro ciascuna funzione, stesso principio già usato per
+   ospiti.html/cancella.html (guestFormToken). staffReportMaintenance ha
+   bisogno del secret Telegram per notificare il proprietario (stessa
+   funzione condivisa dal bot, functions/telegram-bot.js).
+   ========================================================================== */
+exports.staffGetBoard = onCall({}, async (request) => {
+  await enforceRateLimit(db, request, 'staffGetBoard', 30, 15);
+  return staffGetBoardCore({ db }, request.data || {});
+});
+exports.staffSetCleaningStatus = onCall({}, async (request) => {
+  await enforceRateLimit(db, request, 'staffSetCleaningStatus', 30, 15);
+  return staffSetCleaningStatusCore({ db, admin }, request.data || {});
+});
+exports.staffReportMaintenance = onCall({ secrets: [telegramBotToken] }, async (request) => {
+  await enforceRateLimit(db, request, 'staffReportMaintenance', 10, 15);
+  return staffReportMaintenanceCore({ db, admin, botToken: telegramBotToken.value() }, request.data || {});
 });
 
 /* ==========================================================================

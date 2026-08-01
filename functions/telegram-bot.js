@@ -374,6 +374,30 @@ function confirmBookingKeyboard() {
 function confirmMaintenanceKeyboard() {
   return { inline_keyboard: [[{ text: '✅ Conferma manutenzione', callback_data: 'confirm:maintenance' }], [{ text: '❌ Annulla', callback_data: 'cancel' }]] };
 }
+// Categoria della segnalazione — richiesta esplicitamente (2026-08-01) per
+// distinguere furti/danni da normali interventi di manutenzione, sia in
+// dashboard sia nella notifica Telegram al proprietario (vedi
+// notifyOwnerMaintenanceReport). MAINTENANCE_CATEGORY_LABELS duplica lo
+// stesso elenco presente in affittacamere/js/dashboard.js: bot e dashboard
+// sono due pacchetti Node/browser separati, nessun modo semplice di
+// condividere costanti (stesso motivo già documentato per CLEANING_STATUS_LABELS
+// e i template email in guest-notify.js).
+const MAINTENANCE_CATEGORY_LABELS = { furto: '🚨 Furto', danno: '🔨 Danno o rottura', manutenzione: '🔧 Manutenzione generica' };
+const MAINTENANCE_CATEGORY_PROMPTS = {
+  furto: '🚨 Furto — descrivi cosa è stato rubato:',
+  danno: '🔨 Danno o rottura — descrivi cosa si è rotto:',
+  manutenzione: '🔧 Manutenzione — descrivi cosa c\'è da fare:'
+};
+function maintenanceCategoryKeyboard() {
+  return {
+    inline_keyboard: [
+      [{ text: MAINTENANCE_CATEGORY_LABELS.furto, callback_data: 'maintcat:furto' }],
+      [{ text: MAINTENANCE_CATEGORY_LABELS.danno, callback_data: 'maintcat:danno' }],
+      [{ text: MAINTENANCE_CATEGORY_LABELS.manutenzione, callback_data: 'maintcat:manutenzione' }],
+      [{ text: '❌ Annulla', callback_data: 'cancel' }]
+    ]
+  };
+}
 // /pulizie — nessuna sessione: tutto lo stato serve nel callback_data
 // stesso (roomId + stato), due tap in croce.
 const CLEANING_STATUS_LABELS = { pronta: '🟢 Pronta', sporca: '🔴 Sporca', in_pulizia: '🟡 In pulizia', da_ispezionare: '🔵 Da ispezionare' };
@@ -532,8 +556,8 @@ async function onCalendar(ctx, chatId, session, data) {
     }
     d.checkOut = value;
     if (session.mode === 'maintenance') {
-      session.step = 'maintTitle';
-      await commitStep(ctx, chatId, session, '🔧 ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(value) + '\n✍️ Cosa c\'è da fare? (breve descrizione, es. "rubinetto bagno che perde")', null);
+      session.step = 'maintCategory';
+      await commitStep(ctx, chatId, session, '🔧 ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(value) + '\nChe tipo di segnalazione è?', maintenanceCategoryKeyboard());
       return;
     }
     // Le Opzioni (letto/culla/letto extra) vengono chieste PRIMA degli
@@ -545,6 +569,14 @@ async function onCalendar(ctx, chatId, session, data) {
   }
 }
 
+async function onMaintenanceCategoryPick(ctx, chatId, session, data) {
+  if (session.step !== 'maintCategory') return;
+  const category = data.split(':')[1];
+  if (!MAINTENANCE_CATEGORY_PROMPTS[category]) return;
+  session.draft.category = category;
+  session.step = 'maintTitle';
+  await commitStep(ctx, chatId, session, MAINTENANCE_CATEGORY_PROMPTS[category], null);
+}
 async function onBedType(ctx, chatId, session, data) {
   if (session.step !== 'bedType') return;
   session.draft.bedType = data === 'bed:s' ? 'singolo' : 'matrimoniale';
@@ -692,7 +724,8 @@ async function handleWizardTextInput(ctx, chatId, session, text) {
     session.draft.title = text.trim().slice(0, 200);
     session.step = 'maintConfirm';
     const d = session.draft;
-    const summary = '🔧 Riepilogo manutenzione:\n' + d.roomLabel + ' — ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(d.checkOut) + '\n' + d.title +
+    const summary = '🔧 Riepilogo manutenzione:\n' + d.roomLabel + ' — ' + isoToItalian(d.checkIn) + ' → ' + isoToItalian(d.checkOut) + '\n' +
+      MAINTENANCE_CATEGORY_LABELS[d.category] + '\n' + d.title +
       '\n\nConfermi? Le date verranno bloccate su questa stanza (non prenotabili finché non risolvi la manutenzione da dashboard.html → Stanze).';
     await commitStep(ctx, chatId, session, summary, confirmMaintenanceKeyboard());
     return true;
@@ -778,17 +811,48 @@ async function onConfirmMaintenance(ctx, chatId, session) {
       if (rangeOverlapsBlocked(ranges, d.checkIn, d.checkOut)) throw new Error('Quelle date sono appena state occupate.');
       ranges.push({ start: d.checkIn, end: d.checkOut, source: 'maintenance', maintenanceId: maintRef.id });
       tx.set(maintRef, {
-        roomId: d.roomId, roomLabel: d.roomLabel, title: d.title, description: '', status: 'aperta',
+        roomId: d.roomId, roomLabel: d.roomLabel, title: d.title, category: d.category, description: '', status: 'aperta',
         start: d.checkIn, end: d.checkOut, createdBy: { type: 'telegram', chatId: chatId },
         createdAt: ctx.admin.firestore.FieldValue.serverTimestamp(), updatedAt: ctx.admin.firestore.FieldValue.serverTimestamp()
       });
       tx.update(roomRef, { blockedRanges: ranges });
     });
     await tgEditMessageText(ctx, chatId, session.messageId, '✅ Manutenzione registrata: ' + d.roomLabel + ' dal ' + isoToItalian(d.checkIn) + ' al ' + isoToItalian(d.checkOut) + '. Date bloccate.', { inline_keyboard: [] });
+    await notifyOwnerMaintenanceReport(ctx, { roomLabel: d.roomLabel, category: d.category, title: d.title, start: d.checkIn, end: d.checkOut, createdBy: { type: 'telegram' } });
   } catch (err) {
     await tgEditMessageText(ctx, chatId, session.messageId, '❌ Errore: ' + err.message, { inline_keyboard: [] });
   }
   await clearSession(ctx, chatId);
+}
+
+// Notifica il proprietario (stessa lista bookingCommandAuthorized già usata
+// per nuove prenotazioni/messaggi di assistenza, vedi notifyOwnerNewBooking
+// in functions/index.js) di una nuova segnalazione manutenzione — sia dal
+// bot sia dalla dashboard limitata del personale (functions/staff-actions.js),
+// che importa questa stessa funzione invece di duplicarla: sono nello
+// stesso pacchetto functions/, a differenza di scripts/ (vedi nota duplicazione
+// helper in guest-notify.js, lì sì necessaria per un vincolo di deploy).
+// Best-effort: un errore qui non deve mai far fallire la registrazione
+// della manutenzione, che a quel punto è già stata salvata.
+async function notifyOwnerMaintenanceReport(ctx, m) {
+  if (!ctx.botToken) return;
+  try {
+    const settingsSnap = await ctx.db.collection('tourism_settings').doc('site').get();
+    const recipients = ((settingsSnap.exists ? settingsSnap.data() : {}).bookingCommandAuthorized || [])
+      .filter((r) => r.enabled && r.chatId);
+    if (!recipients.length) return;
+    const emoji = m.category === 'furto' ? '🚨' : '🔧';
+    const sourceLabel = m.createdBy && m.createdBy.type === 'staff_dashboard' ? 'dashboard pulizie' : 'bot Telegram';
+    const text = emoji + ' Nuova segnalazione — ' + (MAINTENANCE_CATEGORY_LABELS[m.category] || 'Manutenzione') + '\n' +
+      m.roomLabel + ' — ' + isoToItalian(m.start) + ' → ' + isoToItalian(m.end) + '\n' +
+      m.title + '\nSegnalato da: ' + sourceLabel + '\nVedi dashboard.html → Stanze per i dettagli.';
+    await Promise.all(recipients.map((r) => fetch('https://api.telegram.org/bot' + ctx.botToken + '/sendMessage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: r.chatId, text: text })
+    }).catch(() => {})));
+  } catch (e) {
+    // best-effort, vedi commento sopra
+  }
 }
 
 /* ==========================================================================
@@ -946,6 +1010,7 @@ async function onDocConfirm(ctx, chatId, session) {
 async function routeCallback(ctx, chatId, session, data) {
   if (data.startsWith('rm:')) return onRoomPick(ctx, chatId, session, data.slice(3));
   if (data.startsWith('cal:')) return onCalendar(ctx, chatId, session, data);
+  if (data.startsWith('maintcat:')) return onMaintenanceCategoryPick(ctx, chatId, session, data);
   if (data.startsWith('bed:')) return onBedType(ctx, chatId, session, data);
   if (data.startsWith('crib:')) return onCrib(ctx, chatId, session, data);
   if (data.startsWith('xbed:')) return onExtraBed(ctx, chatId, session, data);
@@ -1050,4 +1115,4 @@ async function handleTelegramUpdate(ctx, update) {
   }
 }
 
-module.exports = { handleTelegramUpdate };
+module.exports = { handleTelegramUpdate, notifyOwnerMaintenanceReport, MAINTENANCE_CATEGORY_LABELS };

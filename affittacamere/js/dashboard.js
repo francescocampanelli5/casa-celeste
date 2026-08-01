@@ -28,7 +28,11 @@
     calendarView: 'gantt',
     calendarFilters: { roomId: '', type: 'all' },
     calendarWindowStart: null,
-    calendarWindowDays: 21,
+    // Vista Gantt settimanale (richiesto esplicitamente 2026-08-01: 21
+    // giorni erano troppo larghi da leggere) — la navigazione ±1 già usa
+    // questo valore come passo, quindi diventa automaticamente "una
+    // settimana avanti/indietro" senza altre modifiche.
+    calendarWindowDays: 7,
     calendarModalBookingId: null,
     dragInProgress: false,
     justDragged: false,
@@ -102,6 +106,10 @@
   var CLEANING_STATUS_LABELS = { pronta: 'Pronta', sporca: 'Sporca', in_pulizia: 'In pulizia', da_ispezionare: 'Da ispezionare' };
   var CLEANING_STATUS_ORDER = ['sporca', 'in_pulizia', 'da_ispezionare', 'pronta'];
   var MAINTENANCE_STATUS_LABELS = { aperta: 'Aperta', in_corso: 'In corso', risolta: 'Risolta' };
+  // Le manutenzioni create prima di questa modifica non hanno categoria:
+  // 'manutenzione' come default mantiene lo stesso significato di prima
+  // (nessuna distinzione), senza dover fare una migrazione dati.
+  var MAINTENANCE_CATEGORY_LABELS = { furto: '🚨 Furto', danno: '🔨 Danno/rottura', manutenzione: '🔧 Manutenzione generica' };
   function roomSourceLabel(source) {
     if (source === 'maintenance') return 'Manutenzione';
     if (source === 'booking') return 'Prenotazione';
@@ -621,11 +629,17 @@
     }
     return events;
   }
+  // Lunedì della settimana che contiene iso — stesso calcolo già usato qui
+  // sotto per la griglia del mese, estratto perché ora serve anche per
+  // allineare la finestra settimanale del Gantt.
+  function mondayOfWeek(iso) {
+    var jsDay = new Date(iso + 'T00:00:00').getDay();
+    var offset = (jsDay + 6) % 7;
+    return addDaysIso(iso, -offset);
+  }
   function calendarMonthGridDays(monthAnchorIso) {
     var firstIso = monthAnchorIso.slice(0, 8) + '01';
-    var jsDay = new Date(firstIso + 'T00:00:00').getDay();
-    var mondayOffset = (jsDay + 6) % 7; // giorni dal lunedì precedente (o pari)
-    var gridStartIso = addDaysIso(firstIso, -mondayOffset);
+    var gridStartIso = mondayOfWeek(firstIso);
     var days = [];
     for (var i = 0; i < 42; i++) days.push(addDaysIso(gridStartIso, i));
     return days;
@@ -640,6 +654,18 @@
       return '<button type="button" class="cal-view-btn' + (state.calendarView === v ? ' is-active' : '') + '" data-calendar-view="' + v + '">' + viewLabels[v] + '</button>';
     }).join('');
     var showNav = f.type !== 'cleaning' && state.calendarView !== 'agenda';
+    // Etichetta "4 – 10 ago" per la settimana visibile nel Gantt, così è
+    // chiaro a colpo d'occhio quale settimana si sta guardando mentre si
+    // scorre con le frecce (vista ora sempre a 7 giorni, vedi calendarWindowDays).
+    var weekLabel = '';
+    if (showNav && state.calendarView === 'gantt' && state.calendarWindowStart) {
+      var wEnd = addDaysIso(state.calendarWindowStart, state.calendarWindowDays - 1);
+      var wStartD = new Date(state.calendarWindowStart + 'T00:00:00'), wEndD = new Date(wEnd + 'T00:00:00');
+      var sameMonth = wStartD.getMonth() === wEndD.getMonth();
+      var startLabel = wStartD.getDate() + (sameMonth ? '' : ' ' + wStartD.toLocaleDateString('it-IT', { month: 'short' }));
+      var endLabel = wEndD.getDate() + ' ' + wEndD.toLocaleDateString('it-IT', { month: 'short' });
+      weekLabel = '<span class="cal-week-label">' + escapeHtml(startLabel) + ' – ' + escapeHtml(endLabel) + '</span>';
+    }
     return (
       '<div class="cal-toolbar">' +
         (f.type === 'cleaning' ? '' : '<div class="cal-toolbar-views">' + viewButtons + '</div>') +
@@ -656,6 +682,7 @@
           '<div class="cal-toolbar-nav">' +
             '<button type="button" class="link-btn" data-calendar-nav="-1">&larr;</button>' +
             '<button type="button" class="link-btn" data-calendar-nav="0">Oggi</button>' +
+            weekLabel +
             '<button type="button" class="link-btn" data-calendar-nav="1">&rarr;</button>' +
           '</div>' : '') +
       '</div>'
@@ -774,7 +801,7 @@
     );
   }
   function renderCalendarTab(content) {
-    if (!state.calendarWindowStart) state.calendarWindowStart = todayISO();
+    if (!state.calendarWindowStart) state.calendarWindowStart = mondayOfWeek(todayISO());
     // Se la prenotazione aperta nel modale è stata eliminata/cancellata da
     // sotto (es. onSnapshot remoto), chiude il modale invece di lasciarlo
     // aperto su dati fantasma.
@@ -808,7 +835,7 @@
       el.addEventListener('click', function () {
         var dir = el.getAttribute('data-calendar-nav');
         if (dir === '0') {
-          state.calendarWindowStart = todayISO();
+          state.calendarWindowStart = mondayOfWeek(todayISO());
         } else if (state.calendarView === 'month') {
           var d = new Date(state.calendarWindowStart + 'T00:00:00');
           d.setMonth(d.getMonth() + Number(dir));
@@ -1280,7 +1307,7 @@
       return '<option value="' + key + '"' + (current === key ? ' selected' : '') + '>' + CLEANING_STATUS_LABELS[key] + '</option>';
     }).join('');
     var updatedBy = room.cleaningStatusUpdatedBy;
-    var updatedByLabel = updatedBy ? ({ dashboard: 'dashboard', telegram: 'bot Telegram', 'auto-cron': 'automatico al check-out' }[updatedBy.type] || updatedBy.type) : '';
+    var updatedByLabel = updatedBy ? ({ dashboard: 'dashboard', telegram: 'bot Telegram', 'auto-cron': 'automatico al check-out', staff_dashboard: 'dashboard pulizie' }[updatedBy.type] || updatedBy.type) : '';
     return (
       '<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">' +
         '<span class="dash-status-pill ' + (CLEANING_STATUS_PILL_CLASS[current] || 'dash-status-pill--nuovo') + '">' + CLEANING_STATUS_LABELS[current] + '</span>' +
@@ -1292,9 +1319,10 @@
   function maintenanceEditorHtml(roomId) {
     var items = state.maintenanceData.filter(function (m) { return m.roomId === roomId && m.status !== 'risolta'; });
     var rows = items.map(function (m) {
+      var category = MAINTENANCE_CATEGORY_LABELS[m.category] || MAINTENANCE_CATEGORY_LABELS.manutenzione;
       return (
         '<div class="admin-stat-row">' +
-          '<span>' + escapeHtml(m.title || 'Manutenzione') + ' — ' + escapeHtml(m.start) + ' → ' + escapeHtml(m.end) + ' (' + (MAINTENANCE_STATUS_LABELS[m.status] || m.status) + ')</span>' +
+          '<span>' + escapeHtml(category) + ' — ' + escapeHtml(m.title || 'Manutenzione') + ' — ' + escapeHtml(m.start) + ' → ' + escapeHtml(m.end) + ' (' + (MAINTENANCE_STATUS_LABELS[m.status] || m.status) + ')</span>' +
           '<button type="button" class="admin-stat-remove" data-resolve-maintenance data-maintenance-id="' + m.id + '" title="Segna come risolta e libera le date">✓</button>' +
           '<button type="button" class="admin-stat-remove" data-delete-maintenance data-maintenance-id="' + m.id + '" data-room-id="' + roomId + '" title="Elimina">✕</button>' +
         '</div>'
@@ -1305,7 +1333,12 @@
       '<button type="button" class="dash-add-room-btn" data-add-maintenance-toggle data-room-id="' + roomId + '" style="margin-top:8px;">+ Aggiungi manutenzione</button>' +
       (state.maintenanceFormOpen === roomId ?
         '<div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">' +
-          '<input type="text" class="admin-field" data-maintenance-title placeholder="Cosa c\'è da fare (es. rubinetto bagno)">' +
+          '<select class="dash-select" data-maintenance-category>' +
+            '<option value="manutenzione">' + escapeHtml(MAINTENANCE_CATEGORY_LABELS.manutenzione) + '</option>' +
+            '<option value="danno">' + escapeHtml(MAINTENANCE_CATEGORY_LABELS.danno) + '</option>' +
+            '<option value="furto">' + escapeHtml(MAINTENANCE_CATEGORY_LABELS.furto) + '</option>' +
+          '</select>' +
+          '<input type="text" class="admin-field" data-maintenance-title placeholder="Descrivi il problema (es. rubinetto bagno che perde)">' +
           '<input type="date" class="admin-field" data-maintenance-start value="' + todayISO() + '">' +
           '<input type="date" class="admin-field" data-maintenance-end value="' + addDaysIso(todayISO(), 1) + '">' +
           '<button type="button" class="btn btn-primary" data-save-maintenance data-room-id="' + roomId + '">Blocca e salva</button>' +
@@ -1418,13 +1451,17 @@
       el.addEventListener('click', function () {
         var roomId = el.getAttribute('data-room-id');
         var card = el.closest('.admin-room-card');
+        var category = card.querySelector('[data-maintenance-category]').value;
         var title = card.querySelector('[data-maintenance-title]').value.trim();
         var start = card.querySelector('[data-maintenance-start]').value;
         var end = card.querySelector('[data-maintenance-end]').value;
         if (!title) { window.alert('Descrivi cosa c\'è da fare.'); return; }
         if (!start || !end || start >= end) { window.alert('Date non valide.'); return; }
         var roomLabel = (state.roomsData[roomId] && state.roomsData[roomId].name) || roomId;
-        window.CasaCelesteTourismDB.createMaintenance({ roomId: roomId, roomLabel: roomLabel, title: title, start: start, end: end, createdBy: { type: 'dashboard' } })
+        // Creata dal proprietario stesso: nessuna notifica Telegram (sarebbe
+        // notificare se stesso), stesso criterio già usato per le
+        // prenotazioni manuali da dashboard.
+        window.CasaCelesteTourismDB.createMaintenance({ roomId: roomId, roomLabel: roomLabel, category: category, title: title, start: start, end: end, createdBy: { type: 'dashboard' } })
           .catch(function (err) { window.alert('Errore: ' + err.message); });
         state.maintenanceFormOpen = false;
       });
@@ -2049,6 +2086,17 @@
           '<div class="admin-field-group"><label>ID commerciante</label><input type="text" class="admin-field" id="priv-paytourist-merchant" value="' + escapeHtml((sp.payTourist && sp.payTourist.merchantId) || '') + '"></div>' +
           '<div class="admin-field-group"><label>API key</label><input type="password" class="admin-field" id="priv-paytourist-apikey" value="' + escapeHtml((sp.payTourist && sp.payTourist.apiKey) || '') + '"></div>' +
         '</div>' +
+      '</div>' +
+      '<div class="dash-settings-group">' +
+        '<div class="dash-settings-group-title">Accesso pulizie (link dedicato per il personale)</div>' +
+        '<div class="admin-note">Link da inviare a chi si occupa delle pulizie (es. su WhatsApp): apre una pagina semplice per segnare lo stato di ogni stanza e segnalare problemi (furti, danni, manutenzione), senza bisogno di creare un account. Rigenerandolo, il link precedente smette subito di funzionare — usalo se dovesse finire nelle mani sbagliate.</div>' +
+        '<div class="admin-room-card">' +
+          (sp.staffAccessToken ?
+            '<div class="admin-field-group admin-field-group--full"><label>Link personale pulizie</label><input type="text" class="admin-field" id="staff-link-field" readonly value="' + escapeHtml(window.location.origin + window.location.pathname.replace(/dashboard\.html$/, '') + 'pulizie.html?token=' + sp.staffAccessToken) + '"></div>' +
+            '<button type="button" class="dash-add-room-btn" id="staff-link-copy" style="margin-top:8px;">Copia link</button>'
+            : '<div class="admin-note" style="margin:0;">Nessun link ancora generato.</div>') +
+          '<button type="button" class="dash-add-room-btn" id="staff-link-regenerate" style="margin-top:8px;">' + (sp.staffAccessToken ? 'Genera un nuovo link (invalida quello attuale)' : 'Genera link per il personale pulizie') + '</button>' +
+        '</div>' +
       '</div>';
 
     document.getElementById('settings-phone').addEventListener('change', function (e) {
@@ -2091,6 +2139,23 @@
     });
     document.getElementById('priv-paytourist-apikey').addEventListener('change', function (e) {
       savePrivateOrAlert({ payTourist: Object.assign({}, sp.payTourist, { apiKey: e.target.value }) });
+    });
+    var staffLinkCopyBtn = document.getElementById('staff-link-copy');
+    if (staffLinkCopyBtn) staffLinkCopyBtn.addEventListener('click', function () {
+      var field = document.getElementById('staff-link-field');
+      field.select();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(field.value).then(function () {
+          staffLinkCopyBtn.textContent = 'Copiato ✓';
+          setTimeout(function () { staffLinkCopyBtn.textContent = 'Copia link'; }, 1500);
+        }).catch(function () {});
+      }
+    });
+    var staffLinkRegenBtn = document.getElementById('staff-link-regenerate');
+    if (staffLinkRegenBtn) staffLinkRegenBtn.addEventListener('click', function () {
+      if (sp.staffAccessToken && !window.confirm('Il link attuale smetterà subito di funzionare per chi ce l\'ha già. Continuare?')) return;
+      var newToken = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+      savePrivateOrAlert({ staffAccessToken: newToken });
     });
     document.getElementById('settings-email-budget').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaMonthlyBudget: Number(e.target.value) || 500 }); });
     document.getElementById('settings-wifi-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiName: e.target.value.trim() }); });

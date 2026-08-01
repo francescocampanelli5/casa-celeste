@@ -371,6 +371,21 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'verifySignatureOtp')(data).then(function (res) { return res.data; });
   },
+  // Dashboard limitata del personale (affittacamere/pulizie.html), nessun
+  // login Firebase: vedi functions/staff-actions.js — un token nell'URL
+  // fa da chiave d'accesso, verificato lato server ad ogni chiamata.
+  staffGetBoard: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'staffGetBoard')(data).then(function (res) { return res.data; });
+  },
+  staffSetCleaningStatus: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'staffSetCleaningStatus')(data).then(function (res) { return res.data; });
+  },
+  staffReportMaintenance: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'staffReportMaintenance')(data).then(function (res) { return res.data; });
+  },
   // Ritrova bookingId/token da nome+email+data di check-in, per chi vuole
   // cancellare dal widget di assistenza senza avere più sottomano il link
   // con token dell'email di conferma — vedi lookupBookingForCancellationCore

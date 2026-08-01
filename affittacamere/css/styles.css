@@ -1529,6 +1529,7 @@ button { font-family: inherit; }
    ========================================================================== */
 .cal-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin: 14px 0 16px; }
 .cal-toolbar-views, .cal-toolbar-filters, .cal-toolbar-nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cal-week-label { font-size: 12.5px; font-weight: 700; color: var(--text-muted, #6B7A8C); white-space: nowrap; }
 .cal-view-btn {
   border: 1px solid var(--border-strong); background: var(--white); color: var(--text-body);
   border-radius: var(--radius-pill); padding: 7px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer;
