@@ -390,6 +390,11 @@ button { font-family: inherit; }
   aspect-ratio: 4/3; border-radius: 20px; overflow: hidden; background: var(--panel-bg);
   display: flex; align-items: center; justify-content: center; position: relative;
 }
+/* Gli scatti di Monopoli sono spesso verticali (vicoli, scorci) mentre il
+   riquadro è orizzontale 4:3: con cover venivano tagliati a metà altezza,
+   sembrando ingranditi a forza. Contain mostra lo scatto intero, con
+   l'eventuale spazio ai lati riempito dallo sfondo del riquadro. */
+.carousel-media .real-photo { object-fit: contain; }
 .carousel-tag {
   position: absolute; top: 14px; left: 14px; color: var(--navy);
   font-weight: 800; font-size: 11.5px; padding: 7px 14px; border-radius: var(--radius-pill);
