@@ -1521,6 +1521,23 @@ button { font-family: inherit; }
 .dash-status-pill--new { background: #FDEAEA; color: #B23A3A; }
 .dash-status-pill--read { background: #FDF3D9; color: #8C6A16; }
 .dash-status-pill--replied { background: var(--green-bg); color: var(--green); }
+/* Stato stanza (pulizia/manutenzione/occupazione) — colori fissi richiesti:
+   sporca rosso, in pulizia giallo, in manutenzione arancione, da ispezionare
+   blu, pronta verde. Occupata oggi resta grigio neutro (non è uno stato di
+   pulizia, solo un fatto di occupazione). */
+.dash-status-pill--red { background: #FDEAEA; color: #B23A3A; }
+.dash-status-pill--orange { background: #FDE8D2; color: #B2650F; }
+.dash-status-pill--yellow { background: var(--yellow-bg-soft); color: var(--yellow-text-dark); }
+.dash-status-pill--blue { background: var(--blue-bg); color: var(--blue); }
+.dash-status-pill--green { background: var(--green-bg); color: var(--green); }
+.dash-status-pill--grey { background: var(--grey-bg); color: var(--grey-text); }
+/* Pillole di stato cliccabili (bottone reale, non solo span): stessa resa
+   visiva di .dash-status-pill ma con affordance di click. */
+button.dash-status-pill { border: none; cursor: pointer; font-family: inherit; }
+button.dash-status-pill:hover { filter: brightness(0.94); }
+.cal-room-status-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.cal-room-status-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 12px; }
+.cal-room-status-chip strong { font-weight: 800; }
 
 /* ==========================================================================
    Dashboard: tab Calendario — vista unica prenotazioni/manutenzioni/pulizie

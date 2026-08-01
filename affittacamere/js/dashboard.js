@@ -34,6 +34,7 @@
     // settimana avanti/indietro" senza altre modifiche.
     calendarWindowDays: 7,
     calendarModalBookingId: null,
+    calendarCleaningModalRoomId: null,
     dragInProgress: false,
     justDragged: false,
     // Pannello "Documenti ospiti" nella tab Prenotazioni: una prenotazione
@@ -646,19 +647,24 @@
   // manutenzione aperta che la blocca). Manutenzione/occupazione vincono
   // sempre sullo stato pulizia, perché anche una stanza "Pronta" non è
   // assegnabile se c'è già qualcuno dentro o è bloccata per un guasto.
+  // `kind`/`refId` servono al click sulla pillola (bindCalendarEvents): per
+  // manutenzione/occupazione portano al "messaggio" vero (rispettivamente il
+  // report di manutenzione e il dettaglio prenotazione, stessi già usati
+  // dalle barre del calendario); per uno stato di sola pulizia aprono un
+  // editor rapido dello stato.
   function roomLiveStatusInfo(roomId, room) {
     var todayIso = todayISO();
-    var occupiedToday = state.bookings.some(function (b) {
+    var activeBooking = state.bookings.find(function (b) {
       return b.roomId === roomId && b.status !== 'annullato' && b.checkIn <= todayIso && todayIso < b.checkOut;
     });
-    var maintenanceToday = state.maintenanceData.some(function (m) {
+    var activeMaintenance = state.maintenanceData.find(function (m) {
       return m.roomId === roomId && m.status !== 'risolta' && m.start <= todayIso && todayIso < m.end;
     });
-    if (maintenanceToday) return { label: '🔧 In manutenzione', pillClass: 'dash-status-pill--nuovo' };
-    if (occupiedToday) return { label: '🚪 Occupata oggi', pillClass: 'dash-status-pill--nuovo' };
+    if (activeMaintenance) return { kind: 'maintenance', refId: activeMaintenance.id, label: '🔧 In manutenzione', pillClass: 'dash-status-pill--orange' };
+    if (activeBooking) return { kind: 'occupied', refId: activeBooking.id, label: '🚪 Occupata oggi', pillClass: 'dash-status-pill--grey' };
     var cleaning = room.cleaningStatus || 'pronta';
-    if (cleaning === 'pronta') return { label: '✓ Libera e pronta', pillClass: 'dash-status-pill--confermato' };
-    return { label: CLEANING_STATUS_LABELS[cleaning] || cleaning, pillClass: CLEANING_STATUS_PILL_CLASS[cleaning] || 'dash-status-pill--nuovo' };
+    if (cleaning === 'pronta') return { kind: 'cleaning', refId: null, label: '✓ Libera e pronta', pillClass: 'dash-status-pill--green' };
+    return { kind: 'cleaning', refId: null, label: CLEANING_STATUS_LABELS[cleaning] || cleaning, pillClass: CLEANING_STATUS_PILL_CLASS[cleaning] || 'dash-status-pill--yellow' };
   }
   // Lunedì della settimana che contiene iso — stesso calcolo già usato qui
   // sotto per la griglia del mese, estratto perché ora serve anche per
@@ -741,7 +747,7 @@
       var liveStatus = roomLiveStatusInfo(roomId, room);
       rowsHtml += '<div class="cal-gantt-cell cal-gantt-room-label" style="grid-column:1;grid-row:' + rowLine + ';">' +
         '<span>' + escapeHtml(room.name || roomId) + '</span>' +
-        '<span class="dash-status-pill cal-gantt-room-status ' + liveStatus.pillClass + '" title="Stato oggi, ' + todayISO() + '">' + escapeHtml(liveStatus.label) + '</span>' +
+        '<button type="button" class="dash-status-pill cal-gantt-room-status ' + liveStatus.pillClass + '" data-room-status-pill data-room-id="' + roomId + '" title="Stato oggi, ' + todayISO() + ' — clicca per i dettagli">' + escapeHtml(liveStatus.label) + '</button>' +
       '</div>';
       dayIsos.forEach(function (iso, i) {
         rowsHtml += '<div class="cal-gantt-cell cal-gantt-day-cell' + (iso === todayIso ? ' is-today' : '') + '" data-cal-daycell data-room-id="' + roomId + '" data-day-iso="' + iso + '" style="grid-column:' + (i + 2) + ';grid-row:' + rowLine + ';"></div>';
@@ -757,6 +763,19 @@
     return '<div class="cal-gantt" style="grid-template-columns:190px repeat(' + days + ',minmax(34px,1fr));grid-template-rows:40px repeat(' + roomIds.length + ',58px);">' +
       '<div class="cal-gantt-cell cal-gantt-corner" style="grid-column:1;grid-row:1;"></div>' + header + rowsHtml + barsHtml +
     '</div>';
+  }
+  // Striscia con tutte le stanze e il loro stato attuale, sempre in cima,
+  // ben visibile prima ancora di guardare il calendario giorno per giorno —
+  // stessa informazione/interattività della colonna a sinistra del Gantt,
+  // qui perché la vista mensile non ha una riga fissa per stanza.
+  function roomStatusStripHtml(roomIds) {
+    return '<div class="cal-room-status-strip">' + roomIds.map(function (roomId) {
+      var room = state.roomsData[roomId] || {};
+      var st = roomLiveStatusInfo(roomId, room);
+      return '<button type="button" class="dash-status-pill cal-room-status-chip ' + st.pillClass + '" data-room-status-pill data-room-id="' + roomId + '" title="Stato oggi — clicca per i dettagli">' +
+        '<strong>' + escapeHtml(room.name || roomId) + '</strong>' + escapeHtml(st.label) +
+      '</button>';
+    }).join('') + '</div>';
   }
   function calendarMonthHtml(roomIds) {
     var days = calendarMonthGridDays(state.calendarWindowStart);
@@ -783,7 +802,7 @@
         '<div class="cal-month-daynum">' + d.getDate() + '</div>' + chips + more +
       '</div>';
     }).join('');
-    return '<div class="cal-month-grid">' + weekdayHeader + cells + '</div>';
+    return roomStatusStripHtml(roomIds) + '<div class="cal-month-grid">' + weekdayHeader + cells + '</div>';
   }
   function calendarAgendaHtml(roomIds) {
     var horizonStart = todayISO(), horizonEnd = addDaysIso(horizonStart, 60);
@@ -835,6 +854,24 @@
       '</div>'
     );
   }
+  // Modale rapido aperto cliccando la pillola di stato di una stanza (Gantt
+  // o striscia del mensile) quando lo stato è "solo pulizia" (non
+  // manutenzione/occupazione, che hanno già il loro "messaggio" — vedi
+  // bindCalendarEvents): permette di leggere e cambiare lo stato senza
+  // uscire dal Calendario e andare nella tab Stanze.
+  function cleaningStatusModalHtml(roomId) {
+    var room = state.roomsData[roomId];
+    if (!room) return '';
+    return (
+      '<div class="cal-modal-overlay" data-cal-modal-overlay>' +
+        '<div class="cal-modal">' +
+          '<button type="button" class="cal-modal-close" data-cal-modal-close aria-label="Chiudi">✕</button>' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">' + escapeHtml(room.name || roomId) + '</span></div>' +
+          cleaningStatusEditorHtml(roomId, room) +
+        '</div>' +
+      '</div>'
+    );
+  }
   function renderCalendarTab(content) {
     if (!state.calendarWindowStart) state.calendarWindowStart = mondayOfWeek(todayISO());
     // Se la prenotazione aperta nel modale è stata eliminata/cancellata da
@@ -842,6 +879,9 @@
     // aperto su dati fantasma.
     if (state.calendarModalBookingId && !state.bookings.some(function (b) { return b.id === state.calendarModalBookingId; })) {
       state.calendarModalBookingId = null;
+    }
+    if (state.calendarCleaningModalRoomId && !state.roomsData[state.calendarCleaningModalRoomId]) {
+      state.calendarCleaningModalRoomId = null;
     }
     var f = state.calendarFilters;
     var roomIds = f.roomId ? [f.roomId] : sortedRoomIds();
@@ -854,7 +894,8 @@
       '<h1 class="dash-section-title">Calendario</h1>' +
       calendarToolbarHtml() +
       (roomIds.length ? body : '<div class="dash-empty">Nessuna stanza configurata.</div>') +
-      (state.calendarModalBookingId ? bookingDetailModalHtml(state.calendarModalBookingId) : '');
+      (state.calendarModalBookingId ? bookingDetailModalHtml(state.calendarModalBookingId) : '') +
+      (state.calendarCleaningModalRoomId ? cleaningStatusModalHtml(state.calendarCleaningModalRoomId) : '');
 
     bindCalendarEvents(content);
   }
@@ -937,14 +978,40 @@
         }
       });
     });
+    // Pillola di stato stanza (colonna Gantt o striscia del mensile): porta
+    // al "messaggio" pertinente — report di manutenzione (stesso comando
+    // della barra tratteggiata qui sopra) o dettaglio prenotazione per
+    // un'occupazione in corso; per un semplice stato di pulizia apre
+    // l'editor rapido (cleaningStatusModalHtml).
+    content.querySelectorAll('[data-room-status-pill]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var roomId = el.getAttribute('data-room-id');
+        var room = state.roomsData[roomId];
+        if (!room) return;
+        var st = roomLiveStatusInfo(roomId, room);
+        if (st.kind === 'maintenance') {
+          var m = state.maintenanceData.find(function (x) { return x.id === st.refId; });
+          if (!m) return;
+          if (window.confirm((m.title || 'Manutenzione') + ' — ' + m.start + ' → ' + m.end + '.\nOK per segnarla RISOLTA (libera le date solo eliminandola dalla tab Stanze), Annulla per lasciarla com\'è.')) {
+            window.CasaCelesteTourismDB.setMaintenance(m.id, { status: 'risolta', resolvedAt: window.CasaCelesteTourismDB.serverTimestamp() });
+          }
+          return;
+        }
+        state.calendarCleaningModalRoomId = null;
+        state.calendarModalBookingId = null;
+        if (st.kind === 'occupied') state.calendarModalBookingId = st.refId;
+        else state.calendarCleaningModalRoomId = roomId;
+        renderCalendarTab(content);
+      });
+    });
     var modalOverlay = content.querySelector('[data-cal-modal-overlay]');
     if (modalOverlay) {
       modalOverlay.addEventListener('click', function (e) {
-        if (e.target === modalOverlay) { state.calendarModalBookingId = null; renderCalendarTab(content); }
+        if (e.target === modalOverlay) { state.calendarModalBookingId = null; state.calendarCleaningModalRoomId = null; renderCalendarTab(content); }
       });
       var closeBtn = content.querySelector('[data-cal-modal-close]');
-      if (closeBtn) closeBtn.addEventListener('click', function () { state.calendarModalBookingId = null; renderCalendarTab(content); });
-      bindBookingCardEvents(content.querySelector('.cal-modal'), function () { renderCalendarTab(content); });
+      if (closeBtn) closeBtn.addEventListener('click', function () { state.calendarModalBookingId = null; state.calendarCleaningModalRoomId = null; renderCalendarTab(content); });
+      if (state.calendarModalBookingId) bindBookingCardEvents(content.querySelector('.cal-modal'), function () { renderCalendarTab(content); });
     }
   }
 
@@ -1335,7 +1402,7 @@
       });
     });
   }
-  var CLEANING_STATUS_PILL_CLASS = { pronta: 'dash-status-pill--confermato', sporca: 'dash-status-pill--nuovo', in_pulizia: 'dash-status-pill--nuovo', da_ispezionare: 'dash-status-pill--confermato' };
+  var CLEANING_STATUS_PILL_CLASS = { pronta: 'dash-status-pill--green', sporca: 'dash-status-pill--red', in_pulizia: 'dash-status-pill--yellow', da_ispezionare: 'dash-status-pill--blue' };
   function cleaningStatusEditorHtml(roomId, room) {
     var current = room.cleaningStatus || 'pronta';
     var options = CLEANING_STATUS_ORDER.map(function (key) {
