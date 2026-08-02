@@ -1372,8 +1372,24 @@
     });
   }
   function blockedRangesEditorHtml(roomId, room) {
-    var ranges = room.blockedRanges || [];
-    var rows = ranges.map(function (r, i) {
+    var allRanges = room.blockedRanges || [];
+    var today = todayISO();
+    // Le notti già passate non bloccano più nulla (le date sono trascorse):
+    // lasciarle in lista costringerebbe a eliminarle a mano una per una man
+    // mano che le prenotazioni si accumulano nel tempo, senza alcun
+    // beneficio reale — restano comunque nella prenotazione/manutenzione di
+    // origine (tab Prenotazioni) come storico. Qui si vedono solo i blocchi
+    // ancora rilevanti (oggi in poi), ordinati per data così l'elenco resta
+    // leggibile anche con molte prenotazioni. L'indice nel data-attribute
+    // resta quello dell'array COMPLETO (non filtrato/riordinato): è quello
+    // che bindRoomsEvents usa per leggere/rimuovere la voce giusta.
+    var visible = allRanges
+      .map(function (r, origIndex) { return { r: r, origIndex: origIndex }; })
+      .filter(function (entry) { return entry.r.end >= today; })
+      .sort(function (a, b) { return a.r.start < b.r.start ? -1 : a.r.start > b.r.start ? 1 : 0; });
+    var pastCount = allRanges.length - visible.length;
+    var rows = visible.map(function (entry) {
+      var r = entry.r, i = entry.origIndex;
       // Se il blocco appartiene a una prenotazione vera (sito, manuale o
       // importata da Airbnb/Booking.com), mostra chi/da dove invece del
       // generico "manual"/"booking" — così le due tab restano leggibili
@@ -1388,11 +1404,12 @@
         '<span style="flex:1; font-size:13px;">' + escapeHtml(r.start) + ' → ' + escapeHtml(r.end) + ' <span class="booking-source-badge">' + escapeHtml(badgeText) + '</span></span>' +
         '<button type="button" class="admin-stat-remove" data-block-remove data-room-id="' + roomId + '" data-block-index="' + i + '" title="' + removeTitle + '">✕</button>' +
       '</div>';
-    }).join('') || '<div style="font-size:13px; color:var(--text-muted,#6B7A8C);">Nessuna notte bloccata.</div>';
+    }).join('') || '<div style="font-size:13px; color:var(--text-muted,#6B7A8C);">Nessuna notte bloccata da oggi in poi.</div>';
     return (
       '<div class="admin-field-group admin-field-group--full">' +
         '<label>Notti bloccate (prenotazioni + blocchi manuali)</label>' +
         '<div class="admin-stats-rows">' + rows + '</div>' +
+        (pastCount ? '<div style="font-size:12px; color:var(--text-faintest,#9AA7B4); margin-top:4px;">+ ' + pastCount + ' notti passate, non più bloccanti — nascoste qui, restano visibili nella tab Prenotazioni.</div>' : '') +
         '<div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">' +
           '<input type="date" class="admin-field" id="block-start-' + roomId + '" style="max-width:160px;">' +
           '<input type="date" class="admin-field" id="block-end-' + roomId + '" style="max-width:160px;">' +
