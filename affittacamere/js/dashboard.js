@@ -2,6 +2,11 @@
   'use strict';
 
   var SEED_ROOMS = window.CASA_CELESTE_TOURISM_DATA.SEED_ROOMS;
+  // Motore di rendering condiviso per l'editor a blocchi delle email
+  // (Impostazioni → Email ospiti → Impaginazione) — caricato prima di
+  // questo file, non-deferred, vedi affittacamere/js/email-block-renderer.js
+  // (stesso file usato dagli script di invio, garantisce anteprima 1:1).
+  var EB = window.CasaCelesteEmailBlocks || null;
 
   var state = {
     ready: false,
@@ -2594,6 +2599,556 @@
       '<button type="button" data-email-reset data-et-section="' + section + '" data-et-field="' + field + '" style="margin-top:6px; background:none; border:1px solid var(--border-hairline,#D8DEE6); color:var(--admin-muted,#6B7A8C); font-size:12px; padding:5px 12px; border-radius:6px; cursor:pointer;">Ripristina testo predefinito</button>' +
     '</div>';
   }
+
+  // ==========================================================================
+  // Editor a blocchi ("Impaginazione", dentro Email ospiti → t1..t7) —
+  // riordino drag&drop, aggiunta/eliminazione/modifica di blocchi liberi
+  // (testo/immagine/pulsante/divisore/spazio) sopra la struttura essenziale
+  // (dati prenotazione, testo legale — non eliminabile, vedi EB.isEssential).
+  // Bozza locale in state.emailLayoutDrafts finché non si preme "Salva
+  // impaginazione" (permette di validare — bottoni senza link valido — prima
+  // di scrivere su Firestore). Motore di rendering condiviso con l'invio
+  // reale: affittacamere/js/email-block-renderer.js (stesso file usato da
+  // _lib.js/guest-notify.js), garantisce che l'anteprima sia sempre 1:1 con
+  // la mail vera. Per ora implementato solo per t1 (EB.essentialBlockIds
+  // torna vuoto per t2-t7 finché non vengono estratti allo stesso modo:
+  // emailLayoutSectionHtml torna stringa vuota per quei template).
+  // ==========================================================================
+  var ESSENTIAL_BLOCK_FIELD_KEYS = {
+    t1: {
+      title: ['eyebrow', 'h1'],
+      intro: ['introSingular', 'introGroup'],
+      calendarButtons: ['calendarLabel'],
+      legalNotice: ['legalTitle', 'legalBody'],
+      docsCta: ['ctaSingular', 'ctaGroupIntro', 'ctaGroupSuffix'],
+      assist: ['assistLead'],
+      spamNote: ['spamNote']
+    },
+    t2: { title: ['eyebrow', 'h1'], intro: ['introSingular', 'introGroup'], docsCta: ['cta'], assist: ['assistLead'] },
+    t3: {
+      title: ['eyebrow', 'h1'], intro: ['introSingular', 'introGroupLine1', 'introGroupLine2'],
+      streetGate: ['streetGateBtn'], accessBox: ['accessBoxTitle'],
+      roomCodeBox: ['roomCodeTitleSingular', 'roomCodeTitleGroup'],
+      legalNotice: ['legalTitle', 'legalBody', 'videoCallBtn'], closing: ['closingLine']
+    },
+    t4: {
+      title: ['eyebrow', 'h1Singular', 'h1Group'], checkoutLine: ['checkoutLine'],
+      instrBox: ['instrBoxTitleSingular', 'instrBoxTitleGroup'], assist: ['assistLead'],
+      closing: ['closingSingular', 'closingGroup', 'reviewInviteSingular', 'reviewInviteGroup'],
+      finalLine: ['finalLineSingular', 'finalLineGroup']
+    },
+    t5: { title: ['eyebrow', 'h1Singular', 'h1Group'], intro: ['introSingular', 'introGroup'], ideasLead: ['ideasLeadSingular', 'ideasLeadGroup'], closing: ['closing'] },
+    t6: { title: ['eyebrow', 'h1'], intro: ['introSingular', 'introGroup'], closing: ['closing'] },
+    t7: { title: ['eyebrow', 'h1'], body: ['bodySingular', 'bodyGroup'], refundBox: ['refundTitle', 'refundBody'], assist: ['assistLead'], closing: ['closing'] }
+  };
+  // checkinTable (t1) / infoTable (t3) non elencati sopra: le loro
+  // etichette (tableLabels) sono condivise tra le email, si modificano in
+  // Generali — vedi ESSENTIAL_BLOCK_SHARED_NOTE più sotto.
+  var ESSENTIAL_BLOCK_SHARED_NOTE = {
+    t1: { checkinTable: 'Le etichette di questa tabella (Check-in, Check-out, Notti, Ospiti, Tassa di soggiorno) sono condivise tra le email: modificale nella sottocategoria Generali.' },
+    t3: { infoTable: 'Le etichette di questa tabella (Indirizzo, WiFi, Password WiFi) sono condivise tra le email: modificale nella sottocategoria Generali.' }
+  };
+  // Nota informativa per blocchi essenziali il cui unico testo è
+  // condiviso altrove (pulsanti condivisi in Generali, o contenuto gestito
+  // in un'altra sezione di Impostazioni) — mostrata sopra agli eventuali
+  // campi del blocco.
+  var ESSENTIAL_BLOCK_EXTRA_NOTE = {
+    t1: { assist: 'Il testo del pulsante "Contatta assistenza" è condiviso tra tutte le email — modificalo in Generali → Pulsanti condivisi.' },
+    t2: { assist: 'Il testo del pulsante "Contatta assistenza" è condiviso tra tutte le email — modificalo in Generali → Pulsanti condivisi.' },
+    t3: { closing: 'Il testo del pulsante "Contatta assistenza" è condiviso tra tutte le email — modificalo in Generali → Pulsanti condivisi.' },
+    t4: { assist: 'Il testo del pulsante "Contatta assistenza" è condiviso tra tutte le email — modificalo in Generali → Pulsanti condivisi.', reviewButton: 'Il testo del pulsante recensione è condiviso tra le email — modificalo in Generali → Pulsanti condivisi.' },
+    t5: { assist: 'Il testo del pulsante assistenza è condiviso tra le email — modificalo in Generali → Pulsanti condivisi.', recsList: 'Il contenuto (titolo, categoria, link) si modifica in Impostazioni → Consigli & dintorni, non qui.' },
+    t6: { reviewButton: 'Il testo del pulsante recensione è condiviso tra le email — modificalo in Generali → Pulsanti condivisi.' },
+    t7: { assist: 'Il testo del pulsante "Contatta assistenza" è condiviso tra tutte le email — modificalo in Generali → Pulsanti condivisi.' }
+  };
+  var EMAIL_PREVIEW_TABLE_FIELDS = ['checkIn', 'checkOut', 'nights', 'guests', 'touristTax', 'address', 'wifi', 'wifiPassword'];
+
+  function emailFieldDefLookup(section, key) {
+    var found = null;
+    Object.keys(EMAIL_FIELD_GROUPS).forEach(function (catId) {
+      EMAIL_FIELD_GROUPS[catId].forEach(function (g) {
+        if (g.section === section) g.fields.forEach(function (f) { if (f.key === key) found = f; });
+      });
+    });
+    return found;
+  }
+
+  function ensureEmailLayoutDraft(templateKey) {
+    if (!EB) return;
+    if (!state.emailLayoutDrafts) state.emailLayoutDrafts = {};
+    if (!state.emailLayoutDirty) state.emailLayoutDirty = {};
+    if (!state.emailLayoutDrafts[templateKey]) {
+      var s = state.settings || {};
+      var saved = s.emailLayouts && s.emailLayouts[templateKey];
+      var base = saved ? JSON.parse(JSON.stringify(saved)) : EB.defaultLayout(templateKey);
+      if (!base.order) base.order = [];
+      if (!base.freeBlocks) base.freeBlocks = {};
+      // Retrocompatibilità: un blocco essenziale introdotto dopo che
+      // l'admin ha già salvato un layout personalizzato va comunque
+      // aggiunto (in fondo), altrimenti sparirebbe dalla mail.
+      EB.essentialBlockIds(templateKey).forEach(function (id) { if (base.order.indexOf(id) === -1) base.order.push(id); });
+      state.emailLayoutDrafts[templateKey] = base;
+    }
+  }
+
+  function emailBlockTypeLabel(type) {
+    return { text: 'Testo', image: 'Immagine', button: 'Pulsante', divider: 'Divisore', spacer: 'Spazio' }[type] || type;
+  }
+  function emailBlockPreviewText(block) {
+    if (!block) return '';
+    if (block.type === 'text') return (block.text && (block.text.it || block.text.en)) || '(vuoto)';
+    if (block.type === 'button') return (block.label && (block.label.it || block.label.en)) || '(senza testo)';
+    if (block.type === 'image') return block.src ? 'Immagine caricata' : '(nessuna immagine caricata)';
+    if (block.type === 'spacer') return 'Spazio (' + (block.size || 'md') + ')';
+    return '';
+  }
+  function emailBlockCardHtml(templateKey, blockId, draft) {
+    var essential = EB.isEssential(templateKey, blockId);
+    var block = draft.freeBlocks[blockId];
+    var label = essential ? EB.essentialLabel(templateKey, blockId) : (block ? emailBlockTypeLabel(block.type) : blockId);
+    var previewText = essential ? '' : emailBlockPreviewText(block);
+    return '<div class="email-block-card" draggable="true" data-email-block-id="' + escapeHtml(blockId) + '" style="border:1px solid var(--border-hairline,#D8DEE6); border-radius:8px; padding:10px 12px; margin-bottom:8px; cursor:grab;">' +
+      '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">' +
+        '<span style="font-weight:600; font-size:13px;">' + escapeHtml(label) + (essential ? ' <span style="font-weight:400; font-size:11px; color:var(--admin-muted,#6B7A8C); border:1px solid var(--border-hairline,#D8DEE6); border-radius:4px; padding:1px 6px; margin-left:4px;">obbligatorio</span>' : '') + '</span>' +
+        '<span style="display:flex; gap:6px; flex-shrink:0;">' +
+          '<button type="button" data-email-block-edit="' + escapeHtml(blockId) + '" data-email-tpl="' + templateKey + '" style="font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid var(--border-hairline,#D8DEE6); background:none; cursor:pointer;">Modifica</button>' +
+          (essential ? '' : '<button type="button" data-email-block-delete="' + escapeHtml(blockId) + '" data-email-tpl="' + templateKey + '" style="font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid var(--border-hairline,#D8DEE6); background:none; cursor:pointer; color:#B3312C;">Elimina</button>') +
+        '</span>' +
+      '</div>' +
+      (previewText ? '<div style="font-size:12px; color:var(--admin-muted,#6B7A8C); margin-top:4px; white-space:pre-line;">' + escapeHtml(previewText) + '</div>' : '') +
+    '</div>';
+  }
+
+  function emailImageBlockFieldHtml(templateKey, blockId, block) {
+    return '<div class="admin-field-group admin-field-group--full">' +
+      '<label>Immagine</label>' +
+      (block.src ? '<img src="' + escapeHtml(block.src) + '" style="max-width:220px; max-height:130px; display:block; margin-bottom:8px; border-radius:6px; border:1px solid var(--border-hairline,#D8DEE6);">' : '<div style="font-size:12px; color:var(--admin-muted,#6B7A8C); margin-bottom:8px;">Nessuna immagine caricata.</div>') +
+      '<input type="file" accept="image/*" data-email-block-image-upload="' + escapeHtml(blockId) + '" data-email-tpl="' + templateKey + '">' +
+      (block.src ? '<button type="button" data-email-block-image-remove="' + escapeHtml(blockId) + '" data-email-tpl="' + templateKey + '" style="margin-left:8px; font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid var(--border-hairline,#D8DEE6); background:none; cursor:pointer;">Rimuovi</button>' : '') +
+      '<label style="margin-top:10px; display:block;">Testo alternativo (accessibilità)</label>' +
+      '<input class="admin-field" type="text" data-email-block-field="alt" data-email-tpl="' + templateKey + '" data-email-block-id="' + escapeHtml(blockId) + '" value="' + escapeHtml(block.alt || '') + '">' +
+      '<label style="margin-top:8px; display:block;">Link al click (facoltativo)</label>' +
+      '<input class="admin-field" type="text" data-email-block-field="link" data-email-tpl="' + templateKey + '" data-email-block-id="' + escapeHtml(blockId) + '" value="' + escapeHtml(block.link || '') + '" placeholder="https://">' +
+      '<label style="margin-top:8px; display:block;">Larghezza</label>' +
+      '<select class="admin-field" data-email-block-field="widthPct" data-email-tpl="' + templateKey + '" data-email-block-id="' + escapeHtml(blockId) + '">' +
+        '<option value="100"' + (block.widthPct !== 50 ? ' selected' : '') + '>Intera</option>' +
+        '<option value="50"' + (block.widthPct === 50 ? ' selected' : '') + '>Metà</option>' +
+      '</select>' +
+    '</div>';
+  }
+  function emailFreeBlockFormHtml(templateKey, blockId, block) {
+    var t = 'data-email-tpl="' + templateKey + '" data-email-block-id="' + escapeHtml(blockId) + '"';
+    if (block.type === 'text') {
+      return '<div class="admin-field-group admin-field-group--full">' +
+        '<label>Testo (italiano)</label><textarea class="admin-field" rows="3" data-email-block-field="text.it" ' + t + '>' + escapeHtml((block.text && block.text.it) || '') + '</textarea>' +
+        '<label style="margin-top:8px; display:block;">Testo (inglese)</label><textarea class="admin-field" rows="3" data-email-block-field="text.en" ' + t + '>' + escapeHtml((block.text && block.text.en) || '') + '</textarea>' +
+        '<label style="margin-top:8px; display:block;">Dimensione</label>' +
+        '<select class="admin-field" data-email-block-field="size" ' + t + '>' +
+          ['h2', 'body', 'small'].map(function (opt) { return '<option value="' + opt + '"' + (block.size === opt ? ' selected' : '') + '>' + ({ h2: 'Titolo', body: 'Testo normale', small: 'Piccolo' }[opt]) + '</option>'; }).join('') +
+        '</select>' +
+        '<label style="margin-top:8px; display:block;"><input type="checkbox" data-email-block-field="bold" ' + t + (block.bold ? ' checked' : '') + '> Grassetto</label>' +
+        '<label style="margin-top:4px; display:block;"><input type="checkbox" data-email-block-field="align-center" ' + t + (block.align === 'center' ? ' checked' : '') + '> Centrato</label>' +
+      '</div>';
+    }
+    if (block.type === 'button') {
+      var linkType = block.linkType || 'custom';
+      return '<div class="admin-field-group admin-field-group--full">' +
+        '<label>Testo pulsante (italiano)</label><input class="admin-field" type="text" data-email-block-field="label.it" ' + t + ' value="' + escapeHtml((block.label && block.label.it) || '') + '">' +
+        '<label style="margin-top:8px; display:block;">Testo pulsante (inglese)</label><input class="admin-field" type="text" data-email-block-field="label.en" ' + t + ' value="' + escapeHtml((block.label && block.label.en) || '') + '">' +
+        '<label style="margin-top:8px; display:block;">Destinazione</label>' +
+        '<select class="admin-field" data-email-block-field="linkType" ' + t + '>' +
+          Object.keys(EB.DYNAMIC_LINK_LABELS).map(function (k) { return '<option value="' + k + '"' + (linkType === k ? ' selected' : '') + '>' + escapeHtml(EB.DYNAMIC_LINK_LABELS[k]) + '</option>'; }).join('') +
+        '</select>' +
+        (linkType === 'custom'
+          ? '<label style="margin-top:8px; display:block;">Link (deve iniziare con https://)</label><input class="admin-field" type="text" data-email-block-field="url" ' + t + ' value="' + escapeHtml(block.url || '') + '" placeholder="https://">'
+          : '<div style="font-size:12px; color:var(--admin-muted,#6B7A8C); margin-top:6px;">Link calcolato automaticamente per ogni ospite al momento dell\'invio — sempre valido.</div>') +
+      '</div>';
+    }
+    if (block.type === 'image') return emailImageBlockFieldHtml(templateKey, blockId, block);
+    if (block.type === 'spacer') {
+      return '<div class="admin-field-group admin-field-group--full"><label>Altezza</label>' +
+        '<select class="admin-field" data-email-block-field="size" ' + t + '>' +
+          ['sm', 'md', 'lg'].map(function (opt) { return '<option value="' + opt + '"' + ((block.size || 'md') === opt ? ' selected' : '') + '>' + ({ sm: 'Piccolo', md: 'Medio', lg: 'Grande' }[opt]) + '</option>'; }).join('') +
+        '</select></div>';
+    }
+    return '<div style="font-size:13px; color:var(--admin-muted,#6B7A8C);">Una semplice linea divisoria, nessuna opzione.</div>';
+  }
+  function emailBlockEditPanelHtml(templateKey, blockId, draft) {
+    var essential = EB.isEssential(templateKey, blockId);
+    var s = state.settings || {};
+    var defaults = state.emailTextDefaults || {};
+    var closeBtn = '<button type="button" data-email-block-edit-close style="float:right; background:none; border:none; color:var(--admin-muted,#6B7A8C); cursor:pointer; font-size:12px;">Chiudi</button>';
+    if (essential) {
+      var sharedNote = ESSENTIAL_BLOCK_SHARED_NOTE[templateKey] && ESSENTIAL_BLOCK_SHARED_NOTE[templateKey][blockId];
+      if (sharedNote) {
+        return '<div style="border:1px solid var(--border-hairline,#D8DEE6); border-radius:8px; padding:14px; margin:8px 0;">' + closeBtn +
+          '<div style="font-size:13px; margin-bottom:8px;">' + escapeHtml(sharedNote) + '</div>' +
+          '<button type="button" data-email-goto-generali style="font-size:12px; padding:6px 12px; border-radius:6px; border:1px solid var(--border-hairline,#D8DEE6); background:none; cursor:pointer;">Vai a Generali</button>' +
+        '</div>';
+      }
+      var fieldKeys = (ESSENTIAL_BLOCK_FIELD_KEYS[templateKey] && ESSENTIAL_BLOCK_FIELD_KEYS[templateKey][blockId]) || [];
+      var overridesObj = (s.emailTexts && s.emailTexts[templateKey]) || {};
+      var defaultsObj = defaults[templateKey] || {};
+      var rows = fieldKeys.map(function (key) {
+        var def = emailFieldDefLookup(templateKey, key);
+        return def ? emailFieldRowHtml(overridesObj, defaultsObj, templateKey, def.key, def.label, def.hint) : '';
+      }).join('');
+      var extraNoteText = ESSENTIAL_BLOCK_EXTRA_NOTE[templateKey] && ESSENTIAL_BLOCK_EXTRA_NOTE[templateKey][blockId];
+      var extraNote = extraNoteText ? '<div style="font-size:12px; color:var(--admin-muted,#6B7A8C); margin-bottom:8px;">' + escapeHtml(extraNoteText) + '</div>' : '';
+      return '<div style="border:1px solid var(--border-hairline,#D8DEE6); border-radius:8px; padding:14px; margin:8px 0;">' + closeBtn + extraNote + rows + '</div>';
+    }
+    var block = draft.freeBlocks[blockId] || {};
+    return '<div style="border:1px solid var(--border-hairline,#D8DEE6); border-radius:8px; padding:14px; margin:8px 0;">' + closeBtn + emailFreeBlockFormHtml(templateKey, blockId, block) + '</div>';
+  }
+
+  function applyEmailBlockFieldChange(templateKey, blockId, fieldPath, value, checked) {
+    var draft = state.emailLayoutDrafts[templateKey];
+    var block = draft && draft.freeBlocks[blockId];
+    if (!block) return;
+    if (fieldPath === 'text.it') { block.text = block.text || {}; block.text.it = value; }
+    else if (fieldPath === 'text.en') { block.text = block.text || {}; block.text.en = value; }
+    else if (fieldPath === 'label.it') { block.label = block.label || {}; block.label.it = value; }
+    else if (fieldPath === 'label.en') { block.label = block.label || {}; block.label.en = value; }
+    else if (fieldPath === 'size') block.size = value;
+    else if (fieldPath === 'bold') block.bold = !!checked;
+    else if (fieldPath === 'align-center') block.align = checked ? 'center' : 'left';
+    else if (fieldPath === 'linkType') block.linkType = value;
+    else if (fieldPath === 'url') block.url = value;
+    else if (fieldPath === 'alt') block.alt = value;
+    else if (fieldPath === 'link') block.link = value;
+    else if (fieldPath === 'widthPct') block.widthPct = parseInt(value, 10);
+    state.emailLayoutDirty[templateKey] = true;
+  }
+
+  function emailPreviewPickText(section, key, isEn) {
+    var s = state.settings || {};
+    var overrides = (s.emailTexts && s.emailTexts[section]) || {};
+    var o = overrides[key];
+    var lang = isEn ? 'en' : 'it';
+    var override = o && o[lang] && String(o[lang]).trim();
+    var defaults = state.emailTextDefaults || {};
+    var def = defaults[section] && defaults[section][key];
+    return override || (def && def[lang]) || '';
+  }
+  // Campi t*_campo renderizzati per l'anteprima — stesso elenco di
+  // EMAIL_FIELD_GROUPS.t1..t7 (root:'emailTexts'), qui piatto per comodità
+  // del ciclo di rendering.
+  var EMAIL_PREVIEW_TEXT_FIELDS = {
+    t1: ['eyebrow', 'h1', 'introSingular', 'introGroup', 'calendarLabel', 'legalTitle', 'legalBody', 'ctaSingular', 'ctaGroupIntro', 'ctaGroupSuffix', 'assistLead', 'spamNote'],
+    t2: ['eyebrow', 'h1', 'introSingular', 'introGroup', 'cta', 'assistLead'],
+    t3: ['eyebrow', 'h1', 'introSingular', 'introGroupLine1', 'introGroupLine2', 'streetGateBtn', 'accessBoxTitle', 'roomCodeTitleSingular', 'roomCodeTitleGroup', 'legalTitle', 'legalBody', 'videoCallBtn', 'closingLine'],
+    t4: ['eyebrow', 'h1Singular', 'h1Group', 'checkoutLine', 'instrBoxTitleSingular', 'instrBoxTitleGroup', 'assistLead', 'closingSingular', 'closingGroup', 'reviewInviteSingular', 'reviewInviteGroup', 'finalLineSingular', 'finalLineGroup'],
+    t5: ['eyebrow', 'h1Singular', 'h1Group', 'introSingular', 'introGroup', 'ideasLeadSingular', 'ideasLeadGroup', 'closing'],
+    t6: ['eyebrow', 'h1', 'introSingular', 'introGroup', 'closing'],
+    t7: ['eyebrow', 'h1', 'bodySingular', 'bodyGroup', 'refundTitle', 'refundBody', 'assistLead', 'closing']
+  };
+  // Dati finti per popolare l'anteprima (nessuna prenotazione reale in
+  // dashboard) — un set per template, solo i campi che i suoi blocchi
+  // essenziali usano davvero (vedi ESSENTIAL_RENDERERS in
+  // email-block-renderer.js). reviewLink/videoCallLink usano il valore
+  // reale di Impostazioni quando c'è, per un'anteprima fedele a cosa
+  // vedrebbe davvero l'ospite (bottone presente o assente).
+  function emailPreviewTemplateVars(templateKey, base) {
+    var s = state.settings || {};
+    var common = { name: 'Mario Rossi', roomLabel: 'Maestrale', isGroup: !!state.emailPreviewGroup };
+    var isEn = base.isEn;
+    if (templateKey === 't1') {
+      return Object.assign({}, common, {
+        checkIn: isEn ? 'Aug 12, 2026' : '12 agosto 2026', checkInTime: s.checkInTime || '15:00',
+        checkOut: isEn ? 'Aug 15, 2026' : '15 agosto 2026', checkOutTime: s.checkOutTime || '10:00',
+        nights: 3, guests: 2, totalDue: '36,00',
+        googleCalendarLink: '#', icsLink: '#', docsLink: '#', assistLink: '#', videoCallLink: '',
+        rooms: [{ roomLabel: 'Maestrale', docsLink: '#' }, { roomLabel: 'Scirocco', docsLink: '#' }]
+      });
+    }
+    if (templateKey === 't2') {
+      return Object.assign({}, common, {
+        checkIn: isEn ? 'Aug 12, 2026' : '12 agosto 2026', docsLink: '#', assistLink: '#',
+        rooms: [{ roomLabel: 'Maestrale', docsLink: '#' }, { roomLabel: 'Scirocco', docsLink: '#' }]
+      });
+    }
+    if (templateKey === 't3') {
+      return Object.assign({}, common, {
+        checkIn: isEn ? 'Aug 12, 2026' : '12 agosto 2026', checkInTime: s.checkInTime || '15:00',
+        checkInInstructions: isEn ? 'The main door code is 1234#, ring the intercom if it doesn\'t work.' : 'Il codice del portone è 1234#, se non funziona suona il videocitofono.',
+        wifiName: 'CasaCeleste-WiFi', wifiPassword: 'benvenuto2026', streetGateLink: '#',
+        roomAccessCode: '5678', hasRoomAccessCode: true, videoCallLink: '',
+        videoCallNote: isEn ? 'We will contact you shortly to arrange the video call.' : 'Ti contatteremo a breve per organizzare la videochiamata.',
+        assistLink: '#', rooms: [{ roomLabel: 'Maestrale', roomAccessCode: '5678' }, { roomLabel: 'Scirocco', roomAccessCode: '' }]
+      });
+    }
+    if (templateKey === 't4') {
+      return Object.assign({}, common, {
+        checkOutTime: s.checkOutTime || '10:00',
+        checkOutInstructions: isEn ? 'Leave the keys in the lockbox by the door.' : 'Lascia le chiavi nella cassetta vicino alla porta.',
+        assistLink: '#', reviewLink: s.reviewLink || ''
+      });
+    }
+    if (templateKey === 't5') {
+      return Object.assign({}, common, {
+        assistLink: '#',
+        recs: [
+          { title: 'Trattoria del Porto', category: isEn ? 'Where to eat' : 'Dove mangiare', url: '#' },
+          { title: isEn ? 'Old town walk' : 'Passeggiata nel centro storico', category: isEn ? 'What to see' : 'Cosa vedere', url: '#' }
+        ]
+      });
+    }
+    if (templateKey === 't6') return Object.assign({}, common, { reviewLink: s.reviewLink || '#' });
+    if (templateKey === 't7') {
+      return Object.assign({}, common, {
+        checkIn: isEn ? 'Aug 12, 2026' : '12 agosto 2026', checkOut: isEn ? 'Aug 15, 2026' : '15 agosto 2026',
+        hasRefund: true, refundAmount: '120,00', assistLink: '#'
+      });
+    }
+    return common;
+  }
+  function emailPreviewVars(templateKey, isEn) {
+    var s = state.settings || {};
+    var base = {
+      isEn: isEn, siteName: s.siteName || 'Casa Celeste', city: s.city || 'Monopoli',
+      address: s.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)',
+      logoUrl: s.logoUrl || '', footerSignature: s.emailFooterSignature || '',
+      assistButtonLabel: emailPreviewPickText('shared', 'assistButtonLabel', isEn),
+      reviewButtonLabel: emailPreviewPickText('shared', 'reviewButtonLabel', isEn)
+    };
+    EMAIL_PREVIEW_TABLE_FIELDS.forEach(function (k) { base['tableLabels_' + k] = emailPreviewPickText('tableLabels', k, isEn); });
+    Object.assign(base, emailPreviewTemplateVars(templateKey, base));
+    (EMAIL_PREVIEW_TEXT_FIELDS[templateKey] || []).forEach(function (f) {
+      base[templateKey + '_' + f] = EB.renderSimpleVars(emailPreviewPickText(templateKey, f, isEn), base);
+    });
+    return base;
+  }
+  function renderEmailLayoutPreviewHtml(templateKey) {
+    var draft = state.emailLayoutDrafts[templateKey];
+    var vars = emailPreviewVars(templateKey, state.emailPreviewLang === 'en');
+    return EB.renderPreviewHtml(templateKey, draft, vars);
+  }
+
+  function emailLayoutValidationHtml(templateKey, validation) {
+    var parts = [];
+    if (validation.errors && validation.errors.length) {
+      parts.push('<div style="background:#FBEAEA; border:1px solid #E3A9A6; border-radius:8px; padding:10px 14px; margin-top:10px; font-size:13px; color:#7A2620;"><strong>Correggi prima di salvare:</strong><ul style="margin:6px 0 0; padding-left:18px;">' +
+        validation.errors.map(function (e) { return '<li>' + escapeHtml(e.message) + '</li>'; }).join('') + '</ul></div>');
+    }
+    if (validation.warnings && validation.warnings.length) {
+      parts.push('<div style="background:#FDF3D9; border:1px solid #E8CE8B; border-radius:8px; padding:10px 14px; margin-top:10px; font-size:13px; color:#7A5E12;"><strong>Avvisi — puoi comunque salvare:</strong><ul style="margin:6px 0 0; padding-left:18px;">' +
+        validation.warnings.map(function (w) { return '<li>' + escapeHtml(w.message) + '</li>'; }).join('') + '</ul>' +
+        '<button type="button" data-email-layout-save-confirm="' + templateKey + '" style="margin-top:8px; font-size:12px; padding:6px 12px; border-radius:6px; border:1px solid #E8CE8B; background:#fff; cursor:pointer;">Salva comunque</button></div>');
+    }
+    if ((!validation.errors || !validation.errors.length) && (!validation.warnings || !validation.warnings.length) && validation.summary) {
+      parts.push('<div style="background:#E8F3EC; border:1px solid #A9D3B8; border-radius:8px; padding:10px 14px; margin-top:10px; font-size:13px; color:#1F5C3A;">' + escapeHtml(validation.summary) + '</div>');
+    }
+    return parts.join('');
+  }
+  function computeLayoutChangeSummary(templateKey, draft) {
+    var s = state.settings || {};
+    var saved = (s.emailLayouts && s.emailLayouts[templateKey]) || EB.defaultLayout(templateKey);
+    var savedFree = Object.keys(saved.freeBlocks || {});
+    var draftFree = Object.keys(draft.freeBlocks || {});
+    var added = draftFree.filter(function (id) { return savedFree.indexOf(id) === -1; }).length;
+    var removed = savedFree.filter(function (id) { return draftFree.indexOf(id) === -1; }).length;
+    var reordered = JSON.stringify(saved.order || []) !== JSON.stringify(draft.order || []);
+    var parts = [];
+    if (added) parts.push(added + ' blocco/i aggiunto/i');
+    if (removed) parts.push(removed + ' blocco/i eliminato/i');
+    if (reordered) parts.push('ordine modificato');
+    return (parts.length ? parts.join(', ') + '. ' : '') + 'Impaginazione salvata.';
+  }
+  function persistEmailLayout(templateKey, summary) {
+    var draft = state.emailLayoutDrafts[templateKey];
+    var s = state.settings || {};
+    var layouts = Object.assign({}, s.emailLayouts || {});
+    layouts[templateKey] = draft;
+    window.CasaCelesteTourismDB.setSettings({ emailLayouts: layouts }).then(function () {
+      state.emailLayoutDirty[templateKey] = false;
+      state.emailLayoutValidation = { templateKey: templateKey, errors: [], warnings: [], summary: summary || 'Impaginazione salvata.' };
+      renderTabContent();
+    }).catch(function (err) {
+      window.alert('Errore nel salvataggio: ' + (err && err.message ? err.message : 'riprova.'));
+    });
+  }
+
+  function emailLayoutSectionHtml(templateKey) {
+    if (!EB || !EB.essentialBlockIds(templateKey).length) return '';
+    ensureEmailLayoutDraft(templateKey);
+    var draft = state.emailLayoutDrafts[templateKey];
+    var dirty = !!(state.emailLayoutDirty && state.emailLayoutDirty[templateKey]);
+    var lang = state.emailPreviewLang || 'it';
+    var blocksListHtml = draft.order.map(function (id) { return emailBlockCardHtml(templateKey, id, draft); }).join('');
+    var addChooserHtml = EB.FREE_BLOCK_TYPES.map(function (t) {
+      return '<button type="button" data-email-block-add="' + t.type + '" data-email-tpl="' + templateKey + '" style="font-size:12px; padding:6px 12px; border-radius:6px; border:1px solid var(--border-hairline,#D8DEE6); background:none; cursor:pointer;">+ ' + escapeHtml(t.label) + '</button>';
+    }).join(' ');
+    var editing = state.emailBlockEditing;
+    var editPanelHtml = (editing && editing.templateKey === templateKey) ? emailBlockEditPanelHtml(templateKey, editing.blockId, draft) : '';
+    var validation = (state.emailLayoutValidation && state.emailLayoutValidation.templateKey === templateKey) ? state.emailLayoutValidation : null;
+    var validationHtml = validation ? emailLayoutValidationHtml(templateKey, validation) : '';
+    return '<div class="dash-settings-group-title" style="margin:20px 0 10px;">Impaginazione</div>' +
+      '<div class="admin-room-card" data-email-layout-root="' + templateKey + '">' +
+        '<div style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-bottom:14px;">Trascina i blocchi per riordinarli. I blocchi "obbligatorio" (dati della prenotazione, testo richiesto per legge) non si possono eliminare, ma si possono spostare — il loro testo resta modificabile come prima. Le modifiche restano in bozza finché non premi "Salva impaginazione".' + (dirty ? ' <strong style="color:#B3312C;">Modifiche non salvate.</strong>' : '') + '</div>' +
+        '<div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">' +
+          '<div style="flex:1 1 300px; min-width:280px;">' +
+            '<div data-email-block-list="' + templateKey + '">' + blocksListHtml + '</div>' +
+            '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' + addChooserHtml + '</div>' +
+            editPanelHtml + validationHtml +
+            '<button type="button" class="btn btn-primary" data-email-layout-save="' + templateKey + '" style="margin-top:16px;">Salva impaginazione</button>' +
+          '</div>' +
+          '<div style="flex:1 1 320px; min-width:300px;">' +
+            '<div style="display:flex; gap:8px; margin-bottom:8px;">' +
+              '<button type="button" class="settings-subnav-btn' + (lang === 'it' ? ' is-active' : '') + '" data-email-preview-lang="it">Anteprima IT</button>' +
+              '<button type="button" class="settings-subnav-btn' + (lang === 'en' ? ' is-active' : '') + '" data-email-preview-lang="en">Anteprima EN</button>' +
+            '</div>' +
+            '<div style="border:1px solid var(--border-hairline,#D8DEE6); border-radius:10px; overflow:auto; max-height:680px;" data-email-preview="' + templateKey + '">' + renderEmailLayoutPreviewHtml(templateKey) + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+  function bindEmailLayoutEvents(content) {
+    content.querySelectorAll('[data-email-block-add]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var type = btn.getAttribute('data-email-block-add');
+        var templateKey = btn.getAttribute('data-email-tpl');
+        ensureEmailLayoutDraft(templateKey);
+        var draft = state.emailLayoutDrafts[templateKey];
+        var blockId = 'free-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        var newBlock;
+        if (type === 'text') newBlock = { type: 'text', text: { it: '', en: '' }, size: 'body', align: 'left', bold: false };
+        else if (type === 'button') newBlock = { type: 'button', label: { it: '', en: '' }, linkType: 'custom', url: '' };
+        else if (type === 'image') newBlock = { type: 'image', src: '', alt: '', link: '', widthPct: 100 };
+        else if (type === 'spacer') newBlock = { type: 'spacer', size: 'md' };
+        else newBlock = { type: 'divider' };
+        draft.freeBlocks[blockId] = newBlock;
+        draft.order.push(blockId);
+        state.emailLayoutDirty[templateKey] = true;
+        state.emailBlockEditing = { templateKey: templateKey, blockId: blockId };
+        state.emailLayoutValidation = null;
+        renderTabContent();
+      });
+    });
+    content.querySelectorAll('[data-email-block-delete]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var blockId = btn.getAttribute('data-email-block-delete');
+        var templateKey = btn.getAttribute('data-email-tpl');
+        if (!window.confirm('Eliminare questo blocco?')) return;
+        var draft = state.emailLayoutDrafts[templateKey];
+        delete draft.freeBlocks[blockId];
+        draft.order = draft.order.filter(function (id) { return id !== blockId; });
+        if (state.emailBlockEditing && state.emailBlockEditing.blockId === blockId) state.emailBlockEditing = null;
+        state.emailLayoutDirty[templateKey] = true;
+        state.emailLayoutValidation = null;
+        renderTabContent();
+      });
+    });
+    content.querySelectorAll('[data-email-block-edit]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var blockId = btn.getAttribute('data-email-block-edit');
+        var templateKey = btn.getAttribute('data-email-tpl');
+        var already = state.emailBlockEditing && state.emailBlockEditing.templateKey === templateKey && state.emailBlockEditing.blockId === blockId;
+        state.emailBlockEditing = already ? null : { templateKey: templateKey, blockId: blockId };
+        renderTabContent();
+      });
+    });
+    content.querySelectorAll('[data-email-block-edit-close]').forEach(function (btn) {
+      btn.addEventListener('click', function () { state.emailBlockEditing = null; renderTabContent(); });
+    });
+    content.querySelectorAll('[data-email-goto-generali]').forEach(function (btn) {
+      btn.addEventListener('click', function () { state.emailSubTab = 'generali'; renderTabContent(); });
+    });
+    content.querySelectorAll('[data-email-preview-lang]').forEach(function (btn) {
+      btn.addEventListener('click', function () { state.emailPreviewLang = btn.getAttribute('data-email-preview-lang'); renderTabContent(); });
+    });
+    content.querySelectorAll('[data-email-block-field]').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var templateKey = el.getAttribute('data-email-tpl');
+        var blockId = el.getAttribute('data-email-block-id');
+        var isCb = el.type === 'checkbox';
+        applyEmailBlockFieldChange(templateKey, blockId, el.getAttribute('data-email-block-field'), isCb ? null : el.value, isCb ? el.checked : null);
+        state.emailLayoutValidation = null;
+        renderTabContent();
+      });
+    });
+    content.querySelectorAll('[data-email-block-image-upload]').forEach(function (input) {
+      input.addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        var blockId = input.getAttribute('data-email-block-image-upload');
+        var templateKey = input.getAttribute('data-email-tpl');
+        input.disabled = true;
+        window.CasaCelesteTourismDB.uploadEmailBlockImage(templateKey, blockId, file).then(function (url) {
+          var draft = state.emailLayoutDrafts[templateKey];
+          if (draft.freeBlocks[blockId]) draft.freeBlocks[blockId].src = url;
+          state.emailLayoutDirty[templateKey] = true;
+          state.emailLayoutValidation = null;
+          renderTabContent();
+        }).catch(function (err) {
+          window.alert('Errore caricamento immagine: ' + (err && err.message ? err.message : 'riprova.'));
+          input.disabled = false;
+        });
+      });
+    });
+    content.querySelectorAll('[data-email-block-image-remove]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var blockId = btn.getAttribute('data-email-block-image-remove');
+        var templateKey = btn.getAttribute('data-email-tpl');
+        var draft = state.emailLayoutDrafts[templateKey];
+        if (draft.freeBlocks[blockId]) draft.freeBlocks[blockId].src = '';
+        state.emailLayoutDirty[templateKey] = true;
+        state.emailLayoutValidation = null;
+        renderTabContent();
+      });
+    });
+    content.querySelectorAll('[data-email-block-list]').forEach(function (listEl) {
+      var templateKey = listEl.getAttribute('data-email-block-list');
+      listEl.querySelectorAll('[data-email-block-id]').forEach(function (card) {
+        card.addEventListener('dragstart', function (e) {
+          e.dataTransfer.setData('text/plain', card.getAttribute('data-email-block-id'));
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragover', function (e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+        card.addEventListener('drop', function (e) {
+          e.preventDefault();
+          var draggedId = e.dataTransfer.getData('text/plain');
+          var targetId = card.getAttribute('data-email-block-id');
+          if (!draggedId || draggedId === targetId) return;
+          var draft = state.emailLayoutDrafts[templateKey];
+          var order = draft.order.slice();
+          var fromIdx = order.indexOf(draggedId), toIdx = order.indexOf(targetId);
+          if (fromIdx === -1 || toIdx === -1) return;
+          order.splice(fromIdx, 1);
+          order.splice(toIdx, 0, draggedId);
+          draft.order = order;
+          state.emailLayoutDirty[templateKey] = true;
+          state.emailLayoutValidation = null;
+          renderTabContent();
+        });
+      });
+    });
+    content.querySelectorAll('[data-email-layout-save]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var templateKey = btn.getAttribute('data-email-layout-save');
+        var draft = state.emailLayoutDrafts[templateKey];
+        var s = state.settings || {};
+        var result = EB.validateLayout(draft, s.reviewLink || '');
+        if (result.errors.length) {
+          state.emailLayoutValidation = { templateKey: templateKey, errors: result.errors, warnings: result.warnings };
+          renderTabContent();
+          return;
+        }
+        if (result.warnings.length) {
+          state.emailLayoutValidation = { templateKey: templateKey, errors: [], warnings: result.warnings };
+          renderTabContent();
+          return;
+        }
+        persistEmailLayout(templateKey, computeLayoutChangeSummary(templateKey, draft));
+      });
+    });
+    content.querySelectorAll('[data-email-layout-save-confirm]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var templateKey = btn.getAttribute('data-email-layout-save-confirm');
+        persistEmailLayout(templateKey, computeLayoutChangeSummary(templateKey, state.emailLayoutDrafts[templateKey]));
+      });
+    });
+  }
+
   function renderEmailTab(content) {
     // Default caricati una volta sola per sessione da un file statico
     // servito dallo stesso hosting (email-texts-defaults.json, la stessa
@@ -2634,7 +3189,8 @@
             photoSlotsHtml('logo', 'logo', { photos: s.logoUrl ? [s.logoUrl] : [] }, 1) +
           '</div>'
         : '';
-      return '<div class="dash-settings-group" data-email-cat="' + catId + '">' + logoBlock + groups + '</div>';
+      var layoutBlock = catId === 'generali' ? '' : emailLayoutSectionHtml(catId);
+      return '<div class="dash-settings-group" data-email-cat="' + catId + '">' + logoBlock + layoutBlock + groups + '</div>';
     }).join('');
 
     content.innerHTML =
@@ -2708,6 +3264,7 @@
       });
     });
     bindPhotoUploadEvents(content);
+    bindEmailLayoutEvents(content);
   }
 
   function renderSettingsTab(content) {

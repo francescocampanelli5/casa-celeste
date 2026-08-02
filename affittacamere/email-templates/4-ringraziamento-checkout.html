@@ -7,17 +7,17 @@ esattamente {{subjectLine}}.
 
 Variabili usate: email, name, roomLabel, checkOutTime, checkOutInstructions,
 assistLink, reviewLink, isEn, subjectLine, isGroup, logoUrl,
-assistButtonLabel, t4_eyebrow, t4_h1Singular, t4_h1Group, t4_checkoutLine,
-t4_instrBoxTitleSingular, t4_instrBoxTitleGroup, t4_assistLead,
-t4_closingSingular, t4_closingGroup, t4_reviewInviteSingular,
-t4_reviewInviteGroup, t4_finalLineSingular, t4_finalLineGroup
+assistButtonLabel, blocksHtml
 
-Tutti i testi t4_* sono già renderizzati in JS (emailTextVars in _lib.js) —
-editabili da dashboard (Impostazioni → Email ospiti → 4. Ringraziamento
-check-out). reviewInviteSingular/Group è la frase che invita a lasciare una
-recensione, mostrata SOLO se reviewLink è configurato (facoltativo in
-Impostazioni) — se vuoto, l'email 4 resta comunque completa senza
-menzionare una recensione che non avrebbe un link funzionante.
+blocksHtml sostituisce tutto il corpo con HTML già pronto, calcolato da
+affittacamere/js/email-block-renderer.js (renderTemplateBody('t4', layout,
+vars)) PRIMA di chiamare Mustache — vedi _lib.js e
+1-conferma-prenotazione.html per il meccanismo completo. Layout in
+tourism_settings/site.emailLayouts.t4. reviewInviteSingular/Group è la
+frase che invita a lasciare una recensione, mostrata SOLO se reviewLink è
+configurato (facoltativo in Impostazioni) — se vuoto, l'email 4 resta
+comunque completa senza menzionare una recensione che non avrebbe un link
+funzionante (vedi blocco "reviewButton" e funzione "closing" nel renderer).
 
 Prenotazione di più stanze insieme (isGroup=true): roomLabel diventa
 l'elenco di tutte le stanze del gruppo — le due frasi che altrimenti
@@ -56,54 +56,7 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
     </tr>
     <tr>
       <td class="cc-body" style="padding:32px;">
-        <p style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:#2C8FC9; font-weight:700; margin:0 0 8px;">{{t4_eyebrow}}</p>
-        {{^isGroup}}
-        <h1 style="font-size:24px; line-height:1.3; color:#10233B; margin:0 0 10px; word-break:break-word;">{{t4_h1Singular}}</h1>
-        {{/isGroup}}
-        {{#isGroup}}
-        <h1 style="font-size:24px; line-height:1.3; color:#10233B; margin:0 0 10px; word-break:break-word;">{{t4_h1Group}}</h1>
-        <p style="font-size:14px; color:#6B7A8C; margin:0 0 8px;">{{roomLabel}}</p>
-        {{/isGroup}}
-        <div style="width:40px; height:3px; background:#2C8FC9; border-radius:2px; margin:0 0 18px;"></div>
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 20px;">{{t4_checkoutLine}}</p>
-
-        {{#checkOutInstructions}}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px; background:#F5FAFD; border-radius:10px;">
-          <tr><td style="padding:16px 20px;">
-            <p style="font-size:12px; text-transform:uppercase; letter-spacing:0.03em; color:#2C8FC9; font-weight:700; margin:0 0 8px;">{{^isGroup}}{{t4_instrBoxTitleSingular}}{{/isGroup}}{{#isGroup}}{{t4_instrBoxTitleGroup}}{{/isGroup}}</p>
-            <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0; white-space:pre-line; word-break:break-word;">{{checkOutInstructions}}</p>
-          </td></tr>
-        </table>
-        {{/checkOutInstructions}}
-
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px;">{{t4_assistLead}}</p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
-          <tr><td align="center">
-            <a href="{{assistLink}}" style="display:inline-block; background:#FFFFFF; color:#2C8FC9; text-decoration:none; font-weight:700; font-size:14px; padding:12px 28px; border-radius:10px; border:2px solid #2C8FC9;">{{assistButtonLabel}}</a>
-          </td></tr>
-        </table>
-
-        {{^isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px; white-space:pre-line;">{{t4_closingSingular}}{{#reviewLink}} {{t4_reviewInviteSingular}}{{/reviewLink}}</p>
-        {{/isGroup}}
-        {{#isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px; white-space:pre-line;">{{t4_closingGroup}}{{#reviewLink}} {{t4_reviewInviteGroup}}{{/reviewLink}}</p>
-        {{/isGroup}}
-
-        {{#reviewLink}}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-          <tr><td align="center">
-            <a href="{{reviewLink}}" style="display:inline-block; background:#2C8FC9; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:15px; padding:14px 32px; border-radius:10px; box-shadow:0 4px 10px rgba(44,143,201,0.28);">{{reviewButtonLabel}}</a>
-          </td></tr>
-        </table>
-        {{/reviewLink}}
-
-        {{^isGroup}}
-        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0; white-space:pre-line;">{{t4_finalLineSingular}}</p>
-        {{/isGroup}}
-        {{#isGroup}}
-        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0; white-space:pre-line;">{{t4_finalLineGroup}}</p>
-        {{/isGroup}}
+        {{{blocksHtml}}}
       </td>
     </tr>
     <tr>

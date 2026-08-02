@@ -32,6 +32,12 @@ function renderTemplate(fileName, vars) {
   return Mustache.render(stripDocComment(raw), vars);
 }
 
+// Motore di rendering condiviso del corpo email (blocchi essenziali +
+// liberi, editor drag-and-drop in dashboard → Email ospiti →
+// Impaginazione) — STESSO file (byte-identico) usato dalla dashboard per
+// l'anteprima live, vedi affittacamere/js/email-block-renderer.js.
+const EmailBlocks = require('./email-block-renderer.js');
+
 // Testo delle email interamente editabile da dashboard (Impostazioni →
 // Email ospiti, tourism_settings/site.emailTexts) — stesso meccanismo di
 // affittacamere/scripts/_lib.js, duplicato qui per lo stesso motivo già
@@ -255,6 +261,8 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
     };
     Object.assign(confirmationVars, emailTextVars(settings.emailTexts, 't1', T1_FIELDS, isEn, confirmationVars));
     Object.assign(confirmationVars, emailTextVars(settings.emailTexts, 'tableLabels', T1_TABLE_FIELDS, isEn, confirmationVars));
+    const t1Layout = (settings.emailLayouts && settings.emailLayouts.t1) || EmailBlocks.defaultLayout('t1');
+    confirmationVars.blocksHtml = EmailBlocks.renderTemplateBody('t1', t1Layout, confirmationVars);
     html = renderTemplate('1-conferma-prenotazione.html', confirmationVars);
     const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName, settings.emailSenderName);
     if (result.sent) await recordEmailSent(db, admin, quota.month);
@@ -327,6 +335,8 @@ async function notifyBookingCancelled(ctx, bookingId, booking) {
       assistButtonLabel: pickText(settings.emailTexts, 'shared', 'assistButtonLabel', isEn)
     };
     Object.assign(cancellationVars, emailTextVars(settings.emailTexts, 't7', T7_FIELDS, isEn, cancellationVars));
+    const t7Layout = (settings.emailLayouts && settings.emailLayouts.t7) || EmailBlocks.defaultLayout('t7');
+    cancellationVars.blocksHtml = EmailBlocks.renderTemplateBody('t7', t7Layout, cancellationVars);
     const html = renderTemplate('7-annullamento-prenotazione.html', cancellationVars);
     const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName, settings.emailSenderName);
     if (result.sent) await recordEmailSent(db, admin, quota.month);

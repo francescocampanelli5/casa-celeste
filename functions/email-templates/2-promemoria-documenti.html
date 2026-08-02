@@ -6,12 +6,15 @@ base alla lingua della prenotazione — il campo Subject nel template EmailJS
 deve essere esattamente {{subjectLine}}.
 
 Variabili usate: email, name, roomLabel, checkIn, docsLink, assistLink,
-isEn, subjectLine, isGroup, rooms, logoUrl, assistButtonLabel, t2_eyebrow,
-t2_h1, t2_introSingular, t2_introGroup, t2_cta, t2_assistLead
+isEn, subjectLine, isGroup, rooms, logoUrl, assistButtonLabel, blocksHtml
 
-Tutti i testi t2_* sono già renderizzati in JS (emailTextVars in _lib.js)
-contro le variabili della prenotazione — editabili da dashboard
-(Impostazioni → Email ospiti → 2. Promemoria documenti).
+blocksHtml sostituisce tutto il corpo (dal titolo al pulsante assistenza)
+con HTML già pronto, calcolato da affittacamere/js/email-block-renderer.js
+(renderTemplateBody('t2', layout, vars)) PRIMA di chiamare Mustache — vedi
+_lib.js e affittacamere/email-templates/1-conferma-prenotazione.html per
+il meccanismo completo. Layout in
+tourism_settings/site.emailLayouts.t2, editabile da dashboard → Email
+ospiti → 2. Promemoria documenti → Impaginazione.
 
 Prenotazione di più stanze insieme (isGroup=true): roomLabel elenca SOLO
 le stanze ancora senza documenti (chi ha già completato la propria non
@@ -45,40 +48,7 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
     </tr>
     <tr>
       <td class="cc-body" style="padding:32px;">
-        <p style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:#B08D1E; font-weight:700; margin:0 0 8px;">{{t2_eyebrow}}</p>
-        <h1 style="font-size:24px; line-height:1.3; color:#10233B; margin:0 0 10px; word-break:break-word;">{{t2_h1}}</h1>
-        <div style="width:40px; height:3px; background:#E0A72E; border-radius:2px; margin:0 0 18px;"></div>
-        {{^isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 20px; white-space:pre-line;">{{t2_introSingular}}</p>
-        {{/isGroup}}
-        {{#isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 20px; white-space:pre-line;">{{t2_introGroup}}</p>
-        {{/isGroup}}
-
-        {{^isGroup}}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-          <tr><td align="center">
-            <a href="{{docsLink}}" style="display:inline-block; background:#2C8FC9; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:15px; padding:14px 32px; border-radius:10px; box-shadow:0 4px 10px rgba(44,143,201,0.28);">{{t2_cta}}</a>
-          </td></tr>
-        </table>
-        {{/isGroup}}
-        {{#isGroup}}
-        {{#rooms}}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
-          <tr><td align="center">
-            <a href="{{docsLink}}" style="display:block; background:#2C8FC9; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:15px; padding:14px 32px; border-radius:10px; word-break:break-word; box-shadow:0 4px 10px rgba(44,143,201,0.28);">{{roomLabel}} — {{t2_cta}}</a>
-          </td></tr>
-        </table>
-        {{/rooms}}
-        <div style="height:14px;"></div>
-        {{/isGroup}}
-
-        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0 0 12px;">{{t2_assistLead}}</p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          <tr><td align="center">
-            <a href="{{assistLink}}" style="display:inline-block; background:#FFFFFF; color:#2C8FC9; text-decoration:none; font-weight:700; font-size:14px; padding:12px 28px; border-radius:10px; border:2px solid #2C8FC9;">{{assistButtonLabel}}</a>
-          </td></tr>
-        </table>
+        {{{blocksHtml}}}
       </td>
     </tr>
     <tr>

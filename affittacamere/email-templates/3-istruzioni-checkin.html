@@ -8,17 +8,15 @@ esattamente {{subjectLine}}.
 Variabili usate: email, name, roomLabel, checkIn, checkInTime, address,
 checkInInstructions, wifiName, wifiPassword, streetGateLink, roomAccessCode,
 hasRoomAccessCode, videoCallLink, videoCallNote, assistLink, isEn,
-subjectLine, isGroup, rooms, logoUrl, assistButtonLabel, t3_eyebrow, t3_h1,
-t3_introSingular, t3_introGroupLine1, t3_introGroupLine2, t3_streetGateBtn,
-t3_accessBoxTitle, t3_roomCodeTitleSingular, t3_roomCodeTitleGroup,
-t3_legalTitle, t3_legalBody, t3_videoCallBtn, t3_closingLine,
-tableLabels_address, tableLabels_wifi, tableLabels_wifiPassword
+subjectLine, isGroup, rooms, logoUrl, assistButtonLabel, blocksHtml
 
-Tutti i testi t3_*/tableLabels_* sono già renderizzati in JS (emailTextVars
-in _lib.js) — editabili da dashboard (Impostazioni → Email ospiti → 3.
-Istruzioni check-in). videoCallNote arriva già come stringa finale pronta
-(varianti editabili in Impostazioni → Email ospiti → Generali → Testo
-videochiamata di verifica, vedi emailVideoCallTexts in
+blocksHtml sostituisce tutto il corpo con HTML già pronto, calcolato da
+affittacamere/js/email-block-renderer.js (renderTemplateBody('t3', layout,
+vars)) PRIMA di chiamare Mustache — vedi _lib.js e
+1-conferma-prenotazione.html per il meccanismo completo. Layout in
+tourism_settings/site.emailLayouts.t3. videoCallNote arriva già come
+stringa finale pronta (varianti editabili in Impostazioni → Email ospiti →
+Generali → Testo videochiamata di verifica, vedi emailVideoCallTexts in
 email-texts-defaults.json e composeAndSendCheckin in
 guest-lifecycle-emails.js).
 
@@ -74,67 +72,7 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
     </tr>
     <tr>
       <td class="cc-body" style="padding:32px;">
-        <p style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:#2C8FC9; font-weight:700; margin:0 0 8px;">{{t3_eyebrow}}</p>
-        <h1 style="font-size:24px; line-height:1.3; color:#10233B; margin:0 0 10px; word-break:break-word;">{{t3_h1}}</h1>
-        <div style="width:40px; height:3px; background:#2C8FC9; border-radius:2px; margin:0 0 18px;"></div>
-        {{^isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 24px; white-space:pre-line;">{{t3_introSingular}}</p>
-        {{/isGroup}}
-        {{#isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px; white-space:pre-line;">{{t3_introGroupLine1}}</p>
-        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0 0 24px;">{{t3_introGroupLine2}} <strong>{{roomLabel}}</strong></p>
-        {{/isGroup}}
-
-        <table role="presentation" width="100%" style="background:#F5FAFD; border-radius:12px; border:1px solid rgba(16,35,59,0.06); padding:4px 20px; margin-bottom:20px;" cellpadding="9" cellspacing="0">
-          <tr><td width="40%" style="color:#6B7A8C; font-size:14px;">{{tableLabels_address}}</td><td width="60%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px; word-break:break-word;">{{address}}</td></tr>
-          <tr><td width="40%" style="color:#6B7A8C; font-size:14px; border-top:1px solid rgba(16,35,59,0.07);">{{tableLabels_wifi}}</td><td width="60%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px; word-break:break-word; border-top:1px solid rgba(16,35,59,0.07);">{{wifiName}}</td></tr>
-          <tr><td width="40%" style="color:#6B7A8C; font-size:14px; border-top:1px solid rgba(16,35,59,0.07);">{{tableLabels_wifiPassword}}</td><td width="60%" style="text-align:right; border-top:1px solid rgba(16,35,59,0.07);"><span style="display:inline-block; background:#EAF6FC; color:#10233B; font-weight:700; font-size:14px; font-family:'Courier New',monospace; padding:3px 10px; border-radius:6px; word-break:break-word;">{{wifiPassword}}</span></td></tr>
-        </table>
-
-        {{#streetGateLink}}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
-          <tr><td align="center">
-            <a href="{{streetGateLink}}" style="display:block; background:#10233B; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:14px; padding:12px 28px; border-radius:10px; word-break:break-word; box-shadow:0 4px 10px rgba(16,35,59,0.22);">{{t3_streetGateBtn}}</a>
-          </td></tr>
-        </table>
-        {{/streetGateLink}}
-
-        <div style="background:#EAF6FC; border-radius:12px; padding:18px 20px; margin-bottom:20px;">
-          <p style="margin:0 0 6px; font-weight:700; color:#10233B; font-size:14px;">{{t3_accessBoxTitle}}</p>
-          <p style="margin:0; color:#3C4A5C; font-size:14px; line-height:1.6; white-space:pre-line; word-break:break-word;">{{checkInInstructions}}</p>
-        </div>
-
-        {{#hasRoomAccessCode}}
-        <div style="background:#EAF6FC; border-radius:12px; padding:18px 20px; margin-bottom:20px;">
-          {{^isGroup}}
-          <p style="margin:0 0 6px; font-weight:700; color:#10233B; font-size:14px;">{{t3_roomCodeTitleSingular}}</p>
-          <p style="margin:0; color:#3C4A5C; font-size:14px; line-height:1.6; word-break:break-word;">{{roomAccessCode}}</p>
-          {{/isGroup}}
-          {{#isGroup}}
-          <p style="margin:0 0 6px; font-weight:700; color:#10233B; font-size:14px;">{{t3_roomCodeTitleGroup}}</p>
-          {{#rooms}}
-          {{#roomAccessCode}}
-          <p style="margin:0 0 4px; color:#3C4A5C; font-size:14px; line-height:1.6; word-break:break-word;"><strong>{{roomLabel}}:</strong> {{roomAccessCode}}</p>
-          {{/roomAccessCode}}
-          {{/rooms}}
-          {{/isGroup}}
-        </div>
-        {{/hasRoomAccessCode}}
-
-        <div style="background:#FDF3D9; border-radius:12px; padding:18px 20px; margin-bottom:24px;">
-          <p style="margin:0 0 6px; font-weight:700; color:#7A5E12; font-size:14px;">{{t3_legalTitle}}</p>
-          <p style="margin:0; color:#7A5E12; font-size:14px; line-height:1.6; word-break:break-word; white-space:pre-line;">{{t3_legalBody}} {{videoCallNote}}</p>
-          {{#videoCallLink}}
-          <a href="{{videoCallLink}}" style="display:inline-block; margin-top:10px; background:#10233B; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:14px; padding:10px 22px; border-radius:8px;">{{t3_videoCallBtn}}</a>
-          {{/videoCallLink}}
-        </div>
-
-        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0 0 12px; white-space:pre-line;">{{t3_closingLine}}</p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          <tr><td align="center">
-            <a href="{{assistLink}}" style="display:inline-block; background:#FFFFFF; color:#2C8FC9; text-decoration:none; font-weight:700; font-size:14px; padding:12px 28px; border-radius:10px; border:2px solid #2C8FC9;">{{assistButtonLabel}}</a>
-          </td></tr>
-        </table>
+        {{{blocksHtml}}}
       </td>
     </tr>
     <tr>

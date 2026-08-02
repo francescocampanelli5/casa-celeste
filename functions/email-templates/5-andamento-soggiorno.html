@@ -6,15 +6,16 @@ della prenotazione — il campo Subject nel template EmailJS deve essere
 esattamente {{subjectLine}}.
 
 Variabili usate: email, name, roomLabel, assistLink, isEn, subjectLine,
-isGroup, recs (lista di oggetti {title, category, url} — loop Mustache
-{{#recs}}...{{/recs}}), logoUrl, assistButtonLabel, t5_eyebrow,
-t5_h1Singular, t5_h1Group, t5_introSingular, t5_introGroup,
-t5_ideasLeadSingular, t5_ideasLeadGroup, t5_closing
+isGroup, recs (lista di oggetti {title, category, url}), logoUrl,
+assistButtonLabel, blocksHtml
 
-Tutti i testi t5_* sono già renderizzati in JS (emailTextVars in _lib.js) —
-editabili da dashboard (Impostazioni → Email ospiti → 5. Andamento
-soggiorno). title/category dei consigli sono testo libero dell'owner
-(Impostazioni → Consigli & dintorni), non fanno parte di emailTexts.
+blocksHtml sostituisce tutto il corpo con HTML già pronto, calcolato da
+affittacamere/js/email-block-renderer.js (renderTemplateBody('t5', layout,
+vars), blocco "recsList" itera su recs) PRIMA di chiamare Mustache — vedi
+_lib.js e 1-conferma-prenotazione.html per il meccanismo completo. Layout
+in tourism_settings/site.emailLayouts.t5. title/category dei consigli sono
+testo libero dell'owner (Impostazioni → Consigli & dintorni), non fanno
+parte di emailTexts.
 
 Prenotazione di più stanze insieme (isGroup=true): roomLabel diventa
 l'elenco di tutte le stanze del gruppo.
@@ -45,42 +46,7 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
     </tr>
     <tr>
       <td class="cc-body" style="padding:32px;">
-        <p style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:#2C8FC9; font-weight:700; margin:0 0 8px;">{{t5_eyebrow}}</p>
-        {{^isGroup}}
-        <h1 style="font-size:24px; line-height:1.3; color:#10233B; margin:0 0 10px; word-break:break-word;">{{t5_h1Singular}}</h1>
-        {{/isGroup}}
-        {{#isGroup}}
-        <h1 style="font-size:24px; line-height:1.3; color:#10233B; margin:0 0 10px; word-break:break-word;">{{t5_h1Group}}</h1>
-        {{/isGroup}}
-        <div style="width:40px; height:3px; background:#2C8FC9; border-radius:2px; margin:0 0 18px;"></div>
-        {{^isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px; white-space:pre-line;">{{t5_introSingular}}</p>
-        {{/isGroup}}
-        {{#isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px; white-space:pre-line;">{{t5_introGroup}}</p>
-        {{/isGroup}}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
-          <tr><td align="center">
-            <a href="{{assistLink}}" style="display:inline-block; background:#FFFFFF; color:#2C8FC9; text-decoration:none; font-weight:700; font-size:14px; padding:12px 28px; border-radius:10px; border:2px solid #2C8FC9;">{{assistButtonLabel}}</a>
-          </td></tr>
-        </table>
-        {{^isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px;">{{t5_ideasLeadSingular}}</p>
-        {{/isGroup}}
-        {{#isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 12px;">{{t5_ideasLeadGroup}}</p>
-        {{/isGroup}}
-
-        {{#recs}}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px; border:1px solid rgba(16,35,59,0.08); border-radius:10px;">
-          <tr><td style="padding:14px 16px;">
-            {{#category}}<div style="font-size:12px; text-transform:uppercase; letter-spacing:0.03em; color:#2C8FC9; font-weight:700; margin:0 0 4px; word-break:break-word;">{{category}}</div>{{/category}}
-            <a href="{{url}}" style="font-size:15px; font-weight:700; color:#10233B; text-decoration:none; word-break:break-word;">{{title}}</a>
-          </td></tr>
-        </table>
-        {{/recs}}
-
-        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:16px 0 0;">{{t5_closing}}</p>
+        {{{blocksHtml}}}
       </td>
     </tr>
     <tr>

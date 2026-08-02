@@ -47,7 +47,7 @@ async function sendReminder(settings, docsGroup) {
     isGroup: isGroup, rooms: isGroup ? rooms : []
   }, 1, isGroup
     ? ('promemoria documenti di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('promemoria documenti (' + first.doc.id + ')'), { section: 't2', fields: T2_FIELDS });
+    : ('promemoria documenti (' + first.doc.id + ')'), { section: 't2', fields: T2_FIELDS, layoutKey: 't2' });
 
   if (result.sent) {
     await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ guestDocsReminderSent: true }); }));

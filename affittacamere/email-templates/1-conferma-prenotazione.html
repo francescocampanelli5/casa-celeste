@@ -9,18 +9,20 @@ campo Subject nel template EmailJS deve essere esattamente {{subjectLine}}.
 Variabili usate: email, name, roomLabel, checkIn, checkOut, nights, guests,
 totalDue, docsLink, checkInTime, checkOutTime, googleCalendarLink, icsLink,
 assistLink, isEn, subjectLine, isGroup, rooms, logoUrl, assistButtonLabel,
-t1_eyebrow, t1_h1, t1_introSingular, t1_introGroup, t1_calendarLabel,
-t1_legalTitle, t1_legalBody, t1_ctaSingular, t1_ctaGroupIntro,
-t1_ctaGroupSuffix, t1_assistLead, t1_spamNote, tableLabels_checkIn,
-tableLabels_checkOut, tableLabels_nights, tableLabels_guests,
-tableLabels_touristTax
+blocksHtml
 
-Tutti i testi t1_* e tableLabels_* sono già renderizzati in JS (vedi
-emailTextVars in _lib.js) contro le variabili della prenotazione — arrivano
-qui come stringa finale in chiaro, editabile da dashboard (Impostazioni →
-Email ospiti → 1. Conferma) con fallback al testo predefinito se non
-personalizzato. Non riscrivere qui testo fisso per queste sezioni: si
-perderebbe all'aggiornamento successivo del template.
+blocksHtml sostituisce tutto il corpo (dal titolo alla nota spam incluso)
+con HTML già pronto, calcolato da affittacamere/js/email-block-renderer.js
+(renderTemplateBody('t1', layout, vars)) PRIMA di chiamare Mustache — vedi
+_lib.js. Il layout (ordine dei blocchi essenziali + eventuali blocchi
+liberi aggiunti da dashboard → Email ospiti → Impaginazione) vive in
+tourism_settings/site.emailLayouts.t1, con fallback al layout di default
+(stesso ordine che c'era qui prima, invariato) se non ancora personalizzato.
+Non riscrivere qui markup fisso per il corpo: andrebbe perso, l'unica fonte
+ora è email-block-renderer.js (stessa funzione usata anche per l'anteprima
+live in dashboard — garantisce WYSIWYG). I singoli testi (t1_h1, ecc.)
+restano modificabili da dashboard esattamente come prima, sono renderizzati
+dentro le funzioni ESSENTIAL_RENDERERS.t1 del renderer.
 
 googleCalendarLink e icsLink permettono all'ospite di salvare le date sul
 proprio calendario: il primo apre Google Calendar precompilato (nessun
@@ -68,70 +70,7 @@ Ricorda: To Email = {{email}} nelle impostazioni del template (vedi README).
     </tr>
     <tr>
       <td class="cc-body" style="padding:32px;">
-        <p style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:#2C8FC9; font-weight:700; margin:0 0 8px;">{{t1_eyebrow}}</p>
-        <h1 style="font-size:24px; line-height:1.3; color:#10233B; margin:0 0 10px; word-break:break-word;">{{t1_h1}}</h1>
-        <div style="width:40px; height:3px; background:#2C8FC9; border-radius:2px; margin:0 0 18px;"></div>
-        {{^isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 24px; white-space:pre-line;">{{t1_introSingular}}</p>
-        {{/isGroup}}
-        {{#isGroup}}
-        <p style="font-size:15px; line-height:1.6; color:#3C4A5C; margin:0 0 24px; white-space:pre-line;">{{t1_introGroup}}</p>
-        {{/isGroup}}
-
-        <table role="presentation" width="100%" style="background:#F5FAFD; border-radius:12px; border:1px solid rgba(16,35,59,0.06); padding:4px 20px; margin-bottom:24px;" cellpadding="9" cellspacing="0">
-          <tr><td width="45%" style="color:#6B7A8C; font-size:14px;">{{tableLabels_checkIn}}</td><td width="55%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px; word-break:break-word;">{{^isEn}}{{checkIn}}, dalle {{checkInTime}}{{/isEn}}{{#isEn}}{{checkIn}}, from {{checkInTime}}{{/isEn}}</td></tr>
-          <tr><td width="45%" style="color:#6B7A8C; font-size:14px; border-top:1px solid rgba(16,35,59,0.07);">{{tableLabels_checkOut}}</td><td width="55%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px; word-break:break-word; border-top:1px solid rgba(16,35,59,0.07);">{{^isEn}}{{checkOut}}, entro le {{checkOutTime}}{{/isEn}}{{#isEn}}{{checkOut}}, by {{checkOutTime}}{{/isEn}}</td></tr>
-          <tr><td width="45%" style="color:#6B7A8C; font-size:14px; border-top:1px solid rgba(16,35,59,0.07);">{{tableLabels_nights}}</td><td width="55%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px; border-top:1px solid rgba(16,35,59,0.07);">{{nights}}</td></tr>
-          <tr><td width="45%" style="color:#6B7A8C; font-size:14px; border-top:1px solid rgba(16,35,59,0.07);">{{tableLabels_guests}}</td><td width="55%" style="text-align:right; font-weight:700; color:#10233B; font-size:14px; border-top:1px solid rgba(16,35,59,0.07);">{{guests}}</td></tr>
-          <tr><td width="45%" style="color:#10233B; font-size:14px; font-weight:700; border-top:1px solid rgba(16,35,59,0.12); padding-top:13px;">{{tableLabels_touristTax}}</td><td width="55%" style="text-align:right; font-weight:700; color:#2C8FC9; font-size:15px; border-top:1px solid rgba(16,35,59,0.12); padding-top:13px;">€{{totalDue}}</td></tr>
-        </table>
-
-        <p style="font-size:13px; color:#6B7A8C; margin:0 0 10px;">{{t1_calendarLabel}}</p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-          <tr>
-            <td width="50%" align="center" style="padding-right:6px;">
-              <a href="{{googleCalendarLink}}" style="display:block; background:#FFFFFF; color:#10233B; text-decoration:none; font-weight:700; font-size:13px; padding:12px 8px; border-radius:10px; border:1px solid rgba(16,35,59,0.15); word-break:break-word;">Google Calendar</a>
-            </td>
-            <td width="50%" align="center" style="padding-left:6px;">
-              <a href="{{icsLink}}" style="display:block; background:#FFFFFF; color:#10233B; text-decoration:none; font-weight:700; font-size:13px; padding:12px 8px; border-radius:10px; border:1px solid rgba(16,35,59,0.15); word-break:break-word;">Apple / Outlook (.ics)</a>
-            </td>
-          </tr>
-        </table>
-
-        <div style="background:#FDF3D9; border-radius:12px; padding:18px 20px; margin-bottom:24px;">
-          <p style="margin:0 0 6px; font-weight:700; color:#7A5E12; font-size:14px;">{{t1_legalTitle}}</p>
-          <p style="margin:0; color:#7A5E12; font-size:14px; line-height:1.5; white-space:pre-line;">{{t1_legalBody}}</p>
-        </div>
-
-        {{^isGroup}}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-          <tr><td align="center">
-            <a href="{{docsLink}}" style="display:inline-block; background:#2C8FC9; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:15px; padding:14px 32px; border-radius:10px; box-shadow:0 4px 10px rgba(44,143,201,0.28);">{{t1_ctaSingular}}</a>
-          </td></tr>
-        </table>
-        {{/isGroup}}
-        {{#isGroup}}
-        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0 0 10px;">{{t1_ctaGroupIntro}}</p>
-        {{#rooms}}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
-          <tr><td align="center">
-            <a href="{{docsLink}}" style="display:block; background:#2C8FC9; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:15px; padding:14px 32px; border-radius:10px; word-break:break-word; box-shadow:0 4px 10px rgba(44,143,201,0.28);">{{roomLabel}} — {{t1_ctaGroupSuffix}}</a>
-          </td></tr>
-        </table>
-        {{/rooms}}
-        <div style="height:18px;"></div>
-        {{/isGroup}}
-
-        <p style="font-size:14px; line-height:1.6; color:#3C4A5C; margin:0 0 12px;">{{t1_assistLead}}</p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          <tr><td align="center">
-            <a href="{{assistLink}}" style="display:inline-block; background:#FFFFFF; color:#2C8FC9; text-decoration:none; font-weight:700; font-size:14px; padding:12px 28px; border-radius:10px; border:2px solid #2C8FC9;">{{assistButtonLabel}}</a>
-          </td></tr>
-        </table>
-
-        <div style="border-top:1px solid rgba(16,35,59,0.08); margin-top:24px; padding-top:16px;">
-          <p style="font-size:12px; line-height:1.6; color:#8A98A8; margin:0; white-space:pre-line;">{{t1_spamNote}}</p>
-        </div>
+        {{{blocksHtml}}}
       </td>
     </tr>
     <tr>

@@ -216,7 +216,7 @@ async function composeAndSendConfirmation(settings, docsGroup) {
 
   var result = await lib.sendGuestEmail(db, settings, TPL_CONFIRMATION, confirmationVars, 2, isGroup
     ? ('conferma prenotazione di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('conferma prenotazione (' + first.doc.id + ')'), { section: 't1', fields: T1_FIELDS, tableFields: T1_TABLE_FIELDS });
+    : ('conferma prenotazione (' + first.doc.id + ')'), { section: 't1', fields: T1_FIELDS, tableFields: T1_TABLE_FIELDS, layoutKey: 't1' });
 
   if (result.sent) {
     await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ confirmationEmailSent: true }); }));
@@ -309,7 +309,7 @@ async function composeAndSendCheckin(settings, docsGroup) {
 
   var result = await lib.sendGuestEmail(db, settings, TPL_CHECKIN, checkinVars, 1, isGroup
     ? ('istruzioni check-in di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('istruzioni check-in (' + first.doc.id + ')'), { section: 't3', fields: T3_FIELDS, tableFields: T3_TABLE_FIELDS });
+    : ('istruzioni check-in (' + first.doc.id + ')'), { section: 't3', fields: T3_FIELDS, tableFields: T3_TABLE_FIELDS, layoutKey: 't3' });
 
   if (result.sent) {
     await Promise.all(docsGroup.map(function (item) {
@@ -355,7 +355,7 @@ async function composeAndSendThankYou(settings, docsGroup) {
     reviewLink: lib.normalizeExternalUrl(settings.reviewLink)
   }, 3, isGroup
     ? ('ringraziamento di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('ringraziamento + istruzioni check-out (' + first.doc.id + ')'), { section: 't4', fields: T4_FIELDS });
+    : ('ringraziamento + istruzioni check-out (' + first.doc.id + ')'), { section: 't4', fields: T4_FIELDS, layoutKey: 't4' });
   if (result.sent) await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ thankYouEmailSent: true }); }));
   return result.sent;
 }
@@ -388,7 +388,7 @@ async function composeAndSendWellness(settings, docsGroup) {
     assistLink: assistLink(), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('wellness', isEn, rep, settings), recs: recs
   }, 4, isGroup
     ? ('consigli metà soggiorno di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('consigli a metà soggiorno (' + first.doc.id + ')'), { section: 't5', fields: T5_FIELDS });
+    : ('consigli a metà soggiorno (' + first.doc.id + ')'), { section: 't5', fields: T5_FIELDS, layoutKey: 't5' });
   if (result.sent) await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ wellnessEmailSent: true }); }));
   return result.sent;
 }
@@ -426,7 +426,7 @@ async function composeAndSendReviewRequest(settings, docsGroup) {
     reviewLink: lib.normalizeExternalUrl(settings.reviewLink), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('reviewRequest', isEn, rep, settings)
   }, 4, isGroup
     ? ('richiesta recensione di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('richiesta recensione (' + first.doc.id + ')'), { section: 't6', fields: T6_FIELDS });
+    : ('richiesta recensione (' + first.doc.id + ')'), { section: 't6', fields: T6_FIELDS, layoutKey: 't6' });
   if (result.sent) await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ reviewRequestEmailSent: true }); }));
   return result.sent;
 }

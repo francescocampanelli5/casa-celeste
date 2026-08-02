@@ -58,6 +58,60 @@ script di invio pertinente, e `EMAIL_FIELD_GROUPS` in
 ospiti) — oltre a sostituire il testo fisso nel file `.html` con la
 variabile corrispondente.
 
+## Impaginazione a blocchi, drag-and-drop (Impostazioni → Email ospiti → Impaginazione)
+
+Oltre al testo, la **struttura** di ognuna delle 7 email è modificabile
+visivamente: ogni email è una sequenza di **blocchi essenziali** (dati
+della prenotazione, testo richiesto per legge — tabella soggiorno, avviso
+Questura, box rimborso, bottoni documenti/videochiamata/calendario) più
+eventuali **blocchi liberi** (testo, immagine, pulsante, divisore, spazio)
+che si possono aggiungere ovunque. Si trascinano per riordinarli
+(compresi quelli essenziali), si aggiungono/eliminano/modificano i
+liberi, con un'anteprima grafica che mostra dal vivo il risultato. I
+blocchi essenziali non si possono eliminare (restano sempre presenti nel
+contenuto, solo l'ordine è modificabile) — il loro testo si modifica come
+prima, negli stessi campi della sezione "Testi" qui sopra (aprendoli dal
+pulsante "Modifica" sul blocco, o direttamente più in basso nella
+pagina).
+
+**Motore condiviso** (`email-block-renderer.js`, triplicato identico —
+stesso motivo di `email-texts-defaults.json` — in `affittacamere/js/`,
+`affittacamere/scripts/` e `functions/`): la stessa funzione
+`renderTemplateBody(templateKey, layout, vars)` genera sia l'anteprima
+nella dashboard sia l'HTML della mail vera spedita, quindi non possono
+divergere. I 7 file `.html` in questa cartella non contengono più il
+corpo della mail: `<td class="cc-body">` ha solo `{{{blocksHtml}}}`,
+calcolato da questa funzione PRIMA di passare al resto della pipeline
+Mustache (subject, `{{email}}`, ecc. — invariati). Header e footer
+restano fissi nel file `.html` (non fanno parte dell'impaginazione
+modificabile).
+
+Il layout (ordine dei blocchi + eventuali blocchi liberi) vive in
+`tourism_settings/site.emailLayouts.<t1..t7>`; se assente, si usa il
+layout di default (stesso ordine originale del template, hardcoded in
+`email-block-renderer.js`, `DEFAULT_LAYOUTS`) — nessuna prenotazione
+esistente si rompe finché non si personalizza esplicitamente.
+
+**Validazione al salvataggio**: un pulsante libero con link personalizzato
+vuoto o non a norma (`http://`/`https://` mancante) blocca il
+salvataggio finché non viene corretto; un pulsante che punta al link
+recensione mentre `reviewLink` non è ancora configurato in Impostazioni
+mostra un avviso non bloccante. È un controllo sul **formato** del link,
+non sulla sua raggiungibilità in rete (nessun fetch dell'URL). I link
+dinamici (documenti, videochiamata, calendario) sono sempre validi per
+costruzione, generati dallo script con i dati reali della prenotazione al
+momento dell'invio.
+
+**Aggiungendo un blocco essenziale o un template**: estendere
+`ESSENTIAL_RENDERERS`, `DEFAULT_LAYOUTS`, `ESSENTIAL_LABELS` (e,
+opzionalmente, `ACCENT_COLORS`) in `email-block-renderer.js` (tutte e tre
+le copie, verificare con `diff` che restino identiche), poi
+`ESSENTIAL_BLOCK_FIELD_KEYS`/`EMAIL_PREVIEW_TEXT_FIELDS`/
+`emailPreviewTemplateVars` in `affittacamere/js/dashboard.js` (per
+l'editor/anteprima), infine aggiungere `layoutKey` alla chiamata
+`sendGuestEmail` (o l'equivalente in `functions/guest-notify.js`) dello
+script di invio pertinente.
+
 ## Logo (Impostazioni → Email ospiti → Generali)
 
 Se carichi un'immagine, sostituisce i due pallini colorati + nome sito

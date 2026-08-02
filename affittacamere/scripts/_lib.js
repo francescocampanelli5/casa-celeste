@@ -170,6 +170,11 @@ function stripDocComment(html) {
   return html.replace(/^\s*<!--[\s\S]*?-->\s*/, '');
 }
 var TEMPLATES_DIR = require('path').join(__dirname, '..', 'email-templates');
+// Motore di rendering condiviso del corpo email (blocchi essenziali +
+// liberi, editor drag-and-drop in dashboard → Email ospiti →
+// Impaginazione) — STESSO file (byte-identico) usato dalla dashboard per
+// l'anteprima live, vedi affittacamere/js/email-block-renderer.js.
+var EmailBlocks = require('./email-block-renderer.js');
 function renderTemplate(fileName, vars) {
   var fs = require('fs');
   var Mustache = require('mustache');
@@ -226,12 +231,16 @@ function getMailTransport() {
   mailTransport = nodemailer.createTransport({ service: 'gmail', auth: { user: user, pass: pass } });
   return mailTransport;
 }
-// textConfig (facoltativo): { section: 't1', fields: [...], tableFields: [...] } —
-// dopo aver unito templateParams ai vars di base (che include già
-// siteName/city/ecc.), renderizza i testi editabili da dashboard per QUESTO
-// template (Impostazioni → Email ospiti) e li aggiunge come {{sezione_campo}}
-// già pronti. Fatto qui (non nel chiamante) apposta: solo qui vars contiene
-// già {{city}}/{{siteName}}, di cui molti testi liberi hanno bisogno.
+// textConfig (facoltativo): { section: 't1', fields: [...], tableFields: [...],
+// layoutKey: 't1' } — dopo aver unito templateParams ai vars di base (che
+// include già siteName/city/ecc.), renderizza i testi editabili da
+// dashboard per QUESTO template (Impostazioni → Email ospiti) e li
+// aggiunge come {{sezione_campo}} già pronti. Fatto qui (non nel
+// chiamante) apposta: solo qui vars contiene già {{city}}/{{siteName}}, di
+// cui molti testi liberi hanno bisogno. layoutKey (se presente) calcola
+// anche {{{blocksHtml}}} con l'impaginazione salvata da dashboard →
+// Impaginazione (tourism_settings/site.emailLayouts.<layoutKey>), o il
+// layout di default se non ancora personalizzata.
 async function sendGuestEmail(db, settings, templateFile, templateParams, priority, label, textConfig) {
   var transport = getMailTransport();
   if (!transport) {
@@ -266,6 +275,10 @@ async function sendGuestEmail(db, settings, templateFile, templateParams, priori
   if (textConfig) {
     if (textConfig.fields) Object.assign(vars, emailTextVars(settings.emailTexts, textConfig.section, textConfig.fields, isEnForShared, vars));
     if (textConfig.tableFields) Object.assign(vars, emailTextVars(settings.emailTexts, 'tableLabels', textConfig.tableFields, isEnForShared, vars));
+    if (textConfig.layoutKey) {
+      var layout = (settings.emailLayouts && settings.emailLayouts[textConfig.layoutKey]) || EmailBlocks.defaultLayout(textConfig.layoutKey);
+      vars.blocksHtml = EmailBlocks.renderTemplateBody(textConfig.layoutKey, layout, vars);
+    }
   }
   var html = renderTemplate(templateFile, vars);
   await transport.sendMail({

@@ -380,6 +380,16 @@ window.CasaCelesteTourismDB = {
     var fileRef = storageRef(storage, 'tourism-site/logo/logo.' + (ext || 'png'));
     return deleteObject(fileRef).catch(function () {});
   },
+  // Immagini dei blocchi liberi "immagine" nell'editor a blocchi delle
+  // email (Impostazioni → Email ospiti → Impaginazione), un file per
+  // blocco (blockId univoco generato in dashboard.js), sovrascritto se lo
+  // stesso blocco carica una nuova immagine.
+  uploadEmailBlockImage: function (templateKey, blockId, file) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    var fileRef = storageRef(storage, 'tourism-site/email-blocks/' + templateKey + '-' + blockId + '.' + ext);
+    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+  },
 
   // ---- upload foto documento ospite (area TEMPORANEA, pubblica in
   // scrittura, spostata dalla Cloud Function submitGuestDocuments in
