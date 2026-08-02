@@ -550,7 +550,11 @@
       if (override) el.textContent = override;
     });
     var mapsCtaLink = document.getElementById('maps-cta-link');
-    if (mapsCtaLink) mapsCtaLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(houseAddress());
+    // Se il proprietario ha incollato un link Google Maps (Impostazioni →
+    // Struttura), è più preciso di un indirizzo testuale ri-geocodificato —
+    // usato direttamente come destinazione del bottone "Apri indicazioni".
+    var mapLinkOverride = (state.settings && state.settings.mapLink || '').trim();
+    if (mapsCtaLink) mapsCtaLink.href = mapLinkOverride || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(houseAddress()));
     document.querySelectorAll('[data-lang-set]').forEach(function (el) {
       el.classList.toggle('is-active', el.getAttribute('data-lang-set') === state.lang);
     });
@@ -607,11 +611,18 @@
     }).join('');
     container.innerHTML =
       '<div class="carousel-media">' +
-        '<span class="carousel-tag" style="background:' + tagBg + ';">' + escapeHtml(tf(slide.eyebrow)) + '</span>' +
         '<span class="photo-placeholder">' + escapeHtml(t('photo.prefix')) + ' ' + escapeHtml(tf(slide.caption)) + '</span>' +
         photoTag(img, tf(slide.caption)) +
       '</div>' +
       '<div>' +
+        // Il tag stava sovrapposto alla foto (position:absolute in alto a
+        // sinistra): da quando la foto usa object-fit:contain (può non
+        // riempire l'intero riquadro se verticale) finiva spesso nello
+        // spazio vuoto invece che sullo scatto, sembrando staccato/"sopra"
+        // la foto invece che un'etichetta su di essa. Spostato in testo
+        // normale sopra il titolo, sempre nella stessa posizione qualunque
+        // sia la forma della foto.
+        '<span class="carousel-tag" style="background:' + tagBg + ';">' + escapeHtml(tf(slide.eyebrow)) + '</span>' +
         '<h3 class="carousel-title">' + escapeHtml(tf(slide.title)) + '</h3>' +
         '<p class="carousel-text">' + escapeHtml(tf(slide.text)) + '</p>' +
         '<div class="carousel-dots">' + dotsHtml + '</div>' +
@@ -953,11 +964,16 @@
     var url = 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(houseAddress()) + '&destination=' + encodeURIComponent(dest) + '&travelmode=walking';
     window.open(url, '_blank', 'noopener');
   }
+  // Solo gli slot con una foto CARICATA DAVVERO: prima si riempiva sempre
+  // fino a DETAIL_MAX_PHOTOS con un fallback locale 'images/<id>-N.jpg' per
+  // ogni slot vuoto, ma quei file non esistono per le stanze con meno foto
+  // caricate — risultato: la galleria mostrava sempre "6 foto" con
+  // un'immagine rotta/mancante per ogni slot in realtà vuoto. Se non è
+  // stata caricata nessuna foto, un solo fallback (coerente con la card
+  // della lista stanze) invece di sei tasselli tutti rotti.
   function roomPhotos(id, room) {
-    var uploaded = room.photos || [];
-    var list = [];
-    for (var i = 1; i <= DETAIL_MAX_PHOTOS; i++) list.push(uploaded[i - 1] || ('images/' + id + '-' + i + '.jpg'));
-    return list;
+    var uploaded = (room.photos || []).filter(function (src) { return !!src; });
+    return uploaded.length ? uploaded : ['images/' + id + '-1.jpg'];
   }
   function openRoomDetail(id, scrollToCalendar) {
     if (!id || !state.roomsData[id]) return;
@@ -3811,10 +3827,27 @@
      link "Apri indicazioni" sui punti d'interesse (data-map-poi), che aprono
      sempre Google Maps in una nuova scheda, mai la mappa incorporata.
      ========================================================================== */
+  // Un link "Condividi" normale di Google Maps non si può incorporare in un
+  // iframe (Google lo blocca): solo il link generato da Condividi →
+  // "Incorpora una mappa" (contiene /maps/embed) funziona, sia incollato
+  // come URL nudo sia come il tag <iframe...> intero copiato da lì — in tal
+  // caso ne estraiamo solo il src. Qualunque altro link (es. un normale
+  // link di condivisione posizione) non è utilizzabile per l'iframe: resta
+  // il fallback con l'indirizzo testuale, che è comunque usato subito per
+  // il bottone "Apri indicazioni" (vedi renderContactHostBar).
+  function mapEmbedSrc(query) {
+    var link = ((state.settings && state.settings.mapLink) || '').trim();
+    if (link) {
+      var iframeSrcMatch = link.match(/src=["']([^"']+)["']/);
+      if (iframeSrcMatch) link = iframeSrcMatch[1];
+      if (link.indexOf('maps/embed') !== -1) return link;
+    }
+    return 'https://www.google.com/maps?q=' + encodeURIComponent(query) + '&output=embed';
+  }
   function loadMapEmbed(el) {
     var query = houseAddress() || el.getAttribute('data-map-query') || '';
     var siteName = (state.settings && state.settings.siteName) || 'Casa Celeste';
-    el.outerHTML = '<iframe title="' + escapeHtml('Mappa ' + siteName) + '" src="https://www.google.com/maps?q=' + encodeURIComponent(query) + '&output=embed" loading="lazy"></iframe>';
+    el.outerHTML = '<iframe title="' + escapeHtml('Mappa ' + siteName) + '" src="' + escapeHtml(mapEmbedSrc(query)) + '" loading="lazy"></iframe>';
   }
   function loadAllMapEmbeds() {
     var placeholders = document.querySelectorAll('[data-map-placeholder]');

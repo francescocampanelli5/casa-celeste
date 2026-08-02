@@ -396,8 +396,9 @@ button { font-family: inherit; }
    l'eventuale spazio ai lati riempito dallo sfondo del riquadro. */
 .carousel-media .real-photo { object-fit: contain; }
 .carousel-tag {
-  position: absolute; top: 14px; left: 14px; color: var(--navy);
+  display: inline-block; color: var(--navy);
   font-weight: 800; font-size: 11.5px; padding: 7px 14px; border-radius: var(--radius-pill);
+  margin-bottom: 12px;
 }
 .carousel-title { font-family: var(--font-display); font-weight: 800; font-size: 27px; margin: 0 0 14px; color: var(--navy); }
 /* min-height fissa: sulle schermate dove media e testo si impilano (mobile),
@@ -646,6 +647,23 @@ button { font-family: inherit; }
 .admin-price { display: flex; align-items: center; gap: 4px; }
 .admin-price span { font-size: 12.5px; color: var(--text-faintest); }
 .admin-note { font-size: 12px; color: var(--text-faintest); margin-top: 14px; }
+/* Note lunghe (istruzioni, spiegazioni, esempi) nascoste finché non si
+   clicca l'icona ⓘ, invece di restare sempre visibili a riempire la
+   schermata — <details> nativo: nessuno stato JS da gestire, il browser
+   fa già tutto (apertura/chiusura, accessibilità da tastiera). */
+.admin-note-toggle { margin-top: 10px; }
+.admin-note-toggle summary {
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; color: var(--blue-deep);
+}
+.admin-note-toggle summary::-webkit-details-marker { display: none; }
+.admin-note-toggle summary::before {
+  content: 'i'; font-style: italic; font-family: Georgia, serif; font-weight: 800; font-size: 11px;
+  width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--blue-deep);
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.admin-note-toggle[open] summary { margin-bottom: 6px; }
+.admin-note-toggle > .admin-note { margin-top: 0; }
 
 /* margin-bottom qui (non solo gap nei contenitori .dash-room-rows): quando
    più card si susseguono senza un wrapper flex (es. tab Impostazioni,
@@ -659,10 +677,18 @@ button { font-family: inherit; }
 }
 .admin-room-card:last-child { margin-bottom: 0; }
 .dash-room-rows .admin-room-card { margin-bottom: 0; }
-.admin-room-head { display: flex; align-items: center; gap: 10px; }
+.admin-room-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rec-clicks-hint { font-size: 12px; font-weight: 700; color: var(--blue-deep); background: var(--blue-bg-soft); border-radius: var(--radius-xs); padding: 6px 10px; display: inline-block; width: fit-content; }
 .admin-room-name { font-weight: 700; font-size: 14px; flex: 1; min-width: 0; }
 .admin-room-slug { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-faintest); white-space: nowrap; }
+/* Su mobile il nome stanza (flex:1, min-width:0) veniva schiacciato quasi a
+   zero dai vicini a larghezza fissa (pillola stato, slug, "Elimina") sulla
+   stessa riga, mostrando il testo troncato (es. "Maestra" invece di
+   "Maestrale") pur essendo il valore salvato per intero. Il nome prende
+   sempre la riga intera, il resto va a capo sotto. */
+@media (max-width: 640px) {
+  .admin-room-name { flex-basis: 100%; }
+}
 .admin-field-group { display: flex; flex-direction: column; gap: 4px; }
 .admin-field-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .admin-field-group--full { width: 100%; }
@@ -1548,6 +1574,15 @@ button { font-family: inherit; }
   border-radius: var(--radius-xxs); margin: 4px 0;
 }
 .booking-actions { display: flex; flex-direction: column; gap: var(--dash-space-2); align-items: stretch; min-width: 150px; }
+/* Su mobile le due colonne (testo a sinistra, stato/bottoni a destra) non
+   hanno spazio: testo e azioni finivano entrambi schiacciati in colonne
+   strette e affiancate, invece che leggibili in sequenza — vedi
+   screenshot allegato dall'utente. Una sola colonna: tutte le
+   informazioni della prenotazione per intero, poi le azioni sotto. */
+@media (max-width: 640px) {
+  .booking-card { grid-template-columns: 1fr; }
+  .booking-actions { min-width: 0; margin-top: var(--dash-space-2); padding-top: var(--dash-space-3); border-top: 1px solid var(--border-hairline); }
+}
 .dash-select { border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
 .dash-status-pill { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 100px; display: inline-block; width: fit-content; }
 .dash-status-pill--nuovo { background: #FDF3D9; color: #8C6A16; }
@@ -1612,7 +1647,8 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 .cal-gantt-room-status {
   font-size: 9.5px; padding: 2px 8px; letter-spacing: 0.02em;
 }
-.cal-gantt-day-cell { min-width: 34px; }
+.cal-gantt-day-cell { min-width: 34px; cursor: pointer; }
+.cal-gantt-day-cell:hover { background: var(--panel-bg); }
 
 .cal-bar {
   align-self: center; margin: 4px 2px; padding: 3px 8px; border-radius: var(--radius-xxs);
@@ -1725,6 +1761,12 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
      sotto non appena entrambe si agganciano scorrendo. Niente sticky per lei
      su mobile: resta semplicemente nel flusso normale, senza sovrapporsi. */
   .settings-subnav { position: static; top: auto; }
+  /* Le stanze sono normalmente 4 (2 coppie): con flex-wrap naturale, tre
+     pillole di larghezza diversa entravano nella prima riga e la quarta
+     andava sola nella seconda ("3 in coda e 1 di lato") — una griglia fissa
+     a 2 colonne dà sempre 2+2, indipendentemente dalla lunghezza dei nomi. */
+  .cal-room-status-strip { display: grid; grid-template-columns: repeat(2, 1fr); }
+  .cal-room-status-chip { justify-content: center; }
 }
 @media (min-width: 901px) {
   .dash-mobile-topbar { display: none; }

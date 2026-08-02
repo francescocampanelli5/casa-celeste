@@ -23,6 +23,11 @@
     maintenanceData: [],
     assistMessages: [],
     manualBookingOpen: false,
+    // Valorizzato quando si clicca una cella vuota data/stanza nel
+    // Calendario (Gantt): precompila il form di prenotazione manuale nella
+    // tab Prenotazioni invece di duplicarne la logica di validazione/
+    // salvataggio — vedi bindCalendarEvents e manualBookingFormHtml.
+    manualBookingPrefill: null,
     bookingsFilter: { roomId: '', source: '', status: '', from: '', to: '' },
     maintenanceFormOpen: false,
     calendarView: 'gantt',
@@ -61,6 +66,14 @@
     return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+  // Nota lunga (istruzioni/spiegazioni/esempi) nascosta dietro un'icona ⓘ
+  // finché non viene aperta — <details> nativo, l'HTML passato in `html` è
+  // già fidato (stringhe scritte qui nel codice, stesso trattamento di
+  // .admin-note altrove, mai testo utente non sanificato).
+  function infoNoteHtml(html, label) {
+    if (!html) return '';
+    return '<details class="admin-note-toggle"><summary>' + escapeHtml(label || 'Info') + '</summary><div class="admin-note">' + html + '</div></details>';
   }
   function biVal(field, lang) {
     if (field == null) return '';
@@ -208,11 +221,16 @@
       { tab: 'bookings', label: 'Prenotazioni' },
       { tab: 'assist', label: 'Assistenza', badge: function () { return assistUnreadCount(); } }
     ] },
+    // Ordine allineato a come le sezioni compaiono sul sito dall'alto in
+    // basso (index.html: #monopoli, #stanze, #spazi-comuni-anchor,
+    // #testimonianze), non un ordine arbitrario — così chi lavora dalla
+    // dashboard trova le voci nello stesso ordine in cui appaiono agli
+    // ospiti, invece di doverle cercare.
     { title: 'Contenuti', items: [
+      { tab: 'monopoli', label: 'Monopoli' },
       { tab: 'rooms', label: 'Stanze' },
       { tab: 'commons', label: 'Spazi comuni' },
-      { tab: 'reviews', label: 'Recensioni' },
-      { tab: 'monopoli', label: 'Monopoli' }
+      { tab: 'reviews', label: 'Recensioni' }
     ] },
     { title: 'Sistema', items: [
       { tab: 'compliance', label: 'Adempimenti' },
@@ -279,7 +297,15 @@
     // Stessa logica, estesa: un ridisegno a metà trascinamento nel Calendario
     // interromperebbe il drag&drop nativo esattamente come distruggerebbe un
     // input col focus — vedi bindCalendarEvents/dragstart.
-    if (state.dragInProgress || (active && content.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT'))) {
+    // SELECT escluso apposta (a differenza di INPUT/TEXTAREA): il suo valore
+    // si salva subito al 'change', quindi non c'è testo "in corso di
+    // battitura" da proteggere. Includerlo bloccava il re-render a tempo
+    // indeterminato (finché non arrivava un focusout) ogni volta che un
+    // select del pannello aveva ancora il focus — su mobile è la norma dopo
+    // aver usato un <select> nativo — nascondendo azioni riuscite come
+    // l'eliminazione di una prenotazione: il documento spariva da Firestore
+    // ma la card restava a schermo, sembrando che "non fosse successo nulla".
+    if (state.dragInProgress || (active && content.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA'))) {
       state.rerenderPending = true;
       return;
     }
@@ -392,8 +418,11 @@
     if (!state.manualBookingOpen) {
       return '<button type="button" class="dash-add-room-btn" id="open-manual-booking-btn">+ Aggiungi prenotazione manuale (Airbnb/Booking/telefono)</button>';
     }
+    // Precompilata se si arriva da un click su una cella vuota del Calendario
+    // (vedi bindCalendarEvents/data-cal-daycell) — altrimenti tutto vuoto.
+    var prefill = state.manualBookingPrefill || {};
     var roomOptions = Object.keys(state.roomsData).sort(function (a, b) { return (state.roomsData[a].order || 0) - (state.roomsData[b].order || 0); })
-      .map(function (id) { return '<option value="' + id + '">' + escapeHtml(state.roomsData[id].name) + '</option>'; }).join('');
+      .map(function (id) { return '<option value="' + id + '"' + (prefill.roomId === id ? ' selected' : '') + '>' + escapeHtml(state.roomsData[id].name) + '</option>'; }).join('');
     return (
       '<div class="admin-manual-booking-form">' +
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Nuova prenotazione manuale</span></div>' +
@@ -402,8 +431,8 @@
           '<option value="manual_airbnb">Airbnb</option><option value="manual_booking">Booking.com</option>' +
           '<option value="manual_phone">Telefono</option><option value="manual_other">Altro</option>' +
         '</select></div>' +
-        '<div class="admin-field-group"><label>Check-in</label><input type="date" class="admin-field" id="mb-checkin"></div>' +
-        '<div class="admin-field-group"><label>Check-out</label><input type="date" class="admin-field" id="mb-checkout"></div>' +
+        '<div class="admin-field-group"><label>Check-in</label><input type="date" class="admin-field" id="mb-checkin" value="' + escapeHtml(prefill.checkIn || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Check-out</label><input type="date" class="admin-field" id="mb-checkout" value="' + escapeHtml(prefill.checkOut || '') + '"></div>' +
         '<div class="admin-field-group"><label>Nome ospite</label><input type="text" class="admin-field" id="mb-name"></div>' +
         '<div class="admin-field-group"><label>Email</label><input type="email" class="admin-field" id="mb-email"></div>' +
         '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="mb-phone"></div>' +
@@ -483,9 +512,9 @@
     });
 
     var openBtn = document.getElementById('open-manual-booking-btn');
-    if (openBtn) openBtn.addEventListener('click', function () { state.manualBookingOpen = true; renderBookingsTab(content); });
+    if (openBtn) openBtn.addEventListener('click', function () { state.manualBookingOpen = true; state.manualBookingPrefill = null; renderBookingsTab(content); });
     var cancelBtn = document.getElementById('mb-cancel');
-    if (cancelBtn) cancelBtn.addEventListener('click', function () { state.manualBookingOpen = false; renderBookingsTab(content); });
+    if (cancelBtn) cancelBtn.addEventListener('click', function () { state.manualBookingOpen = false; state.manualBookingPrefill = null; renderBookingsTab(content); });
     var submitBtn = document.getElementById('mb-submit');
     if (submitBtn) submitBtn.addEventListener('click', function () {
       var errorEl = document.getElementById('mb-error');
@@ -503,7 +532,7 @@
       };
       submitBtn.disabled = true;
       window.CasaCelesteTourismDB.createManualBooking(payload).then(function () {
-        state.manualBookingOpen = false; renderBookingsTab(content);
+        state.manualBookingOpen = false; state.manualBookingPrefill = null; renderBookingsTab(content);
       }).catch(function (err) {
         submitBtn.disabled = false;
         errorEl.style.display = ''; errorEl.textContent = (err && err.message) || 'Errore, controlla i dati.';
@@ -601,7 +630,9 @@
   // continuava a elencarla anche dopo l'eliminazione.
   function deleteBookingAndFreeDates(id) {
     freeBookingBlockedRange(id);
-    window.CasaCelesteTourismDB.deleteBooking(id);
+    window.CasaCelesteTourismDB.deleteBooking(id).catch(function (err) {
+      window.alert('Eliminazione non riuscita: ' + ((err && err.message) || 'riprova.'));
+    });
   }
   function copyAlloggiatiData(bookingId) {
     var booking = state.bookings.find(function (b) { return b.id === bookingId; });
@@ -900,12 +931,20 @@
   function cleaningStatusModalHtml(roomId) {
     var room = state.roomsData[roomId];
     if (!room) return '';
+    // A differenza di bookingDetailModalHtml (che usa .booking-card, già una
+    // card bianca su sfondo/bordo/ombra propri), qui il contenuto veniva
+    // piazzato nudo dentro .cal-modal — senza sfondo né bordo il pallino di
+    // stato e la select "fluttuavano" direttamente sull'overlay scuro,
+    // sembrando staccati dal resto. .admin-room-card dà lo stesso
+    // riquadro bianco usato ovunque nella tab Stanze.
     return (
       '<div class="cal-modal-overlay" data-cal-modal-overlay>' +
         '<div class="cal-modal">' +
           '<button type="button" class="cal-modal-close" data-cal-modal-close aria-label="Chiudi">✕</button>' +
-          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">' + escapeHtml(room.name || roomId) + '</span></div>' +
-          cleaningStatusEditorHtml(roomId, room) +
+          '<div class="admin-room-card">' +
+            '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">' + escapeHtml(room.name || roomId) + '</span></div>' +
+            cleaningStatusEditorHtml(roomId, room) +
+          '</div>' +
         '</div>' +
       '</div>'
     );
@@ -988,6 +1027,22 @@
         window.CasaCelesteTourismDB.moveBooking(bookingId, newRoomId, newCheckIn, newCheckOut).catch(function (err) {
           window.alert('Spostamento non riuscito: ' + (err && err.message ? err.message : err));
         });
+      });
+      // Click su una cella vuota (nessuna prenotazione/barra sopra, altrimenti
+      // il click arriva alla barra stessa che ha il suo handler — vedi sotto):
+      // apre subito il form di prenotazione manuale nella tab Prenotazioni,
+      // già precompilato con stanza e data della cella cliccata, invece di
+      // dover riaprire da zero e ricopiare le informazioni a mano.
+      el.addEventListener('click', function () {
+        if (state.justDragged) return;
+        state.manualBookingPrefill = {
+          roomId: el.getAttribute('data-room-id'),
+          checkIn: el.getAttribute('data-day-iso'),
+          checkOut: addDaysIso(el.getAttribute('data-day-iso'), 1)
+        };
+        state.manualBookingOpen = true;
+        state.activeTab = 'bookings';
+        renderDashboard();
       });
     });
     content.querySelectorAll('[data-cal-bar][data-kind="booking"]').forEach(function (el) {
@@ -1172,7 +1227,7 @@
     return (
       '<div class="admin-manual-booking-form" data-guestdocs-panel>' +
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Documenti ospiti — ' + escapeHtml(b.roomLabel || '') + '</span></div>' +
-        '<div class="admin-note">Per prenotazioni telefoniche o senza check-in online: carica la foto (i dati leggibili vengono pre-compilati automaticamente, verificali sempre) oppure inseriscili a mano. Luogo di nascita e di rilascio non si leggono mai in automatico. Serve una foto per OGNI ospite prima di salvare, anche solo per correggere un dato già inviato.</div>' +
+        infoNoteHtml('Per prenotazioni telefoniche o senza check-in online: carica la foto (i dati leggibili vengono pre-compilati automaticamente, verificali sempre) oppure inseriscili a mano. Luogo di nascita e di rilascio non si leggono mai in automatico. Serve una foto per OGNI ospite prima di salvare, anche solo per correggere un dato già inviato.') +
         (state.guestDocsError ? '<div class="admin-field-error" style="display:block;">' + escapeHtml(state.guestDocsError) + '</div>' : '') +
         rows +
         '<button type="button" class="btn btn-primary" data-save-guestdocs data-id="' + b.id + '"' + (state.guestDocsBusy ? ' disabled' : '') + '>' + (state.guestDocsBusy ? 'Salvataggio…' : 'Salva documenti ospiti') + '</button>' +
@@ -2138,9 +2193,8 @@
     var seasonalPricingHtml =
       '<div class="admin-room-card">' +
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Prezzo dinamico stagionale</span></div>' +
-        '<label class="admin-social-toggle" style="margin-bottom:10px;"><input type="checkbox" id="settings-dynamic-pricing-enabled"' + (s.dynamicPricingEnabled === false ? '' : ' checked') + '> Prezzo dinamico attivo (stagionalità + domanda in base all\'occupazione)</label>' +
-        '<div class="admin-note" style="margin:0 0 10px;">Se disattivato, ogni stanza costa sempre il prezzo base impostato (il prezzo manuale per periodo continua comunque a valere sempre).</div>' +
-        '<div class="admin-note" style="margin:0 0 10px;">Periodi personalizzati (formato gg-mm, es. "07-01"–"08-31"): se ne aggiungi almeno uno, sostituiscono INTERAMENTE il calendario stagionale predefinito di Monopoli/Puglia — indispensabile per una struttura in un\'altra località/clima. Le notti fuori da ogni periodo qui sotto restano al prezzo base (×1).</div>' +
+        '<label class="admin-social-toggle" style="width:auto; margin-bottom:10px;"><input type="checkbox" id="settings-dynamic-pricing-enabled"' + (s.dynamicPricingEnabled === false ? '' : ' checked') + '> Prezzo dinamico attivo (stagionalità + domanda in base all\'occupazione)</label>' +
+        infoNoteHtml('Se disattivato, ogni stanza costa sempre il prezzo base impostato (il prezzo manuale per periodo continua comunque a valere sempre).<br><br>Periodi personalizzati (formato gg-mm, es. "07-01"–"08-31"): se ne aggiungi almeno uno, sostituiscono INTERAMENTE il calendario stagionale predefinito di Monopoli/Puglia — indispensabile per una struttura in un\'altra località/clima. Le notti fuori da ogni periodo qui sotto restano al prezzo base (×1).') +
         seasonalRowsHtml +
         '<button type="button" class="dash-add-room-btn" id="add-season-btn" style="margin-top:8px;">+ Aggiungi periodo</button>' +
       '</div>';
@@ -2169,14 +2223,14 @@
     var aspettoGroupHtml =
       '<div class="dash-settings-group" data-settings-cat="aspetto">' +
         '<div class="dash-settings-group-title">Aspetto &amp; personalizzazione</div>' +
-        '<div class="admin-note">Personalizza colori e testi principali del sito pubblico — si aggiornano subito per chi lo visita, senza toccare il codice. Lascia vuoto per mantenere i default.</div>' +
+        infoNoteHtml('Personalizza colori e testi principali del sito pubblico — si aggiornano subito per chi lo visita, senza toccare il codice. Lascia vuoto per mantenere i default.') +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Colori del brand</span></div>' +
           '<div class="admin-room-type-row">' +
             '<div class="admin-field-group"><label>Colore primario (bottoni, evidenziazioni)</label><input type="color" class="admin-field" id="settings-theme-primary" value="' + escapeHtml(s.themeColorPrimary || '#2C8FC9') + '" style="height:42px; padding:4px;"></div>' +
             '<div class="admin-field-group"><label>Colore accento (dettagli decorativi)</label><input type="color" class="admin-field" id="settings-theme-accent" value="' + escapeHtml(s.themeColorAccent || '#FFD24C') + '" style="height:42px; padding:4px;"></div>' +
           '</div>' +
-          '<div class="admin-note" style="margin-top:8px;">Non tutti i colori del sito derivano da questi due: i toni di testo/sfondo restano fissi per garantire leggibilità. Questi sono i due colori di brand usati per bottoni, badge e dettagli decorativi.</div>' +
+          infoNoteHtml('Non tutti i colori del sito derivano da questi due: i toni di testo/sfondo restano fissi per garantire leggibilità. Questi sono i due colori di brand usati per bottoni, badge e dettagli decorativi.') +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Testo di benvenuto (home)</span></div>' +
@@ -2203,10 +2257,12 @@
           '<div class="admin-field-group"><label>Città</label><input type="text" class="admin-field" id="settings-city" value="' + escapeHtml(s.city || '') + '" placeholder="Monopoli"></div>' +
           '<div class="admin-field-group"><label>Indirizzo completo</label><input type="text" class="admin-field" id="settings-address" value="' + escapeHtml(s.address || '') + '" placeholder="Via Giuseppe Can. del Drago 9, Monopoli (BA)"></div>' +
           '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usati su sito, email, bot Telegram e mappa al posto dei valori di default. Lascia vuoto per mantenere i default attuali.</div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Link Google Maps (facoltativo, posizione più precisa dell\'indirizzo testuale)</label><input type="text" class="admin-field" id="settings-map-link" value="' + escapeHtml(s.mapLink || '') + '" placeholder="Incolla qui il link da Google Maps → Condividi"></div>' +
+          '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usato subito per il bottone "Apri indicazioni". Per la mappa incorporata nella pagina, incolla invece il link da Google Maps → Condividi → Incorpora una mappa (contiene "maps/embed"): senza quello, la mappa incorporata continua a usare l\'indirizzo testuale sopra.</div>' +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Punti d\'interesse vicini (sezione "Posizione" del sito)</span></div>' +
-          '<div class="admin-note" style="margin:0 0 10px;">Destinazione (per "indicazioni stradali" su Google Maps) e tempo a piedi da casa. Lascia vuoto per mantenere i default di Monopoli.</div>' +
+          infoNoteHtml('Destinazione (per "indicazioni stradali" su Google Maps) e tempo a piedi da casa. Lascia vuoto per mantenere i default di Monopoli.') +
           mapPoiRowsHtml +
         '</div>' +
         seasonalPricingHtml +
@@ -2240,7 +2296,7 @@
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Quota email (inviate da Gmail, rete di sicurezza)</span></div>' +
           '<div class="admin-field-group"><label>Budget mensile (rete di sicurezza contro invii ripetuti per errore, non un vincolo di piano gratuito — Gmail permette molto di più)</label><input type="number" class="admin-field" id="settings-email-budget" value="' + (s.emailQuotaMonthlyBudget != null ? s.emailQuotaMonthlyBudget : 500) + '"></div>' +
-          '<div class="admin-note">Le email al proprietario passano tutte da Telegram (gratis, illimitato): solo le email all\'ospite (conferma, check-in, promemoria, check-out, consigli, recensione) consumano questa quota, inviate direttamente dal tuo account Gmail. Se ci si avvicina al limite (di norma solo per un bug, non per volume normale), saltano per prime le due email extra (consigli a metà soggiorno, richiesta recensione), poi il ringraziamento/istruzioni check-out, poi la conferma — le email operative sono le ultime a essere sacrificate. Ricevi un avviso su Telegram ogni volta che una email viene saltata.</div>' +
+          infoNoteHtml('Le email al proprietario passano tutte da Telegram (gratis, illimitato): solo le email all\'ospite (conferma, check-in, promemoria, check-out, consigli, recensione) consumano questa quota, inviate direttamente dal tuo account Gmail. Se ci si avvicina al limite (di norma solo per un bug, non per volume normale), saltano per prime le due email extra (consigli a metà soggiorno, richiesta recensione), poi il ringraziamento/istruzioni check-out, poi la conferma — le email operative sono le ultime a essere sacrificate. Ricevi un avviso su Telegram ogni volta che una email viene saltata.') +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">WiFi e istruzioni check-in</span></div>' +
@@ -2251,21 +2307,21 @@
           '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso — English (per gli ospiti che hanno scelto il sito in inglese)</label><textarea class="admin-field" id="settings-checkin-instructions-en" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.en) || '') + '</textarea></div>' +
           '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — italiano (dove lasciare le chiavi, cosa spegnere, ecc.) — incluse nell\'email della mattina del check-out</label><textarea class="admin-field" id="settings-checkout-instructions" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.it) || '') + '</textarea></div>' +
           '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — English</label><textarea class="admin-field" id="settings-checkout-instructions-en" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.en) || '') + '</textarea></div>' +
-          '<div class="admin-note">Se un ospite ha scelto il sito in inglese, riceve automaticamente le email in inglese usando questi campi (se li lasci vuoti, quella sezione semplicemente non appare nell\'email in inglese).</div>' +
+          infoNoteHtml('Se un ospite ha scelto il sito in inglese, riceve automaticamente le email in inglese usando questi campi (se li lasci vuoti, quella sezione semplicemente non appare nell\'email in inglese).') +
           '<div class="admin-field-group admin-field-group--full"><label>Link recensione (facoltativo, incluso nell\'email del check-out)</label><input type="text" class="admin-field" id="settings-review-link" value="' + escapeHtml(s.reviewLink || '') + '"></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label class="admin-social-toggle"><input type="checkbox" id="settings-video-call-enabled"' + (s.videoCallEnabled !== false ? ' checked' : '') + '> Offri la videochiamata di verifica documento</label></div>' +
-          '<div class="admin-note">Ogni NUOVA prenotazione richiede la verifica dell\'identità al primo ingresso (obbligo di legge, nessuna eccezione per ospiti già soggiornati in passato) — con questa casella attiva il sistema genera da solo (gratis) un link Google Meet un\'ora prima del check-in, una volta autorizzato Google Calendar (vedi GUIDA-PUBBLICAZIONE.md Parte 8.6); se non è ancora autorizzato, l\'email di check-in parte comunque, semplicemente senza link video. Disattiva la casella se per un periodo NON vuoi offrire la videochiamata: l\'email dirà semplicemente che la verifica avverrà dal vivo al videocitofono all\'arrivo.</div>' +
+          '<div class="admin-field-group admin-field-group--full"><label class="admin-social-toggle" style="width:auto;"><input type="checkbox" id="settings-video-call-enabled"' + (s.videoCallEnabled !== false ? ' checked' : '') + '> Offri la videochiamata di verifica documento</label></div>' +
+          infoNoteHtml('Ogni NUOVA prenotazione richiede la verifica dell\'identità al primo ingresso (obbligo di legge, nessuna eccezione per ospiti già soggiornati in passato) — con questa casella attiva il sistema genera da solo (gratis) un link Google Meet un\'ora prima del check-in, una volta autorizzato Google Calendar (vedi GUIDA-PUBBLICAZIONE.md Parte 8.6); se non è ancora autorizzato, l\'email di check-in parte comunque, semplicemente senza link video. Disattiva la casella se per un periodo NON vuoi offrire la videochiamata: l\'email dirà semplicemente che la verifica avverrà dal vivo al videocitofono all\'arrivo.') +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Firma OTP del contratto di locazione</span></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label class="admin-social-toggle"><input type="checkbox" id="settings-contract-signature-enabled"' + (s.contractSignatureEnabled ? ' checked' : '') + '> Attiva la firma elettronica del contratto via codice OTP via email</label></div>' +
-          '<div class="admin-note">Quando è attiva, dopo aver inviato i documenti su ospiti.html l\'ospite può firmare il contratto di locazione ricevendo un codice a 6 cifre via email (stesso account Gmail già usato per le altre email, nessun costo aggiuntivo) e inserendolo sul sito. Il codice scade dopo 10 minuti, è utilizzabile una sola volta e si blocca dopo 3 tentativi errati. Data/ora, indirizzo IP ed email di invio vengono registrati come prova della firma. Il testo del contratto mostrato è un modello generato automaticamente: fanne revisionare il contenuto da un legale prima di considerarlo definitivo.</div>' +
+          '<div class="admin-field-group admin-field-group--full"><label class="admin-social-toggle" style="width:auto;"><input type="checkbox" id="settings-contract-signature-enabled"' + (s.contractSignatureEnabled ? ' checked' : '') + '> Attiva la firma elettronica del contratto via codice OTP via email</label></div>' +
+          infoNoteHtml('Quando è attiva, dopo aver inviato i documenti su ospiti.html l\'ospite può firmare il contratto di locazione ricevendo un codice a 6 cifre via email (stesso account Gmail già usato per le altre email, nessun costo aggiuntivo) e inserendolo sul sito. Il codice scade dopo 10 minuti, è utilizzabile una sola volta e si blocca dopo 3 tentativi errati. Data/ora, indirizzo IP ed email di invio vengono registrati come prova della firma. Il testo del contratto mostrato è un modello generato automaticamente: fanne revisionare il contenuto da un legale prima di considerarlo definitivo.') +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Notifiche pulizie (bot Telegram)</span></div>' +
           '<div class="admin-stats-rows">' + recipientsRowsHtml(recipients, 'cleaning') + '</div>' +
           '<button type="button" class="admin-stat-add" data-add-recipient="cleaning">+ Aggiungi destinatario pulizie</button>' +
-          '<div class="admin-note">Ogni persona manda /start al bot @NOME_BOT, poi lanci il workflow "Recupera chat-id" su GitHub Actions per leggere il suo Chat ID da incollare qui (vedi GUIDA-PUBBLICAZIONE.md).</div>' +
+          infoNoteHtml('Ogni persona manda /start al bot @NOME_BOT, poi lanci il workflow "Recupera chat-id" su GitHub Actions per leggere il suo Chat ID da incollare qui (vedi GUIDA-PUBBLICAZIONE.md).') +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Autorizzati a creare prenotazioni via bot Telegram</span></div>' +
@@ -2286,7 +2342,7 @@
         '<div class="dash-settings-group-title">Integrazioni</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Sincronizzazione calendario</span></div>' +
-          '<div class="admin-note">Collega quante piattaforme vuoi per stanza — Airbnb, Booking.com, Vrbo o qualsiasi altro sito che fornisca un link "esporta calendario" (iCal): incolla qui quel link, le prenotazioni trovate compaiono da sole nella tab Prenotazioni. Il link da dare INVECE a quella piattaforma (perché veda occupate le date prenotate sul sito) è il campo di sola lettura in fondo a ogni stanza.</div>' +
+          infoNoteHtml('Collega quante piattaforme vuoi per stanza — Airbnb, Booking.com, Vrbo o qualsiasi altro sito che fornisca un link "esporta calendario" (iCal): incolla qui quel link, le prenotazioni trovate compaiono da sole nella tab Prenotazioni. Il link da dare INVECE a quella piattaforma (perché veda occupate le date prenotate sul sito) è il campo di sola lettura in fondo a ogni stanza.') +
           Object.keys(state.roomsData).map(function (id) {
             return '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;"><label style="font-weight:700;">' + escapeHtml(state.roomsData[id].name) + '</label></div>' +
                    '<div class="admin-stats-rows" data-ical-rows="' + id + '">' + icalChannelRowsHtml(id) + '</div>' +
@@ -2300,37 +2356,37 @@
         '<div class="dash-settings-group-title">Privacy e conservazione dati</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Conservazione dati documento ospiti</span></div>' +
-          '<div class="admin-note">Regola fissa (tua decisione): la FOTO del documento viene cancellata solo quando ENTRAMBE le condizioni sono vere — è già stata inviata ad Alloggiati Web/Questura, E sono passate almeno le ore qui sotto dal check-out. Prima di allora non viene mai cancellata, anche se una delle due condizioni è già soddisfatta.</div>' +
+          infoNoteHtml('Regola fissa (tua decisione): la FOTO del documento viene cancellata solo quando ENTRAMBE le condizioni sono vere — è già stata inviata ad Alloggiati Web/Questura, E sono passate almeno le ore qui sotto dal check-out. Prima di allora non viene mai cancellata, anche se una delle due condizioni è già soddisfatta.') +
           '<div class="admin-field-group"><label>Ore minime dopo il check-out</label><input type="number" class="admin-field" id="settings-retention-hours" min="1" value="' + (s.guestDocsRetentionHours != null ? s.guestDocsRetentionHours : 48) + '"></div>' +
-          '<div class="admin-note">⚠️ Questo riguarda solo la FOTO. Il periodo di conservazione dei dati anagrafici tipizzati (nome, data nascita, documento senza foto) non ha invece un default: confermalo con un consulente legale/commercialista in base agli obblighi di pubblica sicurezza.</div>' +
+          infoNoteHtml('⚠️ Questo riguarda solo la FOTO. Il periodo di conservazione dei dati anagrafici tipizzati (nome, data nascita, documento senza foto) non ha invece un default: confermalo con un consulente legale/commercialista in base agli obblighi di pubblica sicurezza.') +
         '</div>' +
       '</div>' +
       '<div class="dash-settings-group" data-settings-cat="adempimenti">' +
         '<div class="dash-settings-group-title">Credenziali adempimenti (Alloggiati Web, ISTAT, PayTourist)</div>' +
-        '<div class="admin-note">Salvate in un documento SEPARATO dal resto delle Impostazioni, leggibile solo dal proprietario (mai dal sito pubblico) — così ogni struttura che usa questo sistema può inserire le proprie senza toccare file o variabili d\'ambiente.</div>' +
+        infoNoteHtml('Salvate in un documento SEPARATO dal resto delle Impostazioni, leggibile solo dal proprietario (mai dal sito pubblico) — così ogni struttura che usa questo sistema può inserire le proprie senza toccare file o variabili d\'ambiente.') +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Alloggiati Web (Questura)</span></div>' +
-          '<div class="admin-note">L\'invio automatico resta uno scaffold in attesa del WSDL ufficiale fornito dalla Questura (vedi affittacamere/scripts/alloggiati-web-submit.js): salvare le credenziali qui le rende disponibili allo script per quando l\'invio sarà completato, ma la chiamata vera non è ancora implementata.</div>' +
+          infoNoteHtml('L\'invio automatico resta uno scaffold in attesa del WSDL ufficiale fornito dalla Questura (vedi affittacamere/scripts/alloggiati-web-submit.js): salvare le credenziali qui le rende disponibili allo script per quando l\'invio sarà completato, ma la chiamata vera non è ancora implementata.') +
           '<div class="admin-field-group"><label>Utente</label><input type="text" class="admin-field" id="priv-alloggiati-user" value="' + escapeHtml((sp.alloggiatiWeb && sp.alloggiatiWeb.username) || '') + '"></div>' +
           '<div class="admin-field-group"><label>Password</label><input type="password" class="admin-field" id="priv-alloggiati-password" value="' + escapeHtml((sp.alloggiatiWeb && sp.alloggiatiWeb.password) || '') + '"></div>' +
           '<div class="admin-field-group"><label>Chiave WS (WSKey)</label><input type="password" class="admin-field" id="priv-alloggiati-wskey" value="' + escapeHtml((sp.alloggiatiWeb && sp.alloggiatiWeb.wsKey) || '') + '"></div>' +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">ISTAT / SPOT</span></div>' +
-          '<div class="admin-note">Segnaposto: nessuna automazione ancora disponibile — da verificare quale sistema di rilevazione statistica usa il tuo comune/regione prima di collegarlo.</div>' +
+          infoNoteHtml('Segnaposto: nessuna automazione ancora disponibile — da verificare quale sistema di rilevazione statistica usa il tuo comune/regione prima di collegarlo.') +
           '<div class="admin-field-group"><label>Utente</label><input type="text" class="admin-field" id="priv-istat-user" value="' + escapeHtml((sp.istat && sp.istat.username) || '') + '"></div>' +
           '<div class="admin-field-group"><label>Password</label><input type="password" class="admin-field" id="priv-istat-password" value="' + escapeHtml((sp.istat && sp.istat.password) || '') + '"></div>' +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">PayTourist / PagoPA</span></div>' +
-          '<div class="admin-note">Segnaposto: il pagamento automatico della tassa di soggiorno richiede prima di verificare se PayTourist espone un\'API pubblica. Per ora la tab Adempimenti mostra solo calcolo, promemoria e link di versamento manuale.</div>' +
+          infoNoteHtml('Segnaposto: il pagamento automatico della tassa di soggiorno richiede prima di verificare se PayTourist espone un\'API pubblica. Per ora la tab Adempimenti mostra solo calcolo, promemoria e link di versamento manuale.') +
           '<div class="admin-field-group"><label>ID commerciante</label><input type="text" class="admin-field" id="priv-paytourist-merchant" value="' + escapeHtml((sp.payTourist && sp.payTourist.merchantId) || '') + '"></div>' +
           '<div class="admin-field-group"><label>API key</label><input type="password" class="admin-field" id="priv-paytourist-apikey" value="' + escapeHtml((sp.payTourist && sp.payTourist.apiKey) || '') + '"></div>' +
         '</div>' +
       '</div>' +
       '<div class="dash-settings-group" data-settings-cat="pulizie">' +
         '<div class="dash-settings-group-title">Accesso pulizie (link dedicato per il personale)</div>' +
-        '<div class="admin-note">Link da inviare a chi si occupa delle pulizie (es. su WhatsApp): apre una pagina semplice per segnare lo stato di ogni stanza e segnalare problemi (furti, danni, manutenzione), senza bisogno di creare un account. Rigenerandolo, il link precedente smette subito di funzionare — usalo se dovesse finire nelle mani sbagliate.</div>' +
+        infoNoteHtml('Link da inviare a chi si occupa delle pulizie (es. su WhatsApp): apre una pagina semplice per segnare lo stato di ogni stanza e segnalare problemi (furti, danni, manutenzione), senza bisogno di creare un account. Rigenerandolo, il link precedente smette subito di funzionare — usalo se dovesse finire nelle mani sbagliate.') +
         '<div class="admin-room-card">' +
           (sp.staffAccessToken ?
             '<div class="admin-field-group admin-field-group--full"><label>Link personale pulizie</label><input type="text" class="admin-field" id="staff-link-field" readonly value="' + escapeHtml(window.location.origin + window.location.pathname.replace(/dashboard\.html$/, '') + 'pulizie.html?token=' + sp.staffAccessToken) + '"></div>' +
@@ -2382,6 +2438,7 @@
     document.getElementById('settings-site-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ siteName: e.target.value.trim() }); });
     document.getElementById('settings-city').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ city: e.target.value.trim() }); });
     document.getElementById('settings-address').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ address: e.target.value.trim() }); });
+    document.getElementById('settings-map-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ mapLink: e.target.value.trim() }); });
     document.querySelectorAll('[data-poi-field]').forEach(function (el) {
       el.addEventListener('change', function (e) {
         var key = e.target.getAttribute('data-poi-key');
