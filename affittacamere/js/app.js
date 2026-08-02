@@ -468,6 +468,19 @@
      ========================================================================== */
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
   function isoDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  // Orario limite prenotazioni per la notte stessa (Impostazioni → Generali,
+  // settings.sameNightBookingCutoff, formato "HH:MM") — se impostato e già
+  // superato, oggi smette di essere selezionabile come check-in di una
+  // NUOVA prenotazione (non tocca un check-in=oggi già scelto prima del
+  // limite, vedi calendarStepHtml). Controllo lato client "morbido": quello
+  // autoritativo (che non si può aggirare disattivando JS) è lato server in
+  // createBookingCore, in ora italiana — vedi functions/booking-logic.js.
+  function sameNightCutoffPassed() {
+    var cutoff = (state.settings && state.settings.sameNightBookingCutoff) || '';
+    if (!/^\d{2}:\d{2}$/.test(cutoff)) return false;
+    var nowHHMM = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+    return nowHHMM >= cutoff;
+  }
   function dateFromIso(s) { var p = s.split('-'); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])); }
   function daysBetween(aIso, bIso) { return Math.round((dateFromIso(bIso) - dateFromIso(aIso)) / 86400000); }
   function isDateBlocked(room, dateIso) {
@@ -2320,6 +2333,8 @@
     var startOffset = firstOfMonth.getDay() - 1; if (startOffset < 0) startOffset = 6;
     var daysInMonth = new Date(state.calYear, state.calMonth + 1, 0).getDate();
 
+    var todayIso = isoDate(today);
+    var cutoffPassed = sameNightCutoffPassed();
     var cells = '';
     for (var i = 0; i < startOffset; i++) cells += '<div></div>';
     for (var d = 1; d <= daysInMonth; d++) {
@@ -2331,7 +2346,10 @@
       var isEnd = state.selectedCheckOut === iso;
       var inRange = state.selectedCheckIn && state.selectedCheckOut && iso > state.selectedCheckIn && iso < state.selectedCheckOut;
       var isSingle = isStart && !state.selectedCheckOut;
-      var disabled = isPast || isBlocked;
+      // "Oggi" smette di essere scelto come NUOVO check-in dopo l'orario
+      // limite (se impostato) — non tocca un check-in=oggi già selezionato.
+      var isPastCutoff = iso === todayIso && cutoffPassed && !isStart;
+      var disabled = isPast || isBlocked || isPastCutoff;
       var cls = 'cal-day';
       if (disabled) cls += ' is-blocked';
       if (inRange) cls += ' is-in-range';
@@ -2357,6 +2375,7 @@
       '<div class="cal-days">' + cells + '</div>' +
       '<div class="range-hint">' + escapeHtml(t('booking.select_range_hint')) + '</div>' +
       '<div class="checkin-note">' + tpl(t('booking.checkin_note'), { checkin: checkinTime, checkout: checkoutTime }) + '</div>' +
+      (cutoffPassed && state.selectedCheckIn !== todayIso ? '<div class="checkin-note">' + escapeHtml(t('booking.same_night_cutoff_passed')) + '</div>' : '') +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       (state.selectedCheckIn && state.selectedCheckOut && !hideNextButton
         ? '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-guests-step>' + escapeHtml(t('booking.step_guests_title')) + ' →</button>'

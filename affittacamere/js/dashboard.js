@@ -141,10 +141,14 @@
   // Categorie della sotto-navigazione Impostazioni (redesign 01/08): ogni
   // voce raggruppa uno o più dei blocchi .dash-settings-group esistenti
   // (vedi data-settings-cat su ciascuno in renderSettingsTab).
+  // "Struttura & contenuti"/"Aspetto & personalizzazione" (fino al 01/08)
+  // bundlavano insieme più sezioni del sito pubblico (Home, Posizione, Host)
+  // senza una voce propria nel menu — ora quelle hanno una pagina dedicata
+  // (vedi SIDEBAR_GROUPS), qui restano solo le impostazioni davvero
+  // trasversali, non legate a UNA sezione specifica del sito.
   var SETTINGS_CATEGORIES = [
-    { id: 'struttura', label: 'Struttura & contenuti' },
-    { id: 'aspetto', label: 'Aspetto & personalizzazione' },
     { id: 'generali', label: 'Generali' },
+    { id: 'prezzi', label: 'Prezzi & consigli extra' },
     { id: 'comunicazioni', label: 'Comunicazioni & email' },
     { id: 'sicurezza', label: 'Sicurezza & privacy' },
     { id: 'integrazioni', label: 'Integrazioni' },
@@ -235,23 +239,31 @@
       { tab: 'bookings', label: 'Prenotazioni' },
       { tab: 'assist', label: 'Assistenza', badge: function () { return assistUnreadCount(); } }
     ] },
-    // Ordine allineato a come le sezioni compaiono sul sito dall'alto in
-    // basso (index.html: #monopoli, #stanze, #spazi-comuni-anchor,
-    // #testimonianze), non un ordine arbitrario — così chi lavora dalla
-    // dashboard trova le voci nello stesso ordine in cui appaiono agli
-    // ospiti, invece di doverle cercare.
+    // Una voce per OGNI sezione del sito pubblico, nello stesso ordine in
+    // cui appaiono agli ospiti dall'alto in basso (index.html: #top,
+    // #monopoli, #stanze, #spazi-comuni-anchor, #posizione, #testimonianze,
+    // #manager-slot) — non un ordine arbitrario, così chi lavora dalla
+    // dashboard trova subito la voce giusta invece di doverla cercare in un
+    // unico lunghissimo tab Impostazioni (richiesta esplicita 02/08, la
+    // dashboard "troppo confusionaria"). "Home" (testo di benvenuto/foto
+    // facciata) e "Posizione" (indirizzo/mappa/punti d'interesse) e "Host"
+    // (chi accoglie l'ospite) prima erano sepolte dentro Impostazioni →
+    // Struttura, senza una voce propria nel menu.
     { title: 'Contenuti', items: [
+      { tab: 'home', label: 'Home' },
       { tab: 'monopoli', label: 'Monopoli' },
       { tab: 'rooms', label: 'Stanze' },
       { tab: 'commons', label: 'Spazi comuni' },
-      { tab: 'reviews', label: 'Recensioni' }
+      { tab: 'location', label: 'Posizione' },
+      { tab: 'reviews', label: 'Recensioni' },
+      { tab: 'host', label: 'Host' }
     ] },
     { title: 'Sistema', items: [
       { tab: 'compliance', label: 'Adempimenti' },
       { tab: 'settings', label: 'Impostazioni' }
     ] }
   ];
-  var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'Monopoli', compliance: 'Adempimenti', settings: 'Impostazioni' };
+  var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'Monopoli', home: 'Home', location: 'Posizione', host: 'Host', compliance: 'Adempimenti', settings: 'Impostazioni' };
 
   function sidebarLinksHtml() {
     return SIDEBAR_GROUPS.map(function (group) {
@@ -330,6 +342,9 @@
     else if (state.activeTab === 'reviews') renderReviewsTab(content);
     else if (state.activeTab === 'assist') renderAssistTab(content);
     else if (state.activeTab === 'monopoli') renderMonopoliTab(content);
+    else if (state.activeTab === 'home') renderHomeTab(content);
+    else if (state.activeTab === 'location') renderLocationTab(content);
+    else if (state.activeTab === 'host') renderHostTab(content);
     else if (state.activeTab === 'compliance') renderComplianceTab(content);
     else if (state.activeTab === 'settings') renderSettingsTab(content);
     else renderRoomsTab(content);
@@ -2179,6 +2194,107 @@
       '<button type="button" class="dash-add-room-btn" id="add-rec-btn">+ Aggiungi consiglio</button>'
     );
   }
+  // ==========================================================================
+  // Home, Posizione, Host — prima erano tre blocchi sepolti dentro
+  // Impostazioni → Struttura/Aspetto, senza una voce propria nel menu (vedi
+  // nota su SIDEBAR_GROUPS più sopra). Contenuto e binding identici a prima,
+  // solo spostati in una pagina dedicata a testa propria.
+  // ==========================================================================
+  function renderHomeTab(content) {
+    var s = state.settings || {};
+    function bilingualOverrideHandler(field) {
+      return function () {
+        var it = document.getElementById('settings-' + field + '-it').value.trim();
+        var en = document.getElementById('settings-' + field + '-en').value.trim();
+        var patch = {};
+        patch[field === 'hero-lead' ? 'heroLeadOverride' : field === 'welcome-text' ? 'welcomeTextOverride' : 'contactButtonLabelOverride'] = { it: it, en: en };
+        window.CasaCelesteTourismDB.setSettings(patch);
+      };
+    }
+    content.innerHTML =
+      '<h1 class="dash-section-title">Home</h1>' +
+      infoNoteHtml('Testi e foto della prima schermata del sito (quello che un ospite vede per primo aprendo il link).') +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Testo di benvenuto</span></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva sotto il titolo — italiano</label><textarea class="admin-field" id="settings-hero-lead-it" rows="3" placeholder="Lascia vuoto per il testo già scritto di default">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.it) || '') + '</textarea></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva — English</label><textarea class="admin-field" id="settings-hero-lead-en" rows="3">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.en) || '') + '</textarea></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — italiano</label><textarea class="admin-field" id="settings-welcome-text-it" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.it) || '') + '</textarea></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — English</label><textarea class="admin-field" id="settings-welcome-text-en" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.en) || '') + '</textarea></div>' +
+      '</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Bottone "Contatta l\'host"</span></div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Etichetta — italiano</label><input type="text" class="admin-field" id="settings-contact-label-it" placeholder="Contatta l\'host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.it) || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Etichetta — English</label><input type="text" class="admin-field" id="settings-contact-label-en" placeholder="Contact the host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.en) || '') + '"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' + photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) + '</div>';
+    ['hero-lead', 'welcome-text', 'contact-label'].forEach(function (field) {
+      var itEl = document.getElementById('settings-' + field + '-it');
+      var enEl = document.getElementById('settings-' + field + '-en');
+      if (itEl) itEl.addEventListener('change', bilingualOverrideHandler(field));
+      if (enEl) enEl.addEventListener('change', bilingualOverrideHandler(field));
+    });
+    bindPhotoUploadEvents(content);
+  }
+  function renderLocationTab(content) {
+    var s = state.settings || {};
+    var mapPois = s.mapPois || {};
+    var mapPoiRowsHtml = MAP_POI_ORDER.map(function (key) {
+      var def = MAP_POI_DEFAULTS[key];
+      var cur = mapPois[key] || {};
+      return (
+        '<div class="admin-stat-row">' +
+          '<span style="min-width:120px; font-weight:700; font-size:13px;">' + escapeHtml(def.label) + '</span>' +
+          '<input type="text" class="admin-field" placeholder="' + escapeHtml(def.query) + '" data-poi-field="query" data-poi-key="' + key + '" value="' + escapeHtml(cur.query || '') + '">' +
+          '<input type="text" class="admin-field" placeholder="' + escapeHtml(def.distance) + '" data-poi-field="distance" data-poi-key="' + key + '" value="' + escapeHtml(cur.distance || '') + '">' +
+        '</div>'
+      );
+    }).join('');
+    content.innerHTML =
+      '<h1 class="dash-section-title">Posizione</h1>' +
+      infoNoteHtml('Indirizzo, mappa e punti d\'interesse mostrati nella sezione "Posizione" del sito.') +
+      '<div class="admin-room-card">' +
+        '<div class="admin-field-group"><label>Città</label><input type="text" class="admin-field" id="settings-city" value="' + escapeHtml(s.city || '') + '" placeholder="Monopoli"></div>' +
+        '<div class="admin-field-group"><label>Indirizzo completo</label><input type="text" class="admin-field" id="settings-address" value="' + escapeHtml(s.address || '') + '" placeholder="Via Giuseppe Can. del Drago 9, Monopoli (BA)"></div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Link Google Maps (facoltativo, posizione più precisa dell\'indirizzo testuale)</label><input type="text" class="admin-field" id="settings-map-link" value="' + escapeHtml(s.mapLink || '') + '" placeholder="Incolla qui il link da Google Maps → Condividi"></div>' +
+        '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usato subito per il bottone "Apri indicazioni". Per la mappa incorporata nella pagina, incolla invece il link da Google Maps → Condividi → Incorpora una mappa (contiene "maps/embed"): senza quello, la mappa incorporata continua a usare l\'indirizzo testuale sopra.</div>' +
+      '</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Punti d\'interesse vicini</span></div>' +
+        infoNoteHtml('Destinazione (per "indicazioni stradali" su Google Maps) e tempo a piedi da casa. Lascia vuoto per mantenere i default di Monopoli.') +
+        mapPoiRowsHtml +
+      '</div>';
+    document.getElementById('settings-city').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ city: e.target.value.trim() }); });
+    document.getElementById('settings-address').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ address: e.target.value.trim() }); });
+    document.getElementById('settings-map-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ mapLink: e.target.value.trim() }); });
+    content.querySelectorAll('[data-poi-field]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var key = e.target.getAttribute('data-poi-key');
+        var field = e.target.getAttribute('data-poi-field');
+        var updated = Object.assign({}, s.mapPois || {});
+        updated[key] = Object.assign({}, updated[key] || {});
+        updated[key][field] = e.target.value.trim();
+        window.CasaCelesteTourismDB.setSettings({ mapPois: updated });
+      });
+    });
+  }
+  function renderHostTab(content) {
+    var s = state.settings || {};
+    content.innerHTML =
+      '<h1 class="dash-section-title">Host</h1>' +
+      infoNoteHtml('Chi accoglie l\'ospite — mostrato nella sezione "Host" del sito.') +
+      '<div class="admin-room-card">' +
+        '<div class="admin-field-group admin-field-group--full"><label>Nome e cognome</label><input type="text" class="admin-field" id="manager-name" value="' + escapeHtml(s.managerName || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="manager-phone" value="' + escapeHtml(s.managerPhone || '') + '"></div>' +
+        '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" value="' + escapeHtml(s.managerEmail || '') + '"></div>' +
+        photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +
+      '</div>';
+    document.getElementById('manager-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerName: e.target.value.trim() }); });
+    document.getElementById('manager-phone').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerPhone: e.target.value.replace(/\D/g, '') }); });
+    document.getElementById('manager-email').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerEmail: e.target.value.trim() }); });
+    bindPhotoUploadEvents(content);
+  }
   function renderSettingsTab(content) {
     // Conteggio click "Consigli & dintorni": lettura on-demand, una volta
     // sola per sessione (non un subscribe live, i numeri non cambiano così
@@ -2253,18 +2369,6 @@
         seasonalRowsHtml +
         '<button type="button" class="dash-add-room-btn" id="add-season-btn" style="margin-top:8px;">+ Aggiungi periodo</button>' +
       '</div>';
-    var mapPois = s.mapPois || {};
-    var mapPoiRowsHtml = MAP_POI_ORDER.map(function (key) {
-      var def = MAP_POI_DEFAULTS[key];
-      var cur = mapPois[key] || {};
-      return (
-        '<div class="admin-stat-row">' +
-          '<span style="min-width:120px; font-weight:700; font-size:13px;">' + escapeHtml(def.label) + '</span>' +
-          '<input type="text" class="admin-field" placeholder="' + escapeHtml(def.query) + '" data-poi-field="query" data-poi-key="' + key + '" value="' + escapeHtml(cur.query || '') + '">' +
-          '<input type="text" class="admin-field" placeholder="' + escapeHtml(def.distance) + '" data-poi-field="distance" data-poi-key="' + key + '" value="' + escapeHtml(cur.distance || '') + '">' +
-        '</div>'
-      );
-    }).join('');
     // Sotto-navigazione per categorie (redesign 01/08): la pagina era un
     // unico lunghissimo scroll di 9 blocchi senza alcuna indicazione di
     // dove trovare cosa. I blocchi restano TUTTI nel DOM (nessun binding
@@ -2275,10 +2379,21 @@
     var settingsSubnavHtml = '<div class="settings-subnav">' + SETTINGS_CATEGORIES.map(function (c) {
       return '<button type="button" class="settings-subnav-btn' + (state.settingsSubTab === c.id ? ' is-active' : '') + '" data-settings-subnav="' + c.id + '">' + c.label + '</button>';
     }).join('') + '</div>';
-    var aspettoGroupHtml =
-      '<div class="dash-settings-group" data-settings-cat="aspetto">' +
-        '<div class="dash-settings-group-title">Aspetto &amp; personalizzazione</div>' +
-        infoNoteHtml('Personalizza colori e testi principali del sito pubblico — si aggiornano subito per chi lo visita, senza toccare il codice. Lascia vuoto per mantenere i default.') +
+    content.innerHTML =
+      '<h1 class="dash-section-title">Impostazioni</h1>' +
+      settingsSubnavHtml +
+      '<div class="dash-settings-group" data-settings-cat="generali">' +
+        '<div class="dash-settings-group-title">Generali</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-field-group admin-field-group--full"><label>Nome della struttura</label><input type="text" class="admin-field" id="settings-site-name" value="' + escapeHtml(s.siteName || '') + '" placeholder="Casa Celeste"></div>' +
+          '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usato su sito, email e bot Telegram al posto del valore di default.</div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '"></div>' +
+          '<div class="admin-field-group"><label>Check-in dalle</label><input type="text" class="admin-field" id="settings-checkin" value="' + escapeHtml(s.checkInTime || '15:00') + '"></div>' +
+          '<div class="admin-field-group"><label>Check-out entro</label><input type="text" class="admin-field" id="settings-checkout" value="' + escapeHtml(s.checkOutTime || '10:00') + '"></div>' +
+          '<div class="admin-field-group"><label>Tassa di soggiorno (€/notte/persona)</label><input type="number" step="0.5" class="admin-field" id="settings-tax-rate" value="' + (s.touristTaxRate != null ? s.touristTaxRate : 0) + '"></div>' +
+          '<div class="admin-field-group"><label>Valutazione media (facoltativo, es. da Airbnb/Booking) — lascia vuoto finché non hai un voto reale</label><input type="number" step="0.1" min="0" max="5" class="admin-field" id="settings-avg-rating" value="' + (s.avgRating != null ? s.avgRating : '') + '"></div>' +
+          '<div class="admin-field-group"><label>Numero recensioni mostrato sul sito (facoltativo) — lascia vuoto per usare il conteggio reale del tab Recensioni</label><input type="number" step="1" min="0" class="admin-field" id="settings-review-count" value="' + (s.reviewCountOverride != null ? s.reviewCountOverride : '') + '"></div>' +
+        '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Colori del brand</span></div>' +
           '<div class="admin-room-type-row">' +
@@ -2288,63 +2403,15 @@
           infoNoteHtml('Non tutti i colori del sito derivano da questi due: i toni di testo/sfondo restano fissi per garantire leggibilità. Questi sono i due colori di brand usati per bottoni, badge e dettagli decorativi.') +
         '</div>' +
         '<div class="admin-room-card">' +
-          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Testo di benvenuto (home)</span></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva sotto il titolo — italiano</label><textarea class="admin-field" id="settings-hero-lead-it" rows="3" placeholder="Lascia vuoto per il testo già scritto di default">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.it) || '') + '</textarea></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva — English</label><textarea class="admin-field" id="settings-hero-lead-en" rows="3">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.en) || '') + '</textarea></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — italiano</label><textarea class="admin-field" id="settings-welcome-text-it" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.it) || '') + '</textarea></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — English</label><textarea class="admin-field" id="settings-welcome-text-en" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.en) || '') + '</textarea></div>' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Orario limite prenotazioni per la notte stessa</span></div>' +
+          '<div class="admin-field-group"><label>Non accettare più prenotazioni per stanotte dopo le ore (vuoto = nessun limite)</label><input type="text" class="admin-field" id="settings-same-night-cutoff" value="' + escapeHtml(s.sameNightBookingCutoff || '') + '" placeholder="es. 18:00"></div>' +
+          infoNoteHtml('Se un ospite prova a prenotare dal sito per il check-in di oggi stesso dopo quest\'ora, il calendario non gli propone più la data odierna (deve scegliere da domani in poi) — utile se non c\'è nessuno per accogliere un arrivo last-minute a tarda ora. Le prenotazioni che inserisci TU a mano (bot Telegram o dashboard) non sono mai limitate da questo orario. Lascia vuoto per continuare come adesso, senza alcun limite.') +
         '</div>' +
-        '<div class="admin-room-card">' +
-          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Bottone "Contatta l\'host"</span></div>' +
-          '<div class="admin-room-type-row">' +
-            '<div class="admin-field-group"><label>Etichetta — italiano</label><input type="text" class="admin-field" id="settings-contact-label-it" placeholder="Contatta l\'host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.it) || '') + '"></div>' +
-            '<div class="admin-field-group"><label>Etichetta — English</label><input type="text" class="admin-field" id="settings-contact-label-en" placeholder="Contact the host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.en) || '') + '"></div>' +
-          '</div>' +
-        '</div>' +
-      '</div>';
-    content.innerHTML =
-      '<h1 class="dash-section-title">Impostazioni</h1>' +
-      settingsSubnavHtml +
-      '<div class="dash-settings-group" data-settings-cat="struttura">' +
-        '<div class="dash-settings-group-title">Struttura</div>' +
-        '<div class="admin-room-card">' +
-          '<div class="admin-field-group admin-field-group--full"><label>Nome della struttura</label><input type="text" class="admin-field" id="settings-site-name" value="' + escapeHtml(s.siteName || '') + '" placeholder="Casa Celeste"></div>' +
-          '<div class="admin-field-group"><label>Città</label><input type="text" class="admin-field" id="settings-city" value="' + escapeHtml(s.city || '') + '" placeholder="Monopoli"></div>' +
-          '<div class="admin-field-group"><label>Indirizzo completo</label><input type="text" class="admin-field" id="settings-address" value="' + escapeHtml(s.address || '') + '" placeholder="Via Giuseppe Can. del Drago 9, Monopoli (BA)"></div>' +
-          '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usati su sito, email, bot Telegram e mappa al posto dei valori di default. Lascia vuoto per mantenere i default attuali.</div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Link Google Maps (facoltativo, posizione più precisa dell\'indirizzo testuale)</label><input type="text" class="admin-field" id="settings-map-link" value="' + escapeHtml(s.mapLink || '') + '" placeholder="Incolla qui il link da Google Maps → Condividi"></div>' +
-          '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usato subito per il bottone "Apri indicazioni". Per la mappa incorporata nella pagina, incolla invece il link da Google Maps → Condividi → Incorpora una mappa (contiene "maps/embed"): senza quello, la mappa incorporata continua a usare l\'indirizzo testuale sopra.</div>' +
-        '</div>' +
-        '<div class="admin-room-card">' +
-          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Punti d\'interesse vicini (sezione "Posizione" del sito)</span></div>' +
-          infoNoteHtml('Destinazione (per "indicazioni stradali" su Google Maps) e tempo a piedi da casa. Lascia vuoto per mantenere i default di Monopoli.') +
-          mapPoiRowsHtml +
-        '</div>' +
+      '</div>' +
+      '<div class="dash-settings-group" data-settings-cat="prezzi">' +
+        '<div class="dash-settings-group-title">Prezzi &amp; consigli extra</div>' +
         seasonalPricingHtml +
-      '</div>' +
-      aspettoGroupHtml +
-      '<div class="dash-settings-group" data-settings-cat="generali">' +
-        '<div class="dash-settings-group-title">Generali</div>' +
-        '<div class="admin-room-card">' +
-          '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '"></div>' +
-          '<div class="admin-field-group"><label>Check-in dalle</label><input type="text" class="admin-field" id="settings-checkin" value="' + escapeHtml(s.checkInTime || '15:00') + '"></div>' +
-          '<div class="admin-field-group"><label>Check-out entro</label><input type="text" class="admin-field" id="settings-checkout" value="' + escapeHtml(s.checkOutTime || '10:00') + '"></div>' +
-          '<div class="admin-field-group"><label>Tassa di soggiorno (€/notte/persona)</label><input type="number" step="0.5" class="admin-field" id="settings-tax-rate" value="' + (s.touristTaxRate != null ? s.touristTaxRate : 0) + '"></div>' +
-          '<div class="admin-field-group"><label>Valutazione media (facoltativo, es. da Airbnb/Booking) — lascia vuoto finché non hai un voto reale</label><input type="number" step="0.1" min="0" max="5" class="admin-field" id="settings-avg-rating" value="' + (s.avgRating != null ? s.avgRating : '') + '"></div>' +
-          '<div class="admin-field-group"><label>Numero recensioni mostrato sul sito (facoltativo) — lascia vuoto per usare il conteggio reale del tab Recensioni</label><input type="number" step="1" min="0" class="admin-field" id="settings-review-count" value="' + (s.reviewCountOverride != null ? s.reviewCountOverride : '') + '"></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="dash-settings-group" data-settings-cat="struttura">' +
-        '<div class="dash-settings-group-title">Contenuti pubblici</div>' +
-        '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' + photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) + '</div>' +
-        '<div class="admin-room-card">' +
-          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Host</span></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Nome e cognome</label><input type="text" class="admin-field" id="manager-name" value="' + escapeHtml(s.managerName || '') + '"></div>' +
-          '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="manager-phone" value="' + escapeHtml(s.managerPhone || '') + '"></div>' +
-          '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" value="' + escapeHtml(s.managerEmail || '') + '"></div>' +
-          photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +
-        '</div>' +
-        recommendationsEditorHtml(s.recommendations || []) +
+        '<div class="admin-room-card">' + recommendationsEditorHtml(s.recommendations || []) + '</div>' +
       '</div>' +
       '<div class="dash-settings-group" data-settings-cat="comunicazioni">' +
         '<div class="dash-settings-group-title">Comunicazioni</div>' +
@@ -2473,37 +2540,10 @@
     });
     document.getElementById('settings-theme-primary').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ themeColorPrimary: e.target.value }); });
     document.getElementById('settings-theme-accent').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ themeColorAccent: e.target.value }); });
-    function bilingualOverrideHandler(field) {
-      return function () {
-        var it = document.getElementById('settings-' + field + '-it').value.trim();
-        var en = document.getElementById('settings-' + field + '-en').value.trim();
-        var patch = {};
-        patch[field === 'hero-lead' ? 'heroLeadOverride' : field === 'welcome-text' ? 'welcomeTextOverride' : 'contactButtonLabelOverride'] = { it: it, en: en };
-        window.CasaCelesteTourismDB.setSettings(patch);
-      };
-    }
-    ['hero-lead', 'welcome-text', 'contact-label'].forEach(function (field) {
-      var itEl = document.getElementById('settings-' + field + '-it');
-      var enEl = document.getElementById('settings-' + field + '-en');
-      if (itEl) itEl.addEventListener('change', bilingualOverrideHandler(field));
-      if (enEl) enEl.addEventListener('change', bilingualOverrideHandler(field));
-    });
+    document.getElementById('settings-same-night-cutoff').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ sameNightBookingCutoff: e.target.value.trim() }); });
     document.getElementById('settings-email-sender-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailSenderName: e.target.value.trim() }); });
     document.getElementById('settings-email-footer-signature').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailFooterSignature: e.target.value.trim() }); });
     document.getElementById('settings-site-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ siteName: e.target.value.trim() }); });
-    document.getElementById('settings-city').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ city: e.target.value.trim() }); });
-    document.getElementById('settings-address').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ address: e.target.value.trim() }); });
-    document.getElementById('settings-map-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ mapLink: e.target.value.trim() }); });
-    document.querySelectorAll('[data-poi-field]').forEach(function (el) {
-      el.addEventListener('change', function (e) {
-        var key = e.target.getAttribute('data-poi-key');
-        var field = e.target.getAttribute('data-poi-field');
-        var updated = Object.assign({}, s.mapPois || {});
-        updated[key] = Object.assign({}, updated[key] || {});
-        updated[key][field] = e.target.value.trim();
-        window.CasaCelesteTourismDB.setSettings({ mapPois: updated });
-      });
-    });
     var dynPricingToggle = document.getElementById('settings-dynamic-pricing-enabled');
     if (dynPricingToggle) dynPricingToggle.addEventListener('change', function (e) {
       window.CasaCelesteTourismDB.setSettings({ dynamicPricingEnabled: !!e.target.checked });
@@ -2603,9 +2643,6 @@
     document.getElementById('settings-checkout-instructions').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutInstructionsText: { it: e.target.value, en: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.en) || '' } }); });
     document.getElementById('settings-checkout-instructions-en').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutInstructionsText: { it: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.it) || '', en: e.target.value } }); });
     document.getElementById('settings-review-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ reviewLink: e.target.value.trim() }); });
-    document.getElementById('manager-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerName: e.target.value.trim() }); });
-    document.getElementById('manager-phone').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerPhone: e.target.value.replace(/\D/g, '') }); });
-    document.getElementById('manager-email').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerEmail: e.target.value.trim() }); });
 
     function recipientKeyFor(kind) { return kind === 'cleaning' ? 'cleaningRecipients' : 'bookingCommandAuthorized'; }
     function saveSettingsOrAlert(patch) {

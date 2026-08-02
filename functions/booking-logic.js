@@ -17,6 +17,31 @@ const pricing = require('./pricing');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Orario limite prenotazioni per la notte stessa (Impostazioni → Generali,
+// settings.sameNightBookingCutoff, formato "HH:MM", vuoto = nessun limite) —
+// controllo autoritativo lato server, in ora italiana (non quella del
+// browser dell'ospite, aggirabile). Il calendario sul sito (app.js,
+// sameNightCutoffPassed) fa già lo stesso controllo lato client per
+// un'esperienza fluida, ma qui è dove conta davvero.
+function romeTodayIso() {
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const parts = {};
+  fmt.formatToParts(new Date()).forEach((p) => { parts[p.type] = p.value; });
+  return parts.year + '-' + parts.month + '-' + parts.day;
+}
+function romeNowHHMM() {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+}
+async function checkSameNightCutoff(db, checkIn) {
+  if (checkIn !== romeTodayIso()) return;
+  const settingsSnap = await db.collection('tourism_settings').doc('site').get();
+  const cutoff = settingsSnap.exists ? (settingsSnap.data().sameNightBookingCutoff || '') : '';
+  if (!/^\d{2}:\d{2}$/.test(cutoff)) return;
+  if (romeNowHHMM() >= cutoff) {
+    fail('failed-precondition', 'Per stanotte non è più possibile prenotare online (orario limite superato): scegli una data da domani in poi, oppure contatta direttamente la struttura.');
+  }
+}
+
 // Opzioni stanza (letto a scelta, culla, letto singolo aggiuntivo) — vedi
 // affittacamere/js/app.js per le stesse costanti lato client (CRIB_MAX,
 // EXTRA_BED_MAX, CRIB_PRICE, EXTRA_BED_PRICE). Prezzi fittizi/placeholder,
@@ -153,6 +178,10 @@ async function createBookingCore(admin, db, stripe, data) {
   if (isSiteFlow && !contractAccepted) {
     fail('failed-precondition', 'Condizioni di soggiorno non accettate.');
   }
+  // Solo per l'ospite che prenota dal sito: le prenotazioni manuali (bot
+  // Telegram, dashboard) le inserisce il proprietario stesso, mai limitate
+  // da questo orario — vedi commento su checkSameNightCutoff più sopra.
+  if (isSiteFlow) await checkSameNightCutoff(db, checkIn);
   // Le prenotazioni dal sito passano sempre dal pagamento online prima di
   // arrivare qui (vedi createPaymentIntent): senza un PaymentIntent non
   // c'è modo di rimborsare più avanti se l'ospite cancella. Le prenotazioni
@@ -285,6 +314,7 @@ async function createGroupBookingCore(admin, db, stripe, data) {
   if (!isNonEmptyString(name, 200) || !isNonEmptyString(email, 200)) fail('invalid-argument', 'Nome o email mancanti.');
   if (isSiteFlow && !contractAccepted) fail('failed-precondition', 'Condizioni di soggiorno non accettate.');
   if (source === 'site' && !isNonEmptyString(paymentIntentId, 200)) fail('failed-precondition', 'Pagamento mancante.');
+  if (isSiteFlow) await checkSameNightCutoff(db, checkIn);
 
   const roomIds = rooms.map((r) => r.roomId);
   if (new Set(roomIds).size !== roomIds.length) fail('invalid-argument', 'Ogni stanza del gruppo deve essere diversa dalle altre.');
