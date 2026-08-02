@@ -594,8 +594,13 @@ async function cancelBookingCore(admin, db, stripe, data) {
   return { refundedAmount: refundBaseTotal, bookingIds: bookingDocs.map((b) => b.id) };
 }
 
+// Minuscolo, spazi normalizzati E accenti rimossi (normalize('NFD') scompone
+// es. "è" in "e" + accento combinante, poi lo si toglie): un ospite può
+// scrivere il proprio nome/email con maiuscole o accenti diversi da come
+// sono salvati (es. da un altro dispositivo/tastiera) senza che questo da
+// solo faccia fallire il confronto.
 function normalizeForMatch(s) {
-  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
 }
 
 // lookupBookingForCancellationCore — trova una prenotazione senza il link
@@ -605,11 +610,19 @@ function normalizeForMatch(s) {
 // l'ospite. Query su checkIn (poche prenotazioni per data su una sola
 // struttura), poi confronto normalizzato di nome ed email in memoria — così
 // non serve un indice composto né campi "lower" duplicati sul documento.
-// In caso di mancata corrispondenza (qualunque campo) risponde SEMPRE con
-// lo stesso errore generico 'booking-not-found', senza mai rivelare quale
-// dato è sbagliato. Se trovata, restituisce bookingId/token: da qui in poi
-// il client procede esattamente come se fosse arrivato dal link email,
-// riusando cancelBookingCore senza duplicare la logica di rimborso/termini.
+// Il confronto nome/email/data NON considera più da solo se la prenotazione
+// è idonea alla cancellazione self-service (fatta e pagata online sul sito,
+// non ancora cancellata): trova PRIMA la corrispondenza sui 3 dati, poi
+// controlla l'idoneità a parte, con un errore specifico invece del generico
+// "non trovata" — prima una prenotazione con i 3 dati corretti ma aggiunta a
+// mano da dashboard (o già cancellata) risultava indistinguibile da un vero
+// errore di battitura, un bug reale che faceva sembrare rotta la
+// cancellazione anche quando i dati erano esatti. Nessun rischio di
+// enumerazione nel distinguere questi casi: chi arriva qui ha già indovinato
+// i 3 dati esatti, non impara nulla che non sapesse già. Se trovata E
+// idonea, restituisce bookingId/token: da qui in poi il client procede
+// esattamente come se fosse arrivato dal link email, riusando
+// cancelBookingCore senza duplicare la logica di rimborso/termini.
 async function lookupBookingForCancellationCore(db, data) {
   const fullName = normalizeForMatch(data.fullName);
   const email = normalizeForMatch(data.email);
@@ -619,12 +632,14 @@ async function lookupBookingForCancellationCore(db, data) {
   const snap = await db.collection('tourism_bookings').where('checkIn', '==', checkIn).get();
   const match = snap.docs.find((doc) => {
     const b = doc.data();
-    return b.source === 'site' && b.status !== 'annullato' &&
-      normalizeForMatch(b.name) === fullName && normalizeForMatch(b.email) === email;
+    return normalizeForMatch(b.name) === fullName && normalizeForMatch(b.email) === email;
   });
   if (!match) fail('not-found', 'booking-not-found');
 
   const b = match.data();
+  if (b.status === 'annullato') fail('failed-precondition', 'already-cancelled');
+  if (b.source !== 'site') fail('failed-precondition', 'not-self-service-booking');
+
   return { bookingId: match.id, token: b.guestFormToken };
 }
 

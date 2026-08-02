@@ -205,9 +205,21 @@
       token = res.token;
       render();
       loadBooking();
-    }).catch(function () {
+    }).catch(function (err) {
       state.lookupBusy = false;
-      state.lookupError = 'Prenotazione non trovata o dati errati.';
+      // Nome+email+data corrispondono già a una prenotazione reale in questi
+      // due casi (vedi lookupBookingForCancellationCore in
+      // functions/booking-logic.js): niente rischio a essere specifici, un
+      // messaggio chiaro invece del generico "dati errati" che prima
+      // nascondeva perché la cancellazione non procedeva.
+      var msg = (err && err.message) || '';
+      if (msg.indexOf('already-cancelled') !== -1) {
+        state.lookupError = 'Questa prenotazione risulta già cancellata.';
+      } else if (msg.indexOf('not-self-service-booking') !== -1) {
+        state.lookupError = 'Prenotazione trovata, ma non risulta pagata online su questo sito: scrivici su WhatsApp, ti aiutiamo noi a cancellarla.';
+      } else {
+        state.lookupError = 'Prenotazione non trovata o dati errati.';
+      }
       render();
     });
   }
