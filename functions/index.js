@@ -28,14 +28,17 @@ const { createBookingCore, createGroupBookingCore, computeQuoteCore, cancelBooki
 const { recordVerifiedGuests } = require('./guest-verification');
 const { validateGuest, movePhotoToPermanent, deletePermanentGuestPhoto, todayISO, isNonEmptyString, visionDocumentText, findTempGuestPhoto } = require('./guest-documents');
 const { parseMrzFromText } = require('./mrz-parser');
-const { handleTelegramUpdate } = require('./telegram-bot');
+const { handleTelegramUpdate, notifyMaintenanceRecipientsCore } = require('./telegram-bot');
 const { submitAssistMessageCore } = require('./assist-messages');
 const { logRecClickCore } = require('./recs-clicks');
 const { buildBookingIcs } = require('./calendar-ics');
 const { notifyBookingConfirmed, notifyBookingCancelled } = require('./guest-notify');
 const { enforceRateLimit } = require('./rate-limit');
 const { requestSignatureOtpCore, verifySignatureOtpCore } = require('./guest-signature');
-const { staffGetBoardCore, staffSetCleaningStatusCore, staffReportMaintenanceCore } = require('./staff-actions');
+const {
+  staffGetBoardCore, staffSetCleaningStatusCore, staffReportMaintenanceCore,
+  staffGetMaintenanceBoardCore, staffSetMaintenanceStatusCore
+} = require('./staff-actions');
 const { rebuildBookingsExcel, EXPORT_PATH: BOOKINGS_EXCEL_PATH } = require('./bookings-excel-export');
 
 admin.initializeApp();
@@ -514,6 +517,31 @@ exports.staffSetCleaningStatus = onCall({}, async (request) => {
 exports.staffReportMaintenance = onCall({ secrets: [telegramBotToken] }, async (request) => {
   await enforceRateLimit(db, request, 'staffReportMaintenance', 10, 15);
   return staffReportMaintenanceCore({ db, admin, botToken: telegramBotToken.value() }, request.data || {});
+});
+
+/* ==========================================================================
+   staffGetMaintenanceBoard / staffSetMaintenanceStatus — mini dashboard
+   manutenzione (affittacamere/manutenzione.html), stesso principio di
+   staffGetBoard/staffSetCleaningStatus ma con il token separato
+   maintenanceAccessToken (vedi verifyMaintenanceToken in staff-actions.js).
+   ========================================================================== */
+exports.staffGetMaintenanceBoard = onCall({}, async (request) => {
+  await enforceRateLimit(db, request, 'staffGetMaintenanceBoard', 30, 15);
+  return staffGetMaintenanceBoardCore({ db }, request.data || {});
+});
+exports.staffSetMaintenanceStatus = onCall({}, async (request) => {
+  await enforceRateLimit(db, request, 'staffSetMaintenanceStatus', 30, 15);
+  return staffSetMaintenanceStatusCore({ db, admin }, request.data || {});
+});
+
+// Invio manuale, scelto dal proprietario nella sezione manutenzione della
+// tab Assistenza, a chi si occupa dei lavori — vedi notifyMaintenanceRecipientsCore
+// in functions/telegram-bot.js. Riservato al proprietario autenticato
+// (niente token pubblico: qui il chiamante è già dentro dashboard.html).
+exports.notifyMaintenanceRecipients = onCall({ secrets: [telegramBotToken] }, async (request) => {
+  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può inviare questa notifica.');
+  await enforceRateLimit(db, request, 'notifyMaintenanceRecipients', 15, 15);
+  return notifyMaintenanceRecipientsCore({ db, admin, botToken: telegramBotToken.value() }, request.data || {});
 });
 
 /* ==========================================================================

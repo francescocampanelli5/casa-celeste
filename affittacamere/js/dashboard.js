@@ -30,6 +30,11 @@
     manualBookingPrefill: null,
     bookingsFilter: { roomId: '', source: '', status: '', from: '', to: '' },
     maintenanceFormOpen: false,
+    // Sezione manutenzione della tab Assistenza: quale card ha il
+    // selettore destinatari aperto, e quale card evidenziare/scrollare
+    // subito dopo un click dal calendario (vedi bindCalendarEvents).
+    assistMaintOpenId: null,
+    assistHighlightMaintenanceId: null,
     calendarView: 'gantt',
     calendarFilters: { roomId: '', type: 'all' },
     calendarWindowStart: null,
@@ -153,7 +158,8 @@
     { id: 'sicurezza', label: 'Sicurezza & privacy' },
     { id: 'integrazioni', label: 'Integrazioni' },
     { id: 'adempimenti', label: 'Adempimenti' },
-    { id: 'pulizie', label: 'Personale pulizie' }
+    { id: 'pulizie', label: 'Personale pulizie' },
+    { id: 'manutenzione', label: 'Personale manutenzione' }
   ];
   // Punti d'interesse "Posizione" (sito pubblico) — chiave fissa (icona/
   // categoria restano quelle), ma destinazione e tempo a piedi vanno
@@ -237,7 +243,7 @@
     { title: 'Operativo', items: [
       { tab: 'calendar', label: 'Calendario' },
       { tab: 'bookings', label: 'Prenotazioni' },
-      { tab: 'assist', label: 'Assistenza', badge: function () { return assistUnreadCount(); } }
+      { tab: 'assist', label: 'Assistenza', badge: function () { return assistUnreadCount() + assistMaintOpenCount(); } }
     ] },
     // Una voce per OGNI sezione del sito pubblico, nello stesso ordine in
     // cui appaiono agli ospiti dall'alto in basso (index.html: #top,
@@ -1030,6 +1036,18 @@
 
     bindCalendarEvents(content);
   }
+  // Interazione con la notifica di manutenzione dal calendario (barra
+  // tratteggiata o pillola di stato stanza): prima apriva subito un
+  // window.confirm per segnarla risolta, senza possibilità di bloccare la
+  // stanza o avvisare la manutenzione. Ora porta alla card di revisione
+  // nella nuova sezione "Segnalazioni manutenzione" della tab Assistenza
+  // (vedi renderAssistTab/maintenanceReportCardHtml), che scrolla fino a
+  // quella card ed evidenzia la segnalazione appena cliccata.
+  function openMaintenanceReportInAssist(maintenanceId) {
+    state.activeTab = 'assist';
+    state.assistHighlightMaintenanceId = maintenanceId;
+    renderDashboard();
+  }
   function bindCalendarEvents(content) {
     content.querySelectorAll('[data-calendar-view]').forEach(function (el) {
       el.addEventListener('click', function () { state.calendarView = el.getAttribute('data-calendar-view'); renderCalendarTab(content); });
@@ -1120,9 +1138,7 @@
       el.addEventListener('click', function () {
         var m = state.maintenanceData.find(function (x) { return x.id === el.getAttribute('data-id'); });
         if (!m) return;
-        if (window.confirm((m.title || 'Manutenzione') + ' — ' + m.start + ' → ' + m.end + '.\nOK per segnarla RISOLTA (libera le date solo eliminandola dalla tab Stanze), Annulla per lasciarla com\'è.')) {
-          window.CasaCelesteTourismDB.setMaintenance(m.id, { status: 'risolta', resolvedAt: window.CasaCelesteTourismDB.serverTimestamp() });
-        }
+        openMaintenanceReportInAssist(m.id);
       });
     });
     // Pillola di stato stanza (colonna Gantt o striscia del mensile): porta
@@ -1139,9 +1155,7 @@
         if (st.kind === 'maintenance') {
           var m = state.maintenanceData.find(function (x) { return x.id === st.refId; });
           if (!m) return;
-          if (window.confirm((m.title || 'Manutenzione') + ' — ' + m.start + ' → ' + m.end + '.\nOK per segnarla RISOLTA (libera le date solo eliminandola dalla tab Stanze), Annulla per lasciarla com\'è.')) {
-            window.CasaCelesteTourismDB.setMaintenance(m.id, { status: 'risolta', resolvedAt: window.CasaCelesteTourismDB.serverTimestamp() });
-          }
+          openMaintenanceReportInAssist(m.id);
           return;
         }
         state.calendarCleaningModalRoomId = null;
@@ -1971,6 +1985,61 @@
       '</div>'
     );
   }
+  // Segnalazioni manutenzione aperte (status !== 'risolta'): stesso criterio
+  // già usato in maintenanceEditorHtml (tab Stanze), qui per il badge della
+  // sotto-nav e per l'elenco della sezione dedicata in Assistenza.
+  function assistMaintOpenCount() {
+    return (state.maintenanceData || []).filter(function (m) { return m.status !== 'risolta'; }).length;
+  }
+  function maintenanceReporterLabel(createdBy) {
+    if (!createdBy) return 'Proprietario';
+    if (createdBy.name) return createdBy.name;
+    if (createdBy.type === 'telegram') return 'Bot Telegram';
+    if (createdBy.type === 'staff_dashboard') return 'Personale (link pulizie)';
+    return 'Proprietario';
+  }
+  // Card di revisione per UNA segnalazione manutenzione: mostra se blocca già
+  // la stanza (scelta esplicita, non più automatica per le segnalazioni del
+  // personale — vedi staffReportMaintenanceCore in functions/staff-actions.js)
+  // e permette di bloccarla/sbloccarla, notificare i destinatari scelti
+  // (settings.maintenanceRecipients) e segnarla risolta/eliminarla, senza
+  // dover passare dalla tab Stanze.
+  function maintenanceReportCardHtml(m) {
+    var statusClass = 'dash-status-pill--' + (m.status === 'risolta' ? 'green' : m.status === 'in_corso' ? 'yellow' : 'orange');
+    var categoryLabel = MAINTENANCE_CATEGORY_LABELS[m.category] || MAINTENANCE_CATEGORY_LABELS.manutenzione;
+    var recipients = (state.settings.maintenanceRecipients || []).filter(function (r) { return r.enabled && r.chatId; });
+    var notified = m.notifiedRecipients || [];
+    var recipientsOpen = state.assistMaintOpenId === m.id;
+    var highlighted = state.assistHighlightMaintenanceId === m.id;
+    return (
+      '<div class="admin-room-card assist-maint-card' + (highlighted ? ' assist-maint-card--highlight' : '') + '" data-maintenance-id="' + m.id + '">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">' + escapeHtml(categoryLabel) + ' — ' + escapeHtml(m.roomLabel || '') + '</span>' +
+          '<span class="dash-status-pill ' + statusClass + '">' + (MAINTENANCE_STATUS_LABELS[m.status] || m.status) + '</span></div>' +
+        '<div class="assist-msg-text">' + escapeHtml(m.title || '') + '</div>' +
+        '<div class="assist-msg-meta">' + escapeHtml(m.start || '') + ' → ' + escapeHtml(m.end || '') + ' · Segnalato da ' + escapeHtml(maintenanceReporterLabel(m.createdBy)) + ' il ' + formatCreatedAt(m.createdAt) + '</div>' +
+        (m.blocksRoom
+          ? '<div class="range-hint range-hint--ok" style="margin-top:10px;">🔒 Stanza bloccata (non prenotabile)</div>' +
+            '<button type="button" class="link-btn" data-maint-unblock data-maintenance-id="' + m.id + '" data-room-id="' + m.roomId + '" style="margin-top:6px;">Sblocca la stanza</button>'
+          : '<button type="button" class="btn btn-primary" data-maint-block data-maintenance-id="' + m.id + '" data-room-id="' + m.roomId + '" data-start="' + escapeHtml(m.start || '') + '" data-end="' + escapeHtml(m.end || '') + '" style="margin-top:10px;">🔒 Blocca la stanza (in manutenzione)</button>') +
+        (recipients.length ?
+          '<div style="margin-top:12px;">' +
+            '<button type="button" class="link-btn" data-toggle-maint-recipients data-maintenance-id="' + m.id + '">' + (recipientsOpen ? 'Annulla' : '📨 Notifica la manutenzione') + '</button>' +
+            (recipientsOpen ?
+              '<div class="admin-stats-rows" style="margin-top:8px;">' + recipients.map(function (r) {
+                return '<label class="admin-social-toggle"><input type="checkbox" data-maint-recipient-checkbox data-chat-id="' + escapeHtml(r.chatId) + '"> ' + escapeHtml(r.label || r.chatId) + '</label>';
+              }).join('') + '</div>' +
+              '<button type="button" class="dash-add-room-btn" data-send-maint-notify data-maintenance-id="' + m.id + '" style="margin-top:8px;">Invia notifica</button>'
+              : '') +
+          '</div>'
+          : '<div class="admin-note" style="margin-top:10px;">Nessun destinatario manutenzione configurato (Impostazioni → Personale manutenzione).</div>') +
+        (notified.length ? '<div class="assist-msg-meta" style="margin-top:8px;">✓ Notificato a ' + notified.map(function (r) { return escapeHtml(r.label || r.chatId); }).join(', ') + ' il ' + formatCreatedAt(m.notifiedAt) + '</div>' : '') +
+        '<div style="display:flex; gap:8px; margin-top:12px;">' +
+          (m.status !== 'risolta' ? '<button type="button" class="dash-add-room-btn" data-maint-resolve data-maintenance-id="' + m.id + '">Segna come risolta</button>' : '') +
+          '<button type="button" class="dash-delete-btn" data-maint-delete data-maintenance-id="' + m.id + '" data-room-id="' + m.roomId + '">Elimina</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
   function assistTopicEditorCardHtml(topicItem, i) {
     var idAttr = 'data-assist-topic-field data-topic-index="' + i + '"';
     return (
@@ -1995,14 +2064,77 @@
   function renderAssistTab(content) {
     var topics = currentAssistTopics();
     var messages = state.assistMessages || [];
+    var maintReports = (state.maintenanceData || []).filter(function (m) { return m.status !== 'risolta'; });
     content.innerHTML =
       '<h1 class="dash-section-title">Assistenza</h1>' +
+      '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Segnalazioni manutenzione' + (maintReports.length ? ' — ' + maintReports.length + ' aperte' : '') + '</span></div>' +
+      '<div class="assist-msg-list">' + (maintReports.length ? maintReports.map(maintenanceReportCardHtml).join('') : '<div class="dash-empty">Nessuna segnalazione aperta.</div>') + '</div>' +
       '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Messaggi ricevuti' + (assistUnreadCount() ? ' — ' + assistUnreadCount() + ' da leggere' : '') + '</span></div>' +
       '<div class="assist-msg-list">' + (messages.length ? messages.map(assistMessageCardHtml).join('') : '<div class="dash-empty">Nessun messaggio ricevuto per ora.</div>') + '</div>' +
       '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Domande e risposte del menu principale della chat</span></div>' +
       '<div class="admin-note">Queste sono le opzioni che l\'ospite vede aprendo il bottone "Assistenza" sul sito. Modifica domanda/risposta, aggiungi nuovi argomenti o eliminali — le modifiche sono visibili subito dopo il salvataggio, senza bisogno di ripubblicare il sito.</div>' +
       '<div class="dash-room-rows">' + topics.map(assistTopicEditorCardHtml).join('') + '</div>' +
       '<button type="button" class="dash-add-room-btn" id="add-assist-topic-btn">+ Aggiungi un argomento</button>';
+
+    if (state.assistHighlightMaintenanceId) {
+      var highlightId = state.assistHighlightMaintenanceId;
+      var highlightEl = content.querySelector('[data-maintenance-id="' + highlightId + '"]');
+      if (highlightEl) highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Un solo scroll/evidenziazione per navigazione: si resetta subito,
+      // così un successivo re-render (es. dopo un click su blocca/notifica)
+      // non continua a scrollare lì o a colorare la card.
+      state.assistHighlightMaintenanceId = null;
+    }
+
+    content.querySelectorAll('[data-maint-block]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        el.disabled = true;
+        window.CasaCelesteTourismDB.blockMaintenance(el.getAttribute('data-maintenance-id'), el.getAttribute('data-room-id'), el.getAttribute('data-start'), el.getAttribute('data-end')).catch(function (err) {
+          el.disabled = false;
+          window.alert('Non riuscito: ' + (err && err.message ? err.message : err));
+        });
+      });
+    });
+    content.querySelectorAll('[data-maint-unblock]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        if (!window.confirm('Sbloccare la stanza? Tornerà prenotabile per queste date.')) return;
+        window.CasaCelesteTourismDB.unblockMaintenance(el.getAttribute('data-maintenance-id'), el.getAttribute('data-room-id'));
+      });
+    });
+    content.querySelectorAll('[data-toggle-maint-recipients]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var id = el.getAttribute('data-maintenance-id');
+        state.assistMaintOpenId = state.assistMaintOpenId === id ? null : id;
+        renderAssistTab(content);
+      });
+    });
+    content.querySelectorAll('[data-send-maint-notify]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var id = el.getAttribute('data-maintenance-id');
+        var card = el.closest('.assist-maint-card');
+        var chatIds = Array.prototype.slice.call(card.querySelectorAll('[data-maint-recipient-checkbox]:checked')).map(function (c) { return c.getAttribute('data-chat-id'); });
+        if (!chatIds.length) { window.alert('Scegli almeno un destinatario.'); return; }
+        el.disabled = true; el.textContent = 'Invio…';
+        window.CasaCelesteTourismDB.notifyMaintenanceRecipients({ maintenanceId: id, chatIds: chatIds }).then(function () {
+          state.assistMaintOpenId = null;
+          renderAssistTab(content);
+        }).catch(function (err) {
+          el.disabled = false; el.textContent = 'Invia notifica';
+          window.alert('Invio non riuscito: ' + (err && err.message ? err.message : err));
+        });
+      });
+    });
+    content.querySelectorAll('[data-maint-resolve]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        window.CasaCelesteTourismDB.setMaintenance(el.getAttribute('data-maintenance-id'), { status: 'risolta', resolvedAt: window.CasaCelesteTourismDB.serverTimestamp() });
+      });
+    });
+    content.querySelectorAll('[data-maint-delete]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        if (!window.confirm('Eliminare questa segnalazione? Se la stanza è bloccata, le date tornano libere.')) return;
+        window.CasaCelesteTourismDB.deleteMaintenance(el.getAttribute('data-maintenance-id'), el.getAttribute('data-room-id'));
+      });
+    });
 
     content.querySelectorAll('[data-assist-msg-status]').forEach(function (el) {
       el.addEventListener('change', function (e) {
@@ -2313,6 +2445,7 @@
     var phoneVal = s.phone || '393381567389';
     var recipients = s.cleaningRecipients || [];
     var authorized = s.bookingCommandAuthorized || [];
+    var maintenanceRecipients = s.maintenanceRecipients || [];
     // Canali di sincronizzazione calendario per stanza: Airbnb/Booking.com
     // storici (icalImportUrls) più un numero qualsiasi di piattaforme
     // aggiunte da qui (icalChannels, es. Vrbo o qualsiasi altro sito con un
@@ -2451,6 +2584,12 @@
           '<button type="button" class="admin-stat-add" data-add-recipient="auth">+ Aggiungi autorizzato</button>' +
         '</div>' +
         '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Notifiche manutenzione (bot Telegram)</span></div>' +
+          '<div class="admin-stats-rows">' + recipientsRowsHtml(maintenanceRecipients, 'maintenance') + '</div>' +
+          '<button type="button" class="admin-stat-add" data-add-recipient="maintenance">+ Aggiungi destinatario manutenzione</button>' +
+          infoNoteHtml('Rubrica di chi si occupa dei lavori: scegli chi avvisare (a mano, per singola segnalazione) dalla sezione manutenzione della tab Assistenza. Ogni persona manda /start al bot @NOME_BOT, poi lanci il workflow "Recupera chat-id" su GitHub Actions per leggere il suo Chat ID da incollare qui (vedi GUIDA-PUBBLICAZIONE.md).') +
+        '</div>' +
+        '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Email — mittente e firma</span></div>' +
           '<div class="admin-field-group admin-field-group--full"><label>Nome mittente mostrato all\'ospite (facoltativo — default: nome struttura)</label><input type="text" class="admin-field" id="settings-email-sender-name" placeholder="' + escapeHtml(s.siteName || 'Casa Celeste') + '" value="' + escapeHtml(s.emailSenderName || '') + '"></div>' +
           '<div class="admin-field-group admin-field-group--full"><label>Firma in fondo alle email (facoltativa, es. "A presto, il team di Casa Celeste")</label><textarea class="admin-field" id="settings-email-footer-signature" rows="2">' + escapeHtml(s.emailFooterSignature || '') + '</textarea></div>' +
@@ -2515,6 +2654,17 @@
             '<button type="button" class="dash-add-room-btn" id="staff-link-copy" style="margin-top:8px;">Copia link</button>'
             : '<div class="admin-note" style="margin:0;">Nessun link ancora generato.</div>') +
           '<button type="button" class="dash-add-room-btn" id="staff-link-regenerate" style="margin-top:8px;">' + (sp.staffAccessToken ? 'Genera un nuovo link (invalida quello attuale)' : 'Genera link per il personale pulizie') + '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="dash-settings-group" data-settings-cat="manutenzione">' +
+        '<div class="dash-settings-group-title">Accesso manutenzione (link dedicato per chi fa i lavori)</div>' +
+        infoNoteHtml('Link SEPARATO da quello delle pulizie (rigenerabili/revocabili uno indipendentemente dall\'altro): apre una pagina semplice con le segnalazioni aperte, dove chi fa i lavori aggiorna lo stato (in corso/risolta) senza bisogno di creare un account. Le nuove segnalazioni si aggiungono da pulizie.html, dashboard o bot Telegram — questa pagina serve solo per seguirle fino alla risoluzione.') +
+        '<div class="admin-room-card">' +
+          (sp.maintenanceAccessToken ?
+            '<div class="admin-field-group admin-field-group--full"><label>Link personale manutenzione</label><input type="text" class="admin-field" id="maint-link-field" readonly value="' + escapeHtml(window.location.origin + dashboardBasePath() + 'manutenzione.html?token=' + sp.maintenanceAccessToken) + '"></div>' +
+            '<button type="button" class="dash-add-room-btn" id="maint-link-copy" style="margin-top:8px;">Copia link</button>'
+            : '<div class="admin-note" style="margin:0;">Nessun link ancora generato.</div>') +
+          '<button type="button" class="dash-add-room-btn" id="maint-link-regenerate" style="margin-top:8px;">' + (sp.maintenanceAccessToken ? 'Genera un nuovo link (invalida quello attuale)' : 'Genera link per la manutenzione') + '</button>' +
         '</div>' +
       '</div>';
 
@@ -2632,6 +2782,23 @@
       var newToken = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
       savePrivateOrAlert({ staffAccessToken: newToken });
     });
+    var maintLinkCopyBtn = document.getElementById('maint-link-copy');
+    if (maintLinkCopyBtn) maintLinkCopyBtn.addEventListener('click', function () {
+      var field = document.getElementById('maint-link-field');
+      field.select();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(field.value).then(function () {
+          maintLinkCopyBtn.textContent = 'Copiato ✓';
+          setTimeout(function () { maintLinkCopyBtn.textContent = 'Copia link'; }, 1500);
+        }).catch(function () {});
+      }
+    });
+    var maintLinkRegenBtn = document.getElementById('maint-link-regenerate');
+    if (maintLinkRegenBtn) maintLinkRegenBtn.addEventListener('click', function () {
+      if (sp.maintenanceAccessToken && !window.confirm('Il link attuale smetterà subito di funzionare per chi ce l\'ha già. Continuare?')) return;
+      var newToken = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+      savePrivateOrAlert({ maintenanceAccessToken: newToken });
+    });
     document.getElementById('settings-email-budget').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaMonthlyBudget: Number(e.target.value) || 500 }); });
     document.getElementById('settings-wifi-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiName: e.target.value.trim() }); });
     document.getElementById('settings-wifi-password').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiPassword: e.target.value }); });
@@ -2644,7 +2811,11 @@
     document.getElementById('settings-checkout-instructions-en').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutInstructionsText: { it: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.it) || '', en: e.target.value } }); });
     document.getElementById('settings-review-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ reviewLink: e.target.value.trim() }); });
 
-    function recipientKeyFor(kind) { return kind === 'cleaning' ? 'cleaningRecipients' : 'bookingCommandAuthorized'; }
+    function recipientKeyFor(kind) {
+      if (kind === 'cleaning') return 'cleaningRecipients';
+      if (kind === 'maintenance') return 'maintenanceRecipients';
+      return 'bookingCommandAuthorized';
+    }
     function saveSettingsOrAlert(patch) {
       window.CasaCelesteTourismDB.setSettings(patch).catch(function (err) {
         window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err) + '\n\nProva a uscire (bottone "Esci") e rientrare, poi riprova.');

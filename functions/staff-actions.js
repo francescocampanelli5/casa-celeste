@@ -24,6 +24,19 @@ async function verifyStaffToken(db, token) {
   }
 }
 
+// Stesso principio di verifyStaffToken, ma per il link SEPARATO della
+// dashboard manutenzione (affittacamere/manutenzione.html): un token diverso
+// così il proprietario può revocare l'accesso pulizie e manutenzione
+// indipendentemente l'uno dall'altro.
+async function verifyMaintenanceToken(db, token) {
+  if (!isNonEmptyString(token, 200)) throw new HttpsError('permission-denied', 'Link non valido.');
+  const snap = await db.collection('tourism_settingsPrivate').doc('site').get();
+  const expected = snap.exists ? snap.data().maintenanceAccessToken : null;
+  if (!expected || expected !== token) {
+    throw new HttpsError('permission-denied', 'Link non valido o scaduto: chiedi al proprietario un nuovo link.');
+  }
+}
+
 // Nome e cognome di chi usa il link (richiesto per ogni azione che scrive
 // qualcosa): senza login, è l'unico modo di sapere chi ha segnato una
 // stanza pulita o segnalato un problema — prima veniva salvato solo
@@ -87,10 +100,14 @@ async function staffSetCleaningStatusCore(ctx, data) {
 }
 
 /* ==========================================================================
-   staffReportMaintenance — stessa transazione anti-doppio-blocco di
-   onConfirmMaintenance nel bot Telegram (crea il documento E blocca le
-   date), poi notifica il proprietario su Telegram (stessa funzione
-   condivisa usata dal bot, functions/telegram-bot.js).
+   staffReportMaintenance — crea SOLO il documento di segnalazione (status
+   'aperta', blocksRoom false): niente blocco automatico delle date. Prima
+   bloccava subito la stanza nella stessa transazione; ora è il proprietario
+   a scegliere se bloccarla, dalla nuova sezione manutenzione della tab
+   Assistenza (blockMaintenance in affittacamere/js/firebase-init.js) —
+   così una segnalazione minore non toglie disponibilità da sola. Notifica
+   comunque subito il proprietario su Telegram (stessa funzione condivisa
+   usata dal bot, functions/telegram-bot.js) per farlo intervenire.
    ========================================================================== */
 async function staffReportMaintenanceCore(ctx, data) {
   const { db, admin, botToken } = ctx;
@@ -108,22 +125,15 @@ async function staffReportMaintenanceCore(ctx, data) {
   if (!DATE_RE.test(start) || !DATE_RE.test(end) || start >= end) throw new HttpsError('invalid-argument', 'Date non valide.');
 
   const roomRef = db.collection('tourism_rooms').doc(roomId);
+  const roomSnap = await roomRef.get();
+  if (!roomSnap.exists) throw new HttpsError('not-found', 'Stanza non trovata.');
+  const roomLabel = roomSnap.data().name || roomId;
   const maintRef = db.collection('tourism_maintenance').doc();
-  let roomLabel = roomId;
-  await db.runTransaction(async (tx) => {
-    const roomSnap = await tx.get(roomRef);
-    if (!roomSnap.exists) throw new HttpsError('not-found', 'Stanza non trovata.');
-    const room = roomSnap.data();
-    roomLabel = room.name || roomId;
-    const ranges = (room.blockedRanges || []).slice();
-    if (rangeOverlapsBlocked(ranges, start, end)) throw new HttpsError('already-exists', 'Quelle date sono già occupate su questa stanza.');
-    ranges.push({ start, end, source: 'maintenance', maintenanceId: maintRef.id });
-    tx.set(maintRef, {
-      roomId, roomLabel, title: description.slice(0, 200), category, description: '', status: 'aperta',
-      start, end, createdBy: { type: 'staff_dashboard', name: staffName },
-      createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    tx.update(roomRef, { blockedRanges: ranges });
+  await maintRef.set({
+    roomId, roomLabel, title: description.slice(0, 200), category, description: '', status: 'aperta', blocksRoom: false,
+    createdBy: { type: 'staff_dashboard', name: staffName },
+    start, end,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
 
   await notifyOwnerMaintenanceReport({ db, botToken }, {
@@ -132,4 +142,49 @@ async function staffReportMaintenanceCore(ctx, data) {
   return { ok: true };
 }
 
-module.exports = { staffGetBoardCore, staffSetCleaningStatusCore, staffReportMaintenanceCore };
+/* ==========================================================================
+   staffGetMaintenanceBoard / staffSetMaintenanceStatus — mini dashboard per
+   chi si occupa della manutenzione (affittacamere/manutenzione.html), stesso
+   principio di staffGetBoard/staffSetCleaningStatus ma con un token
+   SEPARATO (maintenanceAccessToken) e sulle segnalazioni non ancora risolte
+   invece che sullo stato pulizie. Aggiornare lo stato qui non tocca mai
+   blockedRanges: solo il proprietario blocca/sblocca la stanza dalla tab
+   Assistenza (stessa scelta esplicita già richiesta per staffReportMaintenance
+   sopra).
+   ========================================================================== */
+async function staffGetMaintenanceBoardCore(ctx, data) {
+  const { db } = ctx;
+  await verifyMaintenanceToken(db, data.token);
+  const snap = await db.collection('tourism_maintenance').where('status', '!=', 'risolta').get();
+  const items = [];
+  snap.forEach((d) => {
+    const m = d.data();
+    items.push({ id: d.id, roomLabel: m.roomLabel, category: m.category, title: m.title, start: m.start, end: m.end, status: m.status, blocksRoom: !!m.blocksRoom });
+  });
+  items.sort((a, b) => String(a.start).localeCompare(String(b.start)));
+  return { items };
+}
+const MAINTENANCE_STATUSES = ['aperta', 'in_corso', 'risolta'];
+async function staffSetMaintenanceStatusCore(ctx, data) {
+  const { db, admin } = ctx;
+  await verifyMaintenanceToken(db, data.token);
+  const staffName = staffNameOrThrow(data);
+  const maintenanceId = data.maintenanceId;
+  const status = data.status;
+  if (!isNonEmptyString(maintenanceId, 200)) throw new HttpsError('invalid-argument', 'Segnalazione non valida.');
+  if (MAINTENANCE_STATUSES.indexOf(status) === -1) throw new HttpsError('invalid-argument', 'Stato non valido.');
+  const maintRef = db.collection('tourism_maintenance').doc(maintenanceId);
+  const snap = await maintRef.get();
+  if (!snap.exists) throw new HttpsError('not-found', 'Segnalazione non trovata.');
+  await maintRef.update({
+    status,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedBy: { type: 'staff_dashboard', name: staffName }
+  });
+  return { ok: true };
+}
+
+module.exports = {
+  staffGetBoardCore, staffSetCleaningStatusCore, staffReportMaintenanceCore,
+  staffGetMaintenanceBoardCore, staffSetMaintenanceStatusCore
+};

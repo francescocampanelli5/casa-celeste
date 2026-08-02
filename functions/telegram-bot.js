@@ -18,6 +18,7 @@
 // proprio chat-id (da inoltrare al proprietario) e le istruzioni di /aiuto.
 'use strict';
 const crypto = require('crypto');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { createBookingCore } = require('./booking-logic');
 const { validateGuest, movePhotoToPermanent, visionDocumentText } = require('./guest-documents');
 const { parseMrzFromText } = require('./mrz-parser');
@@ -812,7 +813,7 @@ async function onConfirmMaintenance(ctx, chatId, session) {
       if (rangeOverlapsBlocked(ranges, d.checkIn, d.checkOut)) throw new Error('Quelle date sono appena state occupate.');
       ranges.push({ start: d.checkIn, end: d.checkOut, source: 'maintenance', maintenanceId: maintRef.id });
       tx.set(maintRef, {
-        roomId: d.roomId, roomLabel: d.roomLabel, title: d.title, category: d.category, description: '', status: 'aperta',
+        roomId: d.roomId, roomLabel: d.roomLabel, title: d.title, category: d.category, description: '', status: 'aperta', blocksRoom: true,
         start: d.checkIn, end: d.checkOut, createdBy: { type: 'telegram', chatId: chatId },
         createdAt: ctx.admin.firestore.FieldValue.serverTimestamp(), updatedAt: ctx.admin.firestore.FieldValue.serverTimestamp()
       });
@@ -847,7 +848,7 @@ async function notifyOwnerMaintenanceReport(ctx, m) {
     if (m.createdBy && m.createdBy.name) sourceLabel += ' (' + m.createdBy.name + ')';
     const text = emoji + ' Nuova segnalazione — ' + (MAINTENANCE_CATEGORY_LABELS[m.category] || 'Manutenzione') + '\n' +
       m.roomLabel + ' — ' + isoToItalian(m.start) + ' → ' + isoToItalian(m.end) + '\n' +
-      m.title + '\nSegnalato da: ' + sourceLabel + '\nVedi dashboard.html → Stanze per i dettagli.';
+      m.title + '\nSegnalato da: ' + sourceLabel + '\nVedi dashboard.html → Assistenza per decidere se bloccare la stanza e avvisare la manutenzione.';
     await Promise.all(recipients.map((r) => fetch('https://api.telegram.org/bot' + ctx.botToken + '/sendMessage', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: r.chatId, text: text })
@@ -855,6 +856,53 @@ async function notifyOwnerMaintenanceReport(ctx, m) {
   } catch (e) {
     // best-effort, vedi commento sopra
   }
+}
+
+/* ==========================================================================
+   notifyMaintenanceRecipientsCore — invio manuale (scelto dal proprietario
+   nella sezione manutenzione della tab Assistenza) a chi si occupa dei
+   lavori, DIVERSO da notifyOwnerMaintenanceReport sopra (che avvisa sempre e
+   solo il proprietario, in automatico, di OGNI nuova segnalazione). Qui il
+   proprietario sceglie a mano quali destinatari (settings.maintenanceRecipients,
+   stesso formato {label, chatId, enabled} di cleaningRecipients/
+   bookingCommandAuthorized) avvisare per QUESTA specifica segnalazione, es.
+   dopo aver deciso categoria/urgenza. Richiede auth proprietario, verificata
+   dal chiamante in functions/index.js (isOwner), non da un token pubblico.
+   ========================================================================== */
+async function notifyMaintenanceRecipientsCore(ctx, data) {
+  const { db, admin, botToken } = ctx;
+  const maintenanceId = data.maintenanceId;
+  const chatIds = Array.isArray(data.chatIds) ? data.chatIds.filter((c) => typeof c === 'string' && c) : [];
+  if (!maintenanceId || typeof maintenanceId !== 'string') throw new HttpsError('invalid-argument', 'Segnalazione non valida.');
+  if (!chatIds.length) throw new HttpsError('invalid-argument', 'Scegli almeno un destinatario.');
+
+  const maintRef = db.collection('tourism_maintenance').doc(maintenanceId);
+  const maintSnap = await maintRef.get();
+  if (!maintSnap.exists) throw new HttpsError('not-found', 'Segnalazione non trovata.');
+  const m = maintSnap.data();
+
+  const settingsSnap = await db.collection('tourism_settings').doc('site').get();
+  const roster = ((settingsSnap.exists ? settingsSnap.data() : {}).maintenanceRecipients || []);
+  // Manda solo a chatId che risultano davvero nella rubrica manutenzione
+  // (impedisce di usare questa funzione come invio Telegram generico a un
+  // chat_id arbitrario passato dal client).
+  const validRecipients = roster.filter((r) => r.enabled && r.chatId && chatIds.indexOf(r.chatId) !== -1);
+  if (!validRecipients.length) throw new HttpsError('invalid-argument', 'Nessuno dei destinatari scelti è valido.');
+
+  const emoji = m.category === 'furto' ? '🚨' : '🔧';
+  const text = emoji + ' ' + (MAINTENANCE_CATEGORY_LABELS[m.category] || 'Manutenzione') + ' — ' + m.roomLabel + '\n' +
+    isoToItalian(m.start) + ' → ' + isoToItalian(m.end) + '\n' + (m.title || '') +
+    (m.blocksRoom ? '\n\n⚠️ Stanza bloccata, non prenotabile finché non risolta.' : '');
+  await Promise.all(validRecipients.map((r) => fetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: r.chatId, text: text })
+  }).catch(() => {})));
+
+  await maintRef.update({
+    notifiedRecipients: validRecipients.map((r) => ({ label: r.label || '', chatId: r.chatId })),
+    notifiedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+  return { ok: true, notifiedCount: validRecipients.length };
 }
 
 /* ==========================================================================
@@ -1203,4 +1251,4 @@ async function handleTelegramUpdate(ctx, update) {
   }
 }
 
-module.exports = { handleTelegramUpdate, notifyOwnerMaintenanceReport, MAINTENANCE_CATEGORY_LABELS, roomsLiveOverviewCore };
+module.exports = { handleTelegramUpdate, notifyOwnerMaintenanceReport, notifyMaintenanceRecipientsCore, MAINTENANCE_CATEGORY_LABELS, roomsLiveOverviewCore };

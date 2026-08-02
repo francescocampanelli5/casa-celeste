@@ -253,7 +253,7 @@ window.CasaCelesteTourismDB = {
   createMaintenance: function (data) {
     var db_ = requireDb();
     var maintRef = doc(collection(db_, 'tourism_maintenance'));
-    var maintenance = Object.assign({}, data, { status: data.status || 'aperta', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    var maintenance = Object.assign({}, data, { status: data.status || 'aperta', blocksRoom: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     return runTransaction(db_, function (tx) {
       var roomRef = doc(db_, 'tourism_rooms', data.roomId);
       return tx.get(roomRef).then(function (roomSnap) {
@@ -281,6 +281,50 @@ window.CasaCelesteTourismDB = {
         tx.update(roomRef, { blockedRanges: ranges });
       });
     });
+  },
+  // Blocca la stanza per una segnalazione già esistente (tab Assistenza —
+  // le segnalazioni del personale, es. da pulizie.html, arrivano SENZA
+  // bloccare la stanza in automatico: vedi staffReportMaintenanceCore in
+  // functions/staff-actions.js). Rilegge la stanza dentro la transazione e
+  // rifiuta se quelle notti si sono nel frattempo occupate, stessa logica
+  // anti-doppio-blocco di createMaintenance sopra.
+  blockMaintenance: function (maintenanceId, roomId, start, end) {
+    var db_ = requireDb();
+    return runTransaction(db_, function (tx) {
+      var maintRef = doc(db_, 'tourism_maintenance', maintenanceId);
+      var roomRef = doc(db_, 'tourism_rooms', roomId);
+      return tx.get(roomRef).then(function (roomSnap) {
+        if (!roomSnap.exists()) throw new Error('Stanza non trovata.');
+        var room = roomSnap.data();
+        var ranges = (room.blockedRanges || []).slice();
+        var overlaps = ranges.some(function (r) { return r.maintenanceId !== maintenanceId && start < r.end && r.start < end; });
+        if (overlaps) throw new Error('Quelle date sono già occupate su questa stanza.');
+        ranges.push({ start: start, end: end, source: 'maintenance', maintenanceId: maintenanceId });
+        tx.update(roomRef, { blockedRanges: ranges });
+        tx.update(maintRef, { blocksRoom: true, updatedAt: serverTimestamp() });
+      });
+    });
+  },
+  // Sblocca la stanza per questa segnalazione senza cancellarla (resta
+  // visibile/gestibile in Assistenza) — l'opposto di blockMaintenance sopra.
+  unblockMaintenance: function (maintenanceId, roomId) {
+    var db_ = requireDb();
+    return runTransaction(db_, function (tx) {
+      var maintRef = doc(db_, 'tourism_maintenance', maintenanceId);
+      var roomRef = doc(db_, 'tourism_rooms', roomId);
+      return tx.get(roomRef).then(function (roomSnap) {
+        var room = roomSnap.exists() ? roomSnap.data() : {};
+        var ranges = (room.blockedRanges || []).filter(function (r) { return r.maintenanceId !== maintenanceId; });
+        tx.update(roomRef, { blockedRanges: ranges });
+        tx.update(maintRef, { blocksRoom: false, updatedAt: serverTimestamp() });
+      });
+    });
+  },
+  // Invio manuale ai destinatari manutenzione scelti dal proprietario (tab
+  // Assistenza) — vedi notifyMaintenanceRecipientsCore in functions/telegram-bot.js.
+  notifyMaintenanceRecipients: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'notifyMaintenanceRecipients')(data).then(function (res) { return res.data; });
   },
 
   // ---- upload foto stanze/spazi comuni/facciata (Storage, piano Blaze) ----
@@ -399,6 +443,17 @@ window.CasaCelesteTourismDB = {
   staffReportMaintenance: function (data) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'staffReportMaintenance')(data).then(function (res) { return res.data; });
+  },
+  // Dashboard limitata di chi si occupa della manutenzione (affittacamere/
+  // manutenzione.html), token separato da staffAccessToken (vedi
+  // maintenanceAccessToken in functions/staff-actions.js).
+  staffGetMaintenanceBoard: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'staffGetMaintenanceBoard')(data).then(function (res) { return res.data; });
+  },
+  staffSetMaintenanceStatus: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'staffSetMaintenanceStatus')(data).then(function (res) { return res.data; });
   },
   // Registro Excel di tutte le prenotazioni + dati ospiti — vedi
   // functions/bookings-excel-export.js. Restituito come base64 (non una URL
