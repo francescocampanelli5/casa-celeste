@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Redirect — Casa Celeste</title>
+</head>
+<body>
+<!--
+  Rete di sicurezza per un vecchio link/token pulizie già condiviso PRIMA
+  del fix del 02/08 (vedi commit "Corregge il link pulizie/iCal rotto..."):
+  quando la dashboard veniva aperta da un URL senza ".html", il link
+  generato incollava per errore "pulizie.html" subito dopo "dashboard",
+  producendo esattamente questo nome file. Il codice che genera il link è
+  già corretto per il futuro (dashboardBasePath() in js/dashboard.js) — ma
+  chi aveva già ricevuto/salvato un link con QUESTO url sbagliato (es. il
+  personale delle pulizie su WhatsApp) lo ritroverebbe comunque rotto senza
+  questa pagina, che si limita a redirigere là dove serve davvero,
+  preservando il token nella query string.
+-->
+<script>
+  window.location.replace('pulizie.html' + window.location.search);
+</script>
+<p>Reindirizzamento in corso… <a id="fallback-link" href="pulizie.html">Continua manualmente</a> se non succede nulla.</p>
+<script>
+  document.getElementById('fallback-link').href = 'pulizie.html' + window.location.search;
+</script>
+</body>
+</html>

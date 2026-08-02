@@ -215,12 +215,16 @@ async function createBookingCore(admin, db, stripe, data) {
       touristTax: touristTax.totalDue, total: roomQuote.total
     };
 
-    // Pagata online -> confermata subito (nessuna approvazione manuale del
-    // proprietario nel mezzo, vedi Condizioni di soggiorno). Le prenotazioni
-    // manuali (bot/dashboard, mai pagate qui) restano 'nuovo' come prima.
-    // 'site_test' (TEMPORANEO, vedi sopra) si comporta come 'site' per lo
-    // status/consenso ma non ha mai un pagamento reale.
-    const status = isSiteFlow ? 'confermato' : 'nuovo';
+    // Confermata subito in ogni caso: le prenotazioni dal sito sono pagate
+    // online (nessuna approvazione manuale del proprietario nel mezzo, vedi
+    // Condizioni di soggiorno); quelle manuali (bot/dashboard) le inserisce
+    // il proprietario stesso per registrare un soggiorno già deciso altrove
+    // (Airbnb/Booking/telefono) — non richiedono una seconda conferma prima
+    // di far partire la mail all'ospite. In passato restavano 'nuovo' finché
+    // qualcuno non le confermava a mano in dashboard, e quel passaggio veniva
+    // spesso dimenticato: l'ospite non riceveva mai l'email di conferma.
+    // Lo stato resta comunque modificabile a mano dalla dashboard se serve.
+    const status = 'confermato';
     const fee = source === 'site' ? computePaymentFee(pricingData.total) : 0;
     const bookingData = {
       roomId: roomId, roomLabel: room.name || roomId, checkIn: checkIn, checkOut: checkOut,
@@ -350,12 +354,11 @@ async function createGroupBookingCore(admin, db, stripe, data) {
       };
       grandTotal = Math.round((grandTotal + pricingData.total) * 100) / 100;
 
-      // Pagata online -> confermata subito, stesso ragionamento di
-      // createBookingCore. Un solo PaymentIntent copre tutte le stanze del
-      // gruppo: ogni prenotazione registra il proprio baseTotal (per capire
-      // quanto rimborsarle se il gruppo viene cancellato) più lo stesso
-      // intentId condiviso.
-      const status = isSiteFlow ? 'confermato' : 'nuovo';
+      // Confermata subito, stesso ragionamento di createBookingCore. Un solo
+      // PaymentIntent copre tutte le stanze del gruppo: ogni prenotazione
+      // registra il proprio baseTotal (per capire quanto rimborsarle se il
+      // gruppo viene cancellato) più lo stesso intentId condiviso.
+      const status = 'confermato';
       const fee = source === 'site' ? computePaymentFee(pricingData.total) : 0;
       const bookingData = {
         roomId: spec.roomId, roomLabel: room.name || spec.roomId, checkIn: checkIn, checkOut: checkOut,

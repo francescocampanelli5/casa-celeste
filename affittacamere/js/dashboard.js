@@ -129,7 +129,7 @@
   }
 
   var STATUS_LABELS = { nuovo: 'Nuova', confermato: 'Confermata', annullato: 'Annullata' };
-  var SOURCE_LABELS = { site: 'Sito', manual_airbnb: 'Airbnb', manual_booking: 'Booking.com', manual_phone: 'Telefono', manual_other: 'Altro' };
+  var SOURCE_LABELS = { site: 'Sito', manual_airbnb: 'Airbnb', manual_booking: 'Booking.com', manual_phone: 'Telefono', manual_other: 'Altro', telegram_wizard: 'Bot Telegram' };
   var DOC_TYPE_LABELS = { carta_identita: 'Carta d\'identità', passaporto: 'Passaporto', patente: 'Patente' };
   var CLEANING_STATUS_LABELS = { pronta: 'Pronta', sporca: 'Sporca', in_pulizia: 'In pulizia', da_ispezionare: 'Da ispezionare' };
   var CLEANING_STATUS_ORDER = ['sporca', 'in_pulizia', 'da_ispezionare', 'pronta'];
@@ -503,7 +503,9 @@
     var list = state.bookings.length === 0
       ? '<div class="dash-empty">Nessuna prenotazione ricevuta finora.</div>'
       : (visible.length ? '<div class="booking-list">' + visible.map(bookingCardHtml).join('') + '</div>' : '<div class="dash-empty">Nessuna prenotazione corrisponde ai filtri scelti.</div>');
-    content.innerHTML = '<h1 class="dash-section-title">Prenotazioni</h1>' + manualBookingFormHtml() + bookingsFilterBarHtml() + countLabel + list;
+    content.innerHTML = '<h1 class="dash-section-title">Prenotazioni</h1>' +
+      '<button type="button" class="link-btn" id="dl-bookings-excel-btn" style="margin-bottom:12px;">⬇ Scarica registro Excel (tutte le prenotazioni + dati ospiti)</button>' +
+      manualBookingFormHtml() + bookingsFilterBarHtml() + countLabel + list;
 
     function onFilterChange() {
       state.bookingsFilter = {
@@ -525,6 +527,28 @@
       renderBookingsTab(content);
     });
 
+    var excelBtn = document.getElementById('dl-bookings-excel-btn');
+    if (excelBtn) excelBtn.addEventListener('click', function () {
+      excelBtn.disabled = true;
+      var originalText = excelBtn.textContent;
+      excelBtn.textContent = 'Preparazione in corso…';
+      window.CasaCelesteTourismDB.getBookingsExcelExport().then(function (result) {
+        var binary = window.atob(result.base64);
+        var bytes = new Uint8Array(binary.length);
+        for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = result.fileName || 'prenotazioni.xlsx';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }).catch(function (err) {
+        window.alert('Impossibile scaricare il registro Excel: ' + (err && err.message ? err.message : err));
+      }).finally(function () {
+        excelBtn.disabled = false;
+        excelBtn.textContent = originalText;
+      });
+    });
     var openBtn = document.getElementById('open-manual-booking-btn');
     if (openBtn) openBtn.addEventListener('click', function () { state.manualBookingOpen = true; state.manualBookingPrefill = null; renderBookingsTab(content); });
     var cancelBtn = document.getElementById('mb-cancel');

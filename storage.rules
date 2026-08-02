@@ -116,5 +116,17 @@ service firebase.storage {
       allow read: if isOwner();
       allow write: if false;
     }
+
+    // Registro Excel di tutte le prenotazioni + dati ospiti (vedi
+    // functions/bookings-excel-export.js) — rigenerato automaticamente a ogni
+    // scrittura su prenotazioni/documenti ospiti, mai scritto dal client.
+    // Stessi dati sensibili dei documenti d'identità sopra: lettura riservata
+    // al proprietario. In pratica il download passa da getBookingsExcelExport
+    // (Cloud Function onCall, stesso controllo isOwner) invece che da qui
+    // direttamente, ma la regola resta come seconda barriera.
+    match /tourism-exports/{fileName} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
   }
 }

@@ -36,6 +36,7 @@ const { notifyBookingConfirmed, notifyBookingCancelled } = require('./guest-noti
 const { enforceRateLimit } = require('./rate-limit');
 const { requestSignatureOtpCore, verifySignatureOtpCore } = require('./guest-signature');
 const { staffGetBoardCore, staffSetCleaningStatusCore, staffReportMaintenanceCore } = require('./staff-actions');
+const { rebuildBookingsExcel, EXPORT_PATH: BOOKINGS_EXCEL_PATH } = require('./bookings-excel-export');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -676,7 +677,11 @@ exports.onBookingStatusChange = onDocumentWritten({
   secrets: [gmailUser, gmailAppPassword, telegramBotToken]
 }, async (event) => {
   const after = event.data.after.exists ? event.data.after.data() : null;
-  if (!after) return; // documento eliminato, niente da notificare
+  // Registro Excel: rigenerato per QUALUNQUE scrittura su una prenotazione,
+  // creazione/modifica/cancellazione inclusa (vedi bookings-excel-export.js)
+  // — best-effort, non deve mai bloccare/rompere la logica email sotto.
+  rebuildBookingsExcel({ db: db, bucket: bucket }).catch((err) => console.error('Errore aggiornamento registro Excel prenotazioni:', err));
+  if (!after) return; // documento eliminato, niente email da mandare
   const before = event.data.before.exists ? event.data.before.data() : null;
   const beforeStatus = before ? before.status : null;
   const bookingId = event.params.bookingId;
@@ -691,5 +696,43 @@ exports.onBookingStatusChange = onDocumentWritten({
     await notifyBookingConfirmed(ctx, bookingId, after).catch((err) => console.error('Errore onBookingStatusChange (conferma):', err));
   } else if (after.status === 'annullato' && beforeStatus !== 'annullato') {
     await notifyBookingCancelled(ctx, bookingId, after).catch((err) => console.error('Errore onBookingStatusChange (annullamento):', err));
+  }
+});
+
+// I dati ospite (nome, data di nascita, documento...) arrivano di solito
+// DOPO la creazione della prenotazione (ospiti.html o il bot, vedi
+// submitGuestDocuments/onDocumentsSubmit) — serve un secondo trigger
+// separato per tenere il registro Excel aggiornato anche quando cambia
+// solo questo, senza toccare lo stato della prenotazione.
+exports.onGuestDocumentsWriteExcel = onDocumentWritten({
+  document: 'tourism_guestDocuments/{bookingId}'
+}, async () => {
+  await rebuildBookingsExcel({ db: db, bucket: bucket }).catch((err) => console.error('Errore aggiornamento registro Excel prenotazioni (documenti ospiti):', err));
+});
+
+// Scarica il registro Excel — riservato al proprietario autenticato: contiene
+// dati sensibili degli ospiti (data di nascita, numero documento...), stesso
+// livello di protezione di storage.rules (tourism-exports/, allow read: if
+// isOwner()). Restituito come base64 invece di una signed URL: generare
+// signed URL dall'Admin SDK su Cloud Functions richiede un permesso IAM
+// aggiuntivo (iam.serviceAccounts.signBlob) non garantito di default — questa
+// via evita quel problema e resta comunque un file di poche decine/centinaia
+// di KB per una struttura di questa dimensione.
+exports.getBookingsExcelExport = onCall({}, async (request) => {
+  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Riservato al proprietario.');
+  await enforceRateLimit(db, request, 'getBookingsExcelExport', 10, 15);
+  try {
+    const [buffer] = await bucket.file(BOOKINGS_EXCEL_PATH).download();
+    return { base64: buffer.toString('base64'), fileName: 'prenotazioni.xlsx' };
+  } catch (err) {
+    if (err.code === 404) {
+      // Non ancora generato (nessuna prenotazione scritta da quando questa
+      // funzione è stata deployata): lo generiamo ora al volo invece di
+      // restituire un errore all'utente.
+      await rebuildBookingsExcel({ db: db, bucket: bucket });
+      const [buffer] = await bucket.file(BOOKINGS_EXCEL_PATH).download();
+      return { base64: buffer.toString('base64'), fileName: 'prenotazioni.xlsx' };
+    }
+    throw new HttpsError('internal', 'Errore nel recupero del registro Excel: ' + err.message);
   }
 });
