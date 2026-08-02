@@ -77,6 +77,18 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  // Etichetta breve + input, con un'eventuale spiegazione più lunga
+  // separata sotto (.admin-field-hint) invece che infilata dentro il
+  // <label> stesso — quella era la causa dei "muri di maiuscolo" con
+  // frasi intere come etichetta (es. tab Stanze). `full` = true applica
+  // admin-field-group--full (per textarea/campi a tutta larghezza).
+  function fieldGroupHtml(label, hint, inputHtml, full, style) {
+    return '<div class="admin-field-group' + (full ? ' admin-field-group--full' : '') + '"' + (style ? ' style="' + style + '"' : '') + '>' +
+      '<label>' + escapeHtml(label) + '</label>' +
+      (hint ? '<div class="admin-field-hint">' + escapeHtml(hint) + '</div>' : '') +
+      inputHtml +
+    '</div>';
+  }
   // Nota lunga (istruzioni/spiegazioni/esempi) nascosta dietro un'icona ⓘ
   // finché non viene aperta — <details> nativo, l'HTML passato in `html` è
   // già fidato (stringhe scritte qui nel codice, stesso trattamento di
@@ -139,6 +151,11 @@
   }
 
   var STATUS_LABELS = { nuovo: 'Nuova', confermato: 'Confermata', annullato: 'Annullata' };
+  // Stessi colori di .dash-status-pill--nuovo/--confermato/--annullato in
+  // styles.css, applicati direttamente al <select> di stato della
+  // prenotazione — sostituisce la pillola separata che duplicava lo
+  // stesso valore già mostrato dal select sotto.
+  var STATUS_SELECT_COLORS = { nuovo: { bg: '#FDF3D9', color: '#8C6A16' }, confermato: { bg: '#E4F7EA', color: '#2E9E5B' }, annullato: { bg: '#F0F1F3', color: '#8792A0' } };
   var SOURCE_LABELS = { site: 'Sito', manual_airbnb: 'Airbnb', manual_booking: 'Booking.com', manual_phone: 'Telefono', manual_other: 'Altro', telegram_wizard: 'Bot Telegram' };
   var DOC_TYPE_LABELS = { carta_identita: 'Carta d\'identità', passaporto: 'Passaporto', patente: 'Patente' };
   var CLEANING_STATUS_LABELS = { pronta: 'Pronta', sporca: 'Sporca', in_pulizia: 'In pulizia', da_ispezionare: 'Da ispezionare' };
@@ -535,8 +552,14 @@
     return '<div class="booking-meta">' + escapeHtml(bedLabel) + escapeHtml(extrasStr) + escapeHtml(totalStr) + '</div>';
   }
   function bookingCardHtml(b) {
-    var statusClass = 'dash-status-pill--' + (b.status || 'nuovo');
     var sourceBadge = '<span class="booking-source-badge">' + escapeHtml(SOURCE_LABELS[b.source] || b.source || 'Sito') + '</span>';
+    var docsOk = !!b.guestDocsComplete;
+    var identityOk = !!b.identityVerified;
+    var docsChip = '<span class="dash-meta-chip dash-meta-chip--' + (docsOk ? 'ok' : 'attention') + '">' + (docsOk ? 'Documenti completi' : 'Documenti mancanti') + '</span>';
+    var identityChip = '<span class="dash-meta-chip dash-meta-chip--' + (identityOk ? 'ok' : 'attention') + '">' + (identityOk ? '✅ Identità verificata' : '⏳ Identità da verificare') + '</span>';
+    var identityDetail = identityOk
+      ? ' (' + escapeHtml(IDENTITY_METHOD_LABELS[b.identityVerified.method] || b.identityVerified.method) + ')'
+      : ' (obbligo di legge)';
     return (
       '<div class="booking-card">' +
         '<div class="booking-main">' +
@@ -551,16 +574,18 @@
           // imminente senza documenti è più urgente di un campo da compilare.
           bookingAlertHtml(b) +
           (b.videoCallLink ? '<div class="booking-options"><a href="' + escapeHtml(b.videoCallLink) + '" target="_blank" rel="noopener">Link videochiamata (verifica documento, ~1h prima del check-in)</a></div>' : '') +
-          '<div class="admin-field-group admin-field-group--full" style="margin-top:8px;"><label>Codice/link apertura stanza (cambia a ogni prenotazione — incluso nell\'email di check-in)</label><input type="text" class="admin-field" data-room-access-code data-id="' + b.id + '" value="' + escapeHtml(b.roomAccessCode || '') + '" placeholder="es. 4471 oppure un link"></div>' +
+          fieldGroupHtml('Codice/link apertura stanza', 'Cambia a ogni prenotazione — incluso nell\'email di check-in.',
+            '<input type="text" class="admin-field" data-room-access-code data-id="' + b.id + '" value="' + escapeHtml(b.roomAccessCode || '') + '" placeholder="es. 4471 oppure un link">', true, 'margin-top:8px;') +
           // Meta terziario (data ricezione, stato documenti/identità, codice
           // referral interno) raggruppato in una riga sola, piccola e
-          // separata: informazioni utili ma non da leggere per prime.
-          '<div class="booking-footer-meta">Ricevuta il ' + formatCreatedAt(b.createdAt) + ' · Documenti: ' + (b.guestDocsComplete ? 'completi' : 'mancanti') +
-            ' · Identità: ' + identityVerifiedLabel(b.identityVerified) + escapeHtml(contractSignedMeta(b)) + ' · Rif. CC-' + escapeHtml(String(b.id || '').slice(-6).toUpperCase()) + '</div>' +
+          // separata: informazioni utili ma non da leggere per prime — i
+          // due fatti che richiedono davvero attenzione (documenti,
+          // identità) hanno un chip colorato per essere scansionabili.
+          '<div class="booking-footer-meta">Ricevuta il ' + formatCreatedAt(b.createdAt) + ' · ' + docsChip +
+            ' · ' + identityChip + identityDetail + escapeHtml(contractSignedMeta(b)) + ' · Rif. CC-' + escapeHtml(String(b.id || '').slice(-6).toUpperCase()) + '</div>' +
         '</div>' +
         '<div class="booking-actions">' +
-          '<span class="dash-status-pill ' + statusClass + '">' + (STATUS_LABELS[b.status] || 'Nuova') + '</span>' +
-          '<select class="dash-select" data-status-select data-id="' + b.id + '">' +
+          '<select class="dash-select" data-status-select data-id="' + b.id + '" style="font-weight:700; border-color:transparent; background:' + (STATUS_SELECT_COLORS[b.status] || STATUS_SELECT_COLORS.nuovo).bg + '; color:' + (STATUS_SELECT_COLORS[b.status] || STATUS_SELECT_COLORS.nuovo).color + ';">' +
             '<option value="nuovo"' + (b.status === 'nuovo' ? ' selected' : '') + '>Nuova</option>' +
             '<option value="confermato"' + (b.status === 'confermato' ? ' selected' : '') + '>Confermata</option>' +
             '<option value="annullato"' + (b.status === 'annullato' ? ' selected' : '') + '>Annullata (libera le notti)</option>' +
@@ -572,9 +597,9 @@
               '<option value="door_intercom">✅ Videocitofono all\'arrivo</option>' +
             '</select>'
           ) : '') +
-          '<button type="button" class="dash-delete-btn" data-toggle-guestdocs data-id="' + b.id + '">' +
-            (state.guestDocsPanelBookingId === b.id ? 'Chiudi documenti ospiti' : '📄 Inserisci documenti ospiti') + '</button>' +
-          '<button type="button" class="dash-delete-btn" data-copy-alloggiati data-id="' + b.id + '">Copia dati Alloggiati Web</button>' +
+          '<button type="button" class="dash-action-btn" data-toggle-guestdocs data-id="' + b.id + '">' +
+            (state.guestDocsPanelBookingId === b.id ? 'Chiudi documenti ospiti' : 'Inserisci documenti ospiti') + '</button>' +
+          '<button type="button" class="dash-action-btn" data-copy-alloggiati data-id="' + b.id + '">Copia dati Alloggiati Web</button>' +
           '<button type="button" class="dash-delete-btn" data-delete-booking data-id="' + b.id + '">Elimina</button>' +
         '</div>' +
         (state.guestDocsPanelBookingId === b.id ? guestDocsPanelHtml(b) : '') +
@@ -657,7 +682,7 @@
       ? '<div class="dash-empty">Nessuna prenotazione ricevuta finora.</div>'
       : (visible.length ? '<div class="booking-list">' + visible.map(bookingCardHtml).join('') + '</div>' : '<div class="dash-empty">Nessuna prenotazione corrisponde ai filtri scelti.</div>');
     content.innerHTML = '<h1 class="dash-section-title">Prenotazioni</h1>' +
-      '<button type="button" class="link-btn" id="dl-bookings-excel-btn" style="margin-bottom:12px;">⬇ Scarica registro Excel (tutte le prenotazioni + dati ospiti)</button>' +
+      '<button type="button" class="link-btn" id="dl-bookings-excel-btn" style="margin-bottom:12px;">Scarica registro Excel (tutte le prenotazioni + dati ospiti)</button>' +
       manualBookingFormHtml() + bookingsFilterBarHtml() + countLabel + list;
 
     function onFilterChange() {
@@ -1609,7 +1634,7 @@
     }).join('') || '<div style="font-size:13px; color:var(--text-muted,#6B7A8C);">Nessuna notte bloccata da oggi in poi.</div>';
     return (
       '<div class="admin-field-group admin-field-group--full">' +
-        '<label>Notti bloccate (prenotazioni + blocchi manuali)</label>' +
+        '<div class="admin-field-hint" style="margin-top:0;">Include sia le notti prenotate sia i blocchi manuali.</div>' +
         '<div class="admin-stats-rows">' + rows + '</div>' +
         (pastCount ? '<div style="font-size:12px; color:var(--text-faintest,#9AA7B4); margin-top:4px;">+ ' + pastCount + ' notti passate, non più bloccanti — nascoste qui, restano visibili nella tab Prenotazioni.</div>' : '') +
         '<div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">' +
@@ -1635,7 +1660,7 @@
     }).join('') || '<div style="font-size:13px; color:var(--text-muted,#6B7A8C);">Nessun prezzo manuale impostato: fuori dai blocchi qui sotto, il prezzo segue sempre il calcolo dinamico automatico (stagione/festività/domanda).</div>';
     return (
       '<div class="admin-field-group admin-field-group--full">' +
-        '<label>Prezzo manuale per periodo (governa sempre, ignora il calcolo automatico)</label>' +
+        '<div class="admin-field-hint" style="margin-top:0;">Governa sempre sulle notti che copre, ignorando il calcolo dinamico automatico.</div>' +
         '<div class="admin-stats-rows">' + rows + '</div>' +
         '<div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">' +
           '<input type="date" class="admin-field" id="price-period-start-' + roomId + '" style="max-width:160px;">' +
@@ -1677,15 +1702,20 @@
         '<div class="admin-card-section">' +
           '<div class="admin-card-section-title">Prezzo e capienza</div>' +
           '<div class="admin-room-type-row">' +
-            '<div class="admin-field-group"><label>Prezzo BASE a notte (€) — punto di partenza del calcolo dinamico stagionale, sovrascritto dai prezzi manuali per periodo qui sotto</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="nightlyPrice" value="' + (room.nightlyPrice || 0) + '"></div>' +
-            '<div class="admin-field-group"><label>Ospiti massimi (max 3, limite fisico della stanza)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="maxGuests" min="1" max="3" value="' + (room.maxGuests || 1) + '"></div>' +
-            '<div class="admin-field-group"><label>Notti minime</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="minNights" min="1" value="' + (room.minNights || 1) + '"></div>' +
-            '<div class="admin-field-group"><label>Balcone</label><select class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="balcony">' +
-              '<option value="nessuno"' + (room.balcony !== 'privato' && room.balcony !== 'comunicante' ? ' selected' : '') + '>Nessuno</option>' +
-              '<option value="privato"' + (room.balcony === 'privato' ? ' selected' : '') + '>Privato</option>' +
-              '<option value="comunicante"' + (room.balcony === 'comunicante' ? ' selected' : '') + '>Comunicante</option>' +
-            '</select></div>' +
-            '<div class="admin-field-group"><label>Numero recensioni mostrato (vuoto = automatico)</label><input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="reviewCountOverride" min="0" value="' + (room.reviewCountOverride === null || room.reviewCountOverride === undefined ? '' : room.reviewCountOverride) + '"></div>' +
+            fieldGroupHtml('Prezzo base a notte (€)', 'Punto di partenza del calcolo dinamico stagionale — sovrascritto dai prezzi manuali per periodo qui sotto.',
+              '<input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="nightlyPrice" value="' + (room.nightlyPrice || 0) + '">') +
+            fieldGroupHtml('Ospiti massimi', 'Max 3, limite fisico della stanza.',
+              '<input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="maxGuests" min="1" max="3" value="' + (room.maxGuests || 1) + '">') +
+            fieldGroupHtml('Notti minime', '',
+              '<input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="minNights" min="1" value="' + (room.minNights || 1) + '">') +
+            fieldGroupHtml('Balcone', '',
+              '<select class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="balcony">' +
+                '<option value="nessuno"' + (room.balcony !== 'privato' && room.balcony !== 'comunicante' ? ' selected' : '') + '>Nessuno</option>' +
+                '<option value="privato"' + (room.balcony === 'privato' ? ' selected' : '') + '>Privato</option>' +
+                '<option value="comunicante"' + (room.balcony === 'comunicante' ? ' selected' : '') + '>Comunicante</option>' +
+              '</select>') +
+            fieldGroupHtml('Numero recensioni mostrato', 'Vuoto = automatico.',
+              '<input type="number" class="admin-field" data-room-field data-room-id="' + roomId + '" data-field="reviewCountOverride" min="0" value="' + (room.reviewCountOverride === null || room.reviewCountOverride === undefined ? '' : room.reviewCountOverride) + '">') +
           '</div>' +
         '</div>' +
         '<div class="admin-card-section">' +
@@ -1950,8 +1980,10 @@
           '<option value="nessuno"' + (common.balcony !== 'presente' ? ' selected' : '') + '>Nessuno</option>' +
           '<option value="presente"' + (common.balcony === 'presente' ? ' selected' : '') + '>Presente</option>' +
         '</select></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Caratteristiche, separate da virgola (IT)</label><input type="text" class="admin-field" ' + idAttr + ' data-field="features.it" value="' + escapeHtml(featuresTextIt) + '"></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Caratteristiche (EN)</label><input type="text" class="admin-field" ' + idAttr + ' data-field="features.en" value="' + escapeHtml(featuresTextEn) + '"></div>' +
+        fieldGroupHtml('Caratteristiche (IT)', 'Separate da virgola.',
+          '<input type="text" class="admin-field" ' + idAttr + ' data-field="features.it" value="' + escapeHtml(featuresTextIt) + '">', true) +
+        fieldGroupHtml('Caratteristiche (EN)', 'Separate da virgola.',
+          '<input type="text" class="admin-field" ' + idAttr + ' data-field="features.en" value="' + escapeHtml(featuresTextEn) + '">', true) +
         photoSlotsHtml('common', commonId, common) +
         statsEditorHtml('common', commonId, common.stats) +
       '</div>'
@@ -2539,7 +2571,8 @@
       '<div class="admin-room-card">' +
         '<div class="admin-field-group"><label>Città</label><input type="text" class="admin-field" id="settings-city" value="' + escapeHtml(s.city || '') + '" placeholder="Monopoli"></div>' +
         '<div class="admin-field-group"><label>Indirizzo completo</label><input type="text" class="admin-field" id="settings-address" value="' + escapeHtml(s.address || '') + '" placeholder="Via Giuseppe Can. del Drago 9, Monopoli (BA)"></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Link Google Maps (facoltativo, posizione più precisa dell\'indirizzo testuale)</label><input type="text" class="admin-field" id="settings-map-link" value="' + escapeHtml(s.mapLink || '') + '" placeholder="Incolla qui il link da Google Maps → Condividi"></div>' +
+        fieldGroupHtml('Link Google Maps', 'Facoltativo, posizione più precisa dell\'indirizzo testuale.',
+          '<input type="text" class="admin-field" id="settings-map-link" value="' + escapeHtml(s.mapLink || '') + '" placeholder="Incolla qui il link da Google Maps → Condividi">', true) +
         '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usato subito per il bottone "Apri indicazioni". Per la mappa incorporata nella pagina, incolla invece il link da Google Maps → Condividi → Incorpora una mappa (contiene "maps/embed"): senza quello, la mappa incorporata continua a usare l\'indirizzo testuale sopra.</div>' +
       '</div>' +
       '<div class="admin-room-card">' +
@@ -3364,8 +3397,10 @@
           '<div class="admin-field-group"><label>Check-in dalle</label><input type="text" class="admin-field" id="settings-checkin" value="' + escapeHtml(s.checkInTime || '15:00') + '"></div>' +
           '<div class="admin-field-group"><label>Check-out entro</label><input type="text" class="admin-field" id="settings-checkout" value="' + escapeHtml(s.checkOutTime || '10:00') + '"></div>' +
           '<div class="admin-field-group"><label>Tassa di soggiorno (€/notte/persona)</label><input type="number" step="0.5" class="admin-field" id="settings-tax-rate" value="' + (s.touristTaxRate != null ? s.touristTaxRate : 0) + '"></div>' +
-          '<div class="admin-field-group"><label>Valutazione media (facoltativo, es. da Airbnb/Booking) — lascia vuoto finché non hai un voto reale</label><input type="number" step="0.1" min="0" max="5" class="admin-field" id="settings-avg-rating" value="' + (s.avgRating != null ? s.avgRating : '') + '"></div>' +
-          '<div class="admin-field-group"><label>Numero recensioni mostrato sul sito (facoltativo) — lascia vuoto per usare il conteggio reale del tab Recensioni</label><input type="number" step="1" min="0" class="admin-field" id="settings-review-count" value="' + (s.reviewCountOverride != null ? s.reviewCountOverride : '') + '"></div>' +
+          fieldGroupHtml('Valutazione media', 'Facoltativo, es. da Airbnb/Booking — lascia vuoto finché non hai un voto reale.',
+            '<input type="number" step="0.1" min="0" max="5" class="admin-field" id="settings-avg-rating" value="' + (s.avgRating != null ? s.avgRating : '') + '">') +
+          fieldGroupHtml('Numero recensioni mostrato sul sito', 'Facoltativo — lascia vuoto per usare il conteggio reale del tab Recensioni.',
+            '<input type="number" step="1" min="0" class="admin-field" id="settings-review-count" value="' + (s.reviewCountOverride != null ? s.reviewCountOverride : '') + '">') +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Colori del brand</span></div>' +
@@ -3377,7 +3412,8 @@
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Orario limite prenotazioni per la notte stessa</span></div>' +
-          '<div class="admin-field-group"><label>Non accettare più prenotazioni per stanotte dopo le ore (vuoto = nessun limite)</label><input type="text" class="admin-field" id="settings-same-night-cutoff" value="' + escapeHtml(s.sameNightBookingCutoff || '') + '" placeholder="es. 18:00"></div>' +
+          fieldGroupHtml('Non accettare più prenotazioni per stanotte dopo le ore', 'Vuoto = nessun limite.',
+            '<input type="text" class="admin-field" id="settings-same-night-cutoff" value="' + escapeHtml(s.sameNightBookingCutoff || '') + '" placeholder="es. 18:00">') +
           infoNoteHtml('Se un ospite prova a prenotare dal sito per il check-in di oggi stesso dopo quest\'ora, il calendario non gli propone più la data odierna (deve scegliere da domani in poi) — utile se non c\'è nessuno per accogliere un arrivo last-minute a tarda ora. Le prenotazioni che inserisci TU a mano (bot Telegram o dashboard) non sono mai limitate da questo orario. Lascia vuoto per continuare come adesso, senza alcun limite.') +
         '</div>' +
       '</div>' +
@@ -3390,20 +3426,27 @@
         '<div class="dash-settings-group-title">Comunicazioni</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Quota email (inviate da Gmail, rete di sicurezza)</span></div>' +
-          '<div class="admin-field-group"><label>Budget mensile (rete di sicurezza contro invii ripetuti per errore, non un vincolo di piano gratuito — Gmail permette molto di più)</label><input type="number" class="admin-field" id="settings-email-budget" value="' + (s.emailQuotaMonthlyBudget != null ? s.emailQuotaMonthlyBudget : 500) + '"></div>' +
+          fieldGroupHtml('Budget mensile', 'Rete di sicurezza contro invii ripetuti per errore, non un vincolo di piano gratuito — Gmail permette molto di più.',
+            '<input type="number" class="admin-field" id="settings-email-budget" value="' + (s.emailQuotaMonthlyBudget != null ? s.emailQuotaMonthlyBudget : 500) + '">') +
           infoNoteHtml('Le email al proprietario passano tutte da Telegram (gratis, illimitato): solo le email all\'ospite (conferma, check-in, promemoria, check-out, consigli, recensione) consumano questa quota, inviate direttamente dal tuo account Gmail. Se ci si avvicina al limite (di norma solo per un bug, non per volume normale), saltano per prime le due email extra (consigli a metà soggiorno, richiesta recensione), poi il ringraziamento/istruzioni check-out, poi la conferma — le email operative sono le ultime a essere sacrificate. Ricevi un avviso su Telegram ogni volta che una email viene saltata.') +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">WiFi e istruzioni check-in</span></div>' +
           '<div class="admin-field-group"><label>Nome rete WiFi</label><input type="text" class="admin-field" id="settings-wifi-name" value="' + escapeHtml(s.wifiName || '') + '"></div>' +
           '<div class="admin-field-group"><label>Password WiFi</label><input type="text" class="admin-field" id="settings-wifi-password" value="' + escapeHtml(s.wifiPassword || '') + '"></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Link apertura portone lato strada (facoltativo — es. link dell\'app del citofono/serratura smart; se l\'app genera link/codici che scadono, aggiorna questo campo ogni volta che serve, il sistema mostra sempre l\'ultimo valore salvato)</label><input type="text" class="admin-field" id="settings-street-gate-link" value="' + escapeHtml(s.streetGateLink || '') + '"></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso — italiano (chiavi/citofono/portone) — incluse nell\'email di check-in</label><textarea class="admin-field" id="settings-checkin-instructions" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.it) || '') + '</textarea></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di accesso — English (per gli ospiti che hanno scelto il sito in inglese)</label><textarea class="admin-field" id="settings-checkin-instructions-en" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.en) || '') + '</textarea></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — italiano (dove lasciare le chiavi, cosa spegnere, ecc.) — incluse nell\'email della mattina del check-out</label><textarea class="admin-field" id="settings-checkout-instructions" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.it) || '') + '</textarea></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Istruzioni di check-out — English</label><textarea class="admin-field" id="settings-checkout-instructions-en" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.en) || '') + '</textarea></div>' +
+          fieldGroupHtml('Link apertura portone lato strada', 'Facoltativo — es. link dell\'app del citofono/serratura smart. Se l\'app genera link/codici che scadono, aggiorna questo campo ogni volta che serve: il sistema mostra sempre l\'ultimo valore salvato.',
+            '<input type="text" class="admin-field" id="settings-street-gate-link" value="' + escapeHtml(s.streetGateLink || '') + '">', true) +
+          fieldGroupHtml('Istruzioni di accesso — italiano', 'Chiavi/citofono/portone — incluse nell\'email di check-in.',
+            '<textarea class="admin-field" id="settings-checkin-instructions" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.it) || '') + '</textarea>', true) +
+          fieldGroupHtml('Istruzioni di accesso — English', 'Per gli ospiti che hanno scelto il sito in inglese.',
+            '<textarea class="admin-field" id="settings-checkin-instructions-en" rows="3">' + escapeHtml((s.checkInInstructionsText && s.checkInInstructionsText.en) || '') + '</textarea>', true) +
+          fieldGroupHtml('Istruzioni di check-out — italiano', 'Dove lasciare le chiavi, cosa spegnere, ecc. — incluse nell\'email della mattina del check-out.',
+            '<textarea class="admin-field" id="settings-checkout-instructions" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.it) || '') + '</textarea>', true) +
+          fieldGroupHtml('Istruzioni di check-out — English', '',
+            '<textarea class="admin-field" id="settings-checkout-instructions-en" rows="3">' + escapeHtml((s.checkOutInstructionsText && s.checkOutInstructionsText.en) || '') + '</textarea>', true) +
           infoNoteHtml('Se un ospite ha scelto il sito in inglese, riceve automaticamente le email in inglese usando questi campi (se li lasci vuoti, quella sezione semplicemente non appare nell\'email in inglese).') +
-          '<div class="admin-field-group admin-field-group--full"><label>Link recensione (facoltativo, incluso nell\'email del check-out)</label><input type="text" class="admin-field" id="settings-review-link" value="' + escapeHtml(s.reviewLink || '') + '"></div>' +
+          fieldGroupHtml('Link recensione', 'Facoltativo, incluso nell\'email del check-out.',
+            '<input type="text" class="admin-field" id="settings-review-link" value="' + escapeHtml(s.reviewLink || '') + '">', true) +
           '<div class="admin-field-group admin-field-group--full"><label class="admin-social-toggle" style="width:auto;"><input type="checkbox" id="settings-video-call-enabled"' + (s.videoCallEnabled !== false ? ' checked' : '') + '> Offri la videochiamata di verifica documento</label></div>' +
           infoNoteHtml('Ogni NUOVA prenotazione richiede la verifica dell\'identità al primo ingresso (obbligo di legge, nessuna eccezione per ospiti già soggiornati in passato) — con questa casella attiva il sistema genera da solo (gratis) un link Google Meet un\'ora prima del check-in, una volta autorizzato Google Calendar (vedi GUIDA-PUBBLICAZIONE.md Parte 8.6); se non è ancora autorizzato, l\'email di check-in parte comunque, semplicemente senza link video. Disattiva la casella se per un periodo NON vuoi offrire la videochiamata: l\'email dirà semplicemente che la verifica avverrà dal vivo al videocitofono all\'arrivo.') +
         '</div>' +
@@ -3431,8 +3474,10 @@
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Email — mittente e firma</span></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Nome mittente mostrato all\'ospite (facoltativo — default: nome struttura)</label><input type="text" class="admin-field" id="settings-email-sender-name" placeholder="' + escapeHtml(s.siteName || 'Casa Celeste') + '" value="' + escapeHtml(s.emailSenderName || '') + '"></div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Firma in fondo alle email (facoltativa, es. "A presto, il team di Casa Celeste")</label><textarea class="admin-field" id="settings-email-footer-signature" rows="2">' + escapeHtml(s.emailFooterSignature || '') + '</textarea></div>' +
+          fieldGroupHtml('Nome mittente mostrato all\'ospite', 'Facoltativo — default: nome struttura.',
+            '<input type="text" class="admin-field" id="settings-email-sender-name" placeholder="' + escapeHtml(s.siteName || 'Casa Celeste') + '" value="' + escapeHtml(s.emailSenderName || '') + '">', true) +
+          fieldGroupHtml('Firma in fondo alle email', 'Facoltativa, es. "A presto, il team di Casa Celeste".',
+            '<textarea class="admin-field" id="settings-email-footer-signature" rows="2">' + escapeHtml(s.emailFooterSignature || '') + '</textarea>', true) +
         '</div>' +
       '</div>' +
       '<div class="dash-settings-group" data-settings-cat="sicurezza">' +
@@ -3448,7 +3493,8 @@
             return '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;"><label style="font-weight:700;">' + escapeHtml(state.roomsData[id].name) + '</label></div>' +
                    '<div class="admin-stats-rows" data-ical-rows="' + id + '">' + icalChannelRowsHtml(id) + '</div>' +
                    '<button type="button" class="admin-stat-add" data-ical-add="' + id + '">+ Aggiungi piattaforma</button>' +
-                   '<div class="admin-field-group admin-field-group--full"><label>URL da dare a queste piattaforme (vedono occupate le date prenotate sul sito)</label><input type="text" class="admin-field" readonly value="' + escapeHtml(window.location.origin + dashboardBasePath() + 'ical/' + id + '.ics') + '"></div>';
+                   fieldGroupHtml('URL da dare a queste piattaforme', 'Così vedono occupate le date prenotate sul sito.',
+                     '<input type="text" class="admin-field" readonly value="' + escapeHtml(window.location.origin + dashboardBasePath() + 'ical/' + id + '.ics') + '">', true) + '';
           }).join('') +
         '</div>' +
         '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Social</span></div>' + socialFieldsHtml(s.socials || {}) + '</div>' +

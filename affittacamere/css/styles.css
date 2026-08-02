@@ -690,7 +690,19 @@ button { font-family: inherit; }
   .admin-room-name { flex-basis: 100%; }
 }
 .admin-field-group { display: flex; flex-direction: column; gap: 4px; }
-.admin-field-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+/* Etichetta di campo: leggibile come parola vera, non un flag da
+   scansionare — il maiuscolo+letter-spacing resta solo per i TITOLI di
+   sezione (.admin-card-section-title, .dash-settings-group-title,
+   .admin-panel-title), mai per le etichette dei singoli campi, altrimenti
+   titolo e campo hanno lo stesso peso visivo e si perde la gerarchia.
+   Selettore ristretto al figlio diretto (non discendente): evitava che la
+   regola "fuoriuscisse" su <label> innestate come .admin-photo-upload-btn
+   ("Carica"), che finiva tutto maiuscolo senza volerlo. */
+.admin-field-group > label { font-size: 12.5px; font-weight: 600; color: var(--text-body); }
+/* Testo di aiuto sotto un'etichetta breve (spiegazioni più lunghe che
+   prima finivano dentro il <label> stesso, es. come funziona un prezzo
+   dinamico) — piccolo e discreto, mai il testo che si legge per primo. */
+.admin-field-hint { font-size: 11.5px; font-weight: 400; color: var(--text-faintest); line-height: 1.4; margin-top: -2px; }
 .admin-field-group--full { width: 100%; }
 .admin-field-group--full textarea.admin-field { resize: vertical; font-family: inherit; }
 .admin-room-type-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 10px; }
@@ -1728,6 +1740,18 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
    temporaneo per farla notare subito nell'elenco della tab Assistenza. */
 .assist-maint-card--highlight { outline: 2px solid var(--blue); outline-offset: 2px; }
 .dash-delete-btn { background: none; border: none; color: #B3261E; font-size: 12px; font-weight: 700; cursor: pointer; padding: 4px 0; text-align: right; }
+/* Variante neutra di .dash-delete-btn per azioni NON distruttive (es.
+   "Inserisci documenti ospiti", "Copia dati Alloggiati Web") — prima
+   usavano per errore lo stesso rosso di "Elimina", che ne appiattiva la
+   gerarchia (tutte le azioni sembravano ugualmente rischiose). */
+.dash-action-btn { background: none; border: none; color: var(--blue-deep); font-size: 12px; font-weight: 700; cursor: pointer; padding: 4px 0; text-align: right; }
+/* Chip compatti per le due informazioni della riga meta di una
+   prenotazione che richiedono davvero attenzione dell'host (documenti
+   mancanti, identità da verificare) — stessi colori di .dash-status-pill,
+   versione più piccola per stare in linea col resto del testo muted. */
+.dash-meta-chip { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 1px 7px; border-radius: 100px; margin: 0 2px; }
+.dash-meta-chip--attention { background: #FDEAEA; color: #B23A3A; }
+.dash-meta-chip--ok { background: var(--green-bg); color: var(--green); }
 
 .dash-room-rows { display: flex; flex-direction: column; gap: var(--dash-space-4); }
 .dash-seed-btn { background: none; border: 1px dashed var(--border-strong); color: var(--text-body); border-radius: var(--radius-xxs); padding: 10px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer; margin-bottom: 18px; }
