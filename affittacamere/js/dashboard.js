@@ -1998,6 +1998,20 @@
     if (createdBy.type === 'staff_dashboard') return 'Personale (link pulizie)';
     return 'Proprietario';
   }
+  // Se la stanza è davvero bloccata per QUESTA segnalazione: legge
+  // blockedRanges della stanza (fonte di verità, sempre aggiornata via
+  // subscribeRooms) invece di fidarsi solo di m.blocksRoom — le
+  // manutenzioni create PRIMA di questa funzione (owner/bot, che bloccavano
+  // già subito) non hanno quel campo valorizzato, e mostrerebbero il
+  // bottone "Blocca" anche se la stanza è già bloccata, con rischio di
+  // spingere un secondo blocco duplicato sulle stesse date.
+  function maintenanceIsBlockingRoom(m) {
+    var room = state.roomsData[m.roomId];
+    if (room && Array.isArray(room.blockedRanges)) {
+      return room.blockedRanges.some(function (r) { return r.maintenanceId === m.id; });
+    }
+    return !!m.blocksRoom;
+  }
   // Card di revisione per UNA segnalazione manutenzione: mostra se blocca già
   // la stanza (scelta esplicita, non più automatica per le segnalazioni del
   // personale — vedi staffReportMaintenanceCore in functions/staff-actions.js)
@@ -2011,13 +2025,14 @@
     var notified = m.notifiedRecipients || [];
     var recipientsOpen = state.assistMaintOpenId === m.id;
     var highlighted = state.assistHighlightMaintenanceId === m.id;
+    var isBlocked = maintenanceIsBlockingRoom(m);
     return (
       '<div class="admin-room-card assist-maint-card' + (highlighted ? ' assist-maint-card--highlight' : '') + '" data-maintenance-id="' + m.id + '">' +
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">' + escapeHtml(categoryLabel) + ' — ' + escapeHtml(m.roomLabel || '') + '</span>' +
           '<span class="dash-status-pill ' + statusClass + '">' + (MAINTENANCE_STATUS_LABELS[m.status] || m.status) + '</span></div>' +
         '<div class="assist-msg-text">' + escapeHtml(m.title || '') + '</div>' +
         '<div class="assist-msg-meta">' + escapeHtml(m.start || '') + ' → ' + escapeHtml(m.end || '') + ' · Segnalato da ' + escapeHtml(maintenanceReporterLabel(m.createdBy)) + ' il ' + formatCreatedAt(m.createdAt) + '</div>' +
-        (m.blocksRoom
+        (isBlocked
           ? '<div class="range-hint range-hint--ok" style="margin-top:10px;">🔒 Stanza bloccata (non prenotabile)</div>' +
             '<button type="button" class="link-btn" data-maint-unblock data-maintenance-id="' + m.id + '" data-room-id="' + m.roomId + '" style="margin-top:6px;">Sblocca la stanza</button>'
           : '<button type="button" class="btn btn-primary" data-maint-block data-maintenance-id="' + m.id + '" data-room-id="' + m.roomId + '" data-start="' + escapeHtml(m.start || '') + '" data-end="' + escapeHtml(m.end || '') + '" style="margin-top:10px;">🔒 Blocca la stanza (in manutenzione)</button>') +

@@ -155,11 +155,22 @@ async function staffReportMaintenanceCore(ctx, data) {
 async function staffGetMaintenanceBoardCore(ctx, data) {
   const { db } = ctx;
   await verifyMaintenanceToken(db, data.token);
-  const snap = await db.collection('tourism_maintenance').where('status', '!=', 'risolta').get();
+  const [maintSnap, roomsSnap] = await Promise.all([
+    db.collection('tourism_maintenance').where('status', '!=', 'risolta').get(),
+    db.collection('tourism_rooms').get()
+  ]);
+  // Fonte di verità = blockedRanges della stanza, non il campo m.blocksRoom:
+  // le manutenzioni create PRIMA di questa funzione (owner/bot, bloccavano
+  // già subito) non hanno quel campo valorizzato e risulterebbero "non
+  // bloccate" nel badge qui sotto anche se in realtà lo sono.
+  const blockedMaintenanceIds = new Set();
+  roomsSnap.forEach((d) => {
+    (d.data().blockedRanges || []).forEach((r) => { if (r.maintenanceId) blockedMaintenanceIds.add(r.maintenanceId); });
+  });
   const items = [];
-  snap.forEach((d) => {
+  maintSnap.forEach((d) => {
     const m = d.data();
-    items.push({ id: d.id, roomLabel: m.roomLabel, category: m.category, title: m.title, start: m.start, end: m.end, status: m.status, blocksRoom: !!m.blocksRoom });
+    items.push({ id: d.id, roomLabel: m.roomLabel, category: m.category, title: m.title, start: m.start, end: m.end, status: m.status, blocksRoom: blockedMaintenanceIds.has(d.id) });
   });
   items.sort((a, b) => String(a.start).localeCompare(String(b.start)));
   return { items };
