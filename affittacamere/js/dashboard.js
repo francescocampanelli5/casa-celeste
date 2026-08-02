@@ -91,6 +91,20 @@
     }
     return one('it', 'italiano') + one('en', 'inglese');
   }
+  // Cartella di affittacamere/ (per costruire link a pulizie.html, ical/*.ics
+  // ecc. a partire da dove gira dashboard.html) — SBAGLIATO fare
+  // pathname.replace(/dashboard\.html$/, ''): GitHub Pages serve
+  // dashboard.html anche per l'URL SENZA estensione (/dashboard, niente
+  // redirect, la barra indirizzi resta così), quindi quella replace non
+  // trova ".html" da togliere e il link risultante incolla il nome pagina
+  // successivo subito dopo "dashboard" (es. "dashboardpulizie.html" invece
+  // di "pulizie.html") — bug reale, riscontrato da un link condiviso senza
+  // estensione. Tagliare fino all'ultimo "/" funziona identico con o senza
+  // estensione nell'URL corrente.
+  function dashboardBasePath() {
+    var pathname = window.location.pathname;
+    return pathname.slice(0, pathname.lastIndexOf('/') + 1);
+  }
   function todayISO() { return new Date().toISOString().slice(0, 10); }
   // Suffisso Z esplicito e setUTCDate/getUTCDate (non setDate/getDate):
   // senza, la stringa data viene interpretata come mezzanotte LOCALE e poi
@@ -2364,7 +2378,7 @@
             return '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;"><label style="font-weight:700;">' + escapeHtml(state.roomsData[id].name) + '</label></div>' +
                    '<div class="admin-stats-rows" data-ical-rows="' + id + '">' + icalChannelRowsHtml(id) + '</div>' +
                    '<button type="button" class="admin-stat-add" data-ical-add="' + id + '">+ Aggiungi piattaforma</button>' +
-                   '<div class="admin-field-group admin-field-group--full"><label>URL da dare a queste piattaforme (vedono occupate le date prenotate sul sito)</label><input type="text" class="admin-field" readonly value="' + escapeHtml(window.location.origin + window.location.pathname.replace(/dashboard\.html$/, '') + 'ical/' + id + '.ics') + '"></div>';
+                   '<div class="admin-field-group admin-field-group--full"><label>URL da dare a queste piattaforme (vedono occupate le date prenotate sul sito)</label><input type="text" class="admin-field" readonly value="' + escapeHtml(window.location.origin + dashboardBasePath() + 'ical/' + id + '.ics') + '"></div>';
           }).join('') +
         '</div>' +
         '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Social</span></div>' + socialFieldsHtml(s.socials || {}) + '</div>' +
@@ -2406,7 +2420,7 @@
         infoNoteHtml('Link da inviare a chi si occupa delle pulizie (es. su WhatsApp): apre una pagina semplice per segnare lo stato di ogni stanza e segnalare problemi (furti, danni, manutenzione), senza bisogno di creare un account. Rigenerandolo, il link precedente smette subito di funzionare — usalo se dovesse finire nelle mani sbagliate.') +
         '<div class="admin-room-card">' +
           (sp.staffAccessToken ?
-            '<div class="admin-field-group admin-field-group--full"><label>Link personale pulizie</label><input type="text" class="admin-field" id="staff-link-field" readonly value="' + escapeHtml(window.location.origin + window.location.pathname.replace(/dashboard\.html$/, '') + 'pulizie.html?token=' + sp.staffAccessToken) + '"></div>' +
+            '<div class="admin-field-group admin-field-group--full"><label>Link personale pulizie</label><input type="text" class="admin-field" id="staff-link-field" readonly value="' + escapeHtml(window.location.origin + dashboardBasePath() + 'pulizie.html?token=' + sp.staffAccessToken) + '"></div>' +
             '<button type="button" class="dash-add-room-btn" id="staff-link-copy" style="margin-top:8px;">Copia link</button>'
             : '<div class="admin-note" style="margin:0;">Nessun link ancora generato.</div>') +
           '<button type="button" class="dash-add-room-btn" id="staff-link-regenerate" style="margin-top:8px;">' + (sp.staffAccessToken ? 'Genera un nuovo link (invalida quello attuale)' : 'Genera link per il personale pulizie') + '</button>' +
