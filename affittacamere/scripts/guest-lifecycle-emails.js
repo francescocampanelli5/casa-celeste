@@ -43,6 +43,18 @@ var TPL_THANKYOU = '4-ringraziamento-checkout.html';
 var TPL_WELLNESS = '5-andamento-soggiorno.html';
 var TPL_REVIEW_REQUEST = '6-richiesta-recensione.html';
 
+// Elenco campi editabili da dashboard per ognuna delle email di questo
+// script (vedi Impostazioni → Email ospiti) — usati con lib.emailTextVars
+// per produrre le variabili {{t1_xxx}} già renderizzate che i template si
+// aspettano (vedi affittacamere/email-templates/email-texts-defaults.json).
+var T1_FIELDS = ['eyebrow', 'h1', 'introSingular', 'introGroup', 'calendarLabel', 'legalTitle', 'legalBody', 'ctaSingular', 'ctaGroupIntro', 'ctaGroupSuffix', 'assistLead', 'spamNote'];
+var T1_TABLE_FIELDS = ['checkIn', 'checkOut', 'nights', 'guests', 'touristTax'];
+var T3_FIELDS = ['eyebrow', 'h1', 'introSingular', 'introGroupLine1', 'introGroupLine2', 'streetGateBtn', 'accessBoxTitle', 'roomCodeTitleSingular', 'roomCodeTitleGroup', 'legalTitle', 'legalBody', 'videoCallBtn', 'closingLine'];
+var T3_TABLE_FIELDS = ['address', 'wifi', 'wifiPassword'];
+var T4_FIELDS = ['eyebrow', 'h1Singular', 'h1Group', 'checkoutLine', 'instrBoxTitleSingular', 'instrBoxTitleGroup', 'assistLead', 'closingSingular', 'closingGroup', 'reviewInviteSingular', 'reviewInviteGroup', 'finalLineSingular', 'finalLineGroup'];
+var T5_FIELDS = ['eyebrow', 'h1Singular', 'h1Group', 'introSingular', 'introGroup', 'ideasLeadSingular', 'ideasLeadGroup', 'closing'];
+var T6_FIELDS = ['eyebrow', 'h1', 'introSingular', 'introGroup', 'closing'];
+
 // Giorni dopo il check-out per il promemoria recensione "leggero" (distinto
 // dal link recensione già incluso nel ringraziamento del giorno dopo).
 var REVIEW_REQUEST_DAYS_AFTER_CHECKOUT = 3;
@@ -190,7 +202,7 @@ async function composeAndSendConfirmation(settings, docsGroup) {
   var repForCalendar = isGroup ? Object.assign({}, rep, { roomLabel: groupRoomNames }) : rep;
   var subjectRep = isGroup ? Object.assign({}, rep, { roomLabel: groupRoomNames }) : rep;
 
-  var result = await lib.sendGuestEmail(db, settings, TPL_CONFIRMATION, {
+  var confirmationVars = {
     email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     checkIn: lib.formatDateHuman(rep.checkIn, isEn), checkOut: lib.formatDateHuman(rep.checkOut, isEn),
     nights: rep.nights || 0, guests: totalGuests, totalDue: totalDue,
@@ -200,9 +212,11 @@ async function composeAndSendConfirmation(settings, docsGroup) {
     icsLink: icsLink(first.doc.id, first.b.guestFormToken, isGroup ? groupRoomNames : ''),
     assistLink: assistLink(), isEn: isEn, subjectLine: subjectFor('confirmation', isEn, subjectRep, settings),
     isGroup: isGroup, rooms: isGroup ? rooms : []
-  }, 2, isGroup
+  };
+
+  var result = await lib.sendGuestEmail(db, settings, TPL_CONFIRMATION, confirmationVars, 2, isGroup
     ? ('conferma prenotazione di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('conferma prenotazione (' + first.doc.id + ')'));
+    : ('conferma prenotazione (' + first.doc.id + ')'), { section: 't1', fields: T1_FIELDS, tableFields: T1_TABLE_FIELDS });
 
   if (result.sent) {
     await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ confirmationEmailSent: true }); }));
@@ -248,14 +262,16 @@ async function composeAndSendCheckin(settings, docsGroup) {
   // videochiamata..." in Impostazioni — in quel caso la verifica avviene
   // solo dal vivo al videocitofono. Per un gruppo, un'unica chiamata copre
   // tutte le stanze insieme (arrivano nello stesso momento).
+  // Testo interamente editabile da dashboard (Impostazioni → Email ospiti →
+  // Generali → Testo videochiamata di verifica, tourism_settings/site.
+  // emailVideoCallTexts — è un campo di primo livello, non annidato dentro
+  // emailTexts, perché non appartiene a nessun singolo template). {{checkInTime}}
+  // è l'unica variabile Mustache attesa in questi campi.
   var videoCallEnabled = settings.videoCallEnabled !== false;
   var meetLink = null, videoCallNote;
+  var videoCallTextVars = { checkInTime: checkInTime };
   if (!videoCallEnabled) {
-    videoCallNote = isEn
-      ? 'We\'ll verify your document in person via the intercom when you arrive.'
-      : (isGroup
-        ? 'Verificheremo i documenti dal vivo al videocitofono al vostro arrivo.'
-        : 'Verificheremo il documento dal vivo al videocitofono al tuo arrivo.');
+    videoCallNote = lib.renderText(settings, 'emailVideoCallTexts', isGroup ? 'disabledNoteGroup' : 'disabledNoteSingular', isEn, videoCallTextVars);
   } else {
     // Programmata 1h prima del check-in (ora Europe/Rome, a prova di cambio
     // ora legale/solare): l'ospite deve avere il documento in mano.
@@ -268,15 +284,9 @@ async function composeAndSendCheckin(settings, docsGroup) {
     // In ogni caso (anche con la videochiamata prenotata) resta chiaro che
     // il videocitofono è il ripiego se la chiamata non dovesse avvenire —
     // richiesto esplicitamente: mai lasciare l'ospite senza un'alternativa.
-    if (isEn) {
-      videoCallNote = meetLink
-        ? ('The video call is scheduled one hour before your check-in (' + checkInTime + '): please have ' + (isGroup ? 'everyone\'s ID documents' : 'your ID document') + ' in hand during the call. If the call doesn\'t take place, we\'ll verify you in person via the intercom when you arrive instead.')
-        : 'We\'ll contact you shortly to arrange a quick verification video call (ID document in hand) one hour before check-in. If the call doesn\'t take place, we\'ll verify you in person via the intercom on arrival instead.';
-    } else {
-      videoCallNote = meetLink
-        ? ('La videochiamata è programmata per un\'ora prima del check-in (' + checkInTime + '): tenete ' + (isGroup ? 'i documenti d\'identità di tutti' : 'il documento d\'identità') + ' in mano durante la chiamata. Se la videochiamata non dovesse avvenire, la verifica avverrà comunque dal vivo al videocitofono al ' + (isGroup ? 'vostro' : 'tuo') + ' arrivo.')
-        : 'Ti contatteremo a breve per organizzare una brevissima videochiamata di verifica (documento in mano) un\'ora prima del check-in. Se la videochiamata non dovesse avvenire, la verifica avverrà comunque dal vivo al videocitofono al ' + (isGroup ? 'vostro' : 'tuo') + ' arrivo.';
-    }
+    var withLinkKey = isGroup ? 'scheduledWithLinkGroup' : 'scheduledWithLinkSingular';
+    var noLinkKey = isGroup ? 'scheduledNoLinkGroup' : 'scheduledNoLinkSingular';
+    videoCallNote = lib.renderText(settings, 'emailVideoCallTexts', meetLink ? withLinkKey : noLinkKey, isEn, videoCallTextVars);
   }
 
   // roomAccessCode: codice/link per aprire la singola stanza, inserito a
@@ -285,7 +295,7 @@ async function composeAndSendCheckin(settings, docsGroup) {
   var rooms = docsGroup.map(function (item) { return { roomLabel: item.b.roomLabel || siteName, roomAccessCode: item.b.roomAccessCode || '' }; });
   var hasRoomAccessCode = isGroup ? rooms.some(function (r) { return r.roomAccessCode; }) : !!rep.roomAccessCode;
 
-  var result = await lib.sendGuestEmail(db, settings, TPL_CHECKIN, {
+  var checkinVars = {
     email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     checkIn: lib.formatDateHuman(rep.checkIn, isEn), checkInTime: checkInTime,
     address: settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)',
@@ -295,9 +305,11 @@ async function composeAndSendCheckin(settings, docsGroup) {
     videoCallLink: meetLink || '', videoCallNote: videoCallNote,
     isGroup: isGroup, rooms: isGroup ? rooms : [], groupRoomNames: groupRoomNames,
     assistLink: assistLink(), isEn: isEn, subjectLine: subjectFor('checkin', isEn, rep, settings)
-  }, 1, isGroup
+  };
+
+  var result = await lib.sendGuestEmail(db, settings, TPL_CHECKIN, checkinVars, 1, isGroup
     ? ('istruzioni check-in di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('istruzioni check-in (' + first.doc.id + ')'));
+    : ('istruzioni check-in (' + first.doc.id + ')'), { section: 't3', fields: T3_FIELDS, tableFields: T3_TABLE_FIELDS });
 
   if (result.sent) {
     await Promise.all(docsGroup.map(function (item) {
@@ -343,7 +355,7 @@ async function composeAndSendThankYou(settings, docsGroup) {
     reviewLink: lib.normalizeExternalUrl(settings.reviewLink)
   }, 3, isGroup
     ? ('ringraziamento di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('ringraziamento + istruzioni check-out (' + first.doc.id + ')'));
+    : ('ringraziamento + istruzioni check-out (' + first.doc.id + ')'), { section: 't4', fields: T4_FIELDS });
   if (result.sent) await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ thankYouEmailSent: true }); }));
   return result.sent;
 }
@@ -376,7 +388,7 @@ async function composeAndSendWellness(settings, docsGroup) {
     assistLink: assistLink(), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('wellness', isEn, rep, settings), recs: recs
   }, 4, isGroup
     ? ('consigli metà soggiorno di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('consigli a metà soggiorno (' + first.doc.id + ')'));
+    : ('consigli a metà soggiorno (' + first.doc.id + ')'), { section: 't5', fields: T5_FIELDS });
   if (result.sent) await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ wellnessEmailSent: true }); }));
   return result.sent;
 }
@@ -395,6 +407,14 @@ async function sendWellnessCheckGroup(settings, siblingDocs) {
    Promemoria recensione "leggero", qualche giorno dopo il check-out.
    ========================================================================== */
 async function composeAndSendReviewRequest(settings, docsGroup) {
+  // L'unico scopo di questa email è il pulsante recensione: senza
+  // reviewLink configurato (campo facoltativo in Impostazioni) non c'è
+  // nulla da chiedere. Segna comunque il flag per non ricontrollare questo
+  // gruppo a ogni giro di cron all'infinito.
+  if (!lib.normalizeExternalUrl(settings.reviewLink)) {
+    await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ reviewRequestEmailSent: true }); }));
+    return false;
+  }
   var siteName = settings.siteName || 'Casa Celeste';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
@@ -406,7 +426,7 @@ async function composeAndSendReviewRequest(settings, docsGroup) {
     reviewLink: lib.normalizeExternalUrl(settings.reviewLink), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('reviewRequest', isEn, rep, settings)
   }, 4, isGroup
     ? ('richiesta recensione di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('richiesta recensione (' + first.doc.id + ')'));
+    : ('richiesta recensione (' + first.doc.id + ')'), { section: 't6', fields: T6_FIELDS });
   if (result.sent) await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ reviewRequestEmailSent: true }); }));
   return result.sent;
 }

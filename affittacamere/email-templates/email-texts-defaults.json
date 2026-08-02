@@ -1,0 +1,217 @@
+{
+  "shared": {
+    "assistButtonLabel": { "it": "Contatta l'assistenza", "en": "Contact assistance" },
+    "reviewButtonLabel": { "it": "Lascia una recensione", "en": "Leave a review" }
+  },
+  "tableLabels": {
+    "checkIn": { "it": "Check-in", "en": "Check-in" },
+    "checkOut": { "it": "Check-out", "en": "Check-out" },
+    "nights": { "it": "Notti", "en": "Nights" },
+    "guests": { "it": "Ospiti", "en": "Guests" },
+    "touristTax": { "it": "Tassa di soggiorno stimata", "en": "Estimated tourist tax" },
+    "address": { "it": "Indirizzo", "en": "Address" },
+    "wifi": { "it": "WiFi", "en": "WiFi" },
+    "wifiPassword": { "it": "Password WiFi", "en": "WiFi password" }
+  },
+  "emailVideoCallTexts": {
+    "disabledNoteSingular": {
+      "it": "Verificheremo il documento dal vivo al videocitofono al tuo arrivo.",
+      "en": "We'll verify your document in person via the intercom when you arrive."
+    },
+    "disabledNoteGroup": {
+      "it": "Verificheremo i documenti dal vivo al videocitofono al vostro arrivo.",
+      "en": "We'll verify your document in person via the intercom when you arrive."
+    },
+    "scheduledWithLinkSingular": {
+      "it": "La videochiamata è programmata per un'ora prima del check-in ({{checkInTime}}): tieni il documento d'identità in mano durante la chiamata. Se la videochiamata non dovesse avvenire, la verifica avverrà comunque dal vivo al videocitofono al tuo arrivo.",
+      "en": "The video call is scheduled one hour before your check-in ({{checkInTime}}): please have your ID document in hand during the call. If the call doesn't take place, we'll verify you in person via the intercom when you arrive instead."
+    },
+    "scheduledWithLinkGroup": {
+      "it": "La videochiamata è programmata per un'ora prima del check-in ({{checkInTime}}): tenete i documenti d'identità di tutti in mano durante la chiamata. Se la videochiamata non dovesse avvenire, la verifica avverrà comunque dal vivo al videocitofono al vostro arrivo.",
+      "en": "The video call is scheduled one hour before your check-in ({{checkInTime}}): please have everyone's ID documents in hand during the call. If the call doesn't take place, we'll verify you in person via the intercom when you arrive instead."
+    },
+    "scheduledNoLinkSingular": {
+      "it": "Ti contatteremo a breve per organizzare una brevissima videochiamata di verifica (documento in mano) un'ora prima del check-in. Se la videochiamata non dovesse avvenire, la verifica avverrà comunque dal vivo al videocitofono al tuo arrivo.",
+      "en": "We'll contact you shortly to arrange a quick verification video call (ID document in hand) one hour before check-in. If the call doesn't take place, we'll verify you in person via the intercom on arrival instead."
+    },
+    "scheduledNoLinkGroup": {
+      "it": "Ti contatteremo a breve per organizzare una brevissima videochiamata di verifica (documento in mano) un'ora prima del check-in. Se la videochiamata non dovesse avvenire, la verifica avverrà comunque dal vivo al videocitofono al vostro arrivo.",
+      "en": "We'll contact you shortly to arrange a quick verification video call (ID document in hand) one hour before check-in. If the call doesn't take place, we'll verify you in person via the intercom on arrival instead."
+    }
+  },
+  "t1": {
+    "eyebrow": { "it": "Prenotazione confermata", "en": "Booking confirmed" },
+    "h1": { "it": "Ci vediamo a {{city}}, {{name}}!", "en": "See you in {{city}}, {{name}}!" },
+    "introSingular": {
+      "it": "Abbiamo confermato la tua prenotazione per la stanza {{roomLabel}}. Qui sotto trovi tutti i dettagli — le istruzioni per il check-in (accesso, WiFi) ti arriveranno in un'email separata non appena avrai completato il passaggio richiesto qui sotto.",
+      "en": "We've confirmed your booking for room {{roomLabel}}. You'll find all the details below — check-in instructions (access, WiFi) will arrive in a separate email as soon as you've completed the step below."
+    },
+    "introGroup": {
+      "it": "Abbiamo confermato la tua prenotazione di gruppo: {{roomLabel}}. Qui sotto trovi il riepilogo — ogni stanza ha il proprio modulo documenti da completare separatamente (ospiti diversi possono stare in stanze diverse), e le istruzioni di check-in arriveranno in un'unica email non appena tutte le stanze avranno completato questo passaggio.",
+      "en": "We've confirmed your group booking: {{roomLabel}}. You'll find the summary below — each room has its own document form to complete separately (different guests may stay in different rooms), and check-in instructions will arrive in a single email once every room has completed this step."
+    },
+    "calendarLabel": { "it": "Salva le date sul tuo calendario:", "en": "Save the dates to your calendar:" },
+    "legalTitle": { "it": "Un ultimo passo obbligatorio per legge", "en": "One last step required by Italian law" },
+    "legalBody": {
+      "it": "Dobbiamo raccogliere i dati del documento d'identità di tutti gli ospiti prima del check-in (comunicazione obbligatoria alla Questura). Ti basta un paio di minuti:",
+      "en": "We're required to collect ID document details for all guests before check-in (mandatory report to the local police). It only takes a couple of minutes:"
+    },
+    "ctaSingular": { "it": "Inserisci i documenti ora →", "en": "Enter documents now →" },
+    "ctaGroupIntro": { "it": "Inserisci i documenti per ciascuna stanza:", "en": "Enter the documents for each room:" },
+    "ctaGroupSuffix": { "it": "Inserisci i documenti →", "en": "Enter documents →" },
+    "assistLead": {
+      "it": "Domande prima del tuo arrivo? Passa dall'assistenza del sito, rispondiamo in giornata:",
+      "en": "Questions before you arrive? Reach out through the site's assistance chat, we reply the same day:"
+    },
+    "spamNote": {
+      "it": "Non trovi questa email tra le principali? Controlla nella cartella Spam/Promozioni e sposta questo messaggio nella posta principale (o segna \"Non è spam\") — così anche le prossime email su documenti e check-in ti arriveranno dritte in bacheca.",
+      "en": "Can't find this email in your main inbox? Check your Spam/Promotions folder and move this message to your primary inbox (or mark it \"Not spam\") — that way the next emails about documents and check-in will land there too."
+    }
+  },
+  "t2": {
+    "eyebrow": { "it": "Promemoria", "en": "Reminder" },
+    "h1": { "it": "Ciao {{name}}, manca un passo prima di arrivare", "en": "Hi {{name}}, one step left before you arrive" },
+    "introSingular": {
+      "it": "Il tuo check-in per la stanza {{roomLabel}} è il {{checkIn}}, ma non abbiamo ancora ricevuto i dati del documento d'identità di tutti gli ospiti. È un obbligo di legge (comunicazione alla Questura) da completare prima del tuo arrivo — ci vogliono un paio di minuti.",
+      "en": "Your check-in for room {{roomLabel}} is on {{checkIn}}, but we haven't received the ID document details for all guests yet. It's required by Italian law (mandatory report to the local police) and needs to be completed before you arrive — it only takes a couple of minutes."
+    },
+    "introGroup": {
+      "it": "Il vostro check-in è il {{checkIn}}, ma non abbiamo ancora ricevuto i dati del documento d'identità per queste stanze: {{roomLabel}}. È un obbligo di legge (comunicazione alla Questura) da completare prima del vostro arrivo — ci vogliono un paio di minuti a stanza.",
+      "en": "Your check-in is on {{checkIn}}, but we still haven't received the ID document details for these rooms: {{roomLabel}}. It's required by Italian law (mandatory report to the local police) and needs to be completed before you arrive — it only takes a couple of minutes per room."
+    },
+    "cta": { "it": "Completa ora →", "en": "Complete now →" },
+    "assistLead": {
+      "it": "Hai già inviato tutto o hai qualche difficoltà? Passa dall'assistenza del sito, siamo felici di aiutarti:",
+      "en": "Already sent everything, or running into trouble? Reach out through the site's assistance chat, we're happy to help:"
+    }
+  },
+  "t3": {
+    "eyebrow": { "it": "Quasi pronti per il tuo arrivo", "en": "Almost ready for your arrival" },
+    "h1": { "it": "Ecco tutto quello che ti serve, {{name}}", "en": "Here's everything you need, {{name}}" },
+    "introSingular": {
+      "it": "Grazie per aver completato i documenti. Il check-in per {{roomLabel}} è il {{checkIn}}, dalle {{checkInTime}}. Ecco le indicazioni per arrivare ed entrare senza pensieri.",
+      "en": "Thanks for completing your documents. Check-in for {{roomLabel}} is on {{checkIn}}, from {{checkInTime}}. Here's how to get there and in without any hassle."
+    },
+    "introGroupLine1": {
+      "it": "Grazie per aver completato i documenti di tutte le stanze. Il check-in è il {{checkIn}}, dalle {{checkInTime}}. Ecco le indicazioni per arrivare ed entrare senza pensieri.",
+      "en": "Thanks for completing the documents for every room. Check-in is on {{checkIn}}, from {{checkInTime}}. Here's how to get there and in without any hassle."
+    },
+    "introGroupLine2": { "it": "Le tue stanze:", "en": "Your rooms:" },
+    "streetGateBtn": { "it": "Apri il portone lato strada", "en": "Open the street gate" },
+    "accessBoxTitle": { "it": "Come entrare in casa", "en": "How to get in" },
+    "roomCodeTitleSingular": { "it": "Codice/link per la tua stanza", "en": "Your room's code/link" },
+    "roomCodeTitleGroup": { "it": "Codici/link delle stanze", "en": "Room codes/links" },
+    "legalTitle": { "it": "Identificazione ospite (obbligo di legge)", "en": "Guest identification (required by law)" },
+    "legalBody": {
+      "it": "Per legge dobbiamo verificare di persona che tu corrisponda al documento inviato, non solo raccogliere i dati.",
+      "en": "Italian law requires us to verify in person that you match the document you sent, not just collect the data."
+    },
+    "videoCallBtn": { "it": "Entra nella videochiamata", "en": "Join the video call" },
+    "closingLine": {
+      "it": "Per qualunque necessità durante il soggiorno, passa dall'assistenza del sito. Buon viaggio!",
+      "en": "For anything you need during your stay, reach out through the site's assistance chat. Have a great trip!"
+    }
+  },
+  "t4": {
+    "eyebrow": { "it": "Oggi è il giorno della partenza", "en": "Today's departure day" },
+    "h1Singular": { "it": "Buongiorno {{name}}, ecco come lasciarci la {{roomLabel}}", "en": "Good morning {{name}}, here's how to leave the {{roomLabel}}" },
+    "h1Group": { "it": "Buongiorno {{name}}, ecco come lasciarci le vostre stanze", "en": "Good morning {{name}}, here's how to leave your rooms" },
+    "checkoutLine": { "it": "Il check-out è entro le {{checkOutTime}}.", "en": "Check-out is by {{checkOutTime}}." },
+    "instrBoxTitleSingular": { "it": "Come lasciare la stanza", "en": "How to leave the room" },
+    "instrBoxTitleGroup": { "it": "Come lasciare le stanze", "en": "How to leave the rooms" },
+    "assistLead": {
+      "it": "Qualche dubbio dell'ultimo minuto? Passa dall'assistenza del sito, siamo qui.",
+      "en": "Any last-minute questions? Reach out through the site's assistance chat, we're here."
+    },
+    "closingSingular": {
+      "it": "Speriamo che il tuo soggiorno nella stanza {{roomLabel}} ti sia piaciuto e che tu abbia trovato {{city}} bella quanto la vediamo noi ogni giorno.",
+      "en": "We hope you enjoyed your stay in the {{roomLabel}} and that you found {{city}} as beautiful as we see it every day."
+    },
+    "closingGroup": {
+      "it": "Speriamo che il vostro soggiorno vi sia piaciuto e che abbiate trovato {{city}} bella quanto la vediamo noi ogni giorno.",
+      "en": "We hope you enjoyed your stay and that you found {{city}} as beautiful as we see it every day."
+    },
+    "reviewInviteSingular": {
+      "it": "Se ti va di lasciarci due righe prima di partire, ci aiuta moltissimo:",
+      "en": "If you have a moment to leave us a few words before you go, it helps us enormously:"
+    },
+    "reviewInviteGroup": {
+      "it": "Se vi va di lasciarci due righe prima di partire, ci aiuta moltissimo:",
+      "en": "If you have a moment to leave us a few words before you go, it helps us enormously:"
+    },
+    "finalLineSingular": {
+      "it": "E se dovessi tornare a {{city}}, la porta di {{siteName}} è sempre aperta. Grazie ancora, e buon viaggio!",
+      "en": "And if you ever come back to {{city}}, {{siteName}}'s door is always open. Thanks again, and safe travels!"
+    },
+    "finalLineGroup": {
+      "it": "E se doveste tornare a {{city}}, la porta di {{siteName}} è sempre aperta. Grazie ancora, e buon viaggio!",
+      "en": "And if you ever come back to {{city}}, {{siteName}}'s door is always open. Thanks again, and safe travels!"
+    }
+  },
+  "t5": {
+    "eyebrow": { "it": "Come va il soggiorno?", "en": "How's your stay going?" },
+    "h1Singular": { "it": "Ciao {{name}}, tutto bene nella {{roomLabel}}?", "en": "Hi {{name}}, all good in the {{roomLabel}}?" },
+    "h1Group": { "it": "Ciao {{name}}, tutto bene?", "en": "Hi {{name}}, all good?" },
+    "introSingular": {
+      "it": "Speriamo che ti stia trovando bene. Se manca qualcosa o hai un dubbio, passa dall'assistenza del sito:",
+      "en": "We hope you're settling in well. If anything's missing or you have a question, reach out through the site's assistance chat:"
+    },
+    "introGroup": {
+      "it": "Speriamo che vi stiate trovando bene. Se manca qualcosa o avete un dubbio, passate dall'assistenza del sito:",
+      "en": "We hope you're settling in well. If anything's missing or you have a question, reach out through the site's assistance chat:"
+    },
+    "ideasLeadSingular": {
+      "it": "Nel frattempo, qualche idea per il resto del tuo soggiorno a {{city}}:",
+      "en": "In the meantime, a few ideas for the rest of your stay in {{city}}:"
+    },
+    "ideasLeadGroup": {
+      "it": "Nel frattempo, qualche idea per il resto del vostro soggiorno a {{city}}:",
+      "en": "In the meantime, a few ideas for the rest of your stay in {{city}}:"
+    },
+    "closing": {
+      "it": "Buon proseguimento, a presto ci risentiamo per il check-out!",
+      "en": "Enjoy the rest of your stay, we'll be in touch again for check-out!"
+    }
+  },
+  "t6": {
+    "eyebrow": { "it": "Un ultimo favore", "en": "One last favour" },
+    "h1": { "it": "Hai un attimo, {{name}}?", "en": "Got a minute, {{name}}?" },
+    "introSingular": {
+      "it": "Speriamo che il ricordo del tuo soggiorno nella {{roomLabel}} sia ancora bello quanto {{city}} vista dal terrazzo. Se non hai ancora avuto un attimo per lasciarci due righe, ci farebbe davvero piacere — bastano trenta secondi:",
+      "en": "We hope the memory of your stay in the {{roomLabel}} is still as lovely as {{city}} seen from the terrace. If you haven't had a chance to leave us a few words yet, it would really mean a lot to us — it only takes thirty seconds:"
+    },
+    "introGroup": {
+      "it": "Speriamo che il ricordo del vostro soggiorno ({{roomLabel}}) sia ancora bello quanto {{city}} vista dal terrazzo. Se non avete ancora avuto un attimo per lasciarci due righe, ci farebbe davvero piacere — bastano trenta secondi:",
+      "en": "We hope the memory of your stay ({{roomLabel}}) is still as lovely as {{city}} seen from the terrace. If you haven't had a chance to leave us a few words yet, it would really mean a lot to us — it only takes thirty seconds:"
+    },
+    "closing": {
+      "it": "Se l'hai già fatto, grazie di cuore — ignora pure questo messaggio. A presto!",
+      "en": "If you've already left one, thank you so much — feel free to ignore this message. See you soon!"
+    }
+  },
+  "t7": {
+    "eyebrow": { "it": "Prenotazione annullata", "en": "Booking cancelled" },
+    "h1": { "it": "Ciao {{name}}, confermiamo l'annullamento", "en": "Hi {{name}}, confirming your cancellation" },
+    "bodySingular": {
+      "it": "La tua prenotazione per {{roomLabel}}, dal {{checkIn}} al {{checkOut}}, è stata annullata.",
+      "en": "Your booking for {{roomLabel}}, from {{checkIn}} to {{checkOut}}, has been cancelled."
+    },
+    "bodyGroup": {
+      "it": "La tua prenotazione di gruppo ({{roomLabel}}), dal {{checkIn}} al {{checkOut}}, è stata annullata.",
+      "en": "Your group booking ({{roomLabel}}), from {{checkIn}} to {{checkOut}}, has been cancelled."
+    },
+    "refundTitle": { "it": "Rimborso", "en": "Refund" },
+    "refundBody": {
+      "it": "Il costo del soggiorno (€{{refundAmount}}) è stato rimborsato automaticamente sullo stesso metodo di pagamento usato — di norma visibile entro 5-10 giorni lavorativi, a seconda della tua banca. La commissione di pagamento non è rimborsabile.",
+      "en": "The stay cost (€{{refundAmount}}) has been automatically refunded to the same payment method used — usually visible within 5-10 business days, depending on your bank. The payment fee is not refundable."
+    },
+    "assistLead": {
+      "it": "Se è stato un errore o hai qualche domanda, passa dall'assistenza del sito:",
+      "en": "If this was a mistake or you have any questions, reach out through the site's assistance chat:"
+    },
+    "closing": {
+      "it": "Speriamo di vederti comunque a {{city}}, magari in un'altra data. Grazie per averci considerato!",
+      "en": "We still hope to see you in {{city}} sometime, maybe on another date. Thanks for considering us!"
+    }
+  }
+}

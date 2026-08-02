@@ -16,6 +16,9 @@ var db = admin.firestore();
 // Nome file in affittacamere/email-templates/ — inviato direttamente via
 // Gmail (vedi sendGuestEmail in _lib.js).
 var TEMPLATE_FILE = '2-promemoria-documenti.html';
+// Campi editabili da dashboard per questa email (Impostazioni → Email
+// ospiti → 2. Promemoria documenti), vedi email-texts-defaults.json.
+var T2_FIELDS = ['eyebrow', 'h1', 'introSingular', 'introGroup', 'cta', 'assistLead'];
 
 function siteOrigin() { return process.env.SITE_ORIGIN || 'https://lacasaceleste.it/affittacamere/'; }
 function assistLink() { return siteOrigin() + '?assist=1'; }
@@ -44,7 +47,7 @@ async function sendReminder(settings, docsGroup) {
     isGroup: isGroup, rooms: isGroup ? rooms : []
   }, 1, isGroup
     ? ('promemoria documenti di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
-    : ('promemoria documenti (' + first.doc.id + ')'));
+    : ('promemoria documenti (' + first.doc.id + ')'), { section: 't2', fields: T2_FIELDS });
 
   if (result.sent) {
     await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ guestDocsReminderSent: true }); }));

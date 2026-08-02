@@ -54,7 +54,7 @@ function addDaysIso(iso, days) {
   return d.toISOString().slice(0, 10);
 }
 
-// "Stanza Blu, Stanza Gialla e Stanza Verde" / "... and ..." — usato dalle
+// "Maestrale, Scirocco e Ponente" / "... and ..." — usato dalle
 // email di prenotazioni di gruppo (più stanze insieme, stesso groupId) per
 // elencare tutte le stanze in una frase, condiviso da guest-lifecycle-emails.js
 // e guest-docs-reminder.js.
@@ -177,6 +177,36 @@ function renderTemplate(fileName, vars) {
   return Mustache.render(stripDocComment(raw), vars);
 }
 
+// Testo delle email interamente editabile da dashboard (Impostazioni →
+// Email ospiti, tourism_settings/site.emailTexts) — email-texts-defaults.json
+// è la fonte unica dei testi predefiniti, letta anche dalla dashboard (via
+// fetch) per mostrare il placeholder ed il pulsante "Ripristina predefinito".
+// Un campo override vuoto/assente = usa il default. Il testo salvato può
+// contenere a sua volta variabili Mustache (es. {{roomLabel}}): pickText
+// sceglie override o default, emailTextVars lo renderizza subito contro
+// `vars` così il chiamante ottiene una stringa già pronta da inserire nel
+// template esterno come variabile normale (Mustache la scapperà in HTML
+// come fa con ogni altra variabile — corretto perché è prosa, non markup).
+var EMAIL_TEXT_DEFAULTS = JSON.parse(require('fs').readFileSync(require('path').join(TEMPLATES_DIR, 'email-texts-defaults.json'), 'utf8'));
+function pickText(overrides, section, key, isEn) {
+  var lang = isEn ? 'en' : 'it';
+  var o = overrides && overrides[section] && overrides[section][key];
+  var override = o && o[lang] && String(o[lang]).trim();
+  var def = EMAIL_TEXT_DEFAULTS[section] && EMAIL_TEXT_DEFAULTS[section][key];
+  return override || (def && def[lang]) || '';
+}
+function renderText(overrides, section, key, isEn, vars) {
+  var Mustache = require('mustache');
+  return Mustache.render(pickText(overrides, section, key, isEn), vars);
+}
+function emailTextVars(overrides, section, fields, isEn, vars) {
+  var out = {};
+  fields.forEach(function (f) {
+    out[section + '_' + f] = renderText(overrides, section, f, isEn, vars);
+  });
+  return out;
+}
+
 // Invio diretto via Gmail (Nodemailer + Password per le app, gratuito entro
 // i limiti di invio giornalieri di un account Gmail — ampiamente
 // sufficienti per questo volume). templateFile è il nome del file in
@@ -196,7 +226,13 @@ function getMailTransport() {
   mailTransport = nodemailer.createTransport({ service: 'gmail', auth: { user: user, pass: pass } });
   return mailTransport;
 }
-async function sendGuestEmail(db, settings, templateFile, templateParams, priority, label) {
+// textConfig (facoltativo): { section: 't1', fields: [...], tableFields: [...] } —
+// dopo aver unito templateParams ai vars di base (che include già
+// siteName/city/ecc.), renderizza i testi editabili da dashboard per QUESTO
+// template (Impostazioni → Email ospiti) e li aggiunge come {{sezione_campo}}
+// già pronti. Fatto qui (non nel chiamante) apposta: solo qui vars contiene
+// già {{city}}/{{siteName}}, di cui molti testi liberi hanno bisogno.
+async function sendGuestEmail(db, settings, templateFile, templateParams, priority, label, textConfig) {
   var transport = getMailTransport();
   if (!transport) {
     console.log('Email "' + label + '" non configurata (mancano i secrets GMAIL_USER/GMAIL_APP_PASSWORD): salto.');
@@ -210,6 +246,7 @@ async function sendGuestEmail(db, settings, templateFile, templateParams, priori
     return { sent: false, reason: 'quota_exceeded' };
   }
   var siteName = settings.siteName || 'Casa Celeste';
+  var isEnForShared = !!templateParams.isEn;
   var vars = Object.assign({
     siteName: siteName,
     city: settings.city || 'Monopoli',
@@ -218,8 +255,18 @@ async function sendGuestEmail(db, settings, templateFile, templateParams, priori
     // facoltativa in fondo a ogni email guidata da qui (promemoria
     // documenti, istruzioni check-in, andamento soggiorno, ringraziamento,
     // richiesta recensione) — vuota di default, il footer resta invariato.
-    footerSignature: settings.emailFooterSignature || ''
+    footerSignature: settings.emailFooterSignature || '',
+    // Impostazioni → Email ospiti → Generali: logo caricato, sostituisce i
+    // due pallini colorati nell'header di ogni email (vedi templateHeader
+    // Mustache {{#logoUrl}}...{{/logoUrl}}). Vuoto = fallback ai pallini.
+    logoUrl: settings.logoUrl || '',
+    assistButtonLabel: pickText(settings.emailTexts, 'shared', 'assistButtonLabel', isEnForShared),
+    reviewButtonLabel: pickText(settings.emailTexts, 'shared', 'reviewButtonLabel', isEnForShared)
   }, templateParams);
+  if (textConfig) {
+    if (textConfig.fields) Object.assign(vars, emailTextVars(settings.emailTexts, textConfig.section, textConfig.fields, isEnForShared, vars));
+    if (textConfig.tableFields) Object.assign(vars, emailTextVars(settings.emailTexts, 'tableLabels', textConfig.tableFields, isEnForShared, vars));
+  }
   var html = renderTemplate(templateFile, vars);
   await transport.sendMail({
     from: (settings.emailSenderName || siteName) + ' <' + process.env.GMAIL_USER + '>',
@@ -276,5 +323,6 @@ module.exports = {
   telegramSend: telegramSend, telegramConfigured: telegramConfigured, telegramBroadcast: telegramBroadcast,
   checkEmailQuota: checkEmailQuota, recordEmailSent: recordEmailSent, sendGuestEmail: sendGuestEmail,
   googleMeetConfigured: googleMeetConfigured, createGoogleMeetLink: createGoogleMeetLink,
-  normalizeExternalUrl: normalizeExternalUrl
+  normalizeExternalUrl: normalizeExternalUrl,
+  pickText: pickText, renderText: renderText, emailTextVars: emailTextVars, EMAIL_TEXT_DEFAULTS: EMAIL_TEXT_DEFAULTS
 };

@@ -26,6 +26,46 @@ ogni invio.
 | `6-richiesta-recensione.html` | 3 giorni dopo il check-out | Cron GitHub Actions (orario) |
 | `7-annullamento-prenotazione.html` | **Immediatamente** quando la prenotazione viene annullata (cancellazione self-service dell'ospite o annullamento manuale) | Cloud Function (istantaneo) |
 
+## Testo interamente editabile da dashboard (Impostazioni → Email ospiti)
+
+Ogni riga di testo di ognuna delle 7 email — titoli, paragrafi, testo
+legale (obbligo Questura, termini di rimborso), etichette dei pulsanti —
+è modificabile dal tab **Email ospiti**, in italiano e inglese, senza
+toccare il codice. Un campo lasciato vuoto usa il testo predefinito
+(mostrato come placeholder grigio nella textarea); il pulsante "Ripristina
+testo predefinito" lo svuota di nuovo.
+
+Il meccanismo (per chi tocca il codice): i testi predefiniti vivono in
+`email-texts-defaults.json` in questa stessa cartella — **unica fonte**,
+letta sia dalla dashboard (per placeholder e reset) sia dagli script di
+invio (`_lib.js`, `guest-docs-reminder.js`,
+`functions/guest-notify.js`). Gli eventuali override salvati in
+`tourism_settings/site.emailTexts` (e, solo per il testo videochiamata,
+`tourism_settings/site.emailVideoCallTexts`) possono contenere a loro
+volta variabili Mustache (es. `{{roomLabel}}`): vengono renderizzati in
+JS in un primo passaggio (funzione `emailTextVars`/`renderText` in
+`_lib.js`) e il risultato già pronto viene passato al template come
+variabile normale (es. `{{t1_introSingular}}`) — non serve mai scrivere
+sintassi Mustache dentro il testo libero delle email eccetto le variabili
+stesse. Le sezioni che condizionano markup vero (bottone singolo vs loop
+per stanza, box che appaiono solo se un dato è presente) restano fisse
+nel template, non sono testo editabile.
+
+**Aggiungendo o modificando un campo di testo**: va aggiunto in tre posti
+— `email-texts-defaults.json` (default), l'elenco `T*_FIELDS` nello
+script di invio pertinente, e `EMAIL_FIELD_GROUPS` in
+`affittacamere/js/dashboard.js` (per farlo comparire nel tab Email
+ospiti) — oltre a sostituire il testo fisso nel file `.html` con la
+variabile corrispondente.
+
+## Logo (Impostazioni → Email ospiti → Generali)
+
+Se carichi un'immagine, sostituisce i due pallini colorati + nome sito
+nell'header di ogni email — ridimensionata automaticamente (altezza
+fissa, larghezza proporzionale con un tetto massimo) così non allarga mai
+la barra scura dell'header, qualunque sia la forma del file caricato.
+Senza logo caricato, resta il design con i pallini.
+
 ## Invio immediato vs cron orario
 
 Conferma e annullamento sono le uniche due email che l'ospite si aspetta

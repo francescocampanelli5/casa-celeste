@@ -161,6 +161,131 @@
     { id: 'pulizie', label: 'Personale pulizie' },
     { id: 'manutenzione', label: 'Personale manutenzione' }
   ];
+  // Tab "Email ospiti" — contenuto interamente editabile (titoli, testo
+  // libero, testo legale) delle 7 email al ciclo di vita della
+  // prenotazione, vedi affittacamere/email-templates/*.html e
+  // email-texts-defaults.json (fonte dei default/placeholder, caricata via
+  // fetch in renderEmailTab). Un campo vuoto = usa il testo predefinito.
+  var EMAIL_CATEGORIES = [
+    { id: 'generali', label: 'Generali' },
+    { id: 't1', label: '1. Conferma' },
+    { id: 't2', label: '2. Promemoria documenti' },
+    { id: 't3', label: '3. Istruzioni check-in' },
+    { id: 't4', label: '4. Ringraziamento check-out' },
+    { id: 't5', label: '5. Andamento soggiorno' },
+    { id: 't6', label: '6. Richiesta recensione' },
+    { id: 't7', label: '7. Annullamento' }
+  ];
+  // section: chiave dentro tourism_settings/site.emailTexts (o, per
+  // emailVideoCallTexts, chiave di primo livello a parte — vedi root).
+  // root: 'emailTexts' (default, annidato) oppure 'settings' (campo di
+  // primo livello, solo per il testo videochiamata che non appartiene a
+  // nessun singolo template).
+  var EMAIL_FIELD_GROUPS = {
+    generali: [
+      { root: 'emailTexts', section: 'shared', title: 'Pulsanti condivisi (usati in più email)', fields: [
+        { key: 'assistButtonLabel', label: 'Testo pulsante "Contatta assistenza"' },
+        { key: 'reviewButtonLabel', label: 'Testo pulsante "Lascia una recensione"' }
+      ] },
+      { root: 'emailTexts', section: 'tableLabels', title: 'Etichette delle tabelle riepilogo', fields: [
+        { key: 'checkIn', label: 'Etichetta "Check-in"' },
+        { key: 'checkOut', label: 'Etichetta "Check-out"' },
+        { key: 'nights', label: 'Etichetta "Notti"' },
+        { key: 'guests', label: 'Etichetta "Ospiti"' },
+        { key: 'touristTax', label: 'Etichetta tassa di soggiorno' },
+        { key: 'address', label: 'Etichetta "Indirizzo"' },
+        { key: 'wifi', label: 'Etichetta "WiFi"' },
+        { key: 'wifiPassword', label: 'Etichetta "Password WiFi"' }
+      ] },
+      { root: 'settings', section: 'emailVideoCallTexts', title: 'Testo videochiamata di verifica documento (email 3)', fields: [
+        { key: 'disabledNoteSingular', label: 'Videochiamata disattivata (un ospite)' },
+        { key: 'disabledNoteGroup', label: 'Videochiamata disattivata (gruppo)' },
+        { key: 'scheduledWithLinkSingular', label: 'Videochiamata programmata, link pronto (un ospite)', hint: '{{checkInTime}}' },
+        { key: 'scheduledWithLinkGroup', label: 'Videochiamata programmata, link pronto (gruppo)', hint: '{{checkInTime}}' },
+        { key: 'scheduledNoLinkSingular', label: 'Videochiamata attiva, link non ancora pronto (un ospite)' },
+        { key: 'scheduledNoLinkGroup', label: 'Videochiamata attiva, link non ancora pronto (gruppo)' }
+      ] }
+    ],
+    t1: [{ root: 'emailTexts', section: 't1', title: null, fields: [
+      { key: 'eyebrow', label: 'Etichetta sopra il titolo' },
+      { key: 'h1', label: 'Titolo', hint: '{{city}}, {{name}}' },
+      { key: 'introSingular', label: 'Testo introduttivo (una stanza)', hint: '{{roomLabel}}' },
+      { key: 'introGroup', label: 'Testo introduttivo (gruppo)', hint: '{{roomLabel}}' },
+      { key: 'calendarLabel', label: 'Frase sopra i pulsanti calendario' },
+      { key: 'legalTitle', label: 'Titolo obbligo documenti' },
+      { key: 'legalBody', label: 'Testo obbligo documenti (Questura)' },
+      { key: 'ctaSingular', label: 'Pulsante documenti (una stanza)' },
+      { key: 'ctaGroupIntro', label: 'Frase sopra i pulsanti documenti (gruppo)' },
+      { key: 'ctaGroupSuffix', label: 'Pulsante documenti per stanza (gruppo)', hint: 'preceduto dal nome stanza' },
+      { key: 'assistLead', label: 'Frase prima del pulsante assistenza' },
+      { key: 'spamNote', label: 'Nota cartella Spam in fondo' }
+    ] }],
+    t2: [{ root: 'emailTexts', section: 't2', title: null, fields: [
+      { key: 'eyebrow', label: 'Etichetta sopra il titolo' },
+      { key: 'h1', label: 'Titolo', hint: '{{name}}' },
+      { key: 'introSingular', label: 'Testo introduttivo (una stanza)', hint: '{{roomLabel}}, {{checkIn}}' },
+      { key: 'introGroup', label: 'Testo introduttivo (gruppo)', hint: '{{checkIn}}, {{roomLabel}}' },
+      { key: 'cta', label: 'Testo pulsante (usato anche per stanza nel gruppo)' },
+      { key: 'assistLead', label: 'Frase prima del pulsante assistenza' }
+    ] }],
+    t3: [{ root: 'emailTexts', section: 't3', title: null, fields: [
+      { key: 'eyebrow', label: 'Etichetta sopra il titolo' },
+      { key: 'h1', label: 'Titolo', hint: '{{name}}' },
+      { key: 'introSingular', label: 'Testo introduttivo (una stanza)', hint: '{{roomLabel}}, {{checkIn}}, {{checkInTime}}' },
+      { key: 'introGroupLine1', label: 'Testo introduttivo (gruppo)', hint: '{{checkIn}}, {{checkInTime}}' },
+      { key: 'introGroupLine2', label: 'Etichetta "Le tue stanze:"' },
+      { key: 'streetGateBtn', label: 'Pulsante apertura portone' },
+      { key: 'accessBoxTitle', label: 'Titolo box "Come entrare in casa"' },
+      { key: 'roomCodeTitleSingular', label: 'Titolo box codice stanza (una stanza)' },
+      { key: 'roomCodeTitleGroup', label: 'Titolo box codice stanza (gruppo)' },
+      { key: 'legalTitle', label: 'Titolo identificazione ospite' },
+      { key: 'legalBody', label: 'Testo identificazione ospite (obbligo di legge)' },
+      { key: 'videoCallBtn', label: 'Pulsante "Entra nella videochiamata"' },
+      { key: 'closingLine', label: 'Frase di chiusura prima del pulsante assistenza' }
+    ] }],
+    t4: [{ root: 'emailTexts', section: 't4', title: null, fields: [
+      { key: 'eyebrow', label: 'Etichetta sopra il titolo' },
+      { key: 'h1Singular', label: 'Titolo (una stanza)', hint: '{{name}}, {{roomLabel}}' },
+      { key: 'h1Group', label: 'Titolo (gruppo)', hint: '{{name}}' },
+      { key: 'checkoutLine', label: 'Riga orario check-out', hint: '{{checkOutTime}}' },
+      { key: 'instrBoxTitleSingular', label: 'Titolo box istruzioni (una stanza)' },
+      { key: 'instrBoxTitleGroup', label: 'Titolo box istruzioni (gruppo)' },
+      { key: 'assistLead', label: 'Frase prima del pulsante assistenza' },
+      { key: 'closingSingular', label: 'Saluto di chiusura (una stanza)', hint: '{{roomLabel}}, {{city}}' },
+      { key: 'closingGroup', label: 'Saluto di chiusura (gruppo)', hint: '{{city}}' },
+      { key: 'reviewInviteSingular', label: 'Invito recensione, solo se link configurato (una stanza)' },
+      { key: 'reviewInviteGroup', label: 'Invito recensione, solo se link configurato (gruppo)' },
+      { key: 'finalLineSingular', label: 'Ultima riga (una stanza)', hint: '{{city}}, {{siteName}}' },
+      { key: 'finalLineGroup', label: 'Ultima riga (gruppo)', hint: '{{city}}, {{siteName}}' }
+    ] }],
+    t5: [{ root: 'emailTexts', section: 't5', title: null, fields: [
+      { key: 'eyebrow', label: 'Etichetta sopra il titolo' },
+      { key: 'h1Singular', label: 'Titolo (una stanza)', hint: '{{name}}, {{roomLabel}}' },
+      { key: 'h1Group', label: 'Titolo (gruppo)', hint: '{{name}}' },
+      { key: 'introSingular', label: 'Testo introduttivo (una stanza)' },
+      { key: 'introGroup', label: 'Testo introduttivo (gruppo)' },
+      { key: 'ideasLeadSingular', label: 'Frase prima dei consigli (una stanza)', hint: '{{city}}' },
+      { key: 'ideasLeadGroup', label: 'Frase prima dei consigli (gruppo)', hint: '{{city}}' },
+      { key: 'closing', label: 'Frase di chiusura' }
+    ] }],
+    t6: [{ root: 'emailTexts', section: 't6', title: null, fields: [
+      { key: 'eyebrow', label: 'Etichetta sopra il titolo' },
+      { key: 'h1', label: 'Titolo', hint: '{{name}}' },
+      { key: 'introSingular', label: 'Testo introduttivo (una stanza)', hint: '{{roomLabel}}, {{city}}' },
+      { key: 'introGroup', label: 'Testo introduttivo (gruppo)', hint: '{{roomLabel}}, {{city}}' },
+      { key: 'closing', label: 'Frase di chiusura' }
+    ] }],
+    t7: [{ root: 'emailTexts', section: 't7', title: null, fields: [
+      { key: 'eyebrow', label: 'Etichetta sopra il titolo' },
+      { key: 'h1', label: 'Titolo', hint: '{{name}}' },
+      { key: 'bodySingular', label: 'Testo annullamento (una stanza)', hint: '{{roomLabel}}, {{checkIn}}, {{checkOut}}' },
+      { key: 'bodyGroup', label: 'Testo annullamento (gruppo)', hint: '{{roomLabel}}, {{checkIn}}, {{checkOut}}' },
+      { key: 'refundTitle', label: 'Titolo box rimborso' },
+      { key: 'refundBody', label: 'Testo rimborso', hint: '{{refundAmount}}' },
+      { key: 'assistLead', label: 'Frase prima del pulsante assistenza' },
+      { key: 'closing', label: 'Frase di chiusura', hint: '{{city}}' }
+    ] }]
+  };
   // Punti d'interesse "Posizione" (sito pubblico) — chiave fissa (icona/
   // categoria restano quelle), ma destinazione e tempo a piedi vanno
   // impostati per città diverse da Monopoli (vedi settings.mapPois in
@@ -266,10 +391,11 @@
     ] },
     { title: 'Sistema', items: [
       { tab: 'compliance', label: 'Adempimenti' },
+      { tab: 'email', label: 'Email ospiti' },
       { tab: 'settings', label: 'Impostazioni' }
     ] }
   ];
-  var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'Monopoli', home: 'Home', location: 'Posizione', host: 'Host', compliance: 'Adempimenti', settings: 'Impostazioni' };
+  var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'Monopoli', home: 'Home', location: 'Posizione', host: 'Host', compliance: 'Adempimenti', email: 'Email ospiti', settings: 'Impostazioni' };
 
   function sidebarLinksHtml() {
     return SIDEBAR_GROUPS.map(function (group) {
@@ -352,6 +478,7 @@
     else if (state.activeTab === 'location') renderLocationTab(content);
     else if (state.activeTab === 'host') renderHostTab(content);
     else if (state.activeTab === 'compliance') renderComplianceTab(content);
+    else if (state.activeTab === 'email') renderEmailTab(content);
     else if (state.activeTab === 'settings') renderSettingsTab(content);
     else renderRoomsTab(content);
   }
@@ -1383,6 +1510,7 @@
       if (kind === 'common') return state.commonsData;
       if (kind === 'mono') return state.monoSlidesData;
       if (kind === 'manager') { var mwrap = {}; mwrap.manager = { photos: (state.settings.managerPhoto) ? [state.settings.managerPhoto] : [] }; return mwrap; }
+      if (kind === 'logo') { var lwrap = {}; lwrap.logo = { photos: (state.settings.logoUrl) ? [state.settings.logoUrl] : [] }; return lwrap; }
       if (kind === 'rec') {
         var rmap = {};
         (state.settings.recommendations || []).forEach(function (r, i) {
@@ -1397,6 +1525,7 @@
       if (kind === 'common') return window.CasaCelesteTourismDB.setCommon;
       if (kind === 'mono') return window.CasaCelesteTourismDB.setMonoSlide;
       if (kind === 'manager') return function (id, patch) { return window.CasaCelesteTourismDB.setSettings({ managerPhoto: (patch.photos && patch.photos[0]) || '' }); };
+      if (kind === 'logo') return function (id, patch) { return window.CasaCelesteTourismDB.setSettings({ logoUrl: (patch.photos && patch.photos[0]) || '' }); };
       if (kind === 'rec') return function (recId, patch) {
         var list = (state.settings.recommendations || []).slice();
         var idx = -1;
@@ -1413,6 +1542,7 @@
       if (kind === 'rec') return function (id, idx, file) { return window.CasaCelesteTourismDB.uploadRecPhoto(id, file); };
       if (kind === 'mono') return window.CasaCelesteTourismDB.uploadMonoSlidePhoto;
       if (kind === 'manager') return function (id, idx, file) { return window.CasaCelesteTourismDB.uploadManagerPhoto(idx, file); };
+      if (kind === 'logo') return function (id, idx, file) { return window.CasaCelesteTourismDB.uploadLogo(file); };
       return function (id, idx, file) { return window.CasaCelesteTourismDB.uploadFacadePhoto(idx, file); };
     }
     content.querySelectorAll('[data-photo-upload]').forEach(function (input) {
@@ -2442,6 +2572,144 @@
     document.getElementById('manager-email').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerEmail: e.target.value.trim() }); });
     bindPhotoUploadEvents(content);
   }
+
+  // ==========================================================================
+  // Tab "Email ospiti" — contenuto interamente editabile (titoli, testo
+  // libero, testo legale) delle 7 email al ciclo di vita della
+  // prenotazione + logo caricabile per l'header. Stesso meccanismo IT/EN
+  // già usato altrove (es. checkInInstructionsText): un campo vuoto =
+  // testo predefinito, mostrato come placeholder. Vedi
+  // affittacamere/email-templates/email-texts-defaults.json (fonte unica
+  // dei default, letta anche dagli script di invio).
+  // ==========================================================================
+  function emailFieldRowHtml(overridesObj, defaultsObj, section, field, label, hint) {
+    var cur = (overridesObj && overridesObj[field]) || {};
+    var def = (defaultsObj && defaultsObj[field]) || {};
+    var idBase = 'et-' + section + '-' + field;
+    return '<div class="admin-field-group admin-field-group--full">' +
+      '<label>' + escapeHtml(label) + '</label>' +
+      (hint ? '<div style="font-size:12px; color:var(--admin-muted,#6B7A8C); font-family:monospace; margin:2px 0 6px;">Variabili: ' + escapeHtml(hint) + '</div>' : '') +
+      '<textarea class="admin-field" rows="2" id="' + idBase + '-it" data-email-text data-et-section="' + section + '" data-et-field="' + field + '" data-et-lang="it" placeholder="' + escapeHtml(def.it || '') + '">' + escapeHtml(cur.it || '') + '</textarea>' +
+      '<textarea class="admin-field" rows="2" id="' + idBase + '-en" data-email-text data-et-section="' + section + '" data-et-field="' + field + '" data-et-lang="en" placeholder="' + escapeHtml(def.en || '') + '" style="margin-top:6px;">' + escapeHtml(cur.en || '') + '</textarea>' +
+      '<button type="button" data-email-reset data-et-section="' + section + '" data-et-field="' + field + '" style="margin-top:6px; background:none; border:1px solid var(--border-hairline,#D8DEE6); color:var(--admin-muted,#6B7A8C); font-size:12px; padding:5px 12px; border-radius:6px; cursor:pointer;">Ripristina testo predefinito</button>' +
+    '</div>';
+  }
+  function renderEmailTab(content) {
+    // Default caricati una volta sola per sessione da un file statico
+    // servito dallo stesso hosting (email-texts-defaults.json, la stessa
+    // fonte letta dagli script di invio) — nessuna duplicazione dei testi
+    // predefiniti dentro dashboard.js, zero rischio di disallineamento.
+    if (!state.emailTextDefaults && !state.emailTextDefaultsLoading) {
+      state.emailTextDefaultsLoading = true;
+      fetch('email-templates/email-texts-defaults.json').then(function (r) { return r.json(); }).then(function (d) {
+        state.emailTextDefaults = d;
+        state.emailTextDefaultsLoading = false;
+        if (state.activeTab === 'email') renderEmailTab(content);
+      }).catch(function () { state.emailTextDefaultsLoading = false; });
+    }
+    var s = state.settings || {};
+    var emailTexts = s.emailTexts || {};
+    var defaults = state.emailTextDefaults || {};
+    var loading = state.emailTextDefaultsLoading && !state.emailTextDefaults;
+
+    if (!state.emailSubTab) state.emailSubTab = EMAIL_CATEGORIES[0].id;
+    var emailSubnavHtml = '<div class="settings-subnav">' + EMAIL_CATEGORIES.map(function (c) {
+      return '<button type="button" class="settings-subnav-btn' + (state.emailSubTab === c.id ? ' is-active' : '') + '" data-email-subnav="' + c.id + '">' + c.label + '</button>';
+    }).join('') + '</div>';
+
+    var groupsHtml = Object.keys(EMAIL_FIELD_GROUPS).map(function (catId) {
+      var groups = EMAIL_FIELD_GROUPS[catId].map(function (group) {
+        var overridesObj = group.root === 'settings' ? (s[group.section] || {}) : (emailTexts[group.section] || {});
+        var defaultsObj = group.root === 'settings' ? (defaults[group.section] || {}) : (defaults[group.section] || {});
+        var rows = group.fields.map(function (f) {
+          return emailFieldRowHtml(overridesObj, defaultsObj, group.section, f.key, f.label, f.hint);
+        }).join('');
+        return (group.title ? '<div class="dash-settings-group-title" style="margin:20px 0 10px;">' + escapeHtml(group.title) + '</div>' : '') +
+          '<div class="admin-room-card">' + rows + '</div>';
+      }).join('');
+      var logoBlock = catId === 'generali'
+        ? '<div class="dash-settings-group-title" style="margin:20px 0 10px;">Logo (nell\'header di ogni email)</div>' +
+          '<div class="admin-room-card">' +
+            '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-bottom:10px;">Se caricato, sostituisce i due pallini colorati e il nome sito nell\'header — ridimensionato automaticamente per non allargare la barra.</div>' +
+            photoSlotsHtml('logo', 'logo', { photos: s.logoUrl ? [s.logoUrl] : [] }, 1) +
+          '</div>'
+        : '';
+      return '<div class="dash-settings-group" data-email-cat="' + catId + '">' + logoBlock + groups + '</div>';
+    }).join('');
+
+    content.innerHTML =
+      '<h1 class="dash-section-title">Email ospiti</h1>' +
+      '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-bottom:14px;">Ogni email inviata agli ospiti è modificabile qui, in italiano e inglese — un campo lasciato vuoto usa il testo scritto sotto come sfondo grigio (il predefinito). "Ripristina testo predefinito" svuota il campo.</div>' +
+      (loading ? '<p style="color:var(--admin-muted,#6B7A8C);">Caricamento testi predefiniti…</p>' : '') +
+      emailSubnavHtml + groupsHtml;
+
+    function applyEmailCategoryFilter() {
+      var active = state.emailSubTab || EMAIL_CATEGORIES[0].id;
+      content.querySelectorAll('[data-email-cat]').forEach(function (el) {
+        el.style.display = el.getAttribute('data-email-cat') === active ? '' : 'none';
+      });
+      content.querySelectorAll('[data-email-subnav]').forEach(function (btn) {
+        btn.classList.toggle('is-active', btn.getAttribute('data-email-subnav') === active);
+      });
+    }
+    applyEmailCategoryFilter();
+    content.querySelectorAll('[data-email-subnav]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state.emailSubTab = btn.getAttribute('data-email-subnav');
+        applyEmailCategoryFilter();
+        content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    // Trova a quale gruppo/root appartiene una sezione (serve per sapere se
+    // salvare dentro settings.emailTexts.<section> o dentro
+    // settings.<section> di primo livello — solo emailVideoCallTexts).
+    function findGroup(section) {
+      var found = null;
+      Object.keys(EMAIL_FIELD_GROUPS).forEach(function (catId) {
+        EMAIL_FIELD_GROUPS[catId].forEach(function (g) { if (g.section === section) found = g; });
+      });
+      return found;
+    }
+    function saveEmailTextField(section, field, lang, value) {
+      var group = findGroup(section);
+      if (!group) return;
+      if (group.root === 'settings') {
+        var rootObj = Object.assign({}, s[section] || {});
+        var cur = Object.assign({ it: '', en: '' }, rootObj[field] || {});
+        cur[lang] = value;
+        rootObj[field] = cur;
+        var patch = {}; patch[section] = rootObj;
+        window.CasaCelesteTourismDB.setSettings(patch);
+      } else {
+        var etObj = Object.assign({}, s.emailTexts || {});
+        var secObj = Object.assign({}, etObj[section] || {});
+        var curField = Object.assign({ it: '', en: '' }, secObj[field] || {});
+        curField[lang] = value;
+        secObj[field] = curField;
+        etObj[section] = secObj;
+        window.CasaCelesteTourismDB.setSettings({ emailTexts: etObj });
+      }
+    }
+    content.querySelectorAll('[data-email-text]').forEach(function (ta) {
+      ta.addEventListener('change', function (e) {
+        saveEmailTextField(ta.getAttribute('data-et-section'), ta.getAttribute('data-et-field'), ta.getAttribute('data-et-lang'), e.target.value);
+      });
+    });
+    content.querySelectorAll('[data-email-reset]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var section = btn.getAttribute('data-et-section'), field = btn.getAttribute('data-et-field');
+        saveEmailTextField(section, field, 'it', '');
+        saveEmailTextField(section, field, 'en', '');
+        var itTa = document.getElementById('et-' + section + '-' + field + '-it');
+        var enTa = document.getElementById('et-' + section + '-' + field + '-en');
+        if (itTa) itTa.value = '';
+        if (enTa) enTa.value = '';
+      });
+    });
+    bindPhotoUploadEvents(content);
+  }
+
   function renderSettingsTab(content) {
     // Conteggio click "Consigli & dintorni": lettura on-demand, una volta
     // sola per sessione (non un subscribe live, i numeri non cambiano così

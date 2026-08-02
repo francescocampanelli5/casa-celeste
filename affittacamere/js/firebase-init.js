@@ -366,6 +366,20 @@ window.CasaCelesteTourismDB = {
     var fileRef = storageRef(storage, 'tourism-site/recs/' + recId + '.' + ext);
     return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
   },
+  // Logo caricato in Impostazioni → Email ospiti → Generali, sostituisce i
+  // due pallini colorati nell'header delle email (vedi tourism_settings/
+  // site.logoUrl, letto da sendGuestEmail in affittacamere/scripts/_lib.js
+  // e da functions/guest-notify.js). Slot unico, nessun indice slot.
+  uploadLogo: function (file) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    var ext = (file.name.split('.').pop() || 'png').toLowerCase();
+    var fileRef = storageRef(storage, 'tourism-site/logo/logo.' + ext);
+    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+  },
+  deleteLogoFile: function (ext) {
+    var fileRef = storageRef(storage, 'tourism-site/logo/logo.' + (ext || 'png'));
+    return deleteObject(fileRef).catch(function () {});
+  },
 
   // ---- upload foto documento ospite (area TEMPORANEA, pubblica in
   // scrittura, spostata dalla Cloud Function submitGuestDocuments in

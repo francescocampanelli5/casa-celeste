@@ -32,6 +32,28 @@ function renderTemplate(fileName, vars) {
   return Mustache.render(stripDocComment(raw), vars);
 }
 
+// Testo delle email interamente editabile da dashboard (Impostazioni →
+// Email ospiti, tourism_settings/site.emailTexts) — stesso meccanismo di
+// affittacamere/scripts/_lib.js, duplicato qui per lo stesso motivo già
+// documentato in cima al file (pacchetto Node separato). Un campo override
+// vuoto/assente = usa il default da email-texts-defaults.json.
+const EMAIL_TEXT_DEFAULTS = JSON.parse(fs.readFileSync(path.join(TEMPLATES_DIR, 'email-texts-defaults.json'), 'utf8'));
+function pickText(overrides, section, key, isEn) {
+  const lang = isEn ? 'en' : 'it';
+  const o = overrides && overrides[section] && overrides[section][key];
+  const override = o && o[lang] && String(o[lang]).trim();
+  const def = EMAIL_TEXT_DEFAULTS[section] && EMAIL_TEXT_DEFAULTS[section][key];
+  return override || (def && def[lang]) || '';
+}
+function emailTextVars(overrides, section, fields, isEn, vars) {
+  const out = {};
+  fields.forEach((f) => { out[section + '_' + f] = Mustache.render(pickText(overrides, section, f, isEn), vars); });
+  return out;
+}
+const T1_FIELDS = ['eyebrow', 'h1', 'introSingular', 'introGroup', 'calendarLabel', 'legalTitle', 'legalBody', 'ctaSingular', 'ctaGroupIntro', 'ctaGroupSuffix', 'assistLead', 'spamNote'];
+const T1_TABLE_FIELDS = ['checkIn', 'checkOut', 'nights', 'guests', 'touristTax'];
+const T7_FIELDS = ['eyebrow', 'h1', 'bodySingular', 'bodyGroup', 'refundTitle', 'refundBody', 'assistLead', 'closing'];
+
 function formatDateHuman(iso, isEn) {
   if (!iso) return '';
   const d = new Date(iso + 'T00:00:00Z');
@@ -216,7 +238,7 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
 
   let html;
   try {
-    html = renderTemplate('1-conferma-prenotazione.html', {
+    const confirmationVars = {
       siteName: siteName, city: city, address: address,
       email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
       checkIn: formatDateHuman(rep.checkIn, isEn), checkOut: formatDateHuman(rep.checkOut, isEn),
@@ -227,8 +249,13 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
       icsLink: icsLink(first.id, first.b.guestFormToken, isGroup ? groupRoomNames : ''),
       assistLink: assistLink(), isEn: isEn, subjectLine: subjectLine,
       isGroup: isGroup, rooms: isGroup ? rooms : [],
-      footerSignature: settings.emailFooterSignature || ''
-    });
+      footerSignature: settings.emailFooterSignature || '',
+      logoUrl: settings.logoUrl || '',
+      assistButtonLabel: pickText(settings.emailTexts, 'shared', 'assistButtonLabel', isEn)
+    };
+    Object.assign(confirmationVars, emailTextVars(settings.emailTexts, 't1', T1_FIELDS, isEn, confirmationVars));
+    Object.assign(confirmationVars, emailTextVars(settings.emailTexts, 'tableLabels', T1_TABLE_FIELDS, isEn, confirmationVars));
+    html = renderTemplate('1-conferma-prenotazione.html', confirmationVars);
     const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName, settings.emailSenderName);
     if (result.sent) await recordEmailSent(db, admin, quota.month);
     else console.log('Conferma immediata non configurata (mancano i secrets Gmail): ' + bookingId);
@@ -289,14 +316,18 @@ async function notifyBookingCancelled(ctx, bookingId, booking) {
   const subjectLine = subjectFor('cancellation', isEn, isGroup ? Object.assign({}, rep, { roomLabel: groupRoomNames }) : rep, siteName);
 
   try {
-    const html = renderTemplate('7-annullamento-prenotazione.html', {
+    const cancellationVars = {
       siteName: siteName, city: city, address: address,
       email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
       checkIn: formatDateHuman(rep.checkIn, isEn), checkOut: formatDateHuman(rep.checkOut, isEn),
       hasRefund: hasRefund, refundAmount: totalRefund,
       assistLink: assistLink(), isEn: isEn, subjectLine: subjectLine, isGroup: isGroup,
-      footerSignature: settings.emailFooterSignature || ''
-    });
+      footerSignature: settings.emailFooterSignature || '',
+      logoUrl: settings.logoUrl || '',
+      assistButtonLabel: pickText(settings.emailTexts, 'shared', 'assistButtonLabel', isEn)
+    };
+    Object.assign(cancellationVars, emailTextVars(settings.emailTexts, 't7', T7_FIELDS, isEn, cancellationVars));
+    const html = renderTemplate('7-annullamento-prenotazione.html', cancellationVars);
     const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName, settings.emailSenderName);
     if (result.sent) await recordEmailSent(db, admin, quota.month);
     else console.log('Annullamento immediato non configurato (mancano i secrets Gmail): ' + bookingId);
