@@ -2492,6 +2492,7 @@
       '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsSummaryLabel(state.guestsAdults, state.guestsChildAges)) + '</div></div>' +
       '<div class="slot-label">' + escapeHtml(t('booking.step_options_title')) + '</div>' +
       roomDetailOptionsHtml() +
+      optionsPricePreviewHtml() +
       '<p class="range-hint">' + escapeHtml(t('booking.options_price_disclaimer')) + '</p>' +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-contact-step>' + escapeHtml(t('booking.continua_dati_contatto')) + ' →</button>' +
@@ -2504,6 +2505,26 @@
   function extraBedTotal() { return state.extraBedCount * EXTRA_BED_PRICE; }
   function cribTotalN(count) { return count * CRIB_PRICE; }
   function extraBedTotalN(count) { return count * EXTRA_BED_PRICE; }
+  // Anteprima prezzo nello step "Opzioni": solo notti + culla/letto extra
+  // se scelti. Tassa di soggiorno e commissione di pagamento restano fuori
+  // apposta, mostrate solo al passo successivo (vedi disclaimer sotto).
+  function optionsPricePreviewHtml() {
+    var room = currentRoom();
+    if (!room) return '';
+    var nights = daysBetween(state.selectedCheckIn, state.selectedCheckOut);
+    var roomTotal = dynamicRoomTotal(room, state.selectedCheckIn, state.selectedCheckOut, 1).total;
+    var cribAmount = cribTotal();
+    var extraBedAmount = extraBedTotal();
+    var subtotal = roomTotal + cribAmount + extraBedAmount;
+    return (
+      '<div class="price-summary">' +
+        '<div class="price-summary-row"><span>' + escapeHtml(tpl(t('booking.summary_nights_n'), { n: nights })) + '</span><span>€' + roomTotal + '</span></div>' +
+        (state.cribCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_crib')) + '</span><span>€' + cribAmount.toFixed(2) + '</span></div>' : '') +
+        (state.extraBedCount ? '<div class="price-summary-row"><span>' + escapeHtml(t('options.summary_extra_bed')) + '</span><span>€' + extraBedAmount.toFixed(2) + '</span></div>' : '') +
+        '<div class="price-summary-row is-subtotal"><span>' + escapeHtml(t('booking.options_subtotal_label')) + '</span><span>€' + subtotal.toFixed(2) + '</span></div>' +
+      '</div>'
+    );
+  }
   function priceSummaryHtml() {
     var room = currentRoom();
     if (!room) return '';
