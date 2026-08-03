@@ -522,10 +522,6 @@
     // prenotazioni verificate prima di questa correzione.
     auto_returning: 'verificato in automatico (prenotazione precedente al fix)', spid_cie: 'SPID/CIE'
   };
-  function identityVerifiedLabel(iv) {
-    if (!iv) return '⏳ da verificare (obbligo di legge: identificazione documento-persona)';
-    return '✅ verificata (' + (IDENTITY_METHOD_LABELS[iv.method] || iv.method) + ')';
-  }
   // Mostrata solo se la firma OTP è attiva in Impostazioni (altrimenti la
   // voce non ha senso: nessun ospite vede mai la sezione contratto).
   function contractSignedMeta(b) {

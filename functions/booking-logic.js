@@ -149,9 +149,11 @@ async function createBookingCore(admin, db, stripe, data) {
   // conferma...) senza pagare davvero. Vedi il bottone "(TEST) Conferma
   // senza pagare" in affittacamere/js/app.js (TEMP_TEST_SKIP_PAYMENT) —
   // stesso interruttore da disattivare insieme a questo. Richiede comunque
-  // l'accettazione delle condizioni, come 'site'. Il bypass è riservato al
-  // proprietario autenticato: functions/index.js rifiuta 'site_test' senza
-  // request.auth, quindi non è più invocabile da un visitatore anonimo.
+  // l'accettazione delle condizioni, come 'site'. Volutamente APERTO A
+  // CHIUNQUE (nessun controllo isOwner in functions/index.js) mentre il
+  // sito è in fase di test pre-lancio: crea comunque una prenotazione VERA
+  // che blocca le date, quindi va tolto (o rimesso dietro isOwner) prima
+  // del lancio pubblico.
   const isSiteFlow = source === 'site' || source === 'site_test';
   const bedType = data.bedType === 'singolo' ? 'singolo' : 'matrimoniale';
   const cribCount = Math.max(0, Math.min(CRIB_MAX, Number(data.cribCount) || 0));

@@ -56,7 +56,7 @@
 <link rel="preconnect" href="https://js.stripe.com">
 <link rel="preconnect" href="https://api.stripe.com">
 <link rel="preconnect" href="https://m.stripe.network">
-<link rel="stylesheet" href="css/styles.css?v=42">
+<link rel="stylesheet" href="css/styles.css?v=43">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
@@ -491,18 +491,22 @@
 
 </div>
 <!-- Tutti "defer" (non solo app.js): erano script normali/bloccanti messi
-     PRIMA di app.js nel documento — dato che defer esegue in ordine di
-     apparizione, un app.js deferred doveva comunque aspettare che TUTTI
-     questi, incluso il download dell'intero js.stripe.com/v3 (mai servito
-     dalla cache-busting locale), finissero prima di iniziare a girare e
-     popolare le card stanza — anche per chi non arriva mai al pagamento. -->
+     PRIMA di app.js nel documento — questo evitava che bloccassero il
+     parsing HTML, ma "defer" esegue comunque in ordine di apparizione, quindi
+     js.stripe.com/v3 (script esterno pesante, mai servito dalla cache locale)
+     messo PRIMA di app.js lo faceva comunque aspettare prima di iniziare a
+     girare e popolare le card stanza — anche per chi non arriva mai al
+     pagamento. Per questo stripe.js è ora l'ultimo script della lista, DOPO
+     app.js: il download parte comunque subito in parallelo con tutti gli
+     altri (grazie al preconnect qui sopra è pronto per lo step 5 quando
+     serve), ma la sua esecuzione non ritarda più quella di app.js. -->
 <script src="js/data.js?v=5" defer></script>
-<script src="js/i18n.js?v=28" defer></script>
+<script src="js/i18n.js?v=29" defer></script>
 <script src="js/pricing.js?v=2" defer></script>
 <script src="js/firebase-config.js?v=1" defer></script>
-<script type="module" src="js/firebase-init.js?v=18"></script>
+<script type="module" src="js/firebase-init.js?v=20"></script>
 <script src="js/stripe-config.js?v=1" defer></script>
+<script src="js/app.js?v=38" defer></script>
 <script src="https://js.stripe.com/v3/" defer></script>
-<script src="js/app.js?v=35" defer></script>
 </body>
 </html>

@@ -16,15 +16,6 @@ import {
   onSnapshot, query, orderBy, getDocs, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
-  getAuth, connectAuthEmulator,
-  signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  multiFactor, getMultiFactorResolver, TotpMultiFactorGenerator
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getStorage, connectStorageEmulator, ref as storageRef,
-  uploadBytes, getDownloadURL, deleteObject
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import {
   getFunctions, connectFunctionsEmulator, httpsCallable
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 import {
@@ -36,7 +27,7 @@ var APP_CHECK_SITE_KEY = '6LdEnVstAAAAAL5b-A9izezh4n8VjhC8pFDJGYHR';
 var cfg = window.FIREBASE_CONFIG || {};
 var configured = !!cfg.apiKey && cfg.apiKey.indexOf('INCOLLA_QUI') === -1;
 
-var app = null, db = null, auth = null, storage = null, functions = null;
+var app = null, db = null, functions = null;
 if (configured) {
   app = initializeApp(cfg);
   // Con gli emulatori niente App Check: gli emulatori Auth/Firestore/Storage
@@ -49,13 +40,9 @@ if (configured) {
     initializeAppCheck(app, { provider: new ReCaptchaV3Provider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
   }
   db = getFirestore(app);
-  auth = getAuth(app);
-  storage = getStorage(app);
   functions = getFunctions(app, 'europe-west1');
   if (window.USE_FIREBASE_EMULATOR) {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099');
-    connectStorageEmulator(storage, '127.0.0.1', 9199);
     connectFunctionsEmulator(functions, '127.0.0.1', 5001);
   }
 }
@@ -63,6 +50,36 @@ if (configured) {
 function requireDb() {
   if (!db) throw new Error('Firebase non configurato: compila affittacamere/js/firebase-config.js');
   return db;
+}
+
+// Auth e Storage caricati solo alla prima chiamata che ne ha davvero bisogno
+// (dynamic import): la maggior parte delle pagine (sito pubblico, pulizie,
+// manutenzione, cancella) non fa mai login né upload, quindi non ha senso
+// scaricare firebase-auth.js/firebase-storage.js (SDK non piccoli, incluso
+// tutto il modulo MFA/TOTP) a ogni caricamento pagina. Solo dashboard.html
+// (auth) e ospiti.html/dashboard.html (storage) le usano davvero.
+var authModulePromise = null, storageModulePromise = null;
+var authInstance = null, storageInstance = null, authModuleRef = null;
+function loadAuthModule() {
+  if (!authModulePromise) {
+    authModulePromise = import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js").then(function (mod) {
+      authModuleRef = mod;
+      authInstance = mod.getAuth(app);
+      if (window.USE_FIREBASE_EMULATOR) mod.connectAuthEmulator(authInstance, 'http://127.0.0.1:9099');
+      return mod;
+    });
+  }
+  return authModulePromise;
+}
+function loadStorageModule() {
+  if (!storageModulePromise) {
+    storageModulePromise = import("https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js").then(function (mod) {
+      storageInstance = mod.getStorage(app);
+      if (window.USE_FIREBASE_EMULATOR) mod.connectStorageEmulator(storageInstance, '127.0.0.1', 9199);
+      return mod;
+    });
+  }
+  return storageModulePromise;
 }
 
 window.CasaCelesteTourismDB = {
@@ -164,8 +181,10 @@ window.CasaCelesteTourismDB = {
   uploadMonoSlidePhoto: function (slideId, slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    var fileRef = storageRef(storage, 'tourism-monoSlides/' + slideId + '/slot' + slotIndex + '.' + ext);
-    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-monoSlides/' + slideId + '/slot' + slotIndex + '.' + ext);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
+    });
   },
 
   // ---- reviews ----
@@ -331,40 +350,54 @@ window.CasaCelesteTourismDB = {
   uploadRoomPhoto: function (roomId, slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    var fileRef = storageRef(storage, 'tourism-rooms/' + roomId + '/slot' + slotIndex + '.' + ext);
-    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-rooms/' + roomId + '/slot' + slotIndex + '.' + ext);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
+    });
   },
   deleteRoomPhotoFile: function (roomId, slotIndex, ext) {
-    var fileRef = storageRef(storage, 'tourism-rooms/' + roomId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
-    return deleteObject(fileRef).catch(function () {});
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-rooms/' + roomId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
+      return mod.deleteObject(fileRef).catch(function () {});
+    });
   },
   uploadCommonPhoto: function (commonId, slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    var fileRef = storageRef(storage, 'tourism-commons/' + commonId + '/slot' + slotIndex + '.' + ext);
-    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-commons/' + commonId + '/slot' + slotIndex + '.' + ext);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
+    });
   },
   deleteCommonPhotoFile: function (commonId, slotIndex, ext) {
-    var fileRef = storageRef(storage, 'tourism-commons/' + commonId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
-    return deleteObject(fileRef).catch(function () {});
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-commons/' + commonId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
+      return mod.deleteObject(fileRef).catch(function () {});
+    });
   },
   uploadFacadePhoto: function (slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    var fileRef = storageRef(storage, 'tourism-site/facade/slot' + slotIndex + '.' + ext);
-    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-site/facade/slot' + slotIndex + '.' + ext);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
+    });
   },
   uploadManagerPhoto: function (slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    var fileRef = storageRef(storage, 'tourism-site/manager/slot' + slotIndex + '.' + ext);
-    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-site/manager/slot' + slotIndex + '.' + ext);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
+    });
   },
   uploadRecPhoto: function (recId, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    var fileRef = storageRef(storage, 'tourism-site/recs/' + recId + '.' + ext);
-    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-site/recs/' + recId + '.' + ext);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
+    });
   },
   // Logo caricato in Impostazioni → Email ospiti → Generali, sostituisce i
   // due pallini colorati nell'header delle email (vedi tourism_settings/
@@ -373,12 +406,16 @@ window.CasaCelesteTourismDB = {
   uploadLogo: function (file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     var ext = (file.name.split('.').pop() || 'png').toLowerCase();
-    var fileRef = storageRef(storage, 'tourism-site/logo/logo.' + ext);
-    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-site/logo/logo.' + ext);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
+    });
   },
   deleteLogoFile: function (ext) {
-    var fileRef = storageRef(storage, 'tourism-site/logo/logo.' + (ext || 'png'));
-    return deleteObject(fileRef).catch(function () {});
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-site/logo/logo.' + (ext || 'png'));
+      return mod.deleteObject(fileRef).catch(function () {});
+    });
   },
   // Immagini dei blocchi liberi "immagine" nell'editor a blocchi delle
   // email (Impostazioni → Email ospiti → Impaginazione), un file per
@@ -387,8 +424,10 @@ window.CasaCelesteTourismDB = {
   uploadEmailBlockImage: function (templateKey, blockId, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    var fileRef = storageRef(storage, 'tourism-site/email-blocks/' + templateKey + '-' + blockId + '.' + ext);
-    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-site/email-blocks/' + templateKey + '-' + blockId + '.' + ext);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
+    });
   },
 
   // ---- upload foto documento ospite (area TEMPORANEA, pubblica in
@@ -397,8 +436,10 @@ window.CasaCelesteTourismDB = {
   uploadGuestDocPhotoTemp: function (bookingId, guestIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    var fileRef = storageRef(storage, 'tourism-guest-docs-tmp/' + bookingId + '/guest' + guestIndex + '.' + ext);
-    return uploadBytes(fileRef, file).then(function () { return getDownloadURL(fileRef); });
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'tourism-guest-docs-tmp/' + bookingId + '/guest' + guestIndex + '.' + ext);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
+    });
   },
 
   // ---- bookings ----
@@ -621,42 +662,60 @@ window.CasaCelesteTourismDB = {
   },
 
   // ---- auth (dashboard) — stesso utente Firebase Auth dello studentato ----
+  // Caricata lazy (loadAuthModule sopra): dashboard.html è l'unica pagina che
+  // chiama questi metodi, quindi qui sotto ogni chiamata scarica firebase-auth.js
+  // alla prima occorrenza invece che a ogni pagina del sito.
   signIn: function (email, password) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
-    return signInWithEmailAndPassword(auth, email, password);
+    return loadAuthModule().then(function (mod) {
+      return mod.signInWithEmailAndPassword(authInstance, email, password);
+    });
   },
   signOutUser: function () {
-    return signOut(auth);
+    return loadAuthModule().then(function (mod) { return mod.signOut(authInstance); });
   },
   onAuthChange: function (callback) {
     if (!configured) { callback(null); return function () {}; }
-    return onAuthStateChanged(auth, callback);
+    var unsubscribed = false, realUnsub = null;
+    loadAuthModule().then(function (mod) {
+      if (unsubscribed) return;
+      realUnsub = mod.onAuthStateChanged(authInstance, callback);
+    });
+    return function () { unsubscribed = true; if (realUnsub) realUnsub(); };
   },
 
   // ---- verifica in due passaggi (MFA, TOTP — app autenticatore) ----
   // Stesso utente Firebase Auth dello studentato: un'iscrizione fatta da
   // qui vale anche per il login su /studentato/dashboard.html e viceversa,
-  // non serve ripeterla in entrambe le dashboard.
+  // non serve ripeterla in entrambe le dashboard. Chiamate solo a login già
+  // avvenuto (o subito dopo un signIn() fallito per MFA), quindi il modulo
+  // auth è già caricato a questo punto — authModuleRef è già valorizzato.
   mfaEnrolledFactors: function () {
-    if (!auth.currentUser) return [];
-    return multiFactor(auth.currentUser).enrolledFactors;
+    if (!authModuleRef || !authInstance.currentUser) return [];
+    return authModuleRef.multiFactor(authInstance.currentUser).enrolledFactors;
   },
   // Passo 1 iscrizione: genera un secret TOTP nuovo, da mostrare
   // all'utente (come testo, per l'inserimento manuale nell'app
   // autenticatore — niente QR, zero dipendenze esterne).
   startTotpEnrollment: function () {
-    return multiFactor(auth.currentUser).getSession().then(function (session) {
-      return TotpMultiFactorGenerator.generateSecret(session);
+    return loadAuthModule().then(function (mod) {
+      return mod.multiFactor(authInstance.currentUser).getSession().then(function (session) {
+        return mod.TotpMultiFactorGenerator.generateSecret(session);
+      });
     });
   },
   // Passo 2 iscrizione: l'utente conferma con il codice a 6 cifre generato
   // dall'app usando il secret del passo 1.
   finishTotpEnrollment: function (secret, code, displayName) {
-    var assertion = TotpMultiFactorGenerator.assertionForEnrollment(secret, code);
-    return multiFactor(auth.currentUser).enroll(assertion, displayName || 'App autenticatore');
+    return loadAuthModule().then(function (mod) {
+      var assertion = mod.TotpMultiFactorGenerator.assertionForEnrollment(secret, code);
+      return mod.multiFactor(authInstance.currentUser).enroll(assertion, displayName || 'App autenticatore');
+    });
   },
   unenrollMfaFactor: function (factorUid) {
-    return multiFactor(auth.currentUser).unenroll(factorUid);
+    return loadAuthModule().then(function (mod) {
+      return mod.multiFactor(authInstance.currentUser).unenroll(factorUid);
+    });
   },
   // Al login, se l'account ha la verifica in due passaggi attiva,
   // signIn() sopra fallisce con error.code === 'auth/multi-factor-auth-required':
@@ -665,11 +724,14 @@ window.CasaCelesteTourismDB = {
     return !!(error && error.code === 'auth/multi-factor-auth-required');
   },
   getMfaResolver: function (error) {
-    return getMultiFactorResolver(auth, error);
+    if (!authModuleRef) return null;
+    return authModuleRef.getMultiFactorResolver(authInstance, error);
   },
   completeMfaSignIn: function (resolver, factorUid, code) {
-    var assertion = TotpMultiFactorGenerator.assertionForSignIn(factorUid, code);
-    return resolver.resolveSignIn(assertion);
+    return loadAuthModule().then(function (mod) {
+      var assertion = mod.TotpMultiFactorGenerator.assertionForSignIn(factorUid, code);
+      return resolver.resolveSignIn(assertion);
+    });
   }
 };
 

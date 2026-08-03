@@ -5,15 +5,6 @@ import {
   onSnapshot, query, orderBy, serverTimestamp, getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
-  getAuth, connectAuthEmulator,
-  signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  multiFactor, getMultiFactorResolver, TotpMultiFactorGenerator
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getStorage, connectStorageEmulator, ref as storageRef,
-  uploadBytes, getDownloadURL, deleteObject
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import {
   initializeAppCheck, ReCaptchaV3Provider
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 
@@ -22,7 +13,7 @@ var APP_CHECK_SITE_KEY = '6LdEnVstAAAAAL5b-A9izezh4n8VjhC8pFDJGYHR';
 var cfg = window.FIREBASE_CONFIG || {};
 var configured = !!cfg.apiKey && cfg.apiKey.indexOf('INCOLLA_QUI') === -1;
 
-var app = null, db = null, auth = null, storage = null;
+var app = null, db = null;
 if (configured) {
   app = initializeApp(cfg);
   if (window.USE_FIREBASE_EMULATOR) {
@@ -30,18 +21,43 @@ if (configured) {
   }
   initializeAppCheck(app, { provider: new ReCaptchaV3Provider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
   db = getFirestore(app);
-  auth = getAuth(app);
-  storage = getStorage(app);
   if (window.USE_FIREBASE_EMULATOR) {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099');
-    connectStorageEmulator(storage, '127.0.0.1', 9199);
   }
 }
 
 function requireDb() {
   if (!db) throw new Error('Firebase non configurato: compila site/js/firebase-config.js');
   return db;
+}
+
+// Auth e Storage caricati solo alla prima chiamata che ne ha davvero bisogno
+// (dynamic import): index.html (sito pubblico) non fa mai login né upload,
+// quindi non ha senso scaricare firebase-auth.js/firebase-storage.js (SDK
+// non piccoli, incluso tutto il modulo MFA/TOTP) a ogni caricamento pagina.
+// Solo dashboard.html le usa davvero.
+var authModulePromise = null, storageModulePromise = null;
+var authInstance = null, storageInstance = null, authModuleRef = null;
+function loadAuthModule() {
+  if (!authModulePromise) {
+    authModulePromise = import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js").then(function (mod) {
+      authModuleRef = mod;
+      authInstance = mod.getAuth(app);
+      if (window.USE_FIREBASE_EMULATOR) mod.connectAuthEmulator(authInstance, 'http://127.0.0.1:9099');
+      return mod;
+    });
+  }
+  return authModulePromise;
+}
+function loadStorageModule() {
+  if (!storageModulePromise) {
+    storageModulePromise = import("https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js").then(function (mod) {
+      storageInstance = mod.getStorage(app);
+      if (window.USE_FIREBASE_EMULATOR) mod.connectStorageEmulator(storageInstance, '127.0.0.1', 9199);
+      return mod;
+    });
+  }
+  return storageModulePromise;
 }
 
 window.CasaCelesteDB = {
@@ -138,12 +154,11 @@ window.CasaCelesteDB = {
   },
   uploadMonoSlidePhoto: function (slideId, slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
-    if (!storage) return Promise.reject(new Error('Firebase Storage non disponibile'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     var path = 'monoSlides/' + slideId + '/slot' + slotIndex + '.' + ext;
-    var fileRef = storageRef(storage, path);
-    return uploadBytes(fileRef, file).then(function () {
-      return getDownloadURL(fileRef);
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, path);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
     });
   },
 
@@ -191,58 +206,56 @@ window.CasaCelesteDB = {
   // ---- upload foto stanze (Firebase Storage — richiede piano Blaze) ----
   uploadRoomPhoto: function (roomId, slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
-    if (!storage) return Promise.reject(new Error('Firebase Storage non disponibile'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     var path = 'rooms/' + roomId + '/slot' + slotIndex + '.' + ext;
-    var fileRef = storageRef(storage, path);
-    return uploadBytes(fileRef, file).then(function () {
-      return getDownloadURL(fileRef);
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, path);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
     });
   },
   deleteRoomPhotoFile: function (roomId, slotIndex, ext) {
-    if (!storage) return Promise.resolve();
-    var fileRef = storageRef(storage, 'rooms/' + roomId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
-    return deleteObject(fileRef).catch(function () {});
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'rooms/' + roomId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
+      return mod.deleteObject(fileRef).catch(function () {});
+    });
   },
 
   // ---- upload foto spazi comuni (Firebase Storage) ----
   uploadCommonPhoto: function (commonId, slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
-    if (!storage) return Promise.reject(new Error('Firebase Storage non disponibile'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     var path = 'commons/' + commonId + '/slot' + slotIndex + '.' + ext;
-    var fileRef = storageRef(storage, path);
-    return uploadBytes(fileRef, file).then(function () {
-      return getDownloadURL(fileRef);
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, path);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
     });
   },
   deleteCommonPhotoFile: function (commonId, slotIndex, ext) {
-    if (!storage) return Promise.resolve();
-    var fileRef = storageRef(storage, 'commons/' + commonId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
-    return deleteObject(fileRef).catch(function () {});
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, 'commons/' + commonId + '/slot' + slotIndex + '.' + (ext || 'jpg'));
+      return mod.deleteObject(fileRef).catch(function () {});
+    });
   },
 
   // ---- upload foto facciata (home, Firebase Storage) ----
   uploadFacadePhoto: function (slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
-    if (!storage) return Promise.reject(new Error('Firebase Storage non disponibile'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     var path = 'site/facade/slot' + slotIndex + '.' + ext;
-    var fileRef = storageRef(storage, path);
-    return uploadBytes(fileRef, file).then(function () {
-      return getDownloadURL(fileRef);
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, path);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
     });
   },
 
   // ---- upload foto Apartment Manager (impostazioni, Firebase Storage) ----
   uploadManagerPhoto: function (slotIndex, file) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
-    if (!storage) return Promise.reject(new Error('Firebase Storage non disponibile'));
     var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     var path = 'site/manager/slot' + slotIndex + '.' + ext;
-    var fileRef = storageRef(storage, path);
-    return uploadBytes(fileRef, file).then(function () {
-      return getDownloadURL(fileRef);
+    return loadStorageModule().then(function (mod) {
+      var fileRef = mod.ref(storageInstance, path);
+      return mod.uploadBytes(fileRef, file).then(function () { return mod.getDownloadURL(fileRef); });
     });
   },
 
@@ -269,42 +282,61 @@ window.CasaCelesteDB = {
   },
 
   // ---- auth (dashboard) ----
+  // Caricata lazy (loadAuthModule sopra): dashboard.html è l'unica pagina che
+  // chiama questi metodi, quindi qui sotto ogni chiamata scarica firebase-auth.js
+  // alla prima occorrenza invece che a ogni pagina del sito.
   signIn: function (email, password) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
-    return signInWithEmailAndPassword(auth, email, password);
+    return loadAuthModule().then(function (mod) {
+      return mod.signInWithEmailAndPassword(authInstance, email, password);
+    });
   },
   signOutUser: function () {
-    return signOut(auth);
+    return loadAuthModule().then(function (mod) { return mod.signOut(authInstance); });
   },
   onAuthChange: function (callback) {
     if (!configured) { callback(null); return function () {}; }
-    return onAuthStateChanged(auth, callback);
+    var unsubscribed = false, realUnsub = null;
+    loadAuthModule().then(function (mod) {
+      if (unsubscribed) return;
+      realUnsub = mod.onAuthStateChanged(authInstance, callback);
+    });
+    return function () { unsubscribed = true; if (realUnsub) realUnsub(); };
   },
 
   // ---- verifica in due passaggi (MFA, TOTP — app autenticatore) ----
   // Stesso utente Firebase Auth dell'affittacamere: un'iscrizione fatta da
   // qui vale anche per il login su /affittacamere/dashboard.html e
-  // viceversa, non serve ripeterla in entrambe le dashboard.
+  // viceversa, non serve ripeterla in entrambe le dashboard. Chiamate solo a
+  // login già avvenuto (o subito dopo un signIn() fallito per MFA), quindi
+  // il modulo auth è già caricato a questo punto — authModuleRef è già
+  // valorizzato.
   mfaEnrolledFactors: function () {
-    if (!auth.currentUser) return [];
-    return multiFactor(auth.currentUser).enrolledFactors;
+    if (!authModuleRef || !authInstance.currentUser) return [];
+    return authModuleRef.multiFactor(authInstance.currentUser).enrolledFactors;
   },
   // Passo 1 iscrizione: genera un secret TOTP nuovo, da mostrare
   // all'utente (come testo, per l'inserimento manuale nell'app
   // autenticatore — niente QR, zero dipendenze esterne).
   startTotpEnrollment: function () {
-    return multiFactor(auth.currentUser).getSession().then(function (session) {
-      return TotpMultiFactorGenerator.generateSecret(session);
+    return loadAuthModule().then(function (mod) {
+      return mod.multiFactor(authInstance.currentUser).getSession().then(function (session) {
+        return mod.TotpMultiFactorGenerator.generateSecret(session);
+      });
     });
   },
   // Passo 2 iscrizione: l'utente conferma con il codice a 6 cifre generato
   // dall'app usando il secret del passo 1.
   finishTotpEnrollment: function (secret, code, displayName) {
-    var assertion = TotpMultiFactorGenerator.assertionForEnrollment(secret, code);
-    return multiFactor(auth.currentUser).enroll(assertion, displayName || 'App autenticatore');
+    return loadAuthModule().then(function (mod) {
+      var assertion = mod.TotpMultiFactorGenerator.assertionForEnrollment(secret, code);
+      return mod.multiFactor(authInstance.currentUser).enroll(assertion, displayName || 'App autenticatore');
+    });
   },
   unenrollMfaFactor: function (factorUid) {
-    return multiFactor(auth.currentUser).unenroll(factorUid);
+    return loadAuthModule().then(function (mod) {
+      return mod.multiFactor(authInstance.currentUser).unenroll(factorUid);
+    });
   },
   // Al login, se l'account ha la verifica in due passaggi attiva,
   // signIn() sopra fallisce con error.code === 'auth/multi-factor-auth-required':
@@ -313,11 +345,14 @@ window.CasaCelesteDB = {
     return !!(error && error.code === 'auth/multi-factor-auth-required');
   },
   getMfaResolver: function (error) {
-    return getMultiFactorResolver(auth, error);
+    if (!authModuleRef) return null;
+    return authModuleRef.getMultiFactorResolver(authInstance, error);
   },
   completeMfaSignIn: function (resolver, factorUid, code) {
-    var assertion = TotpMultiFactorGenerator.assertionForSignIn(factorUid, code);
-    return resolver.resolveSignIn(assertion);
+    return loadAuthModule().then(function (mod) {
+      var assertion = mod.TotpMultiFactorGenerator.assertionForSignIn(factorUid, code);
+      return resolver.resolveSignIn(assertion);
+    });
   }
 };
 

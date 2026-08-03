@@ -133,7 +133,6 @@ button { font-family: inherit; }
 .btn-outline:hover { border-color: var(--navy); color: var(--navy); }
 .btn-whatsapp { background: var(--whatsapp); color: var(--white); padding: 16px 30px; font-size: 15px; }
 .btn-whatsapp:hover { background: var(--whatsapp-hover); color: var(--white); }
-.btn-disabled { background: var(--grey-bg); color: var(--text-faintest); cursor: default; }
 /* Piccolo sollevamento al passaggio del mouse — stessa transizione .15s
    ease già dichiarata su .btn, prima inutilizzata (transform non aveva
    mai un valore diverso da none su :hover). Non tocca .btn-disabled o i
@@ -247,11 +246,6 @@ button { font-family: inherit; }
   max-width: 460px; margin: 0 0 14px; font-weight: 500;
 }
 .hero-lead b { color: var(--blue-deep); }
-.hero-address {
-  display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700;
-  color: var(--navy); margin: 0 0 32px;
-}
-.hero-ctas { display: flex; flex-wrap: wrap; gap: 14px; }
 .hero-media {
   position: relative; aspect-ratio: 4/5; border-radius: var(--radius-lg); overflow: visible;
   display: flex; align-items: center; justify-content: center;
@@ -336,14 +330,6 @@ button { font-family: inherit; }
 .welcome { text-align: center; }
 .welcome h2 { font-size: clamp(26px,3.2vw,36px); margin: 0 0 18px; }
 .welcome p { font-size: 16px; line-height: 1.75; color: var(--text-body); margin: 0; }
-.erasmus-block { margin-top: 40px; padding-top: 40px; border-top: 1px solid var(--border-hairline); }
-
-.outdoor-panel {
-  text-align: center; background: var(--yellow-bg-soft); border-radius: var(--radius-xl);
-  padding: clamp(32px,5vw,48px) clamp(24px,5vw,48px);
-}
-.outdoor-icon { font-size: 32px; margin-bottom: 10px; }
-.outdoor-panel p { font-size: 15.5px; line-height: 1.75; color: var(--text-body); margin: 0 auto; max-width: 640px; }
 
 /* Apartment Manager: card compatta, foto opzionale (nessun placeholder se
    assente), nome in grassetto e contatti con icona + testo normale. */
@@ -412,53 +398,15 @@ button { font-family: inherit; }
 }
 
 /* ==========================================================================
-   Mood & vibes
-   ========================================================================== */
-.mood-panel {
-  max-width: var(--container-max); margin: 0 auto; background: var(--blue-bg-soft);
-  border-radius: var(--radius-xl); padding: clamp(40px,6vw,72px) clamp(24px,5vw,64px);
-  position: relative; overflow: hidden;
-}
-.mood-blob-1 { position: absolute; top: -70px; right: -50px; width: 220px; height: 220px; border-radius: 50%; background: var(--blue); opacity: 0.08; }
-.mood-blob-2 { position: absolute; bottom: -70px; left: 30%; width: 150px; height: 150px; border-radius: 44% 56% 60% 40% / 50% 45% 55% 50%; background: var(--yellow); opacity: 0.22; }
-.mood-intro { max-width: 760px; margin: 0 auto; text-align: center; position: relative; }
-.mood-intro h2 { font-size: clamp(27px,3.6vw,42px); margin: 0 0 20px; line-height: 1.18; }
-.mood-intro p { font-size: clamp(15.5px,1.5vw,17.5px); line-height: 1.8; color: var(--text-body); margin: 0 auto; }
-
-.rules-grid {
-  max-width: 980px; margin: 48px auto 0;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px,1fr)); gap: 16px; position: relative;
-}
-.rule-card { background: var(--white); border-radius: var(--radius-sm); padding: 24px; }
-.rule-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--blue-bg); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 16px; }
-.rule-title { font-weight: 700; font-size: 14.5px; margin-bottom: 6px; color: var(--navy); }
-.rule-desc { font-size: 13px; color: var(--text-faintest-2); line-height: 1.55; }
-
-.cleaning-row {
-  max-width: 980px; margin: 16px auto 0; background: var(--white); border-radius: var(--radius-sm);
-  padding: 26px 28px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
-  justify-content: space-between; position: relative;
-}
-.cleaning-copy { max-width: 580px; display: flex; gap: 16px; align-items: flex-start; }
-.cleaning-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--yellow-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
-.cleaning-title { font-weight: 700; font-size: 14.5px; margin-bottom: 6px; color: var(--navy); }
-.cleaning-desc { font-size: 13px; color: var(--text-faintest-2); line-height: 1.65; }
-.cleaning-desc strong { color: var(--navy); }
-
-/* ==========================================================================
    Section intro (shared)
    ========================================================================== */
 .section-intro { max-width: 600px; margin: 0 0 40px; }
 .section-intro p { font-size: 15.5px; line-height: 1.65; color: var(--text-body); margin: 0; }
-.section-intro-row {
-  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 36px;
-}
 
 /* ==========================================================================
    Cards grid (common areas / rooms — shared skeleton)
    ========================================================================== */
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); gap: 22px; }
-.cards-grid--rooms { grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); }
 
 .card {
   background: var(--white); border: 1px solid var(--border-hairline); border-radius: var(--radius-md);
@@ -541,35 +489,14 @@ button { font-family: inherit; }
 .media-zoom-close:hover { background: rgba(255,255,255,0.22); color: var(--white); }
 
 .detail-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(28px,3.2vw,38px); letter-spacing: -0.02em; margin: 0 0 16px; color: var(--navy); }
-.detail-title--room { font-size: clamp(29px,3.2vw,39px); margin: 0 0 10px; }
 .detail-text { font-size: 15px; line-height: 1.75; color: var(--text-body); margin: 0 0 24px; }
 
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 12px; margin-bottom: 24px; }
-.stats-grid--room { margin-bottom: 28px; }
 .stat-tile { border: 1px solid var(--border-soft); border-radius: var(--radius-xs); padding: 14px; background: var(--off-white); }
 .stat-label { font-size: 11px; color: var(--text-faintest); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
 .stat-value { font-weight: 800; font-size: 15px; color: var(--blue-deep); }
 
-.detail-tag { display: inline-block; font-size: 11px; font-weight: 800; padding: 7px 15px; border-radius: var(--radius-pill); margin-bottom: 16px; }
-.detail-price { font-weight: 800; font-size: 22px; color: var(--blue); margin-bottom: 24px; }
-.detail-status-note { border-radius: 12px; padding: 15px 17px; margin-bottom: 24px; font-size: 13px; font-weight: 700; }
-.detail-status-note--occupied { background: var(--panel-bg); color: var(--text-muted); }
-.detail-status-note--available { background: var(--yellow-bg-soft); color: var(--yellow-text-dark); }
-
-.btn-block { display: block; width: 100%; text-align: center; padding: 16px 28px; font-size: 15px; }
-.btn-block-inline { display: inline-block; text-align: center; }
 .detail-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
-
-.beds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 18px; margin-top: 8px; }
-.bed-block {
-  border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 20px; background: var(--off-white);
-  display: flex; flex-direction: column; height: 100%;
-}
-.bed-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
-.bed-block-label { font-weight: 800; font-size: 14px; color: var(--navy); }
-.bed-block-price { margin-bottom: 14px; }
-.bed-block-cta { margin-top: auto; }
-.room-note { font-size: 13px; line-height: 1.6; color: var(--text-faintest-2); font-style: italic; margin: 0 0 20px; }
 
 /* ==========================================================================
    Posizione
@@ -625,27 +552,7 @@ button { font-family: inherit; }
    Rooms
    ========================================================================== */
 .admin-toggle-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 36px; }
-.admin-toggle-btn {
-  background: var(--white); border: 1px solid var(--border-strong); color: var(--text-body);
-  font-size: 12.5px; font-weight: 700; padding: 10px 18px; border-radius: var(--radius-pill);
-  cursor: pointer; white-space: nowrap;
-}
-.admin-toggle-btn:hover { border-color: var(--navy); color: var(--navy); }
-
-.admin-panel { background: var(--off-white); border: 1px solid var(--border-soft); border-radius: 20px; padding: 22px; margin-bottom: 32px; }
-.admin-panel-title { font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 16px; }
-.admin-rows { display: flex; flex-direction: column; gap: 12px; }
-.admin-row {
-  background: var(--white); border: 1px solid var(--border-soft); border-radius: var(--radius-xs);
-  padding: 16px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 12px; align-items: center;
-}
-.admin-row-name { font-weight: 700; font-size: 13.5px; color: var(--navy); }
 .admin-field { border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--navy); width: 100%; }
-.admin-name-age { display: flex; gap: 8px; }
-.admin-name-age .admin-field:first-child { flex: 1; min-width: 0; }
-.admin-name-age .admin-field:last-child { width: 52px; flex-shrink: 0; }
-.admin-price { display: flex; align-items: center; gap: 4px; }
-.admin-price span { font-size: 12.5px; color: var(--text-faintest); }
 .admin-note { font-size: 12px; color: var(--text-faintest); margin-top: 14px; }
 /* Note lunghe (istruzioni, spiegazioni, esempi) nascoste finché non si
    clicca l'icona ⓘ, invece di restare sempre visibili a riempire la
@@ -710,7 +617,6 @@ button { font-family: inherit; }
 .admin-social-row:last-child { border-bottom: none; }
 .admin-social-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--navy); width: 130px; flex-shrink: 0; }
 .admin-social-row input[type="text"] { flex: 1; }
-.admin-beds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 14px; }
 .admin-stats-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
 .admin-stat-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
 .admin-stat-row--bilingual { display: flex; align-items: center; gap: 10px; background: var(--grey-bg); border-radius: 10px; padding: 10px; }
@@ -724,11 +630,6 @@ button { font-family: inherit; }
   background: none; border: 1px dashed var(--border-strong); color: var(--text-body); border-radius: 8px;
   padding: 8px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
 }
-.admin-occupancy {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 10px; align-items: center;
-  background: var(--off-white); border-radius: 12px; padding: 12px;
-}
-.admin-bed-label { font-weight: 800; font-size: 12px; color: var(--navy); grid-column: 1 / -1; }
 .admin-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px,1fr)); gap: 10px; }
 .admin-photo-slot { display: flex; flex-direction: column; gap: 6px; }
 .admin-photo-preview {
@@ -815,8 +716,6 @@ button { font-family: inherit; }
   transition: background-color .15s ease, color .15s ease;
 }
 .room-list-cta:hover { background: var(--blue); color: var(--white); }
-.card--disabled { cursor: default; }
-.card--disabled:hover { transform: none; box-shadow: none; }
 /* Solo mobile: informazioni sotto la foto invece che di fianco, con più
    spazio dedicato alla foto stessa (card in stile Airbnb). */
 @media (max-width: 640px) {
@@ -836,13 +735,6 @@ button { font-family: inherit; }
   display: flex; align-items: center; gap: 10px; background: var(--yellow-bg-soft); color: var(--yellow-text-darker);
   border-radius: 12px; padding: 14px 16px; font-size: 13.5px; line-height: 1.55; margin-bottom: 18px;
 }
-.urgency-inline {
-  display: flex; align-items: center; gap: 10px; background: var(--yellow-bg-soft); color: var(--yellow-text-darker);
-  border-radius: 12px; padding: 12px 16px; font-size: 13px; font-weight: 600; margin-bottom: 18px;
-}
-/* Stesso messaggio ma senza il riquadro giallo: solo testo colorato, per un
-   avviso che resta visibile senza pesare su un'intera frase. */
-.urgency-inline--plain { background: none; color: var(--yellow-text-dark); padding: 0 0 18px; }
 .urgency-banner {
   margin-top: 28px; background: var(--yellow-bg); border-radius: 20px; padding: 22px 26px;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between;
@@ -854,19 +746,6 @@ button { font-family: inherit; }
 .btn-urgency:hover { background: var(--blue); color: var(--white); }
 
 /* ==========================================================================
-   Welcome — chip vantaggi (spazi condivisi / prezzi) mostrati fin da
-   subito, come richiesto
-   ========================================================================== */
-.welcome-value-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 24px; }
-.welcome-value-chip {
-  display: inline-flex; align-items: center; gap: 10px; background: var(--blue-bg);
-  color: var(--blue-deep); border-radius: var(--radius-pill); padding: 11px 20px 11px 14px;
-  font-size: 13.5px; font-weight: 700; text-align: left; max-width: 340px;
-}
-.welcome-value-chip--yellow { background: var(--yellow-bg-soft); color: var(--yellow-text-darker); }
-.welcome-value-icon { font-size: 18px; flex-shrink: 0; }
-
-/* ==========================================================================
    Barra di ricerca — check-in/check-out, ospiti, stanze, date flessibili
    ========================================================================== */
 .search-panel {
@@ -874,7 +753,6 @@ button { font-family: inherit; }
   border: 1px solid var(--border-hairline); border-radius: var(--radius-xl);
   padding: clamp(28px,4vw,44px);
 }
-.search-lead { font-size: 14.5px; line-height: 1.6; color: var(--text-body); max-width: 640px; margin: 0 0 24px; }
 .search-fields {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px;
   align-items: end; margin-bottom: 14px;
@@ -907,7 +785,6 @@ button { font-family: inherit; }
 .search-guests-row-title { font-size: 13.5px; font-weight: 700; color: var(--navy); }
 .search-guests-row-sub { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
 .search-guests-row .search-stepper { width: 96px; flex-shrink: 0; }
-.search-guests-divider { height: 1px; background: var(--border-hairline); margin: 6px 0; }
 .search-child-ages { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 10px 14px; }
 .search-child-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .search-child-row span { font-size: 12.5px; font-weight: 600; color: var(--text-body); }
@@ -1327,8 +1204,6 @@ button { font-family: inherit; }
 .cal-day:disabled { cursor: default; }
 
 .slot-label { font-size: 12.5px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
-.slot-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 22px; }
-.slot-btn { padding: 11px; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .link-btn { background: none; border: none; color: var(--blue); font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; }
 .link-btn--centered { display: block; margin: 0 auto; }
 
@@ -1350,12 +1225,6 @@ button { font-family: inherit; }
 .confirm-btn:disabled { cursor: default; }
 
 /* Step di pagamento (Stripe Payment Element) */
-.payment-total-row {
-  display: flex; justify-content: space-between; align-items: baseline;
-  background: #F5FAFD; border-radius: 12px; padding: 14px 18px; margin: 0 0 16px;
-  font-size: 14px; font-weight: 700; color: #10233B;
-}
-.payment-total-row span:last-child { font-size: 19px; }
 .payment-element-container { margin-bottom: 16px; min-height: 44px; }
 .payment-submit-btn {
   width: 100%; background: #E0117A; color: var(--white); border: none; padding: 15px;
@@ -1546,7 +1415,6 @@ button { font-family: inherit; }
 .dash-field input { border: 1px solid var(--border-strong); border-radius: var(--radius-xxs); padding: 12px 14px; font-size: 14px; }
 .dash-error { background: #FDECEC; color: #B3261E; font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; }
 .admin-field-error { color: #B3261E; font-size: 12.5px; font-weight: 600; margin-top: 6px; }
-.dash-notice { background: var(--blue-bg-soft); color: var(--blue-deep); font-size: 13px; font-weight: 600; padding: 14px 16px; border-radius: var(--radius-xxs); margin: 0 0 20px; line-height: 1.6; }
 
 .dash-empty { padding: 40px 20px; text-align: center; color: var(--text-faint); font-size: 14px; }
 
@@ -1598,8 +1466,6 @@ button { font-family: inherit; }
 .dash-select { border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
 .dash-status-pill { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 100px; display: inline-block; width: fit-content; }
 .dash-status-pill--nuovo { background: #FDF3D9; color: #8C6A16; }
-.dash-status-pill--confermato { background: var(--green-bg); color: var(--green); }
-.dash-status-pill--annullato { background: var(--grey-bg); color: var(--grey-text); }
 .dash-status-pill--new { background: #FDEAEA; color: #B23A3A; }
 .dash-status-pill--read { background: #FDF3D9; color: #8C6A16; }
 .dash-status-pill--replied { background: var(--green-bg); color: var(--green); }
@@ -1734,7 +1600,6 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 .assist-msg-contact a { color: var(--text-body); text-decoration: underline; }
 .assist-msg-meta { font-size: 11.5px; color: var(--text-faintest); margin-top: var(--dash-space-2); padding-top: var(--dash-space-2); border-top: 1px solid var(--border-hairline); }
 .assist-msg-actions { display: flex; flex-direction: column; gap: var(--dash-space-2); align-items: stretch; min-width: 140px; }
-.assist-topic-editor-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-bottom: 10px; }
 /* Card della segnalazione manutenzione appena cliccata dal calendario
    (vedi openMaintenanceReportInAssist in dashboard.js) — un contorno
    temporaneo per farla notare subito nell'elenco della tab Assistenza. */
@@ -1801,19 +1666,12 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 }
 
 .hidden { display: none !important; }
-.sr-only {
-  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
-}
 
 /* ==========================================================================
    Responsive
    ========================================================================== */
 @media (max-width: 640px) {
-  .hero-ctas .btn { width: 100%; }
   .final-cta-ctas .btn { width: 100%; }
-  .cleaning-row { flex-direction: column; align-items: stretch; }
-  .cleaning-row a { text-align: center; }
   .urgency-banner { flex-direction: column; align-items: stretch; }
   .urgency-banner a { text-align: center; }
   .footer-book-ctas .btn { flex: 1; }
@@ -1826,9 +1684,6 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 
   .carousel-arrows { display: none; }
   .carousel-body { touch-action: pan-y; }
-
-  .rule-card { text-align: center; display: flex; flex-direction: column; align-items: center; }
-  .rule-icon { margin: 0 0 14px; }
 
   .trust-strip { grid-template-columns: 1fr; gap: 0; border: none; padding: 0; max-width: 320px; }
   .trust-item {
@@ -1852,17 +1707,6 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 .cal-day.is-range-single { border-radius: 8px !important; }
 .checkin-note { font-size: 13px; color: var(--text-muted, #6B7A8C); text-align: center; margin: 10px 0 0; }
 .range-hint { font-size: 13px; color: var(--text-muted, #6B7A8C); text-align: center; margin: 4px 0 14px; }
-
-/* Step ospiti */
-.guest-stepper { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 18px 0; }
-.guest-stepper-btn {
-  width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(16,35,59,0.15);
-  background: #F5FAFD; font-size: 20px; cursor: pointer; line-height: 1;
-}
-.guest-stepper-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.guest-count { font-size: 22px; font-weight: 700; min-width: 32px; text-align: center; }
-.guest-exempt-row { display: flex; align-items: center; gap: 10px; justify-content: center; font-size: 13px; color: var(--text-muted, #6B7A8C); margin-top: 6px; }
-.guest-exempt-row input { width: 52px; text-align: center; }
 
 /* Riepilogo prezzo */
 .price-summary { background: #F5FAFD; border-radius: 12px; padding: 16px 18px; margin: 16px 0; }

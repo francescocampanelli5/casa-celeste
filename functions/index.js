@@ -154,12 +154,11 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] },
   const data = request.data || {};
   const source = data.source || 'site';
   // 'site_test' TEMPORANEO (vedi booking-logic.js): salta Stripe ma crea una
-  // prenotazione VERA (blocca le date). Deve restare riservato al
-  // proprietario autenticato — mai pubblico, altrimenti chiunque potrebbe
-  // creare prenotazioni reali gratis dal sito pubblico.
-  if (source === 'site_test' && !isOwner(request)) {
-    throw new HttpsError('permission-denied', 'Prenotazione di test riservata al proprietario autenticato.');
-  }
+  // prenotazione VERA (blocca le date). Volutamente aperto a chiunque finché
+  // il sito è in fase di test pre-lancio (nessun controllo isOwner qui) —
+  // DA RIMETTERE dietro isOwner() o da eliminare del tutto insieme al resto
+  // di TEMP_TEST_SKIP_PAYMENT prima del lancio pubblico, altrimenti chiunque
+  // potrebbe creare prenotazioni reali gratis dal sito pubblico.
   if (source !== 'site' && source !== 'site_test' && !isOwner(request)) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
@@ -195,12 +194,11 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
   const data = request.data || {};
   const source = data.source || 'site';
   // 'site_test' TEMPORANEO (vedi booking-logic.js): salta Stripe ma crea una
-  // prenotazione VERA (blocca le date). Deve restare riservato al
-  // proprietario autenticato — mai pubblico, altrimenti chiunque potrebbe
-  // creare prenotazioni reali gratis dal sito pubblico.
-  if (source === 'site_test' && !isOwner(request)) {
-    throw new HttpsError('permission-denied', 'Prenotazione di test riservata al proprietario autenticato.');
-  }
+  // prenotazione VERA (blocca le date). Volutamente aperto a chiunque finché
+  // il sito è in fase di test pre-lancio (nessun controllo isOwner qui) —
+  // DA RIMETTERE dietro isOwner() o da eliminare del tutto insieme al resto
+  // di TEMP_TEST_SKIP_PAYMENT prima del lancio pubblico, altrimenti chiunque
+  // potrebbe creare prenotazioni reali gratis dal sito pubblico.
   if (source !== 'site' && source !== 'site_test' && !isOwner(request)) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }

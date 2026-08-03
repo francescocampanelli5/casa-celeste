@@ -2492,8 +2492,9 @@
       '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-user"></use></svg>' + escapeHtml(guestsSummaryLabel(state.guestsAdults, state.guestsChildAges)) + '</div></div>' +
       '<div class="slot-label">' + escapeHtml(t('booking.step_options_title')) + '</div>' +
       roomDetailOptionsHtml() +
+      '<p class="range-hint">' + escapeHtml(t('booking.options_price_disclaimer')) + '</p>' +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
-      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-contact-step>' + escapeHtml(t('common.prenota_soggiorno')) + ' →</button>' +
+      '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-contact-step>' + escapeHtml(t('booking.continua_dati_contatto')) + ' →</button>' +
       '<button type="button" class="link-btn" data-back-to-guests>' + escapeHtml(t('booking.cambia_ospiti')) + '</button>'
     );
   }
@@ -2641,6 +2642,14 @@
     var testSkipBtn = document.getElementById('test-skip-payment-btn');
     if (testSkipBtn) {
       testSkipBtn.addEventListener('click', function () {
+        // Feedback immediato via DOM (non via renderBookingModal, vedi nota
+        // in confirmBooking/confirmGroupBooking): su rete lenta, senza
+        // questo il bottone restava visivamente cliccabile per tutta la
+        // durata della chiamata, facendo pensare che il click non avesse
+        // avuto effetto (rischio doppio invio in una demo dal vivo).
+        if (testSkipBtn.disabled) return;
+        testSkipBtn.disabled = true;
+        testSkipBtn.textContent = '…';
         if (state.groupMode) confirmGroupBooking(null, 'site_test'); else confirmBooking(null, 'site_test');
       });
     }
@@ -3338,7 +3347,7 @@
         escapeHtml(tpl(t('booking.group_shortfall_warning'), { party: groupPartySize(), rooms: availForDates, capacity: availForDates * MAX_BIG_GUESTS_PER_ROOM })) +
       '</div>'
     ) : '';
-    var ctaLabel = hasShortfall ? tpl(t('booking.group_cta_partial'), { n: groupTotalChosenCapacity() }) : t('common.prenota_soggiorno');
+    var ctaLabel = hasShortfall ? tpl(t('booking.group_cta_partial'), { n: groupTotalChosenCapacity() }) : t('booking.continua_dati_contatto');
     return (
       '<div class="checkout-card"><div class="checkout-card-row"><svg width="16" height="16"><use href="#icon-calendar"></use></svg>' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div></div>' +
       '<div class="slot-label">' + escapeHtml(t('booking.group_step_title')) + '</div>' +
@@ -3466,14 +3475,17 @@
       '</div>'
     );
   }
-  function goGroupRoomsStep() { state.bookingStep = 3; renderBookingModal(); }
   function goGroupContactStep() { state.bookingStep = 4; renderBookingModal(); }
   function backToGroupRooms() { state.bookingStep = 2; renderBookingModal(); }
   function confirmGroupBooking(paymentIntentId, sourceOverride) {
     if (!state.contactName || !isValidEmail(state.contactEmail) || !isValidPhone(state.contactPhone) || !state.contractAccepted) return;
     if (!window.CasaCelesteTourismDB) return;
+    // NIENTE renderBookingModal() qui: siamo ancora sullo step 5, e un
+    // ri-render adesso ricreerebbe da zero il Payment Element Stripe già
+    // montato (vedi nota sopra paymentStepHtml) e richiamerebbe una NUOVA
+    // createPaymentIntent inutile — il bottone che ha scatenato questa
+    // chiamata (carta o test) gestisce già da sé il proprio stato "in corso".
     state.bookingBusy = true; state.bookingError = '';
-    renderBookingModal();
     var roomsPayload = state.groupAllocations.filter(function (a) { return a.roomId; }).map(function (alloc) {
       var allocChildAges = alloc.childIdxs.map(function (ci) { return state.guestsChildAges[ci]; });
       var totalGuestsForServer = countedGuests(alloc.adults, allocChildAges);
@@ -3514,8 +3526,12 @@
   function confirmBooking(paymentIntentId, sourceOverride) {
     if (!state.contactName || !isValidEmail(state.contactEmail) || !isValidPhone(state.contactPhone) || !state.contractAccepted) return;
     if (!window.CasaCelesteTourismDB) return;
+    // NIENTE renderBookingModal() qui: siamo ancora sullo step 5, e un
+    // ri-render adesso ricreerebbe da zero il Payment Element Stripe già
+    // montato (vedi nota sopra paymentStepHtml) e richiamerebbe una NUOVA
+    // createPaymentIntent inutile — il bottone che ha scatenato questa
+    // chiamata (carta o test) gestisce già da sé il proprio stato "in corso".
     state.bookingBusy = true; state.bookingError = '';
-    renderBookingModal();
     // Il Cloud Function createBooking (functions/booking-logic.js) accetta solo
     // guests/exemptGuests (conteggi semplici): il calcolo per fascia d'età
     // (bambini 0-2 esclusi dal conteggio stanza, 3-11 esenti tassa) avviene qui
