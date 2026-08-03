@@ -219,7 +219,14 @@ button { font-family: inherit; }
 /* ==========================================================================
    Hero
    ========================================================================== */
-.hero { position: relative; overflow: hidden; }
+/* NOTA: niente overflow:hidden su .hero — la barra di ricerca (e i suoi
+   popover data/ospiti/stanze) vive dentro .hero, e un overflow:hidden
+   sull'antenato tagliava il popover ogni volta che sporgeva oltre il
+   bordo della sezione (i popover, essendo position:absolute, non fanno
+   crescere l'altezza di .hero). Il clipping serve solo ai blob decorativi
+   sotto, quindi vive in un layer dedicato che non contiene il resto. */
+.hero { position: relative; }
+.hero-blobs { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .hero-blob-1 {
   position: absolute; top: -140px; right: -130px; width: 380px; height: 380px;
   border-radius: 50%; background: var(--blue); opacity: 0.10;
@@ -771,7 +778,11 @@ button { font-family: inherit; }
   transition: border-color .15s ease;
 }
 .search-field-btn:hover { border-color: var(--blue); }
-.search-field-value { font-size: 14px; font-weight: 700; color: var(--navy); }
+.search-field-value {
+  font-size: 14px; font-weight: 700; color: var(--navy);
+  align-self: stretch; min-width: 0; width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .search-cal-popover, .search-guests-popover, .search-rooms-popover {
   position: absolute; top: calc(100% + 8px); left: 0; z-index: 20;
   background: var(--white); border: 1px solid var(--border-soft); border-radius: var(--radius-md);
@@ -1207,6 +1218,10 @@ button { font-family: inherit; }
 .slot-label { font-size: 12.5px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
 .link-btn { background: none; border: none; color: var(--blue); font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; }
 .link-btn--centered { display: block; margin: 0 auto; }
+/* Bottoni "torna indietro" del wizard di prenotazione: senza questo
+   restano incollati al bottone/contenuto sopra, troppo vicini per essere
+   letti come un'azione separata. */
+.link-btn--back { margin-top: 16px; }
 
 .contact-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
 .contact-form input { border: 1px solid var(--border-strong); border-radius: var(--radius-xxs); padding: 13px 15px; font-size: 14px; width: 100%; }

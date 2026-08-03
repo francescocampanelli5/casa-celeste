@@ -502,6 +502,18 @@
     var locale = state.lang === 'en' ? 'en-GB' : 'it-IT';
     return dateFromIso(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
   }
+  // Versione corta di un intervallo date per spazi stretti (pillola "Date"
+  // della barra di ricerca): "7 → 9 ago 2026" invece di ripetere mese/anno
+  // due volte, che nella cella da 150px andava a capo. Se le date sono a
+  // cavallo di mese/anno diversi, torna al formato completo per entrambe.
+  function formatDateRangeCompact(checkInIso, checkOutIso) {
+    var d1 = dateFromIso(checkInIso), d2 = dateFromIso(checkOutIso);
+    var sameMonth = d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
+    if (!sameMonth) return formatDateLabel(checkInIso) + ' → ' + formatDateLabel(checkOutIso);
+    var locale = state.lang === 'en' ? 'en-GB' : 'it-IT';
+    var monthYear = d2.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
+    return d1.getDate() + ' → ' + d2.getDate() + ' ' + monthYear;
+  }
 
   /* ==========================================================================
      i18n
@@ -1316,7 +1328,7 @@
     var priceHtml, datesHtml;
     if (hasDates) {
       var nights = daysBetween(state.selectedCheckIn, state.selectedCheckOut);
-      priceHtml = '<div class="rd-sticky-price">€' + dynamicRoomTotal(room, state.selectedCheckIn, state.selectedCheckOut, 1).total + '<span> ' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span></div>';
+      priceHtml = '<div class="rd-sticky-price">€' + (dynamicRoomTotal(room, state.selectedCheckIn, state.selectedCheckOut, 1).total + cribTotal() + extraBedTotal()) + '<span> ' + escapeHtml(tpl(t('search.for_n_nights'), { n: nights })) + '</span></div>';
       datesHtml = '<div class="rd-sticky-dates">' + formatDateLabel(state.selectedCheckIn) + ' → ' + formatDateLabel(state.selectedCheckOut) + '</div>';
     } else {
       // Stesso motivo del prezzo nelle card (vedi roomCardHtml): senza date
@@ -2118,7 +2130,7 @@
     var errorHtml = s.error ? '<div class="search-note search-note--error">' + escapeHtml(s.error) + '</div>' : '';
 
     var dateFieldValue = (s.checkIn && s.checkOut)
-      ? formatDateLabel(s.checkIn) + ' → ' + formatDateLabel(s.checkOut)
+      ? formatDateRangeCompact(s.checkIn, s.checkOut)
       : (s.checkIn ? formatDateLabel(s.checkIn) + ' → …' : t('search.dates_placeholder'));
     var guestsFieldValue = guestsSummaryLabel(s.adults, s.childAges);
     var roomsFieldValue = roomsCountLabel(s.rooms);
@@ -2427,7 +2439,7 @@
       (blocked ?
         '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.switch_to_group_cta')) + '</button>' :
         '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step>' + escapeHtml(t('booking.step_options_title')) + ' →</button>') +
-      '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
+      '<button type="button" class="link-btn link-btn--back" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
   function guestsEditFormHtml() {
@@ -2480,7 +2492,7 @@
           (atCapacity ? '<button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" data-switch-to-group-booking>' + escapeHtml(t('booking.add_room_hint_cta')) + '</button>' : '') +
           '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-options-step>' + escapeHtml(t('booking.step_options_title')) + ' →</button>'
         )) +
-      '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
+      '<button type="button" class="link-btn link-btn--back" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
   function guestsStepHtml() {
@@ -2496,7 +2508,7 @@
       '<p class="range-hint">' + escapeHtml(t('booking.options_price_disclaimer')) + '</p>' +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-contact-step>' + escapeHtml(t('booking.continua_dati_contatto')) + ' →</button>' +
-      '<button type="button" class="link-btn" data-back-to-guests>' + escapeHtml(t('booking.cambia_ospiti')) + '</button>'
+      '<button type="button" class="link-btn link-btn--back" data-back-to-guests>' + escapeHtml(t('booking.cambia_ospiti')) + '</button>'
     );
   }
   // Culla e letto extra sono un costo forfettario per l'intero soggiorno,
@@ -2578,7 +2590,7 @@
       '</div>' +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       '<button type="button" class="btn confirm-btn" data-go-payment-step id="confirm-booking-btn">' + escapeHtml(t('booking.continua_pagamento')) + '</button>' +
-      '<button type="button" class="link-btn link-btn--centered" data-back-to-options>' + escapeHtml(t('booking.cambia_opzioni')) + '</button>'
+      '<button type="button" class="link-btn link-btn--centered link-btn--back" data-back-to-options>' + escapeHtml(t('booking.cambia_opzioni')) + '</button>'
     );
   }
   /* ==========================================================================
@@ -2632,7 +2644,7 @@
           '<div style="font-size:12px; font-weight:800; color:#C9971A; margin-bottom:8px;">⚠️ SOLO TEST — da rimuovere prima della pubblicazione</div>' +
           '<button type="button" class="btn btn-outline" style="width:100%;" id="test-skip-payment-btn">🧪 (TEST) Conferma prenotazione senza pagare</button>' +
         '</div>' : '') +
-      '<button type="button" class="link-btn link-btn--centered" data-back-to-contact>' + escapeHtml(t('booking.cambia_contatti')) + '</button>'
+      '<button type="button" class="link-btn link-btn--centered link-btn--back" data-back-to-contact>' + escapeHtml(t('booking.cambia_contatti')) + '</button>'
     );
   }
   function bindPaymentStepInputs() {
@@ -3387,7 +3399,7 @@
       poolHint +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       '<button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" data-go-group-contact-step' + (complete ? '' : ' disabled') + '>' + escapeHtml(ctaLabel) + ' →</button>' +
-      '<button type="button" class="link-btn" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
+      '<button type="button" class="link-btn link-btn--back" data-back-to-calendar>' + escapeHtml(t('booking.cambia_date')) + '</button>'
     );
   }
   function groupNights() { return daysBetween(state.selectedCheckIn, state.selectedCheckOut); }
@@ -3466,7 +3478,7 @@
       '</div>' +
       (state.bookingError ? '<div class="booking-alert">' + escapeHtml(state.bookingError) + '</div>' : '') +
       '<button type="button" class="btn confirm-btn" data-go-payment-step id="confirm-booking-btn">' + escapeHtml(t('booking.continua_pagamento')) + '</button>' +
-      '<button type="button" class="link-btn link-btn--centered" data-back-to-group-rooms>' + escapeHtml(t('booking.cambia_opzioni')) + '</button>'
+      '<button type="button" class="link-btn link-btn--centered link-btn--back" data-back-to-group-rooms>' + escapeHtml(t('booking.cambia_opzioni')) + '</button>'
     );
   }
   function groupSuccessStepHtml() {
