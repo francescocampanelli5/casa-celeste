@@ -265,11 +265,7 @@ italiano ed europeo per l'ospite.
 ## Nota sul volume
 
 Le email partono dal tuo Gmail: nessuna quota condivisa con lo studentato
-da monitorare, nessun piano gratuito di terzi da rispettare. In
-Impostazioni → "Quota email" resta un budget mensile di sicurezza (di
-default 500) — serve solo a bloccare un eventuale bug che manda email in
-loop, non un vincolo reale: se ci si avvicina, saltano per prime le due
-email extra (consigli a metà soggiorno, richiesta recensione), poi il
-ringraziamento, poi la conferma — le email operative (documenti/check-in)
-sono le ultime a essere sacrificate. Ricevi un avviso Telegram ogni volta
-che un'email viene saltata per questo motivo.
+da monitorare, nessun piano gratuito di terzi da rispettare. Il vecchio
+budget/guardia "Quota email" in Impostazioni è stato rimosso (obsoleto,
+risaliva ai tempi di EmailJS): oggi non c'è più alcun limite artificiale
+da monitorare né logica di priorità/skip lato invio.

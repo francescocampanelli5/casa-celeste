@@ -142,6 +142,18 @@
   // la SOTTRAZIONE resta corretta a prescindere dal fuso orario del browser
   // (stessa tecnica già usata in app.js/pricing.js per calcolare le notti).
   function diffDaysIso(aIso, bIso) { return Math.round((new Date(bIso) - new Date(aIso)) / 86400000); }
+  // Giorno numerico + mese abbreviato + anno numerico ("7 ago 2026"), non
+  // la data ISO grezza (2026-08-07, letta come "stile americano" dall'
+  // utente) ne' un new Date(iso) diretto (interpretato UTC, puo' spostare
+  // il giorno di uno in fusi indietro rispetto a UTC). Costruttore a
+  // componenti locali, stessa tecnica di dateFromIso in app.js.
+  function formatDateShort(iso) {
+    if (!iso) return '';
+    var p = iso.split('-');
+    if (p.length !== 3) return iso;
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
   function sortedRoomIds() {
     return Object.keys(state.roomsData).sort(function (a, b) { return (state.roomsData[a].order || 999999) - (state.roomsData[b].order || 999999); });
   }
@@ -563,7 +575,7 @@
           // due informazioni che servono per riconoscere la prenotazione
           // a colpo d'occhio, non annegate tra il resto.
           '<div class="booking-header-row"><span class="booking-room">' + escapeHtml(b.roomLabel || 'Casa Celeste') + '</span>' + sourceBadge + '</div>' +
-          '<div class="booking-when">' + escapeHtml(b.checkIn || '') + ' → ' + escapeHtml(b.checkOut || '') + ' · ' + (b.nights || 0) + ' notti · ' + (b.guests || 0) + ' ospiti</div>' +
+          '<div class="booking-when">' + escapeHtml(formatDateShort(b.checkIn)) + ' → ' + escapeHtml(formatDateShort(b.checkOut)) + ' · ' + (b.nights || 0) + ' notti · ' + (b.guests || 0) + ' ospiti</div>' +
           '<div class="booking-options">' + bookingOptionsHtml(b) + '</div>' +
           '<div class="booking-contact">' + escapeHtml(b.name || '') + ' — <a href="mailto:' + encodeURIComponent(b.email || '') + '">' + escapeHtml(b.email || '') + '</a>' + (b.phone ? ' — <a href="tel:' + encodeURIComponent(b.phone) + '">' + escapeHtml(b.phone) + '</a>' : '') + '</div>' +
           // L'alert (se c'è) prima del campo codice stanza: un check-in
@@ -677,8 +689,9 @@
     var list = state.bookings.length === 0
       ? '<div class="dash-empty">Nessuna prenotazione ricevuta finora.</div>'
       : (visible.length ? '<div class="booking-list">' + visible.map(bookingCardHtml).join('') + '</div>' : '<div class="dash-empty">Nessuna prenotazione corrisponde ai filtri scelti.</div>');
+    var sheetUrl = state.settings && state.settings.bookingsSheetUrl;
     content.innerHTML = '<h1 class="dash-section-title">Prenotazioni</h1>' +
-      '<button type="button" class="link-btn" id="dl-bookings-excel-btn" style="margin-bottom:12px;">Scarica registro Excel (tutte le prenotazioni + dati ospiti)</button>' +
+      (sheetUrl ? '<a href="' + escapeHtml(sheetUrl) + '" target="_blank" rel="noopener" class="link-btn" style="display:inline-block; margin-bottom:12px;">Apri il registro (Google Sheet) ↗</a>' : '') +
       manualBookingFormHtml() + bookingsFilterBarHtml() + countLabel + list;
 
     function onFilterChange() {
@@ -701,28 +714,6 @@
       renderBookingsTab(content);
     });
 
-    var excelBtn = document.getElementById('dl-bookings-excel-btn');
-    if (excelBtn) excelBtn.addEventListener('click', function () {
-      excelBtn.disabled = true;
-      var originalText = excelBtn.textContent;
-      excelBtn.textContent = 'Preparazione in corso…';
-      window.CasaCelesteTourismDB.getBookingsExcelExport().then(function (result) {
-        var binary = window.atob(result.base64);
-        var bytes = new Uint8Array(binary.length);
-        for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url; a.download = result.fileName || 'prenotazioni.xlsx';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }).catch(function (err) {
-        window.alert('Impossibile scaricare il registro Excel: ' + (err && err.message ? err.message : err));
-      }).finally(function () {
-        excelBtn.disabled = false;
-        excelBtn.textContent = originalText;
-      });
-    });
     var openBtn = document.getElementById('open-manual-booking-btn');
     if (openBtn) openBtn.addEventListener('click', function () { state.manualBookingOpen = true; state.manualBookingPrefill = null; renderBookingsTab(content); });
     var cancelBtn = document.getElementById('mb-cancel');
@@ -2414,7 +2405,7 @@
     var rows = activeBookings.map(function (b) {
       var urgent = !b.alloggiatiWeb || !b.alloggiatiWeb.submitted;
       return '<div class="compliance-item' + (urgent ? ' is-urgent' : '') + '">' +
-        '<span>' + escapeHtml(b.roomLabel) + ' — ' + escapeHtml(b.checkIn) + '</span>' +
+        '<span>' + escapeHtml(b.roomLabel) + ' — ' + escapeHtml(formatDateShort(b.checkIn)) + '</span>' +
         '<span>Alloggiati Web: ' + ((b.alloggiatiWeb && b.alloggiatiWeb.submitted) ? '✅' : '⏳ da inviare') +
           ' · Tassa soggiorno: €' + ((b.touristTax && b.touristTax.totalDue) || 0).toFixed(2) +
           ' · PayTourist: ' + ((b.payTourist && b.payTourist.reported) ? '✅' : '⏳') + '</span>' +
@@ -3421,12 +3412,6 @@
       '<div class="dash-settings-group" data-settings-cat="comunicazioni">' +
         '<div class="dash-settings-group-title">Comunicazioni</div>' +
         '<div class="admin-room-card">' +
-          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Quota email (inviate da Gmail, rete di sicurezza)</span></div>' +
-          fieldGroupHtml('Budget mensile', 'Rete di sicurezza contro invii ripetuti per errore, non un vincolo di piano gratuito — Gmail permette molto di più.',
-            '<input type="number" class="admin-field" id="settings-email-budget" value="' + (s.emailQuotaMonthlyBudget != null ? s.emailQuotaMonthlyBudget : 500) + '">') +
-          infoNoteHtml('Le email al proprietario passano tutte da Telegram (gratis, illimitato): solo le email all\'ospite (conferma, check-in, promemoria, check-out, consigli, recensione) consumano questa quota, inviate direttamente dal tuo account Gmail. Se ci si avvicina al limite (di norma solo per un bug, non per volume normale), saltano per prime le due email extra (consigli a metà soggiorno, richiesta recensione), poi il ringraziamento/istruzioni check-out, poi la conferma — le email operative sono le ultime a essere sacrificate. Ricevi un avviso su Telegram ogni volta che una email viene saltata.') +
-        '</div>' +
-        '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">WiFi e istruzioni check-in</span></div>' +
           '<div class="admin-field-group"><label>Nome rete WiFi</label><input type="text" class="admin-field" id="settings-wifi-name" value="' + escapeHtml(s.wifiName || '') + '"></div>' +
           '<div class="admin-field-group"><label>Password WiFi</label><input type="text" class="admin-field" id="settings-wifi-password" value="' + escapeHtml(s.wifiPassword || '') + '"></div>' +
@@ -3494,6 +3479,11 @@
           }).join('') +
         '</div>' +
         '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Social</span></div>' + socialFieldsHtml(s.socials || {}) + '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Registro prenotazioni (Google Sheet)</span></div>' +
+          infoNoteHtml('Ogni prenotazione (con dati ospiti, date, contatti) viene scritta in automatico in un tuo Google Sheet appena creata o aggiornata — vedi GUIDA-PUBBLICAZIONE.md per collegarlo la prima volta. Incolla qui SOLO il link normale del foglio (quello che apri per leggerlo), non l\'URL del Web App usato dalle Cloud Functions per scriverci: serve solo per il bottone "Apri il registro" qui sotto in Prenotazioni.') +
+          '<div class="admin-field-group"><label>Link del foglio Google Sheets</label><input type="text" class="admin-field" id="settings-bookings-sheet-url" value="' + escapeHtml(s.bookingsSheetUrl || '') + '" placeholder="https://docs.google.com/spreadsheets/d/..."></div>' +
+        '</div>' +
       '</div>' +
       '<div class="dash-settings-group" data-settings-cat="sicurezza">' +
         '<div class="dash-settings-group-title">Privacy e conservazione dati</div>' +
@@ -3621,6 +3611,7 @@
       window.CasaCelesteTourismDB.setSettings({ reviewCountOverride: (v == null || isNaN(v)) ? null : Math.round(v) });
     });
     document.getElementById('settings-retention-hours').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ guestDocsRetentionHours: Number(e.target.value) || 48 }); });
+    document.getElementById('settings-bookings-sheet-url').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ bookingsSheetUrl: e.target.value.trim() }); });
     function savePrivateOrAlert(patch) {
       window.CasaCelesteTourismDB.setSettingsPrivate(patch).catch(function (err) {
         window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err));
@@ -3681,7 +3672,6 @@
       var newToken = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
       savePrivateOrAlert({ maintenanceAccessToken: newToken });
     });
-    document.getElementById('settings-email-budget').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailQuotaMonthlyBudget: Number(e.target.value) || 500 }); });
     document.getElementById('settings-wifi-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiName: e.target.value.trim() }); });
     document.getElementById('settings-wifi-password').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiPassword: e.target.value }); });
     document.getElementById('settings-street-gate-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ streetGateLink: e.target.value }); });

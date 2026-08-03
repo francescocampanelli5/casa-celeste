@@ -1044,6 +1044,89 @@ trattano una categoria di dati GDPR più delicata (dati biometrici, Art. 9)
 non necessaria per adempiere all'obbligo di identificazione, che la legge
 non vincola a un metodo biometrico specifico.
 
+### 8.8 Registro prenotazioni su Google Sheet (gratis, una tantum)
+
+Ogni prenotazione (con dati ospiti, date, contatti) viene scritta in
+automatico in un tuo Google Sheet appena creata o aggiornata — sostituisce
+il vecchio registro Excel. Il foglio resta **di tua proprietà** (non di un
+account tecnico): lo script che ci scrive gira con i tuoi permessi tramite
+un piccolo programma **Apps Script** che pubblichi tu stesso, senza alcuna
+configurazione su Google Cloud. Richiede un'autorizzazione **una tantum**
+(10 minuti):
+
+1. Vai su https://sheets.google.com e crea un foglio vuoto (es. "Registro
+   prenotazioni Casa Celeste").
+2. **Estensioni → Apps Script**. Cancella il contenuto di esempio e
+   incolla questo codice:
+   ```javascript
+   var SHARED_SECRET = 'SCEGLI-TU-UNA-STRINGA-SEGRETA-LUNGA-E-CASUALE';
+
+   function doPost(e) {
+     var body = JSON.parse(e.postData.contents);
+     if (body.secret !== SHARED_SECRET) {
+       return ContentService.createTextOutput('Forbidden').setMimeType(ContentService.MimeType.TEXT);
+     }
+     var ss = SpreadsheetApp.getActiveSpreadsheet();
+     writeSheet(ss, 'Prenotazioni', [
+       'ID prenotazione', 'Stanza', 'Check-in', 'Check-out', 'Notti', 'Stato', 'Canale',
+       'N. ospiti', 'Esenti tassa (under 12)', 'Nome ospite', 'Email', 'Telefono',
+       'Totale (€)', 'Tassa di soggiorno (€)', 'Creata il', 'Annullata il', 'Rimborso (€)'
+     ], body.bookings, [
+       'id', 'roomLabel', 'checkIn', 'checkOut', 'nights', 'status', 'source',
+       'guests', 'exemptGuests', 'name', 'email', 'phone',
+       'total', 'touristTax', 'createdAt', 'cancelledAt', 'refundAmount'
+     ]);
+     writeSheet(ss, 'Ospiti', [
+       'ID prenotazione', 'Stanza', 'Check-in', 'Check-out', 'Nome', 'Cognome',
+       'Data di nascita', 'Luogo di nascita', 'Cittadinanza', 'Tipo documento',
+       'Numero documento', 'Rilasciato a'
+     ], body.guests, [
+       'bookingId', 'roomLabel', 'checkIn', 'checkOut', 'firstName', 'lastName',
+       'birthDate', 'birthPlace', 'nationality', 'docType', 'docNumber', 'docIssuePlace'
+     ]);
+     return ContentService.createTextOutput('OK').setMimeType(ContentService.MimeType.TEXT);
+   }
+
+   function writeSheet(ss, name, headers, rows, keys) {
+     var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
+     sheet.clearContents();
+     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+     if (!rows || !rows.length) return;
+     var data = rows.map(function (row) { return keys.map(function (k) { return row[k] == null ? '' : row[k]; }); });
+     sheet.getRange(2, 1, data.length, headers.length).setValues(data);
+   }
+   ```
+3. Sostituisci `SCEGLI-TU-UNA-STRINGA-SEGRETA-LUNGA-E-CASUALE` con una
+   password a tua scelta (qualsiasi stringa lunga va bene) — segnatela, ti
+   servirà al passo 5. Salva (icona dischetto).
+4. **Distribuisci → Nuova implementazione** → tipo **App web** → Esegui
+   come: **Io** → Chi ha accesso: **Chiunque** → **Esegui la
+   distribuzione** → autorizza l'accesso con il tuo account Google (se
+   Google avvisa "app non verificata", è normale per uno script personale:
+   Avanzate → Vai a [nome progetto], non sicuro). Copia l'**URL app web**
+   mostrato alla fine.
+5. Dammi due cose: l'URL del passo 4 e la password scelta al passo 3.
+   Li imposto come secrets Firebase:
+   ```
+   firebase functions:secrets:set SHEET_WEBHOOK_URL
+   firebase functions:secrets:set SHEET_WEBHOOK_SECRET
+   ```
+   poi rifaccio il deploy delle Cloud Functions.
+6. (Facoltativo) In **Dashboard → Impostazioni → Integrazioni → "Registro
+   prenotazioni (Google Sheet)"** incolla il link **normale** del foglio
+   (quello della barra indirizzi quando lo apri per leggerlo, es.
+   `https://docs.google.com/spreadsheets/d/XXXX/edit`) — comparirà un
+   bottone rapido "Apri il registro" nella tab Prenotazioni della
+   dashboard. Questo link è diverso e separato dall'URL app web del passo
+   4 (quello resta segreto, usato solo dalle Cloud Functions per scrivere).
+
+Da qui in poi il foglio si aggiorna da solo a ogni prenotazione creata,
+confermata, annullata o con documenti ospite caricati — stessa filosofia
+del vecchio registro Excel (rigenerato per intero ogni volta, mai una
+prenotazione sparisce). Se salti questo passo, il sito continua a
+funzionare normalmente: la sincronizzazione viene semplicemente saltata
+(un avviso in log, nessun errore visibile all'ospite).
+
 ---
 
 ## Domande frequenti

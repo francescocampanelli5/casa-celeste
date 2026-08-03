@@ -129,40 +129,6 @@ function telegramBroadcast(recipients, text) {
   });
 }
 
-// ==========================================================================
-// Guardia quota email — invio diretto via Gmail (vedi sendGuestEmail più
-// sotto), non più tramite EmailJS: il limite reale di Gmail è alto (~500
-// destinatari/giorno su un account personale, molto più del necessario per
-// una struttura di poche stanze). Il budget qui è solo una rete di
-// sicurezza contro un eventuale bug che manda email in loop, non un vincolo
-// di piano gratuito da rispettare — regolabile in Impostazioni.
-// Priorità di invio quando la quota si avvicina al limite (skippiamo prima
-// le meno critiche): 1) promemoria documenti / istruzioni check-in
-// (operativamente importanti) 2) conferma prenotazione 3) ringraziamento
-// check-out (la più sacrificabile) 4) extra (consigli/recensione).
-var DEFAULT_MONTHLY_BUDGET = 500;
-
-function emailQuotaRef(db) { return db.collection('tourism_settings').doc('emailQuota'); }
-
-async function checkEmailQuota(db, settings, priority) {
-  var effectiveBudget = Number(settings.emailQuotaMonthlyBudget) || DEFAULT_MONTHLY_BUDGET;
-  var month = romeNow().dateISO.slice(0, 7);
-  var snap = await emailQuotaRef(db).get();
-  var data = snap.exists ? snap.data() : {};
-  var sent = data.month === month ? (data.sent || 0) : 0;
-  // Margine crescente per le email meno prioritarie: la 4 (extra: consigli
-  // a metà soggiorno, richiesta recensione) si ferma per prima, poi la 3
-  // (ringraziamento), la 1 (operativa) usa il budget quasi per intero.
-  var cutoff = priority === 4 ? effectiveBudget * 0.5 : (priority === 3 ? effectiveBudget * 0.7 : (priority === 2 ? effectiveBudget * 0.9 : effectiveBudget));
-  return { allowed: sent < cutoff, sent: sent, effectiveBudget: effectiveBudget, month: month };
-}
-async function recordEmailSent(db, month) {
-  await emailQuotaRef(db).set({
-    month: month,
-    sent: admin.firestore.FieldValue.increment(1)
-  }, { merge: true });
-}
-
 // Rimuove il commento di documentazione <!-- ... --> in testa al file HTML
 // (note per chi mantiene il template — Subject, variabili usate, ecc. — mai
 // da mandare all'ospite).
@@ -219,8 +185,6 @@ function emailTextVars(overrides, section, fields, isEn, vars) {
 // sintassi già usata nei file: {{var}}, {{#section}}, {{^section}},
 // {{#loop}}) — nessun limite di numero di template come sui piani gratuiti
 // di servizi terzi, l'HTML lo gestiamo interamente noi.
-// `priority`: 1 = operativa (documenti/check-in), 2 = conferma,
-// 3 = ringraziamento, 4 = extra (consigli a metà soggiorno, richiesta recensione).
 var mailTransport = null;
 function getMailTransport() {
   if (mailTransport) return mailTransport;
@@ -241,18 +205,11 @@ function getMailTransport() {
 // anche {{{blocksHtml}}} con l'impaginazione salvata da dashboard →
 // Impaginazione (tourism_settings/site.emailLayouts.<layoutKey>), o il
 // layout di default se non ancora personalizzata.
-async function sendGuestEmail(db, settings, templateFile, templateParams, priority, label, textConfig) {
+async function sendGuestEmail(settings, templateFile, templateParams, label, textConfig) {
   var transport = getMailTransport();
   if (!transport) {
     console.log('Email "' + label + '" non configurata (mancano i secrets GMAIL_USER/GMAIL_APP_PASSWORD): salto.');
     return { sent: false, reason: 'not_configured' };
-  }
-  var quota = await checkEmailQuota(db, settings, priority);
-  if (!quota.allowed) {
-    console.log('Quota email vicina al limite (' + quota.sent + '/' + quota.effectiveBudget + '), salto invio "' + label + '".');
-    var authorized = (settings.bookingCommandAuthorized || []);
-    await telegramBroadcast(authorized, '⚠️ Quota email quasi esaurita (' + quota.sent + '/' + quota.effectiveBudget + ' questo mese): email "' + label + '" NON inviata. Valuta un contatto manuale.');
-    return { sent: false, reason: 'quota_exceeded' };
   }
   var siteName = settings.siteName || 'Casa Celeste';
   var isEnForShared = !!templateParams.isEn;
@@ -287,7 +244,6 @@ async function sendGuestEmail(db, settings, templateFile, templateParams, priori
     subject: templateParams.subjectLine,
     html: html
   });
-  await recordEmailSent(db, quota.month);
   return { sent: true };
 }
 
@@ -334,7 +290,7 @@ module.exports = {
   initAdmin: initAdmin, romeNow: romeNow, addDaysIso: addDaysIso, romeWallTimeToUtcIso: romeWallTimeToUtcIso,
   formatDateHuman: formatDateHuman, joinRoomNames: joinRoomNames, fetchGroupSiblings: fetchGroupSiblings,
   telegramSend: telegramSend, telegramConfigured: telegramConfigured, telegramBroadcast: telegramBroadcast,
-  checkEmailQuota: checkEmailQuota, recordEmailSent: recordEmailSent, sendGuestEmail: sendGuestEmail,
+  sendGuestEmail: sendGuestEmail,
   googleMeetConfigured: googleMeetConfigured, createGoogleMeetLink: createGoogleMeetLink,
   normalizeExternalUrl: normalizeExternalUrl,
   pickText: pickText, renderText: renderText, emailTextVars: emailTextVars, EMAIL_TEXT_DEFAULTS: EMAIL_TEXT_DEFAULTS

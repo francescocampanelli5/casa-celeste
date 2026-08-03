@@ -903,7 +903,8 @@
             n: nights, guests: guestsSummaryLabel(s.adults, s.childAges), rooms: roomsCountLabel(s.rooms)
           })) + '</span>' +
           '<button type="button" class="search-reset-link" data-search-reset>' + escapeHtml(t('search.reset')) + '</button>' +
-        '</div>';
+        '</div>' +
+        '<div class="multiroom-discount-banner"><svg width="17" height="17"><use href="#icon-sparkle"></use></svg><span>' + escapeHtml(t('search.multiroom_discount_notice')) + '</span></div>';
       // Gruppo che serve più di una stanza: prenotarle tutte insieme nello
       // stesso modale invece di uscire ed entrare da una card alla volta
       // (solo se ci sono abbastanza stanze libere da tentare l'allocazione).
@@ -2803,8 +2804,8 @@
         '</div>' +
         referralCodePanelHtml(res.id) +
         '<a href="' + escapeHtml(docsLink) + '" class="btn btn-primary" style="width:100%; margin-top:14px;">' + escapeHtml(t('booking.success_docs_cta')) + '</a>' +
-        '<a href="' + escapeHtml(cancelLink) + '" class="link-btn" style="margin-top:10px;">' + escapeHtml(t('booking.success_cancel_cta')) + '</a>' +
-        '<button type="button" class="link-btn" data-close-booking style="margin-top:10px;">' + escapeHtml(t('common.chiudi')) + '</button>' +
+        '<a href="' + escapeHtml(cancelLink) + '" class="link-btn link-btn--centered" style="margin-top:14px;">' + escapeHtml(t('booking.success_cancel_cta')) + '</a>' +
+        '<button type="button" class="link-btn link-btn--centered" data-close-booking style="margin-top:10px;">' + escapeHtml(t('common.chiudi')) + '</button>' +
       '</div>'
     );
   }
@@ -3503,8 +3504,8 @@
         '</div>' +
         referralCodePanelHtml(firstBooking && firstBooking.id) +
         linksHtml +
-        (cancelLink ? '<a href="' + escapeHtml(cancelLink) + '" class="link-btn" style="margin-top:10px;">' + escapeHtml(t('booking.success_cancel_cta')) + '</a>' : '') +
-        '<button type="button" class="link-btn" data-close-booking style="margin-top:10px;">' + escapeHtml(t('common.chiudi')) + '</button>' +
+        (cancelLink ? '<a href="' + escapeHtml(cancelLink) + '" class="link-btn link-btn--centered" style="margin-top:14px;">' + escapeHtml(t('booking.success_cancel_cta')) + '</a>' : '') +
+        '<button type="button" class="link-btn link-btn--centered" data-close-booking style="margin-top:10px;">' + escapeHtml(t('common.chiudi')) + '</button>' +
       '</div>'
     );
   }

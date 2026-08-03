@@ -148,30 +148,6 @@ async function sendMail(gmailUser, gmailAppPassword, to, subject, html, siteName
   return { sent: true };
 }
 
-// ---- Guardia quota — stessa doc Firestore (tourism_settings/emailQuota)
-// usata dal cron GitHub Actions: budget davvero condiviso tra i due
-// percorsi di invio, mai il doppio conteggio. ----
-function romeNowDateIso() {
-  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' });
-  const parts = {};
-  fmt.formatToParts(new Date()).forEach((p) => { parts[p.type] = p.value; });
-  return parts.year + '-' + parts.month + '-' + parts.day;
-}
-async function checkEmailQuota(db, settings, priority) {
-  const effectiveBudget = Number(settings.emailQuotaMonthlyBudget) || 500;
-  const month = romeNowDateIso().slice(0, 7);
-  const snap = await db.collection('tourism_settings').doc('emailQuota').get();
-  const data = snap.exists ? snap.data() : {};
-  const sent = data.month === month ? (data.sent || 0) : 0;
-  const cutoff = priority === 4 ? effectiveBudget * 0.5 : (priority === 3 ? effectiveBudget * 0.7 : (priority === 2 ? effectiveBudget * 0.9 : effectiveBudget));
-  return { allowed: sent < cutoff, sent: sent, effectiveBudget: effectiveBudget, month: month };
-}
-async function recordEmailSent(db, admin, month) {
-  await db.collection('tourism_settings').doc('emailQuota').set({
-    month: month, sent: admin.firestore.FieldValue.increment(1)
-  }, { merge: true });
-}
-
 async function telegramAlert(telegramBotToken, settings, text) {
   if (!telegramBotToken) return;
   const recipients = (settings.bookingCommandAuthorized || []).filter((r) => r.enabled && r.chatId);
@@ -189,7 +165,7 @@ async function telegramAlert(telegramBotToken, settings, text) {
 // il SUO trigger vede il gruppo completo e manda l'email).
 // ==========================================================================
 async function notifyBookingConfirmed(ctx, bookingId, booking) {
-  const { admin, db, gmailUser, gmailAppPassword, telegramBotToken } = ctx;
+  const { db, gmailUser, gmailAppPassword, telegramBotToken } = ctx;
 
   let docsGroup = [{ id: bookingId, ref: db.collection('tourism_bookings').doc(bookingId), b: booking }];
   if (booking.groupId) {
@@ -216,11 +192,6 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
 
   const settingsSnap = await db.collection('tourism_settings').doc('site').get();
   const settings = settingsSnap.exists ? settingsSnap.data() : {};
-  const quota = await checkEmailQuota(db, settings, 2);
-  if (!quota.allowed) {
-    await telegramAlert(telegramBotToken, settings, '⚠️ Quota email quasi esaurita (' + quota.sent + '/' + quota.effectiveBudget + ' questo mese): conferma NON inviata per ' + bookingId + '. Il cron orario riproverà, ma valuta un contatto manuale.');
-    return;
-  }
 
   const siteName = settings.siteName || 'Casa Celeste';
   const city = settings.city || 'Monopoli';
@@ -265,8 +236,7 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
     confirmationVars.blocksHtml = EmailBlocks.renderTemplateBody('t1', t1Layout, confirmationVars);
     html = renderTemplate('1-conferma-prenotazione.html', confirmationVars);
     const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName, settings.emailSenderName);
-    if (result.sent) await recordEmailSent(db, admin, quota.month);
-    else console.log('Conferma immediata non configurata (mancano i secrets Gmail): ' + bookingId);
+    if (!result.sent) console.log('Conferma immediata non configurata (mancano i secrets Gmail): ' + bookingId);
   } catch (err) {
     console.error('Errore invio conferma immediata per ' + bookingId + ':', err.message);
     await telegramAlert(telegramBotToken, settings, '⚠️ Errore invio email di conferma per ' + bookingId + ': ' + err.message);
@@ -281,7 +251,7 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
 // attive) genera un'email solo per quella stanza.
 // ==========================================================================
 async function notifyBookingCancelled(ctx, bookingId, booking) {
-  const { admin, db, gmailUser, gmailAppPassword, telegramBotToken } = ctx;
+  const { db, gmailUser, gmailAppPassword, telegramBotToken } = ctx;
 
   let docsGroup = [{ id: bookingId, ref: db.collection('tourism_bookings').doc(bookingId), b: booking }];
   if (booking.groupId) {
@@ -301,11 +271,6 @@ async function notifyBookingCancelled(ctx, bookingId, booking) {
 
   const settingsSnap = await db.collection('tourism_settings').doc('site').get();
   const settings = settingsSnap.exists ? settingsSnap.data() : {};
-  const quota = await checkEmailQuota(db, settings, 2);
-  if (!quota.allowed) {
-    await telegramAlert(telegramBotToken, settings, '⚠️ Quota email quasi esaurita (' + quota.sent + '/' + quota.effectiveBudget + ' questo mese): email di annullamento NON inviata per ' + bookingId + '.');
-    return;
-  }
 
   const siteName = settings.siteName || 'Casa Celeste';
   const city = settings.city || 'Monopoli';
@@ -339,16 +304,13 @@ async function notifyBookingCancelled(ctx, bookingId, booking) {
     cancellationVars.blocksHtml = EmailBlocks.renderTemplateBody('t7', t7Layout, cancellationVars);
     const html = renderTemplate('7-annullamento-prenotazione.html', cancellationVars);
     const result = await sendMail(gmailUser, gmailAppPassword, rep.email, subjectLine, html, siteName, settings.emailSenderName);
-    if (result.sent) await recordEmailSent(db, admin, quota.month);
-    else console.log('Annullamento immediato non configurato (mancano i secrets Gmail): ' + bookingId);
+    if (!result.sent) console.log('Annullamento immediato non configurato (mancano i secrets Gmail): ' + bookingId);
   } catch (err) {
     console.error('Errore invio email di annullamento per ' + bookingId + ':', err.message);
     await telegramAlert(telegramBotToken, settings, '⚠️ Errore invio email di annullamento per ' + bookingId + ': ' + err.message);
   }
 }
 
-// sendMail/checkEmailQuota/recordEmailSent esportate anche per
-// guest-signature.js (email OTP firma contratto): stesso transport Gmail
-// cache-ato e stessa guardia quota condivisa (tourism_settings/emailQuota),
-// nessun conteggio doppio tra i due percorsi di invio.
-module.exports = { notifyBookingConfirmed, notifyBookingCancelled, renderTemplate, sendMail, checkEmailQuota, recordEmailSent };
+// sendMail esportata anche per guest-signature.js (email OTP firma
+// contratto): stesso transport Gmail cache-ato.
+module.exports = { notifyBookingConfirmed, notifyBookingCancelled, renderTemplate, sendMail };

@@ -1,9 +1,8 @@
 // Promemoria all'ospite se mancano ancora i documenti a poche ore dal
 // check-in (altrimenti nessuno se ne accorge finché non è tardi per la
 // scadenza legale delle 24h di Alloggiati Web). Inviato direttamente via
-// Gmail (vedi sendGuestEmail in _lib.js). Passa dalla guardia quota (vedi
-// _lib.js) — priorità 1 (operativa, quasi mai saltata). Eseguito ogni ora,
-// idempotente (flag guestDocsReminderSent).
+// Gmail (vedi sendGuestEmail in _lib.js). Eseguito ogni ora, idempotente
+// (flag guestDocsReminderSent).
 //
 // Prenotazioni di gruppo (più stanze insieme, stesso groupId): un'unica
 // email elenca SOLO le stanze ancora incomplete — chi ha già caricato i
@@ -40,12 +39,12 @@ async function sendReminder(settings, docsGroup) {
     return { roomLabel: item.b.roomLabel || siteName, docsLink: docsLinkFor(item.doc, item.b) };
   });
 
-  var result = await lib.sendGuestEmail(db, settings, TEMPLATE_FILE, {
+  var result = await lib.sendGuestEmail(settings, TEMPLATE_FILE, {
     email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     checkIn: lib.formatDateHuman(rep.checkIn, isEn), docsLink: rooms[0].docsLink,
     isEn: isEn, subjectLine: subjectLine, assistLink: assistLink(),
     isGroup: isGroup, rooms: isGroup ? rooms : []
-  }, 1, isGroup
+  }, isGroup
     ? ('promemoria documenti di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
     : ('promemoria documenti (' + first.doc.id + ')'), { section: 't2', fields: T2_FIELDS, layoutKey: 't2' });
 

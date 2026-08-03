@@ -871,9 +871,16 @@ button { font-family: inherit; }
 .search-results-bar {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
   background: var(--blue-bg); color: var(--blue-deep); border-radius: var(--radius-xs);
-  padding: 13px 18px; font-size: 13.5px; font-weight: 700; margin: 22px 0 24px;
+  padding: 13px 18px; font-size: 13.5px; font-weight: 700; margin: 22px 0 12px;
 }
 .search-reset-link { background: none; border: none; color: var(--blue-deep); font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: underline; }
+.multiroom-discount-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--yellow-bg-soft); color: var(--yellow-text-darker); border-radius: var(--radius-xs);
+  padding: 13px 18px; font-size: 13.5px; font-weight: 600; line-height: 1.5; margin: 0 0 24px;
+}
+.multiroom-discount-banner svg { flex-shrink: 0; color: var(--yellow-deep); }
+.multiroom-discount-banner strong { font-weight: 800; }
 .search-group-cta-row {
   display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
   margin: -6px 0 24px;

@@ -39,7 +39,7 @@ const {
   staffGetBoardCore, staffSetCleaningStatusCore, staffReportMaintenanceCore,
   staffGetMaintenanceBoardCore, staffSetMaintenanceStatusCore
 } = require('./staff-actions');
-const { rebuildBookingsExcel, EXPORT_PATH: BOOKINGS_EXCEL_PATH } = require('./bookings-excel-export');
+const { syncBookingsToSheet } = require('./bookings-sheet-sync');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -70,6 +70,11 @@ const gmailAppPassword = defineSecret('GMAIL_APP_PASSWORD');
 // PUBBLICABILE (pk_...) invece va in affittacamere/js/stripe-config.js,
 // non è un segreto.
 const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
+// Registro prenotazioni su Google Sheet (sostituisce il vecchio Excel su
+// Storage) — vedi bookings-sheet-sync.js e GUIDA-PUBBLICAZIONE.md per il
+// codice Apps Script da pubblicare come Web App e ottenere questi due valori.
+const sheetWebhookUrl = defineSecret('SHEET_WEBHOOK_URL');
+const sheetWebhookSecret = defineSecret('SHEET_WEBHOOK_SECRET');
 
 // Stesso controllo del custom claim "role: owner" introdotto in
 // firestore.rules/storage.rules (01/08): prima queste funzioni si fidavano
@@ -700,13 +705,15 @@ exports.bookingCalendarIcs = onRequest(async (req, res) => {
 // simultanei).
 exports.onBookingStatusChange = onDocumentWritten({
   document: 'tourism_bookings/{bookingId}',
-  secrets: [gmailUser, gmailAppPassword, telegramBotToken]
+  secrets: [gmailUser, gmailAppPassword, telegramBotToken, sheetWebhookUrl, sheetWebhookSecret]
 }, async (event) => {
   const after = event.data.after.exists ? event.data.after.data() : null;
-  // Registro Excel: rigenerato per QUALUNQUE scrittura su una prenotazione,
-  // creazione/modifica/cancellazione inclusa (vedi bookings-excel-export.js)
-  // — best-effort, non deve mai bloccare/rompere la logica email sotto.
-  rebuildBookingsExcel({ db: db, bucket: bucket }).catch((err) => console.error('Errore aggiornamento registro Excel prenotazioni:', err));
+  // Registro Google Sheet: risincronizzato per QUALUNQUE scrittura su una
+  // prenotazione, creazione/modifica/cancellazione inclusa (vedi
+  // bookings-sheet-sync.js) — best-effort, non deve mai bloccare/rompere la
+  // logica email sotto.
+  syncBookingsToSheet({ db: db, webhookUrl: sheetWebhookUrl.value(), webhookSecret: sheetWebhookSecret.value() })
+    .catch((err) => console.error('Errore sync Google Sheet prenotazioni:', err));
   if (!after) return; // documento eliminato, niente email da mandare
   const before = event.data.before.exists ? event.data.before.data() : null;
   const beforeStatus = before ? before.status : null;
@@ -728,37 +735,12 @@ exports.onBookingStatusChange = onDocumentWritten({
 // I dati ospite (nome, data di nascita, documento...) arrivano di solito
 // DOPO la creazione della prenotazione (ospiti.html o il bot, vedi
 // submitGuestDocuments/onDocumentsSubmit) — serve un secondo trigger
-// separato per tenere il registro Excel aggiornato anche quando cambia
-// solo questo, senza toccare lo stato della prenotazione.
-exports.onGuestDocumentsWriteExcel = onDocumentWritten({
-  document: 'tourism_guestDocuments/{bookingId}'
+// separato per tenere il registro Google Sheet aggiornato anche quando
+// cambia solo questo, senza toccare lo stato della prenotazione.
+exports.onGuestDocumentsWriteSheet = onDocumentWritten({
+  document: 'tourism_guestDocuments/{bookingId}',
+  secrets: [sheetWebhookUrl, sheetWebhookSecret]
 }, async () => {
-  await rebuildBookingsExcel({ db: db, bucket: bucket }).catch((err) => console.error('Errore aggiornamento registro Excel prenotazioni (documenti ospiti):', err));
-});
-
-// Scarica il registro Excel — riservato al proprietario autenticato: contiene
-// dati sensibili degli ospiti (data di nascita, numero documento...), stesso
-// livello di protezione di storage.rules (tourism-exports/, allow read: if
-// isOwner()). Restituito come base64 invece di una signed URL: generare
-// signed URL dall'Admin SDK su Cloud Functions richiede un permesso IAM
-// aggiuntivo (iam.serviceAccounts.signBlob) non garantito di default — questa
-// via evita quel problema e resta comunque un file di poche decine/centinaia
-// di KB per una struttura di questa dimensione.
-exports.getBookingsExcelExport = onCall({}, async (request) => {
-  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Riservato al proprietario.');
-  await enforceRateLimit(db, request, 'getBookingsExcelExport', 10, 15);
-  try {
-    const [buffer] = await bucket.file(BOOKINGS_EXCEL_PATH).download();
-    return { base64: buffer.toString('base64'), fileName: 'prenotazioni.xlsx' };
-  } catch (err) {
-    if (err.code === 404) {
-      // Non ancora generato (nessuna prenotazione scritta da quando questa
-      // funzione è stata deployata): lo generiamo ora al volo invece di
-      // restituire un errore all'utente.
-      await rebuildBookingsExcel({ db: db, bucket: bucket });
-      const [buffer] = await bucket.file(BOOKINGS_EXCEL_PATH).download();
-      return { base64: buffer.toString('base64'), fileName: 'prenotazioni.xlsx' };
-    }
-    throw new HttpsError('internal', 'Errore nel recupero del registro Excel: ' + err.message);
-  }
+  await syncBookingsToSheet({ db: db, webhookUrl: sheetWebhookUrl.value(), webhookSecret: sheetWebhookSecret.value() })
+    .catch((err) => console.error('Errore sync Google Sheet prenotazioni (documenti ospiti):', err));
 });

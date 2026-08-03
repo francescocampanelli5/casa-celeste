@@ -15,7 +15,7 @@ const crypto = require('crypto');
 const { HttpsError } = require('firebase-functions/v2/https');
 const { isNonEmptyString } = require('./guest-documents');
 const { clientIp } = require('./rate-limit');
-const { sendMail, checkEmailQuota, recordEmailSent } = require('./guest-notify');
+const { sendMail } = require('./guest-notify');
 
 const OTP_TTL_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 3;
@@ -83,7 +83,7 @@ function otpEmailHtml(booking, code, isEn, siteName) {
    subito alreadySigned).
    ========================================================================== */
 async function requestSignatureOtpCore(ctx, data) {
-  const { admin, db, request, gmailUser, gmailAppPassword } = ctx;
+  const { db, request, gmailUser, gmailAppPassword } = ctx;
   const { booking } = await loadBookingForSignature(db, data.bookingId, data.token);
 
   const settingsSnap = await db.collection('tourism_settings').doc('site').get();
@@ -110,11 +110,6 @@ async function requestSignatureOtpCore(ctx, data) {
     }
   }
 
-  const quota = await checkEmailQuota(db, settings, 1);
-  if (!quota.allowed) {
-    throw new HttpsError('resource-exhausted', 'Quota email mensile quasi esaurita: contatta il proprietario per firmare il contratto.');
-  }
-
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   await sigRef.set({
     otpHash: otpHash(code, data.bookingId),
@@ -132,9 +127,7 @@ async function requestSignatureOtpCore(ctx, data) {
   const subject = isEn ? ('Your ' + siteName + ' verification code') : ('Il tuo codice di verifica ' + siteName);
   const result = await sendMail(gmailUser, gmailAppPassword, booking.email, subject, otpEmailHtml(booking, code, isEn, siteName), siteName);
   const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
-  if (result.sent) {
-    await recordEmailSent(db, admin, quota.month);
-  } else if (!isEmulator) {
+  if (!result.sent && !isEmulator) {
     // A differenza delle email "fire and forget" del ciclo di vita (dove un
     // invio fallito si autoripara al giro di cron successivo), qui l'ospite
     // sta aspettando attivamente un codice: un fallimento silenzioso lo

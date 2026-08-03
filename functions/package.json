@@ -7,7 +7,6 @@
   },
   "main": "index.js",
   "dependencies": {
-    "exceljs": "^4.4.0",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^5.1.0",
     "mustache": "^4.2.0",

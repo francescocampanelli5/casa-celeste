@@ -214,7 +214,7 @@ async function composeAndSendConfirmation(settings, docsGroup) {
     isGroup: isGroup, rooms: isGroup ? rooms : []
   };
 
-  var result = await lib.sendGuestEmail(db, settings, TPL_CONFIRMATION, confirmationVars, 2, isGroup
+  var result = await lib.sendGuestEmail(settings, TPL_CONFIRMATION, confirmationVars, isGroup
     ? ('conferma prenotazione di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
     : ('conferma prenotazione (' + first.doc.id + ')'), { section: 't1', fields: T1_FIELDS, tableFields: T1_TABLE_FIELDS, layoutKey: 't1' });
 
@@ -307,7 +307,7 @@ async function composeAndSendCheckin(settings, docsGroup) {
     assistLink: assistLink(), isEn: isEn, subjectLine: subjectFor('checkin', isEn, rep, settings)
   };
 
-  var result = await lib.sendGuestEmail(db, settings, TPL_CHECKIN, checkinVars, 1, isGroup
+  var result = await lib.sendGuestEmail(settings, TPL_CHECKIN, checkinVars, isGroup
     ? ('istruzioni check-in di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
     : ('istruzioni check-in (' + first.doc.id + ')'), { section: 't3', fields: T3_FIELDS, tableFields: T3_TABLE_FIELDS, layoutKey: 't3' });
 
@@ -347,13 +347,13 @@ async function composeAndSendThankYou(settings, docsGroup) {
   var rep = first.b;
   var isEn = isEnglish(rep);
   var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn, siteName);
-  var result = await lib.sendGuestEmail(db, settings, TPL_THANKYOU, {
+  var result = await lib.sendGuestEmail(settings, TPL_THANKYOU, {
     email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     checkOutTime: settings.checkOutTime || '10:00',
     checkOutInstructions: (settings.checkOutInstructionsText && settings.checkOutInstructionsText[isEn ? 'en' : 'it']) || '',
     assistLink: assistLink(), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('thankyou', isEn, rep, settings),
     reviewLink: lib.normalizeExternalUrl(settings.reviewLink)
-  }, 3, isGroup
+  }, isGroup
     ? ('ringraziamento di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
     : ('ringraziamento + istruzioni check-out (' + first.doc.id + ')'), { section: 't4', fields: T4_FIELDS, layoutKey: 't4' });
   if (result.sent) await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ thankYouEmailSent: true }); }));
@@ -383,10 +383,10 @@ async function composeAndSendWellness(settings, docsGroup) {
   var recs = (settings.recommendations || []).slice(0, 4).map(function (r) {
     return { title: r.title || '', category: r.category || '', url: lib.normalizeExternalUrl(r.url) };
   });
-  var result = await lib.sendGuestEmail(db, settings, TPL_WELLNESS, {
+  var result = await lib.sendGuestEmail(settings, TPL_WELLNESS, {
     email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     assistLink: assistLink(), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('wellness', isEn, rep, settings), recs: recs
-  }, 4, isGroup
+  }, isGroup
     ? ('consigli metà soggiorno di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
     : ('consigli a metà soggiorno (' + first.doc.id + ')'), { section: 't5', fields: T5_FIELDS, layoutKey: 't5' });
   if (result.sent) await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ wellnessEmailSent: true }); }));
@@ -421,10 +421,10 @@ async function composeAndSendReviewRequest(settings, docsGroup) {
   var rep = first.b;
   var isEn = isEnglish(rep);
   var groupRoomNames = joinRoomNames(docsGroup.map(function (item) { return item.b; }), isEn, siteName);
-  var result = await lib.sendGuestEmail(db, settings, TPL_REVIEW_REQUEST, {
+  var result = await lib.sendGuestEmail(settings, TPL_REVIEW_REQUEST, {
     email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     reviewLink: lib.normalizeExternalUrl(settings.reviewLink), isEn: isEn, isGroup: isGroup, subjectLine: subjectFor('reviewRequest', isEn, rep, settings)
-  }, 4, isGroup
+  }, isGroup
     ? ('richiesta recensione di gruppo (' + docsGroup.map(function (item) { return item.doc.id; }).join(',') + ')')
     : ('richiesta recensione (' + first.doc.id + ')'), { section: 't6', fields: T6_FIELDS, layoutKey: 't6' });
   if (result.sent) await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ reviewRequestEmailSent: true }); }));

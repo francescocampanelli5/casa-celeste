@@ -520,13 +520,6 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'staffSetMaintenanceStatus')(data).then(function (res) { return res.data; });
   },
-  // Registro Excel di tutte le prenotazioni + dati ospiti — vedi
-  // functions/bookings-excel-export.js. Restituito come base64 (non una URL
-  // pubblica: contiene dati sensibili, protetto da isOwner() lato funzione).
-  getBookingsExcelExport: function () {
-    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
-    return httpsCallable(functions, 'getBookingsExcelExport')({}).then(function (res) { return res.data; });
-  },
   // Ritrova bookingId/token da nome+email+data di check-in, per chi vuole
   // cancellare dal widget di assistenza senza avere più sottomano il link
   // con token dell'email di conferma — vedi lookupBookingForCancellationCore
