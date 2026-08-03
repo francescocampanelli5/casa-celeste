@@ -776,6 +776,7 @@ button { font-family: inherit; }
   position: absolute; top: calc(100% + 8px); left: 0; z-index: 20;
   background: var(--white); border: 1px solid var(--border-soft); border-radius: var(--radius-md);
   box-shadow: 0 22px 44px -18px rgba(16,35,59,0.28); padding: 18px;
+  max-height: min(460px, calc(100vh - 140px)); overflow-y: auto;
 }
 .search-cal-popover { width: min(320px, 88vw); }
 .search-guests-popover, .search-rooms-popover { width: min(300px, 88vw); }
