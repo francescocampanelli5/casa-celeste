@@ -400,8 +400,10 @@
   function updateBodyScrollLock() {
     var drawerEl = document.getElementById('mobile-drawer');
     var drawerOpen = drawerEl && drawerEl.classList.contains('is-open');
-    var searchPopoverOpen = state.search.calendarOpen || state.search.guestsOpen || state.search.roomsOpen;
-    document.body.style.overflow = (state.bookingOpen || state.legalOpen || state.mediaZoomOpen || state.roomDetail.open || drawerOpen || searchPopoverOpen) ? 'hidden' : '';
+    // Le popover di data/ospiti/stanze NON bloccano lo scroll della pagina:
+    // l'utente deve poter continuare a scorrere il sito con la scheda ancora
+    // aperta, a differenza degli overlay a schermo intero qui sotto.
+    document.body.style.overflow = (state.bookingOpen || state.legalOpen || state.mediaZoomOpen || state.roomDetail.open || drawerOpen) ? 'hidden' : '';
   }
 
   /* ==========================================================================
