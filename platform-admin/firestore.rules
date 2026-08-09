@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Piattaforma di controllo SaaS (celeste-saas-control) — regole Firestore.
+// Un'unica collezione (tenants), leggibile e scrivibile SOLO dal
+// proprietario della piattaforma. Non contiene mai dati di prenotazioni o
+// ospiti — solo anagrafica clienti, URL delle loro Cloud Functions e il
+// segreto condiviso usato per le 3 azioni definite in functions/index.js.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner() {
+      return request.auth != null && request.auth.token.role == 'owner';
+    }
+    match /tenants/{tenantId} {
+      allow read, write: if isOwner();
+    }
+  }
+}

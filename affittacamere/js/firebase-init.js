@@ -242,6 +242,20 @@ window.CasaCelesteTourismDB = {
     return setDoc(doc(requireDb(), 'tourism_settings', 'site'), data, { merge: true });
   },
 
+  // ---- stato piattaforma SaaS (attivo/disabilitato) ----
+  // platform_control/status: scritto SOLO da platformSetStatus via Admin SDK
+  // (vedi functions/platform-control.js), mai dal client (firestore.rules).
+  // Documento assente = servizio considerato attivo (nessun deploy pre-SaaS
+  // cambia comportamento). callback(null) = ancora nessuna risposta dal
+  // server: chi chiama deve restare nello stato "sto caricando", non deve
+  // mai interpretare l'assenza di dati come "disabilitato".
+  subscribeServiceStatus: function (callback) {
+    if (!configured) return function () {};
+    return onSnapshot(doc(requireDb(), 'platform_control', 'status'), function (snap) {
+      callback(snap.exists() ? snap.data() : { enabled: true });
+    });
+  },
+
   // ---- settings privati (credenziali adempimenti: Alloggiati Web/ISTAT/
   // PayTourist) — documento SEPARATO da tourism_settings apposta, perché
   // quello è leggibile pubblicamente (vedi firestore.rules); solo il

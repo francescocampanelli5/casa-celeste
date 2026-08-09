@@ -93,6 +93,19 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
+    // Stato "attivo/disabilitato" della piattaforma SaaS centrale
+    // (celeste-saas-control), vedi functions/platform-control.js. Lettura
+    // pubblica: sia il sito pubblico che la dashboard leggono questo
+    // documento al boot per decidere se mostrare l'app normale o la pagina
+    // "Servizio disabilitato". Scrittura SEMPRE negata al client: lo
+    // aggiorna solo platformSetStatus tramite Admin SDK, che bypassa questa
+    // regola — nessun utente, nemmeno il proprietario, può auto-riattivarsi
+    // scrivendo direttamente da qui.
+    match /platform_control/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Documento SEPARATO da tourism_settings apposta: quello sopra è
     // leggibile pubblicamente (il sito pubblico legge telefono/orari da
     // lì), quindi credenziali sensibili (Alloggiati Web/ISTAT/PayTourist)

@@ -1,0 +1,13 @@
+{
+  "name": "celeste-saas-control-functions",
+  "private": true,
+  "description": "Cloud Functions della piattaforma di controllo SaaS (celeste-saas-control): un unico pannello per stato/credenziali di ogni cliente affittacamere, senza mai custodire una chiave di amministrazione completa dei loro progetti Firebase — solo il segreto condiviso già registrato per ciascun cliente in tenants/{tenantId}, usato per chiamare le 3 funzioni strette esposte dal progetto cliente stesso (vedi functions/platform-control.js nel repo del cliente).",
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.1.0"
+  }
+}

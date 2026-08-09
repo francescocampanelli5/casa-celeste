@@ -4,6 +4,8 @@
 // riscritti per un pubblico di turisti/viaggiatori invece che studenti.
 window.CASA_CELESTE_TOURISM_I18N = {
   it: {
+    'service_disabled.title': 'Servizio temporaneamente disabilitato',
+    'service_disabled.text': 'Questo sito non è al momento raggiungibile. Se gestisci questa struttura, contatta il gestore della piattaforma per riattivarlo.',
     'nav.monopoli': '{city}',
     'nav.stanze': 'Stanze',
     'nav.posizione': 'Posizione',
@@ -390,6 +392,8 @@ window.CASA_CELESTE_TOURISM_I18N = {
   },
 
   en: {
+    'service_disabled.title': 'Service temporarily disabled',
+    'service_disabled.text': 'This site is currently unreachable. If you manage this property, contact the platform operator to reactivate it.',
     'nav.monopoli': '{city}',
     'nav.stanze': 'Rooms',
     'nav.posizione': 'Location',

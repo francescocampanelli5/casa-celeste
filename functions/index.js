@@ -40,6 +40,7 @@ const {
   staffGetMaintenanceBoardCore, staffSetMaintenanceStatusCore
 } = require('./staff-actions');
 const { syncBookingsToSheet } = require('./bookings-sheet-sync');
+const { platformSetStatusCore, platformCreateOwnerUserCore, platformResetPasswordCore } = require('./platform-control');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -75,6 +76,13 @@ const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
 // codice Apps Script da pubblicare come Web App e ottenere questi due valori.
 const sheetWebhookUrl = defineSecret('SHEET_WEBHOOK_URL');
 const sheetWebhookSecret = defineSecret('SHEET_WEBHOOK_SECRET');
+// Piattaforma SaaS centrale (celeste-saas-control, progetto Firebase
+// separato): un solo segreto condiviso autorizza le 3 azioni strette in
+// platform-control.js (stato servizio, creazione/reset utente proprietario).
+// Se questo secret non è mai stato impostato (deploy pre-SaaS, es. Casa
+// Celeste prima della migrazione), platformSharedSecret.value() torna
+// stringa vuota e le 3 funzioni sotto rifiutano ogni richiesta.
+const platformSharedSecret = defineSecret('PLATFORM_SHARED_SECRET');
 
 // Stesso controllo del custom claim "role: owner" introdotto in
 // firestore.rules/storage.rules (01/08): prima queste funzioni si fidavano
@@ -83,6 +91,22 @@ const sheetWebhookSecret = defineSecret('SHEET_WEBHOOK_SECRET');
 // mancava qui lato Cloud Functions.
 function isOwner(request) {
   return !!(request.auth && request.auth.token && request.auth.token.role === 'owner');
+}
+
+// Enforcement lato server dello stato "attivo/disabilitato" della
+// piattaforma SaaS (celeste-saas-control) — vedi platform-control.js e
+// firestore.rules (platform_control/status). La pagina "Servizio
+// disabilitato" lato frontend è solo estetica: senza questo controllo qui,
+// un utente che modifica il JS in browser potrebbe comunque creare
+// prenotazioni/pagare/inviare documenti su un account non pagante. Se il
+// documento non esiste ancora (piattaforma mai collegata, es. un deploy
+// pre-SaaS), il servizio è considerato attivo di default — nessun
+// comportamento cambia finché la piattaforma non lo disattiva esplicitamente.
+async function assertServiceEnabled(db) {
+  const snap = await db.collection('platform_control').doc('status').get();
+  if (snap.exists && snap.data().enabled === false) {
+    throw new HttpsError('failed-precondition', 'Servizio momentaneamente disabilitato: contatta il gestore.');
+  }
 }
 
 async function notifyOwnerNewBooking(result, data) {
@@ -156,6 +180,7 @@ const bucket = admin.storage().bucket();
    ========================================================================== */
 exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
   await enforceRateLimit(db, request, 'createBooking', 8, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   const source = data.source || 'site';
   // 'site_test' TEMPORANEO (vedi booking-logic.js): salta Stripe ma crea una
@@ -196,6 +221,7 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] },
    ========================================================================== */
 exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] }, async (request) => {
   await enforceRateLimit(db, request, 'createGroupBooking', 8, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   const source = data.source || 'site';
   // 'site_test' TEMPORANEO (vedi booking-logic.js): salta Stripe ma crea una
@@ -237,6 +263,7 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
    ========================================================================== */
 exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (request) => {
   await enforceRateLimit(db, request, 'createPaymentIntent', 20, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   const key = stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: manca STRIPE_SECRET_KEY.');
@@ -412,6 +439,7 @@ exports.getBookingForGuestForm = onCall({}, async (request) => {
    ========================================================================== */
 exports.submitGuestDocuments = onCall({}, async (request) => {
   await enforceRateLimit(db, request, 'submitGuestDocuments', 10, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   const bookingId = data.bookingId;
   const token = data.token;
@@ -490,6 +518,7 @@ exports.submitGuestDocuments = onCall({}, async (request) => {
    ========================================================================== */
 exports.requestSignatureOtp = onCall({ secrets: [gmailUser, gmailAppPassword] }, async (request) => {
   await enforceRateLimit(db, request, 'requestSignatureOtp', 5, 15);
+  await assertServiceEnabled(db);
   return requestSignatureOtpCore({
     admin, db, request, gmailUser: gmailUser.value(), gmailAppPassword: gmailAppPassword.value()
   }, request.data || {});
@@ -645,6 +674,63 @@ exports.telegramWebhook = onRequest({ secrets: [telegramBotToken, telegramWebhoo
     console.error('Errore telegramWebhook:', err);
   }
   res.status(200).send('');
+});
+
+/* ==========================================================================
+   platformSetStatus / platformCreateOwnerUser / platformResetPassword —
+   le 3 uniche azioni che la piattaforma SaaS centrale (celeste-saas-control,
+   progetto Firebase separato) può compiere su QUESTO progetto cliente, vedi
+   platform-control.js. onRequest (non onCall): il chiamante è un'altra
+   Cloud Function, non l'SDK client — validazione dell'header
+   X-Platform-Secret contro PLATFORM_SHARED_SECRET, stesso schema di
+   exports.telegramWebhook qui sopra. Risponde SEMPRE con lo status HTTP
+   giusto (400/404/409/500), il chiamante (adminSetTenantStatus e simili nel
+   progetto master) lo usa per capire cosa mostrare a Francesco.
+   ========================================================================== */
+function checkPlatformSecret(req, res) {
+  const expected = platformSharedSecret.value();
+  const received = req.get('X-Platform-Secret');
+  if (!expected || received !== expected) {
+    res.status(401).json({ error: 'Segreto non valido.' });
+    return false;
+  }
+  return true;
+}
+function statusForPlatformError(err) {
+  if (err.code === 'invalid-argument') return 400;
+  if (err.code === 'auth/user-not-found') return 404;
+  if (err.code === 'auth/email-already-exists') return 409;
+  return 500;
+}
+exports.platformSetStatus = onRequest({ secrets: [platformSharedSecret] }, async (req, res) => {
+  if (!checkPlatformSecret(req, res)) return;
+  try {
+    const result = await platformSetStatusCore({ db, admin }, req.body || {});
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('Errore platformSetStatus:', err);
+    res.status(statusForPlatformError(err)).json({ error: err.message || 'Errore interno.' });
+  }
+});
+exports.platformCreateOwnerUser = onRequest({ secrets: [platformSharedSecret] }, async (req, res) => {
+  if (!checkPlatformSecret(req, res)) return;
+  try {
+    const result = await platformCreateOwnerUserCore({ admin }, req.body || {});
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('Errore platformCreateOwnerUser:', err);
+    res.status(statusForPlatformError(err)).json({ error: err.message || 'Errore interno.' });
+  }
+});
+exports.platformResetPassword = onRequest({ secrets: [platformSharedSecret] }, async (req, res) => {
+  if (!checkPlatformSecret(req, res)) return;
+  try {
+    const result = await platformResetPasswordCore({ admin }, req.body || {});
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('Errore platformResetPassword:', err);
+    res.status(statusForPlatformError(err)).json({ error: err.message || 'Errore interno.' });
+  }
 });
 
 // File .ics scaricabile per la prenotazione (bottone "Aggiungi al calendario

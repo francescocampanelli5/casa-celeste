@@ -1129,6 +1129,116 @@ funzionare normalmente: la sincronizzazione viene semplicemente saltata
 
 ---
 
+## Parte 9 — Piattaforma SaaS: rivendere il sistema ad altri host
+
+Ogni cliente a cui vendi il sistema affittacamere ha il **proprio progetto
+Firebase separato** (proprio piano gratuito, dati completamente isolati dagli
+altri clienti — nessuna condivisione di database). Tu controlli tutti i
+clienti da un'unica piattaforma separata (`platform-admin/`), che gira su un
+progetto Firebase TUTTO SUO, diverso da quello di ogni cliente e diverso
+anche da quello di Casa Celeste: lì vedi l'elenco dei clienti, puoi creare o
+reimpostare le loro credenziali di accesso, e puoi disattivare il servizio a
+chi non ti ha pagato (il suo sito e la sua dashboard mostreranno solo
+"Servizio disabilitato", sia visivamente sia bloccando davvero ogni
+prenotazione/pagamento sul server). La piattaforma **non** può modificare
+testi o immagini dei siti dei clienti — solo accessi, credenziali e stato del
+servizio.
+
+### 9.1 Creare il progetto Firebase della piattaforma (una volta sola)
+
+Stessi passi della **Parte 3** qui sopra, ripetuti su un progetto NUOVO e
+separato:
+
+1. https://console.firebase.google.com → **Aggiungi progetto** → nome
+   `celeste-saas-control` (se il nome è già preso, Firebase te ne propone uno
+   simile con un suffisso: va bene lo stesso, basta annotarlo).
+2. **Build → Firestore Database** → **Crea database** → modalità produzione.
+   Nella scheda **Regole**, incolla il contenuto di
+   `platform-admin/firestore.rules` di questo repo → **Pubblica**.
+3. **Build → Authentication → Get started** → attiva **Email/Password**.
+4. Icona ⚙️ → **Impostazioni progetto** → **Le tue app** → icona `</>` →
+   registra una app web (nome `Celeste SaaS Control`). Copia i valori
+   `apiKey`/`authDomain`/`projectId`/`storageBucket`/`messagingSenderId`/
+   `appId` dentro **`platform-admin/js/firebase-config.js`**, sostituendo i
+   segnaposto `INCOLLA_QUI_...` (stesso procedimento della Parte 3.3).
+5. In **`platform-admin/.firebaserc`** sostituisci `celeste-saas-control` con
+   l'id REALE del progetto appena creato (quello mostrato in Impostazioni
+   progetto, potrebbe avere un suffisso numerico se il nome era già preso).
+
+### 9.2 Deploy della piattaforma
+
+Dal terminale, nella cartella `platform-admin/`:
+```
+firebase deploy --only firestore:rules,functions --project celeste-saas-control
+```
+(la prima volta ti chiederà di autenticarti con `firebase login` se non l'hai
+già fatto per gli altri progetti). Poi pubblica `platform-admin/` su GitHub
+Pages esattamente come il resto del sito (commit + push): sarà raggiungibile
+a un indirizzo tipo `https://francescocampanelli5.github.io/casa-celeste/platform-admin/`
+— pubblico come URL (stesso principio di `dashboard.html`), ma inutilizzabile
+senza le tue credenziali.
+
+### 9.3 Creare il tuo primo accesso alla piattaforma (una tantum)
+
+A differenza degli utenti dei clienti (che la piattaforma stessa può creare,
+vedi 9.4), il TUO primo accesso alla piattaforma non ha ancora nessuno che
+possa crearlo — va fatto una sola volta con uno script locale:
+
+1. Console Firebase del progetto `celeste-saas-control` → ⚙️ **Impostazioni
+   progetto → Account di servizio → Genera nuova chiave privata**. Scarica il
+   file JSON (tienilo SOLO sul tuo computer, non va mai su GitHub).
+2. Nella scheda **Authentication → Users** di quel progetto, **Add user** con
+   la tua email e una password a tua scelta (sarà quella con cui accedi a
+   `platform-admin/index.html`).
+3. In un terminale, dentro `platform-admin/functions/` (dopo `npm install`
+   se non l'hai già fatto), esegui:
+   ```
+   node -e "const admin=require('firebase-admin'); admin.initializeApp({credential: admin.credential.cert(require('CAMMINO/DELLA/CHIAVE.json'))}); admin.auth().getUserByEmail('TUA_EMAIL').then(u=>admin.auth().setCustomUserClaims(u.uid,{role:'owner'})).then(()=>{console.log('fatto'); process.exit(0);})"
+   ```
+   sostituendo il cammino del file JSON scaricato al passo 1 e la tua email.
+4. Elimina il file JSON scaricato (non serve più, e non deve restare in giro).
+
+Da qui in poi accedi normalmente da `platform-admin/index.html` con email e
+password.
+
+### 9.4 Aggiungere un nuovo cliente
+
+Processo manuale (nessuna automazione per ora — coerente con l'assenza di
+clienti reali finché non ne firmi uno):
+
+1. Ripeti la **Parte 3** di questa guida su un progetto Firebase NUOVO,
+   dedicato solo a quel cliente (`nome-cliente-affittacamere` o simile).
+2. Deploya lì l'intero codice di `affittacamere/` + `functions/` (incluso
+   `functions/platform-control.js`, già parte del codebase — nessuna
+   modifica da fare, si porta dietro automaticamente).
+3. Imposta su quel progetto TUTTI i secret già noti (Gmail, Stripe, Telegram,
+   Google Sheet se lo usa) **più** uno nuovo, scelto da te per questo
+   cliente:
+   ```
+   firebase functions:secrets:set PLATFORM_SHARED_SECRET --project nome-progetto-cliente
+   ```
+4. Nella piattaforma (`platform-admin/index.html`) → **+ Nuovo cliente** →
+   compila nome struttura, contatti, l'**URL funzioni** (formato
+   `https://europe-west1-NOME-PROGETTO-CLIENTE.cloudfunctions.net`, lo trovi
+   aprendo una qualsiasi Cloud Function di quel progetto in console) e lo
+   **stesso segreto** impostato al passo 3.
+5. Bottone **"Crea utente proprietario"** sulla card del cliente appena
+   creato: inserisci l'email del cliente e una password temporanea — la
+   piattaforma crea da remoto il suo primo accesso alla propria dashboard
+   (`.../dashboard.html` sul SUO progetto), senza che tu debba mai entrare
+   manualmente nella console Firebase di quel cliente per crearlo.
+6. Da qui in poi il cliente personalizza tutto da sola/o dalla propria
+   dashboard (nome struttura, stanze, prezzi, email, ecc.) — tu non tocchi
+   mai i suoi contenuti, solo lo stato del suo abbonamento.
+
+Se un cliente smette di pagare: card del cliente → **"Disattiva servizio"**.
+Il suo sito e la sua dashboard mostreranno subito "Servizio disabilitato" (e
+ogni nuova prenotazione/pagamento viene rifiutato anche lato server, non solo
+nascosto). **"Riattiva servizio"** per riaccendere tutto quando torna in
+regola.
+
+---
+
 ## Domande frequenti
 
 **Devo pagare qualcosa?** L'hosting no: per i volumi di un sito come questo, i
