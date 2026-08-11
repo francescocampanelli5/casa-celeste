@@ -11,6 +11,8 @@
     loginError: '', loginBusy: false,
     tenants: {},
     newTenantOpen: false,
+    editingTenantId: null,
+    editError: '',
     banner: null, // { kind: 'ok'|'error', text }
     busyTenantId: null,
     actionForm: null // { tenantId, kind: 'createOwner'|'resetPassword' }
@@ -95,25 +97,44 @@
     var busy = state.busyTenantId === tenantId;
     var active = tenant.status !== 'disabled';
     var af = state.actionForm && state.actionForm.tenantId === tenantId ? state.actionForm : null;
+    var editing = state.editingTenantId === tenantId;
     return '<div class="card">' +
       '<div class="tenant-head">' +
         '<div><h2>' + escapeHtml(tenant.businessName || tenantId) + '</h2>' + statusBadgeHtml(tenant) + '</div>' +
-        '<button type="button" class="link-btn" data-edit="' + escapeHtml(tenantId) + '">Modifica dati</button>' +
+        (editing ? '' : '<button type="button" class="link-btn" data-edit="' + escapeHtml(tenantId) + '">Modifica dati</button>') +
       '</div>' +
-      '<dl class="tenant-info">' +
-        (tenant.contactEmail ? '<div><dt>Contatto</dt><dd>' + escapeHtml(tenant.contactEmail) + (tenant.contactPhone ? ' — ' + escapeHtml(tenant.contactPhone) : '') + '</dd></div>' : '') +
-        (tenant.functionsBaseUrl ? '<div><dt>Progetto</dt><dd>' + escapeHtml(tenant.functionsBaseUrl) + '</dd></div>' : '') +
-        (tenant.notes ? '<div><dt>Note</dt><dd>' + escapeHtml(tenant.notes) + '</dd></div>' : '') +
-      '</dl>' +
-      '<div class="tenant-actions">' +
-        '<button type="button" class="btn ' + (active ? 'btn--danger' : 'btn--ok') + '" data-toggle-status="' + escapeHtml(tenantId) + '" ' + (busy ? 'disabled' : '') + '>' +
-          (busy ? 'Attendere…' : (active ? 'Disattiva servizio' : 'Riattiva servizio')) +
-        '</button>' +
-        '<button type="button" class="btn btn--ghost" data-open-action="createOwner:' + escapeHtml(tenantId) + '">Crea utente proprietario</button>' +
-        '<button type="button" class="btn btn--ghost" data-open-action="resetPassword:' + escapeHtml(tenantId) + '">Reset password</button>' +
-      '</div>' +
-      (af ? actionFormHtml(af) : '') +
+      (editing ? editTenantFormHtml(tenantId, tenant) : (
+        '<dl class="tenant-info">' +
+          (tenant.contactEmail ? '<div><dt>Contatto</dt><dd>' + escapeHtml(tenant.contactEmail) + (tenant.contactPhone ? ' — ' + escapeHtml(tenant.contactPhone) : '') + '</dd></div>' : '') +
+          (tenant.functionsBaseUrl ? '<div><dt>Progetto</dt><dd>' + escapeHtml(tenant.functionsBaseUrl) + '</dd></div>' : '') +
+          (tenant.notes ? '<div><dt>Note</dt><dd>' + escapeHtml(tenant.notes) + '</dd></div>' : '') +
+        '</dl>' +
+        '<div class="tenant-actions">' +
+          '<button type="button" class="btn ' + (active ? 'btn--danger' : 'btn--ok') + '" data-toggle-status="' + escapeHtml(tenantId) + '" ' + (busy ? 'disabled' : '') + '>' +
+            (busy ? 'Attendere…' : (active ? 'Disattiva servizio' : 'Riattiva servizio')) +
+          '</button>' +
+          '<button type="button" class="btn btn--ghost" data-open-action="createOwner:' + escapeHtml(tenantId) + '">Crea utente proprietario</button>' +
+          '<button type="button" class="btn btn--ghost" data-open-action="resetPassword:' + escapeHtml(tenantId) + '">Reset password</button>' +
+        '</div>' +
+        (af ? actionFormHtml(af) : '')
+      )) +
     '</div>';
+  }
+
+  function editTenantFormHtml(tenantId, tenant) {
+    return '<form class="action-form" id="edit-tenant-form">' +
+      '<div class="field"><label for="et-name">Nome struttura</label><input type="text" id="et-name" required value="' + escapeHtml(tenant.businessName || '') + '"></div>' +
+      '<div class="field"><label for="et-email">Email di contatto</label><input type="email" id="et-email" value="' + escapeHtml(tenant.contactEmail || '') + '"></div>' +
+      '<div class="field"><label for="et-phone">Telefono di contatto</label><input type="text" id="et-phone" value="' + escapeHtml(tenant.contactPhone || '') + '"></div>' +
+      '<div class="field"><label for="et-url">URL funzioni</label><input type="text" id="et-url" required value="' + escapeHtml(tenant.functionsBaseUrl || '') + '"></div>' +
+      '<div class="field"><label for="et-secret">Segreto condiviso</label><input type="text" id="et-secret" required value="' + escapeHtml(tenant.sharedSecret || '') + '"></div>' +
+      '<div class="field"><label for="et-notes">Note</label><textarea id="et-notes" rows="2">' + escapeHtml(tenant.notes || '') + '</textarea></div>' +
+      (state.editError ? '<div class="banner banner--error">' + escapeHtml(state.editError) + '</div>' : '') +
+      '<div class="action-form-buttons">' +
+        '<button type="submit" class="btn">Salva</button>' +
+        '<button type="button" class="btn btn--ghost" id="edit-tenant-cancel">Annulla</button>' +
+      '</div>' +
+    '</form>';
   }
 
   function actionFormHtml(af) {
@@ -198,21 +219,36 @@
 
     document.querySelectorAll('[data-edit]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var id = btn.getAttribute('data-edit');
-        var t = state.tenants[id] || {};
-        var name = window.prompt('Nome struttura', t.businessName || '');
-        if (name === null) return;
-        var email = window.prompt('Email di contatto', t.contactEmail || '');
-        if (email === null) return;
-        var url = window.prompt('URL funzioni', t.functionsBaseUrl || '');
-        if (url === null) return;
-        var secret = window.prompt('Segreto condiviso (lascia invariato se non lo stai cambiando)', t.sharedSecret || '');
-        if (secret === null) return;
-        window.CelesteSaasControl.saveTenant(id, {
-          businessName: name.trim(), contactEmail: email.trim(),
-          functionsBaseUrl: url.trim().replace(/\/$/, ''), sharedSecret: secret.trim()
-        }).catch(function (err) { window.alert('Errore: ' + err.message); });
+        state.editingTenantId = btn.getAttribute('data-edit');
+        state.editError = '';
+        renderApp();
       });
+    });
+
+    var editForm = document.getElementById('edit-tenant-form');
+    if (editForm) editForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var id = state.editingTenantId;
+      window.CelesteSaasControl.saveTenant(id, {
+        businessName: document.getElementById('et-name').value.trim(),
+        contactEmail: document.getElementById('et-email').value.trim(),
+        contactPhone: document.getElementById('et-phone').value.trim(),
+        functionsBaseUrl: document.getElementById('et-url').value.trim().replace(/\/$/, ''),
+        sharedSecret: document.getElementById('et-secret').value.trim(),
+        notes: document.getElementById('et-notes').value.trim()
+      }).then(function () {
+        state.editingTenantId = null; state.editError = '';
+        state.banner = { kind: 'ok', text: 'Dati aggiornati.' };
+        renderApp();
+      }).catch(function (err) {
+        state.editError = 'Errore: ' + err.message;
+        renderApp();
+      });
+    });
+    var editCancel = document.getElementById('edit-tenant-cancel');
+    if (editCancel) editCancel.addEventListener('click', function () {
+      state.editingTenantId = null; state.editError = '';
+      renderApp();
     });
 
     document.querySelectorAll('[data-toggle-status]').forEach(function (btn) {
