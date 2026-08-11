@@ -72,4 +72,15 @@ async function platformResetPasswordCore(ctx, data) {
   return { ok: true, uid: userRecord.uid };
 }
 
-module.exports = { platformSetStatusCore, platformCreateOwnerUserCore, platformResetPasswordCore };
+/* ==========================================================================
+   platformPingCore — verifica di raggiungibilità/credenziali usata dal
+   pulsante "Verifica connessione" di platform-admin: nessuna scrittura,
+   conferma solo che URL e segreto condiviso di QUESTO cliente sono
+   configurati correttamente prima di doversene fidare per un'azione vera
+   (attiva/disattiva, reset password).
+   ========================================================================== */
+async function platformPingCore() {
+  return { ok: true, pingedAt: new Date().toISOString() };
+}
+
+module.exports = { platformSetStatusCore, platformCreateOwnerUserCore, platformResetPasswordCore, platformPingCore };

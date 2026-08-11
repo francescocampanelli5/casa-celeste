@@ -13,5 +13,14 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       allow read, write: if isOwner();
     }
+    // Registro delle 3 azioni sensibili (attiva/disattiva servizio, crea
+    // proprietario, reset password) — scritto SOLO da platform-admin/functions
+    // (Admin SDK, bypassa questa regola) subito dopo ogni azione riuscita, mai
+    // dal client: anche il proprietario può solo leggerlo, non modificarlo o
+    // cancellarlo, per restare uno storico affidabile di cosa è stato fatto.
+    match /auditLog/{entryId} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
   }
 }

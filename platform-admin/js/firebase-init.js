@@ -13,7 +13,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getFirestore, connectFirestoreEmulator,
   collection, doc, setDoc, updateDoc, deleteDoc,
-  onSnapshot, serverTimestamp
+  onSnapshot, serverTimestamp, query, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getFunctions, connectFunctionsEmulator, httpsCallable
@@ -73,6 +73,19 @@ window.CelesteSaasControl = {
     return deleteDoc(doc(requireDb(), 'tenants', tenantId));
   },
 
+  // ---- registro attività (sola lettura — vedi firestore.rules e
+  // platform-admin/functions/index.js: scritto solo dall'Admin SDK dopo
+  // ognuna delle 3 azioni sensibili) ----
+  subscribeAuditLog: function (callback) {
+    if (!configured) return function () {};
+    var q = query(collection(requireDb(), 'auditLog'), orderBy('at', 'desc'), limit(30));
+    return onSnapshot(q, function (snap) {
+      var entries = [];
+      snap.forEach(function (d) { entries.push(Object.assign({ id: d.id }, d.data())); });
+      callback(entries);
+    });
+  },
+
   // ---- le uniche 3 azioni che questa piattaforma può compiere su un
   // progetto cliente (vedi platform-admin/functions/index.js +
   // functions/platform-control.js nel progetto cliente) ----
@@ -87,6 +100,10 @@ window.CelesteSaasControl = {
   resetTenantPassword: function (tenantId, email, password) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'adminResetTenantPassword')({ tenantId: tenantId, email: email, password: password }).then(function (res) { return res.data; });
+  },
+  pingTenant: function (tenantId) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'adminPingTenant')({ tenantId: tenantId }).then(function (res) { return res.data; });
   },
 
   // ---- auth (login unico owner della piattaforma) ----

@@ -40,7 +40,7 @@ const {
   staffGetMaintenanceBoardCore, staffSetMaintenanceStatusCore
 } = require('./staff-actions');
 const { syncBookingsToSheet } = require('./bookings-sheet-sync');
-const { platformSetStatusCore, platformCreateOwnerUserCore, platformResetPasswordCore } = require('./platform-control');
+const { platformSetStatusCore, platformCreateOwnerUserCore, platformResetPasswordCore, platformPingCore } = require('./platform-control');
 const { loadIntegrations } = require('./integration-settings');
 
 admin.initializeApp();
@@ -752,6 +752,16 @@ exports.platformResetPassword = onRequest({ secrets: [platformSharedSecret] }, a
   } catch (err) {
     console.error('Errore platformResetPassword:', err);
     res.status(statusForPlatformError(err)).json({ error: err.message || 'Errore interno.' });
+  }
+});
+exports.platformPing = onRequest({ secrets: [platformSharedSecret] }, async (req, res) => {
+  if (!checkPlatformSecret(req, res)) return;
+  try {
+    const result = await platformPingCore();
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('Errore platformPing:', err);
+    res.status(500).json({ error: err.message || 'Errore interno.' });
   }
 });
 

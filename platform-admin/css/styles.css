@@ -49,3 +49,7 @@ p { color: var(--text-muted); font-size: 13.5px; line-height: 1.6; }
 .action-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
 .action-form-buttons { display: flex; gap: 8px; }
 .empty-hint { text-align: center; padding: 32px; }
+.audit-log-list { display: flex; flex-direction: column; gap: 2px; max-height: 340px; overflow-y: auto; }
+.audit-log-row { display: flex; gap: 12px; font-size: 12.5px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.audit-log-row:last-child { border-bottom: none; }
+.audit-log-when { color: var(--text-muted); white-space: nowrap; min-width: 118px; }

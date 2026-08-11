@@ -15,7 +15,10 @@
     editError: '',
     banner: null, // { kind: 'ok'|'error', text }
     busyTenantId: null,
-    actionForm: null // { tenantId, kind: 'createOwner'|'resetPassword' }
+    pingingTenantId: null,
+    actionForm: null, // { tenantId, kind: 'createOwner'|'resetPassword' }
+    auditLog: [],
+    auditLogOpen: false
   };
 
   function escapeHtml(str) {
@@ -92,15 +95,25 @@
     var active = tenant.status !== 'disabled';
     return '<span class="badge ' + (active ? 'badge--active' : 'badge--disabled') + '">' + (active ? 'Attivo' : 'Disabilitato') + '</span>';
   }
+  function healthBadgeHtml(tenant) {
+    if (tenant.lastPingOk == null) return '';
+    var cls = tenant.lastPingOk ? 'badge--active' : 'badge--disabled';
+    var label = tenant.lastPingOk ? 'Connessione ok' : 'Non raggiungibile';
+    var when = (tenant.lastPingAt && typeof tenant.lastPingAt.toDate === 'function')
+      ? tenant.lastPingAt.toDate().toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : '';
+    return '<span class="badge ' + cls + '" title="' + (when ? 'Ultima verifica: ' + escapeHtml(when) : '') + '">' + label + '</span>';
+  }
 
   function tenantCardHtml(tenantId, tenant) {
     var busy = state.busyTenantId === tenantId;
+    var pinging = state.pingingTenantId === tenantId;
     var active = tenant.status !== 'disabled';
     var af = state.actionForm && state.actionForm.tenantId === tenantId ? state.actionForm : null;
     var editing = state.editingTenantId === tenantId;
     return '<div class="card">' +
       '<div class="tenant-head">' +
-        '<div><h2>' + escapeHtml(tenant.businessName || tenantId) + '</h2>' + statusBadgeHtml(tenant) + '</div>' +
+        '<div><h2>' + escapeHtml(tenant.businessName || tenantId) + '</h2>' + statusBadgeHtml(tenant) + healthBadgeHtml(tenant) + '</div>' +
         (editing ? '' : '<button type="button" class="link-btn" data-edit="' + escapeHtml(tenantId) + '">Modifica dati</button>') +
       '</div>' +
       (editing ? editTenantFormHtml(tenantId, tenant) : (
@@ -115,6 +128,7 @@
           '</button>' +
           '<button type="button" class="btn btn--ghost" data-open-action="createOwner:' + escapeHtml(tenantId) + '">Crea utente proprietario</button>' +
           '<button type="button" class="btn btn--ghost" data-open-action="resetPassword:' + escapeHtml(tenantId) + '">Reset password</button>' +
+          '<button type="button" class="btn btn--ghost" data-ping-tenant="' + escapeHtml(tenantId) + '" ' + (pinging ? 'disabled' : '') + '>' + (pinging ? 'Verifica…' : 'Verifica connessione') + '</button>' +
         '</div>' +
         (af ? actionFormHtml(af) : '')
       )) +
@@ -152,6 +166,35 @@
     '</form>';
   }
 
+  /* ==========================================================================
+     Registro attività — sola lettura, ultime 30 azioni sensibili (vedi
+     platform-admin/functions/index.js: setStatus/createOwner/resetPassword),
+     scritte solo dall'Admin SDK, mai modificabili da qui.
+     ========================================================================== */
+  function formatAuditWhen(entry) {
+    if (!entry.at || typeof entry.at.toDate !== 'function') return '…';
+    return entry.at.toDate().toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  function auditEntryText(entry) {
+    var tenantName = escapeHtml((state.tenants[entry.tenantId] && state.tenants[entry.tenantId].businessName) || entry.tenantId || '(cliente sconosciuto)');
+    var details = entry.details || {};
+    if (entry.action === 'setStatus') return (details.enabled ? 'Servizio riattivato per ' : 'Servizio disattivato per ') + tenantName;
+    if (entry.action === 'createOwner') return 'Utente proprietario creato per ' + tenantName + ' (' + escapeHtml(details.email || '') + ')';
+    if (entry.action === 'resetPassword') return 'Password reimpostata per ' + tenantName + ' (' + escapeHtml(details.email || '') + ')';
+    return entry.action + ' — ' + tenantName;
+  }
+  function auditLogPanelHtml() {
+    if (!state.auditLogOpen) return '<button type="button" class="link-btn" id="audit-log-toggle">Registro attività</button>';
+    var rows = state.auditLog.length
+      ? state.auditLog.map(function (entry) {
+          return '<div class="audit-log-row"><span class="audit-log-when">' + escapeHtml(formatAuditWhen(entry)) + '</span><span>' + auditEntryText(entry) + '</span></div>';
+        }).join('')
+      : '<p class="empty-hint">Nessuna azione registrata ancora.</p>';
+    return '<div class="card">' +
+      '<div class="tenant-head"><h2>Registro attività</h2><button type="button" class="link-btn" id="audit-log-toggle">Nascondi</button></div>' +
+      '<div class="audit-log-list">' + rows + '</div>' +
+    '</div>';
+  }
   function newTenantFormHtml() {
     if (!state.newTenantOpen) return '<button type="button" class="btn" id="new-tenant-btn">+ Nuovo cliente</button>';
     return '<form class="card" id="new-tenant-form">' +
@@ -178,6 +221,7 @@
     root().innerHTML = '<div class="wrap wrap--wide">' +
       '<header class="topbar"><h1>Clienti</h1><button type="button" class="link-btn" id="logout-btn">Esci</button></header>' +
       (state.banner && !state.newTenantOpen ? '<div class="banner banner--' + state.banner.kind + '">' + escapeHtml(state.banner.text) + '</div>' : '') +
+      auditLogPanelHtml() +
       newTenantFormHtml() +
       '<div class="tenant-list">' +
         (ids.length ? ids.map(function (id) { return tenantCardHtml(id, state.tenants[id]); }).join('') : '<p class="empty-hint">Nessun cliente registrato ancora.</p>') +
@@ -189,6 +233,9 @@
   function bindAppEvents() {
     var logout = document.getElementById('logout-btn');
     if (logout) logout.addEventListener('click', function () { window.CelesteSaasControl.signOutUser(); });
+
+    var auditToggle = document.getElementById('audit-log-toggle');
+    if (auditToggle) auditToggle.addEventListener('click', function () { state.auditLogOpen = !state.auditLogOpen; renderApp(); });
 
     var newBtn = document.getElementById('new-tenant-btn');
     if (newBtn) newBtn.addEventListener('click', function () { state.newTenantOpen = true; state.banner = null; renderApp(); });
@@ -265,6 +312,18 @@
       });
     });
 
+    document.querySelectorAll('[data-ping-tenant]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-ping-tenant');
+        state.pingingTenantId = id; renderApp();
+        window.CelesteSaasControl.pingTenant(id).then(function () {
+          state.pingingTenantId = null; state.banner = { kind: 'ok', text: 'Connessione verificata.' }; renderApp();
+        }).catch(function (err) {
+          state.pingingTenantId = null; state.banner = { kind: 'error', text: 'Non raggiungibile: ' + err.message }; renderApp();
+        });
+      });
+    });
+
     document.querySelectorAll('[data-open-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var parts = btn.getAttribute('data-open-action').split(':');
@@ -299,6 +358,9 @@
       if (!user) { renderLogin(); return; }
       window.CelesteSaasControl.subscribeTenants(function (tenants) {
         state.tenants = tenants; renderApp();
+      });
+      window.CelesteSaasControl.subscribeAuditLog(function (entries) {
+        state.auditLog = entries; renderApp();
       });
     });
   }

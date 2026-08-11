@@ -33,6 +33,19 @@ async function loadTenant(tenantId) {
   return { ref: snap.ref, data: snap.data() };
 }
 
+// Registro delle azioni sensibili (firestore.rules nega la scrittura al
+// client: solo l'Admin SDK, cioè queste funzioni, può aggiungere voci).
+// Mai loggare password: solo l'email coinvolta, mai il valore impostato.
+async function logAction(request, tenantId, action, details) {
+  await db.collection('auditLog').add({
+    action: action,
+    tenantId: tenantId,
+    actorEmail: (request.auth && request.auth.token && request.auth.token.email) || 'sconosciuto',
+    details: details || null,
+    at: admin.firestore.FieldValue.serverTimestamp()
+  });
+}
+
 async function callTenantEndpoint(tenant, path, body) {
   if (!tenant.functionsBaseUrl || !tenant.sharedSecret) {
     throw new HttpsError('failed-precondition', 'Questo cliente non ha ancora un URL o un segreto configurato.');
@@ -66,6 +79,7 @@ exports.adminSetTenantStatus = onCall({}, async (request) => {
   const { ref, data: tenant } = await loadTenant(tenantId);
   const result = await callTenantEndpoint(tenant, 'platformSetStatus', { enabled: enabled });
   await ref.update({ status: enabled ? 'active' : 'disabled', statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp() });
+  await logAction(request, tenantId, 'setStatus', { enabled: enabled });
   return result;
 });
 
@@ -77,7 +91,9 @@ exports.adminCreateTenantOwner = onCall({}, async (request) => {
   const password = String(data.password || '');
   if (!tenantId || !email || !password) throw new HttpsError('invalid-argument', 'Dati mancanti.');
   const { data: tenant } = await loadTenant(tenantId);
-  return callTenantEndpoint(tenant, 'platformCreateOwnerUser', { email: email, password: password });
+  const result = await callTenantEndpoint(tenant, 'platformCreateOwnerUser', { email: email, password: password });
+  await logAction(request, tenantId, 'createOwner', { email: email });
+  return result;
 });
 
 exports.adminResetTenantPassword = onCall({}, async (request) => {
@@ -88,5 +104,28 @@ exports.adminResetTenantPassword = onCall({}, async (request) => {
   const password = String(data.password || '');
   if (!tenantId || !email || !password) throw new HttpsError('invalid-argument', 'Dati mancanti.');
   const { data: tenant } = await loadTenant(tenantId);
-  return callTenantEndpoint(tenant, 'platformResetPassword', { email: email, password: password });
+  const result = await callTenantEndpoint(tenant, 'platformResetPassword', { email: email, password: password });
+  await logAction(request, tenantId, 'resetPassword', { email: email });
+  return result;
+});
+
+// Verifica di raggiungibilità/credenziali (nessuna scrittura sul cliente):
+// usata dal pulsante "Verifica connessione" per controllare URL+segreto
+// prima di doversene fidare per un'azione vera. Salva l'esito su
+// tenants/{id} (lastPingAt/lastPingOk) così la card mostra un indicatore
+// anche senza dover ripremere il pulsante ad ogni apertura della pagina.
+exports.adminPingTenant = onCall({}, async (request) => {
+  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario della piattaforma può farlo.');
+  const tenantId = String((request.data || {}).tenantId || '');
+  if (!tenantId) throw new HttpsError('invalid-argument', 'Cliente non specificato.');
+  const { ref, data: tenant } = await loadTenant(tenantId);
+  const at = admin.firestore.FieldValue.serverTimestamp();
+  try {
+    await callTenantEndpoint(tenant, 'platformPing', {});
+    await ref.update({ lastPingAt: at, lastPingOk: true });
+    return { ok: true };
+  } catch (err) {
+    await ref.update({ lastPingAt: at, lastPingOk: false });
+    throw err;
+  }
 });
