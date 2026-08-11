@@ -309,7 +309,7 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
     // Google Pay restano disponibili comunque: viaggiano sul metodo 'card',
     // li mostra l'Express Checkout Element lato client.
     payment_method_types: ['card'],
-    description: (settings.siteName || 'Casa Celeste') + ' — prenotazione stanza',
+    description: (settings.siteName || 'La struttura') + ' — prenotazione stanza',
     metadata: { checkIn: data.checkIn || '', checkOut: data.checkOut || '', roomId: data.roomId || '', groupBooking: Array.isArray(data.rooms) ? 'si' : 'no' }
   });
   return { clientSecret: intent.client_secret, amount: quote.amount, baseTotal: quote.baseTotal, fee: quote.fee, paymentIntentId: intent.id };

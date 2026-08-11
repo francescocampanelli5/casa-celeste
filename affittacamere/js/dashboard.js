@@ -432,8 +432,15 @@
   var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'Monopoli', home: 'Home', location: 'Posizione', host: 'Host', compliance: 'Adempimenti', email: 'Email ospiti', settings: 'Impostazioni' };
 
   function sidebarLinksHtml() {
+    // "Spazi comuni" ha senso solo se la struttura è a stanze con aree
+    // condivise (vedi prompt propertyType in renderTabContent e
+    // renderGeneraliSettings per cambiarlo dopo la prima risposta): un
+    // appartamento intero non condivide nulla con altri ospiti in casa.
+    var hideCommons = state.settings && state.settings.propertyType === 'apartment';
     return SIDEBAR_GROUPS.map(function (group) {
-      var links = group.items.map(function (item) {
+      var links = group.items.filter(function (item) {
+        return !(hideCommons && item.tab === 'commons');
+      }).map(function (item) {
         var badgeCount = item.badge ? item.badge() : 0;
         return '<button type="button" class="dash-sidebar-link' + (state.activeTab === item.tab ? ' is-active' : '') + '" data-tab="' + item.tab + '">' +
           '<span>' + escapeHtml(item.label) + '</span>' +
@@ -447,7 +454,7 @@
     document.getElementById('dash-shell').innerHTML =
       '<div class="dash-sidebar-overlay" id="dash-sidebar-overlay"></div>' +
       '<aside class="dash-sidebar" id="dash-sidebar">' +
-        '<a href="index.html" class="dash-sidebar-logo logo"><span class="logo-dot logo-dot--blue"></span><span class="logo-dot logo-dot--yellow"></span><span class="logo-text" id="dash-logo-text">' + escapeHtml((state.settings && state.settings.siteName) || 'Casa Celeste') + '</span></a>' +
+        '<a href="index.html" class="dash-sidebar-logo logo"><span class="logo-dot logo-dot--blue"></span><span class="logo-dot logo-dot--yellow"></span><span class="logo-text" id="dash-logo-text">' + escapeHtml((state.settings && state.settings.siteName) || 'La struttura') + '</span></a>' +
         '<nav class="dash-sidebar-nav">' + sidebarLinksHtml() + '</nav>' +
         '<button type="button" class="dash-sidebar-logout" id="logout-btn">Esci</button>' +
       '</aside>' +
@@ -515,6 +522,29 @@
     else if (state.activeTab === 'email') renderEmailTab(content);
     else if (state.activeTab === 'settings') renderSettingsTab(content);
     else renderRoomsTab(content);
+    // Prompt bloccante-ma-non-invasivo: chiesto una volta sola, appena le
+    // Impostazioni sono caricate (non prima, altrimenti lampeggia sempre
+    // all'avvio anche quando è già stato risposto). Determina se mostrare
+    // "Spazi comuni" (vedi renderCommonsVisible più sotto) — un
+    // appartamento intero non ha spazi condivisi con altri ospiti.
+    if (state.settings && !state.settings.propertyType) {
+      content.insertAdjacentHTML('afterbegin',
+        '<div class="admin-room-card" style="border:2px solid var(--brand-blue,#2F6FED); margin-bottom:18px;">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Prima di iniziare: che tipo di struttura gestisci?</span></div>' +
+          '<div class="admin-note" style="margin:0 0 12px;">Serve a mostrare o nascondere la sezione "Spazi comuni" (senso solo se condividi spazi con altri ospiti in casa) sul sito e in dashboard. Puoi cambiarla in qualsiasi momento da Impostazioni → Generali.</div>' +
+          '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
+            '<button type="button" class="dash-add-room-btn" id="ptype-rooms-btn">Stanze con spazi condivisi</button>' +
+            '<button type="button" class="dash-add-room-btn" id="ptype-apartment-btn">Appartamento intero (nessuno spazio condiviso)</button>' +
+          '</div>' +
+        '</div>'
+      );
+      document.getElementById('ptype-rooms-btn').addEventListener('click', function () {
+        window.CasaCelesteTourismDB.setSettings({ propertyType: 'rooms' });
+      });
+      document.getElementById('ptype-apartment-btn').addEventListener('click', function () {
+        window.CasaCelesteTourismDB.setSettings({ propertyType: 'apartment' });
+      });
+    }
   }
   document.addEventListener('focusout', function (e) {
     var content = document.getElementById('dash-content');
@@ -574,7 +604,7 @@
           // Header: stanza + fonte insieme, subito seguiti dalle date — le
           // due informazioni che servono per riconoscere la prenotazione
           // a colpo d'occhio, non annegate tra il resto.
-          '<div class="booking-header-row"><span class="booking-room">' + escapeHtml(b.roomLabel || 'Casa Celeste') + '</span>' + sourceBadge + '</div>' +
+          '<div class="booking-header-row"><span class="booking-room">' + escapeHtml(b.roomLabel || 'La struttura') + '</span>' + sourceBadge + '</div>' +
           '<div class="booking-when">' + escapeHtml(formatDateShort(b.checkIn)) + ' → ' + escapeHtml(formatDateShort(b.checkOut)) + ' · ' + (b.nights || 0) + ' notti · ' + (b.guests || 0) + ' ospiti</div>' +
           '<div class="booking-options">' + bookingOptionsHtml(b) + '</div>' +
           '<div class="booking-contact">' + escapeHtml(b.name || '') + ' — <a href="mailto:' + encodeURIComponent(b.email || '') + '">' + escapeHtml(b.email || '') + '</a>' + (b.phone ? ' — <a href="tel:' + encodeURIComponent(b.phone) + '">' + escapeHtml(b.phone) + '</a>' : '') + '</div>' +
@@ -1790,9 +1820,19 @@
     var cards = ids.map(function (id) { return roomAdminCardHtml(id, state.roomsData[id]); }).join('');
     content.innerHTML =
       '<h1 class="dash-section-title">Stanze</h1>' +
-      '<button type="button" class="dash-seed-btn" id="seed-btn">Inizializza le stanze con i valori di esempio (solo se il database è vuoto)</button>' +
+      '<button type="button" class="dash-add-room-btn" id="add-room-btn">+ Aggiungi stanza</button>' +
+      '<button type="button" class="dash-seed-btn" id="seed-btn">Inizializza le stanze con i valori di esempio di Casa Celeste (solo per prova/dimostrazione, solo se il database è vuoto)</button>' +
       '<div class="dash-room-rows">' + cards + '</div>' +
       '<div class="admin-note">Le modifiche si salvano automaticamente e si aggiornano subito sul sito pubblico. Per le foto di una nuova stanza, usa il nome accanto al nome stanza.</div>';
+    document.getElementById('add-room-btn').addEventListener('click', function () {
+      var nextOrder = ids.reduce(function (max, id) { return Math.max(max, state.roomsData[id].order || 0); }, 0) + 1;
+      var roomId = 'stanza-' + Date.now();
+      window.CasaCelesteTourismDB.createRoom(roomId, {
+        order: nextOrder, name: 'Nuova stanza',
+        nightlyPrice: 0, maxGuests: 1, minNights: 1,
+        description: { it: '', en: '' }, photos: [], stats: []
+      });
+    });
 
     content.querySelectorAll('[data-room-field]').forEach(function (el) {
       var roomId = el.getAttribute('data-room-id'), field = el.getAttribute('data-field');
@@ -2591,10 +2631,18 @@
         '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="manager-phone" value="' + escapeHtml(s.managerPhone || '') + '"></div>' +
         '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" value="' + escapeHtml(s.managerEmail || '') + '"></div>' +
         photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +
+      '</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Dati legali (contratto e privacy)</span></div>' +
+        infoNoteHtml('Usati SOLO nel contratto di locazione e nell\'informativa privacy mostrati agli ospiti (mai sul resto del sito) — obbligatorio compilarli prima di ricevere ospiti reali: senza questi dati quei due testi restano incompleti.') +
+        '<div class="admin-field-group admin-field-group--full"><label>Ragione sociale / nome del locatore</label><input type="text" class="admin-field" id="legal-entity-name" value="' + escapeHtml(s.legalEntityName || '') + '" placeholder="Es. Mario Rossi, oppure Nome Srl"></div>' +
+        '<div class="admin-field-group"><label>Codice identificativo struttura (CIN/CIR)</label><input type="text" class="admin-field" id="legal-cin" value="' + escapeHtml(s.legalCin || '') + '" placeholder="Se assegnato dalla tua Regione"></div>' +
       '</div>';
     document.getElementById('manager-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerName: e.target.value.trim() }); });
     document.getElementById('manager-phone').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerPhone: e.target.value.replace(/\D/g, '') }); });
     document.getElementById('manager-email').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerEmail: e.target.value.trim() }); });
+    document.getElementById('legal-entity-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ legalEntityName: e.target.value.trim() }); });
+    document.getElementById('legal-cin').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ legalCin: e.target.value.trim() }); });
     bindPhotoUploadEvents(content);
   }
 
@@ -2925,8 +2973,8 @@
   function emailPreviewVars(templateKey, isEn) {
     var s = state.settings || {};
     var base = {
-      isEn: isEn, siteName: s.siteName || 'Casa Celeste', city: s.city || 'Monopoli',
-      address: s.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)',
+      isEn: isEn, siteName: s.siteName || 'La struttura', city: s.city || '',
+      address: s.address || '',
       logoUrl: s.logoUrl || '', footerSignature: s.emailFooterSignature || '',
       assistButtonLabel: emailPreviewPickText('shared', 'assistButtonLabel', isEn),
       reviewButtonLabel: emailPreviewPickText('shared', 'reviewButtonLabel', isEn)
@@ -3378,7 +3426,7 @@
       '<div class="dash-settings-group" data-settings-cat="generali">' +
         '<div class="dash-settings-group-title">Generali</div>' +
         '<div class="admin-room-card">' +
-          '<div class="admin-field-group admin-field-group--full"><label>Nome della struttura</label><input type="text" class="admin-field" id="settings-site-name" value="' + escapeHtml(s.siteName || '') + '" placeholder="Casa Celeste"></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Nome della struttura</label><input type="text" class="admin-field" id="settings-site-name" value="' + escapeHtml(s.siteName || '') + '" placeholder="Es. La Tua Struttura"></div>' +
           '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usato su sito, email e bot Telegram al posto del valore di default.</div>' +
           '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '"></div>' +
           '<div class="admin-field-group"><label>Check-in dalle</label><input type="text" class="admin-field" id="settings-checkin" value="' + escapeHtml(s.checkInTime || '15:00') + '"></div>' +
@@ -3388,6 +3436,11 @@
             '<input type="number" step="0.1" min="0" max="5" class="admin-field" id="settings-avg-rating" value="' + (s.avgRating != null ? s.avgRating : '') + '">') +
           fieldGroupHtml('Numero recensioni mostrato sul sito', 'Facoltativo — lascia vuoto per usare il conteggio reale del tab Recensioni.',
             '<input type="number" step="1" min="0" class="admin-field" id="settings-review-count" value="' + (s.reviewCountOverride != null ? s.reviewCountOverride : '') + '">') +
+          fieldGroupHtml('Tipo di struttura', 'Determina se mostrare la sezione "Spazi comuni" sul sito e in dashboard (senso solo se condividi spazi con altri ospiti in casa).',
+            '<select class="admin-field" id="settings-property-type">' +
+              '<option value="rooms"' + (s.propertyType === 'apartment' ? '' : ' selected') + '>Stanze con spazi condivisi</option>' +
+              '<option value="apartment"' + (s.propertyType === 'apartment' ? ' selected' : '') + '>Appartamento intero (nessuno spazio condiviso)</option>' +
+            '</select>') +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Colori del brand</span></div>' +
@@ -3456,7 +3509,7 @@
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Email — mittente e firma</span></div>' +
           fieldGroupHtml('Nome mittente mostrato all\'ospite', 'Facoltativo — default: nome struttura.',
-            '<input type="text" class="admin-field" id="settings-email-sender-name" placeholder="' + escapeHtml(s.siteName || 'Casa Celeste') + '" value="' + escapeHtml(s.emailSenderName || '') + '">', true) +
+            '<input type="text" class="admin-field" id="settings-email-sender-name" placeholder="' + escapeHtml(s.siteName || 'La struttura') + '" value="' + escapeHtml(s.emailSenderName || '') + '">', true) +
           fieldGroupHtml('Firma in fondo alle email', 'Facoltativa, es. "A presto, il team di Casa Celeste".',
             '<textarea class="admin-field" id="settings-email-footer-signature" rows="2">' + escapeHtml(s.emailFooterSignature || '') + '</textarea>', true) +
         '</div>' +
@@ -3625,6 +3678,9 @@
     document.getElementById('settings-review-count').addEventListener('change', function (e) {
       var v = e.target.value === '' ? null : Math.max(0, Number(e.target.value));
       window.CasaCelesteTourismDB.setSettings({ reviewCountOverride: (v == null || isNaN(v)) ? null : Math.round(v) });
+    });
+    document.getElementById('settings-property-type').addEventListener('change', function (e) {
+      window.CasaCelesteTourismDB.setSettings({ propertyType: e.target.value === 'apartment' ? 'apartment' : 'rooms' });
     });
     document.getElementById('settings-retention-hours').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ guestDocsRetentionHours: Number(e.target.value) || 48 }); });
     document.getElementById('settings-bookings-sheet-url').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ bookingsSheetUrl: e.target.value.trim() }); });
@@ -3930,7 +3986,7 @@
     state.unsubMonoSlides = window.CasaCelesteTourismDB.subscribeMonoSlides(function (slidesFromDb) { state.monoSlidesData = slidesFromDb; if (state.user) renderTabContent(); });
     state.unsubSettings = window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) {
       state.settings = settingsFromDb || {};
-      var siteName = state.settings.siteName || 'Casa Celeste';
+      var siteName = state.settings.siteName || 'La struttura';
       document.title = 'Area riservata — ' + siteName + ' (Affittacamere)';
       var logoEl = document.getElementById('dash-logo-text');
       if (logoEl) logoEl.textContent = siteName;

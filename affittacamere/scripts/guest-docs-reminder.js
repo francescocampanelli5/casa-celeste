@@ -26,7 +26,7 @@ function docsLinkFor(doc, b) { return siteOrigin() + 'ospiti.html?booking=' + do
 // docsGroup: array di {doc, b} — solo le stanze ancora incomplete (per una
 // prenotazione singola, un solo elemento).
 async function sendReminder(settings, docsGroup) {
-  var siteName = settings.siteName || 'Casa Celeste';
+  var siteName = settings.siteName || 'La struttura';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;

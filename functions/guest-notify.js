@@ -100,12 +100,12 @@ function googleCalendarLink(b, settings, isEn) {
   const checkOutTime = settings.checkOutTime || '10:00';
   const startUtc = toGCalUtc(romeWallTimeToUtcIso(b.checkIn, checkInTime));
   const endUtc = toGCalUtc(romeWallTimeToUtcIso(b.checkOut, checkOutTime));
-  const siteName = settings.siteName || 'Casa Celeste';
+  const siteName = settings.siteName || 'La struttura';
   const text = siteName + ' — ' + (b.roomLabel || (isEn ? 'stay' : 'soggiorno'));
   const details = isEn
     ? ('Check-in: ' + checkInTime + '. Check-out: ' + checkOutTime + '.')
     : ('Check-in: ore ' + checkInTime + '. Check-out: ore ' + checkOutTime + '.');
-  const location = settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA), Italia';
+  const location = settings.address || '';
   return 'https://www.google.com/calendar/render?action=TEMPLATE'
     + '&text=' + encodeURIComponent(text)
     + '&dates=' + startUtc + '/' + endUtc
@@ -153,7 +153,7 @@ function getMailTransport(gmailUser, gmailAppPassword) {
 async function sendMail(gmailUser, gmailAppPassword, to, subject, html, siteName, fromNameOverride) {
   const transport = getMailTransport(gmailUser, gmailAppPassword);
   if (!transport) return { sent: false, reason: 'not_configured' };
-  await transport.sendMail({ from: (fromNameOverride || siteName || 'Casa Celeste') + ' <' + gmailUser + '>', to: to, subject: subject, html: html });
+  await transport.sendMail({ from: (fromNameOverride || siteName || 'La struttura') + ' <' + gmailUser + '>', to: to, subject: subject, html: html });
   return { sent: true };
 }
 
@@ -202,9 +202,9 @@ async function notifyBookingConfirmed(ctx, bookingId, booking) {
   const settingsSnap = await db.collection('tourism_settings').doc('site').get();
   const settings = settingsSnap.exists ? settingsSnap.data() : {};
 
-  const siteName = settings.siteName || 'Casa Celeste';
-  const city = settings.city || 'Monopoli';
-  const address = settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)';
+  const siteName = settings.siteName || 'La struttura';
+  const city = settings.city || '';
+  const address = settings.address || '';
   const isGroup = docsGroup.length > 1;
   const first = docsGroup[0];
   const rep = first.b;
@@ -281,9 +281,9 @@ async function notifyBookingCancelled(ctx, bookingId, booking) {
   const settingsSnap = await db.collection('tourism_settings').doc('site').get();
   const settings = settingsSnap.exists ? settingsSnap.data() : {};
 
-  const siteName = settings.siteName || 'Casa Celeste';
-  const city = settings.city || 'Monopoli';
-  const address = settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)';
+  const siteName = settings.siteName || 'La struttura';
+  const city = settings.city || '';
+  const address = settings.address || '';
   const isGroup = docsGroup.length > 1;
   const first = docsGroup[0];
   const rep = first.b;

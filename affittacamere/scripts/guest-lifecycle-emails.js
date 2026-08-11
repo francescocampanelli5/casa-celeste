@@ -91,12 +91,12 @@ function googleCalendarLink(b, settings, isEn) {
   var checkOutTime = settings.checkOutTime || '10:00';
   var startUtc = toGCalUtc(lib.romeWallTimeToUtcIso(b.checkIn, checkInTime));
   var endUtc = toGCalUtc(lib.romeWallTimeToUtcIso(b.checkOut, checkOutTime));
-  var siteName = settings.siteName || 'Casa Celeste';
+  var siteName = settings.siteName || 'La struttura';
   var text = siteName + ' — ' + (b.roomLabel || (isEn ? 'stay' : 'soggiorno'));
   var details = isEn
     ? ('Check-in: ' + checkInTime + '. Check-out: ' + checkOutTime + '.')
     : ('Check-in: ore ' + checkInTime + '. Check-out: ore ' + checkOutTime + '.');
-  var location = settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA), Italia';
+  var location = settings.address || '';
   return 'https://www.google.com/calendar/render?action=TEMPLATE'
     + '&text=' + encodeURIComponent(text)
     + '&dates=' + startUtc + '/' + endUtc
@@ -124,8 +124,8 @@ var SUBJECTS = {
   reviewRequest: { it: 'Hai un attimo per {{siteName}}, {{name}}? 🌤️', en: 'Got a minute for {{siteName}}, {{name}}? 🌤️' }
 };
 function subjectFor(key, isEn, b, settings) {
-  var siteName = (settings && settings.siteName) || 'Casa Celeste';
-  var city = (settings && settings.city) || 'Monopoli';
+  var siteName = (settings && settings.siteName) || 'La struttura';
+  var city = (settings && settings.city) || '';
   var s = SUBJECTS[key][isEn ? 'en' : 'it'];
   return s.replace('{{roomLabel}}', b.roomLabel || siteName).replace('{{name}}', b.name || '')
     .replace('{{siteName}}', siteName).replace('{{city}}', city);
@@ -181,7 +181,7 @@ async function forEachBookingUnit(queryDocs, processOne, processGroup) {
    Conferma prenotazione
    ========================================================================== */
 async function composeAndSendConfirmation(settings, docsGroup) {
-  var siteName = settings.siteName || 'Casa Celeste';
+  var siteName = settings.siteName || 'La struttura';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
@@ -246,7 +246,7 @@ function subtractOneHour(hhmm) {
 }
 
 async function composeAndSendCheckin(settings, docsGroup) {
-  var siteName = settings.siteName || 'Casa Celeste';
+  var siteName = settings.siteName || 'La struttura';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
@@ -298,7 +298,7 @@ async function composeAndSendCheckin(settings, docsGroup) {
   var checkinVars = {
     email: rep.email || '', name: rep.name || '', roomLabel: isGroup ? groupRoomNames : (rep.roomLabel || siteName),
     checkIn: lib.formatDateHuman(rep.checkIn, isEn), checkInTime: checkInTime,
-    address: settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)',
+    address: settings.address || '',
     checkInInstructions: (settings.checkInInstructionsText && settings.checkInInstructionsText[isEn ? 'en' : 'it']) || '',
     wifiName: settings.wifiName || '', wifiPassword: settings.wifiPassword || '',
     streetGateLink: lib.normalizeExternalUrl(settings.streetGateLink), roomAccessCode: rep.roomAccessCode || '', hasRoomAccessCode: hasRoomAccessCode,
@@ -341,7 +341,7 @@ async function sendCheckinInstructionsGroup(settings, siblingDocs) {
    (non il giorno dopo), finestra 6-8 ora Roma come cleaning-reminders.js.
    ========================================================================== */
 async function composeAndSendThankYou(settings, docsGroup) {
-  var siteName = settings.siteName || 'Casa Celeste';
+  var siteName = settings.siteName || 'La struttura';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
@@ -374,7 +374,7 @@ async function sendThankYouGroup(settings, siblingDocs) {
    altre notti) — fino a 4 consigli & dintorni presi da Impostazioni.
    ========================================================================== */
 async function composeAndSendWellness(settings, docsGroup) {
-  var siteName = settings.siteName || 'Casa Celeste';
+  var siteName = settings.siteName || 'La struttura';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;
@@ -415,7 +415,7 @@ async function composeAndSendReviewRequest(settings, docsGroup) {
     await Promise.all(docsGroup.map(function (item) { return item.doc.ref.update({ reviewRequestEmailSent: true }); }));
     return false;
   }
-  var siteName = settings.siteName || 'Casa Celeste';
+  var siteName = settings.siteName || 'La struttura';
   var isGroup = docsGroup.length > 1;
   var first = docsGroup[0];
   var rep = first.b;

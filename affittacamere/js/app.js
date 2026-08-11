@@ -62,7 +62,7 @@
       title: { it: 'Privacy Policy', en: 'Privacy Policy' },
       paragraphs: {
         it: [
-          'Titolare del trattamento: Casa Celeste (locazione turistica esercitata in forma privata — CIN/CIR: [DA INSERIRE, se assegnato dalla Regione Puglia]), Via Giuseppe del Drago 9, Monopoli (BA), contattabile a lacasacelestemonopoli@gmail.com. Non è nominato un Responsabile della Protezione dei Dati (DPO): non è obbligatorio ai sensi dell\'art. 37 GDPR data la scala ridotta del trattamento (una struttura di poche stanze) — per qualunque richiesta scrivi comunque all\'indirizzo sopra.',
+          'Titolare del trattamento: {{legalEntityName}} (locazione turistica esercitata in forma privata{{cinClause}}), {{legalAddress}}contattabile a {{legalEmail}}. Non è nominato un Responsabile della Protezione dei Dati (DPO): non è obbligatorio ai sensi dell\'art. 37 GDPR data la scala ridotta del trattamento (una struttura di poche stanze) — per qualunque richiesta scrivi comunque all\'indirizzo sopra.',
           'Dati raccolti: dati di contatto (nome, email, telefono) al momento della richiesta di prenotazione; dati anagrafici e del documento d\'identità (inclusa una foto del documento) di tutti gli ospiti che soggiornano, raccolti tramite un link sicuro prima del check-in; dati di pagamento (gestiti direttamente da Stripe, vedi sotto — la carta non transita mai sui nostri sistemi).',
           'Base giuridica: la raccolta e la verifica dei dati anagrafici e del documento d\'identità NON si basano sul consenso ma sull\'adempimento di un obbligo di legge — l\'identificazione dell\'ospite prevista dall\'art. 109 T.U.L.P.S. (che richiede di verificare, non solo raccogliere, la corrispondenza tra la persona e il documento), le comunicazioni obbligatorie di pubblica sicurezza (Alloggiati Web, Questura), la comunicazione delle presenze e la riscossione della tassa di soggiorno (Comune di Monopoli), e le rilevazioni statistiche regionali (flussi ISTAT). La verifica avviene tramite una breve videochiamata (o, solo alla prima prenotazione, dal vivo al videocitofono): non viene registrata né conservata alcuna immagine o dato biometrico di questa verifica. I dati di contatto raccolti alla richiesta di prenotazione e i dati di pagamento si basano invece sull\'esecuzione di un accordo (pre)contrattuale con te.',
           'Destinatari e responsabili del trattamento: Questura di Bari, Comune di Monopoli, Regione Puglia (nella misura strettamente necessaria ad adempiere agli obblighi di legge sopra indicati); Stripe Payment Europe, Ltd. (elaborazione dei pagamenti con carta — Stripe tratta i dati di pagamento come titolare autonomo, con le proprie garanzie PCI-DSS: vedi la privacy policy di Stripe su stripe.com/privacy); Google Cloud/Firebase (hosting del sito, del database e delle funzioni server, region europe-west1 — Belgio); Google Cloud Vision API (lettura automatica — OCR — dei soli dati testuali stampati sul documento d\'identità caricato, per velocizzare la compilazione: l\'immagine viene inviata a questo servizio solo per l\'elaborazione istantanea, non è conservata da Google oltre il tempo necessario a rispondere alla richiesta); Telegram (bot Telegram usato dal titolare per gestire internamente le prenotazioni — se il titolare acquisisce la foto di un documento tramite il bot invece che dal modulo web, quella foto transita anche sull\'infrastruttura di Telegram Messenger Inc. prima di raggiungere i nostri sistemi). I dati non sono mai ceduti a terzi per finalità commerciali o di marketing.',
@@ -74,7 +74,7 @@
           'Nota: questo testo è un modello — si consiglia di farlo revisionare da un consulente legale/privacy prima della pubblicazione definitiva.'
         ],
         en: [
-          'Data Controller: Casa Celeste (short-term rental operated as a private individual — CIN/regional tourism code: [TO BE FILLED IN, if assigned by Regione Puglia]), Via Giuseppe del Drago 9, Monopoli (BA), Italy, contactable at lacasacelestemonopoli@gmail.com. No Data Protection Officer (DPO) is appointed: it is not mandatory under Art. 37 GDPR given the small scale of processing (a few rooms) — for any request, write to the address above regardless.',
+          'Data Controller: {{legalEntityName}} (short-term rental operated as a private individual{{cinClause}}), {{legalAddress}}contactable at {{legalEmail}}. No Data Protection Officer (DPO) is appointed: it is not mandatory under Art. 37 GDPR given the small scale of processing (a few rooms) — for any request, write to the address above regardless.',
           'Data collected: contact details (name, email, phone) when you submit a booking request; personal and ID document details (including a photo of the document) for every guest staying, collected via a secure link before check-in; payment data (handled directly by Stripe, see below — your card details never reach our systems).',
           'Legal basis: collecting personal and ID document data is NOT based on consent, but on compliance with a legal obligation — mandatory public security reporting (Alloggiati Web, local police), reporting guest presence and collecting the municipal tourist tax, and regional statistical reporting (ISTAT). Contact details collected at booking request and payment data are instead based on performing a (pre-)contractual agreement taken at your request.',
           'Recipients and processors: the Bari police headquarters, the Municipality of Monopoli, the Puglia Region (strictly to the extent required by the legal obligations above); Stripe Payment Europe, Ltd. (card payment processing — Stripe handles payment data as an independent controller, under its own PCI-DSS safeguards: see Stripe\'s privacy policy at stripe.com/privacy); Google Cloud/Firebase (hosting for the site, database and server functions, region europe-west1 — Belgium); Google Cloud Vision API (automatic OCR reading of the printed text on an uploaded ID document, to speed up form-filling: the image is sent to this service only for instant processing and is not retained by Google beyond what\'s needed to answer the request); Telegram (a Telegram bot the owner uses to manage bookings internally — if the owner captures an ID document photo via the bot instead of the web form, that photo also transits Telegram Messenger Inc.\'s infrastructure before reaching our systems). Data is never shared with third parties for commercial or marketing purposes.',
@@ -191,7 +191,7 @@
     bookingFromSearch: false,
     bookingGuestsEditing: true,
     bookingRoomId: null,
-    bookingRoomLabel: 'Casa Celeste',
+    bookingRoomLabel: 'La struttura',
     // Prenotazione di gruppo (più stanze insieme nello stesso modale)
     groupMode: false,
     groupRoomsCount: 2,
@@ -302,8 +302,8 @@
   // usati per sostituire {siteName}/{city}/{address} nelle stringhe i18n.
   function brandParams() {
     return {
-      siteName: (state.settings && state.settings.siteName) || 'Casa Celeste',
-      city: (state.settings && state.settings.city) || 'Monopoli',
+      siteName: (state.settings && state.settings.siteName) || 'La struttura',
+      city: (state.settings && state.settings.city) || '',
       address: houseAddress()
     };
   }
@@ -347,7 +347,7 @@
     if (!container) return;
     var uploaded = (state.settings && state.settings.facadePhotos) || [];
     function srcFor(i) { return uploaded[i - 1] || ('images/facciata-' + i + '.jpg'); }
-    var siteNameForAlt = (state.settings && state.settings.siteName) || 'Casa Celeste';
+    var siteNameForAlt = (state.settings && state.settings.siteName) || 'La struttura';
     var html = '<div class="hero-media-slide"><span class="photo-placeholder">' + t('photo.prefix') + ' ' + tpl(t('photo.facade'), { siteName: siteNameForAlt }) + '</span>' + photoTag(srcFor(1), 'Facciata di ' + siteNameForAlt) + '</div>';
     for (var i = 2; i <= 6; i++) {
       html += '<div class="hero-media-slide"><img src="' + srcFor(i) + '" alt="Facciata di Casa Celeste, vista ' + i + '" class="real-photo" loading="lazy" onerror="window.__ccHeroSlideError(this)"></div>';
@@ -531,8 +531,8 @@
     }
   };
   function seoMetaFor(lang) {
-    var siteName = (state.settings && state.settings.siteName) || 'Casa Celeste';
-    var city = (state.settings && state.settings.city) || 'Monopoli';
+    var siteName = (state.settings && state.settings.siteName) || 'La struttura';
+    var city = (state.settings && state.settings.city) || '';
     var tpl = SEO_META_TEMPLATE[lang];
     return {
       title: tpl.title.replace(/\{siteName\}/g, siteName).replace(/\{city\}/g, city),
@@ -703,7 +703,7 @@
   }
   function commonDetailHtml(id, def) {
     var name = tf(def.name);
-    var link = waLink(tpl(t('common.wa_info'), { name: name, siteName: (state.settings && state.settings.siteName) || 'Casa Celeste' }));
+    var link = waLink(tpl(t('common.wa_info'), { name: name, siteName: (state.settings && state.settings.siteName) || 'La struttura' }));
     var statsHtml = (def.stats || []).map(function (s) {
       return '<div class="stat-tile"><div class="stat-label">' + escapeHtml(tf(s.label)) + '</div><div class="stat-value">' + escapeHtml(tf(s.value)) + '</div></div>';
     }).join('');
@@ -727,6 +727,17 @@
     );
   }
   function renderCommon() {
+    var section = document.getElementById('spazi-comuni-anchor');
+    // Un appartamento intero non condivide spazi con altri ospiti in casa —
+    // tipo di struttura impostato da dashboard (Impostazioni → Generali,
+    // chiesto la prima volta all'accesso). Nessuno spazio comune configurato
+    // di suo non basta a nascondere la sezione (potrebbe essere solo vuota
+    // in attesa di essere compilata): serve la scelta esplicita.
+    if (state.settings && state.settings.propertyType === 'apartment') {
+      if (section) section.style.display = 'none';
+      return;
+    }
+    if (section) section.style.display = '';
     var container = document.getElementById('common-section');
     var commons = state.commonsData;
     var ids = orderedIds(commons);
@@ -957,7 +968,7 @@
      porta al wizard esistente già allo step ospiti se le date sono già
      scelte qui.
      ========================================================================== */
-  function houseAddress() { return (state.settings && state.settings.address) || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)'; }
+  function houseAddress() { return (state.settings && state.settings.address) || ''; }
   // Destinazione reale per ciascun punto d'interesse elencato in "Posizione"
   // (voce cliccabile -> conferma -> Google Maps con il percorso a piedi
   // dalla casa). Chiave = lo stesso data-map-poi usato sia nell'HTML
@@ -988,7 +999,7 @@
   function openMapsDirectionsToPoi(poiKey, label) {
     var dest = mapPoiQuery(poiKey);
     if (!dest) return;
-    if (!window.confirm(tpl(t('roomdetail.maps_confirm'), { place: label || dest, siteName: (state.settings && state.settings.siteName) || 'Casa Celeste' }))) return;
+    if (!window.confirm(tpl(t('roomdetail.maps_confirm'), { place: label || dest, siteName: (state.settings && state.settings.siteName) || 'La struttura' }))) return;
     var url = 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(houseAddress()) + '&destination=' + encodeURIComponent(dest) + '&travelmode=walking';
     window.open(url, '_blank', 'noopener');
   }
@@ -1241,7 +1252,7 @@
     if (state.guestsChildAges.length) url.searchParams.set('children', state.guestsChildAges.join(',')); else url.searchParams.delete('children');
     if (state.search.rooms > 1) url.searchParams.set('rooms', state.search.rooms); else url.searchParams.delete('rooms');
     var shareUrl = url.toString();
-    var shareText = tpl(t('roomdetail.share_text'), { room: room.name, siteName: (state.settings && state.settings.siteName) || 'Casa Celeste', city: (state.settings && state.settings.city) || 'Monopoli' });
+    var shareText = tpl(t('roomdetail.share_text'), { room: room.name, siteName: (state.settings && state.settings.siteName) || 'La struttura', city: (state.settings && state.settings.city) || '' });
     if (navigator.share) { navigator.share({ title: 'Casa Celeste — ' + room.name, text: shareText, url: shareUrl }).catch(function () {}); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(shareUrl).then(function () { if (onCopied) onCopied(); }).catch(function () {});
@@ -1298,7 +1309,7 @@
   function roomDetailLocationHtml() {
     return (
       '<div class="location-grid rd-location-grid">' +
-        '<div class="map-frame"><iframe title="' + escapeHtml('Mappa ' + ((state.settings && state.settings.siteName) || 'Casa Celeste')) + '" src="https://www.google.com/maps?q=' + encodeURIComponent(houseAddress()) + '&output=embed" loading="lazy"></iframe></div>' +
+        '<div class="map-frame"><iframe title="' + escapeHtml('Mappa ' + ((state.settings && state.settings.siteName) || 'La struttura')) + '" src="https://www.google.com/maps?q=' + encodeURIComponent(houseAddress()) + '&output=embed" loading="lazy"></iframe></div>' +
         '<div class="distance-list">' +
           '<button type="button" class="distance-item" data-map-poi="centro"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.centro')) + '</span><span class="distance-value">' + escapeHtml(mapPoiDistanceText('centro', 'dist.min1')) + '</span></button>' +
           '<button type="button" class="distance-item" data-map-poi="super"><span class="distance-label"><svg width="16" height="16"><use href="#icon-pin"></use></svg>' + escapeHtml(t('dist.super')) + '</span><span class="distance-value">' + escapeHtml(mapPoiDistanceText('super', 'dist.min2')) + '</span></button>' +
@@ -2856,7 +2867,7 @@
           '<button type="button" class="modal-close" data-close-booking aria-label="' + escapeHtml(t('common.chiudi')) + '">×</button>' +
           '<div class="modal-body">' +
             '<div class="modal-eyebrow">' + escapeHtml(t('booking.modal_eyebrow')) + '</div>' +
-            '<h3 class="modal-title">' + escapeHtml(state.bookingRoomLabel || 'Casa Celeste') + '</h3>' +
+            '<h3 class="modal-title">' + escapeHtml(state.bookingRoomLabel || 'La struttura') + '</h3>' +
             '<p class="modal-subtitle">' + escapeHtml(t('booking.modal_subtitle')) + '</p>' +
             stepHtml +
           '</div>' +
@@ -2923,7 +2934,7 @@
     state.bookingOpen = true;
     state.bookingStep = 1;
     state.bookingRoomId = roomId;
-    state.bookingRoomLabel = roomLabel || (state.roomsData[roomId] && state.roomsData[roomId].name) || 'Casa Celeste';
+    state.bookingRoomLabel = roomLabel || (state.roomsData[roomId] && state.roomsData[roomId].name) || 'La struttura';
     var room = state.roomsData[roomId];
     var searched = state.search.checkIn && state.search.checkOut;
     state.selectedCheckIn = searched ? state.search.checkIn : null;
@@ -3611,7 +3622,24 @@
     var root = document.getElementById('legal-modal-root');
     if (!state.legalOpen) { root.innerHTML = ''; updateBodyScrollLock(); return; }
     var legal = LEGAL_DEFS[state.activeLegalId] || LEGAL_DEFS.privacy;
-    var paragraphs = (legal.paragraphs[state.lang] || legal.paragraphs.it).map(function (p) { return '<p>' + escapeHtml(p) + '</p>'; }).join('');
+    // Sostituzione token SOLO per il primo paragrafo (titolare del
+    // trattamento/locatore) — vedi Impostazioni → Host. Il resto
+    // dell'informativa privacy cita ancora autorità locali fisse (Questura
+    // di Bari, Comune di Monopoli, Regione Puglia): valide solo per Casa
+    // Celeste, andrebbero generalizzate o rifatte per zona da un consulente
+    // legale prima di vendere il sistema a un cliente fuori da quell'area.
+    var ls = state.settings || {};
+    var legalEntityName = ls.legalEntityName || ('⚠️ ' + (ls.siteName || 'La struttura') + ' — nome del titolare non ancora impostato in Impostazioni → Host');
+    var tokenMap = {
+      '{{legalEntityName}}': legalEntityName,
+      '{{cinClause}}': ls.legalCin ? (' — CIN/CIR: ' + ls.legalCin) : '',
+      '{{legalAddress}}': ls.address ? (ls.address + ', ') : '',
+      '{{legalEmail}}': ls.managerEmail || '⚠️ email di contatto non ancora impostata'
+    };
+    function fillTokens(p) {
+      return p.replace(/\{\{legalEntityName\}\}|\{\{cinClause\}\}|\{\{legalAddress\}\}|\{\{legalEmail\}\}/g, function (m) { return tokenMap[m]; });
+    }
+    var paragraphs = (legal.paragraphs[state.lang] || legal.paragraphs.it).map(function (p) { return '<p>' + escapeHtml(fillTokens(p)) + '</p>'; }).join('');
     root.innerHTML =
       '<div class="modal-overlay" id="legal-overlay">' +
         '<div class="modal-box modal-box--legal">' +
@@ -3917,7 +3945,7 @@
   }
   function loadMapEmbed(el) {
     var query = houseAddress() || el.getAttribute('data-map-query') || '';
-    var siteName = (state.settings && state.settings.siteName) || 'Casa Celeste';
+    var siteName = (state.settings && state.settings.siteName) || 'La struttura';
     el.outerHTML = '<iframe title="' + escapeHtml('Mappa ' + siteName) + '" src="' + escapeHtml(mapEmbedSrc(query)) + '" loading="lazy"></iframe>';
   }
   function loadAllMapEmbeds() {

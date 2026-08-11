@@ -39,7 +39,7 @@ function buildIcs(roomId, ranges, siteName) {
 async function main() {
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
   var settingsSnap = await db.collection('tourism_settings').doc('site').get();
-  var siteName = (settingsSnap.exists && settingsSnap.data().siteName) || 'Casa Celeste';
+  var siteName = (settingsSnap.exists && settingsSnap.data().siteName) || 'La struttura';
   var snap = await db.collection('tourism_rooms').get();
   var written = 0;
   snap.forEach(function (doc) {

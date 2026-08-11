@@ -123,7 +123,7 @@ async function requestSignatureOtpCore(ctx, data) {
   });
 
   const isEn = booking.lang === 'en';
-  const siteName = settings.siteName || 'Casa Celeste';
+  const siteName = settings.siteName || 'La struttura';
   const subject = isEn ? ('Your ' + siteName + ' verification code') : ('Il tuo codice di verifica ' + siteName);
   const result = await sendMail(gmailUser, gmailAppPassword, booking.email, subject, otpEmailHtml(booking, code, isEn, siteName), siteName);
   const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';

@@ -206,7 +206,7 @@ function unauthorizedText(chatId) {
 }
 function helpText(authorized, chatId, siteName) {
   return [
-    '👋 Ciao! Sono il bot di ' + (siteName || 'Casa Celeste') + '.',
+    '👋 Ciao! Sono il bot di ' + (siteName || 'questa struttura') + '.',
     '',
     'Cosa faccio automaticamente, se sei autorizzato:',
     '• ti avviso appena arriva una nuova prenotazione dal sito;',

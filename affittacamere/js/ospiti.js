@@ -98,10 +98,15 @@
   function contractTextHtml(b) {
     var priceLine = (b.pricing && b.pricing.total != null) ? ('€' + Number(b.pricing.total).toFixed(2)) : 'da confermare';
     var taxDue = (b.touristTax && b.touristTax.totalDue) || 0;
+    var s = state.siteSettings || {};
+    var siteName = s.siteName || 'La struttura';
+    var landlordName = s.legalEntityName || ('⚠️ ' + siteName + ' — ragione sociale/nome del locatore non ancora impostato in Impostazioni → Host');
+    var landlordAddress = s.address ? (', ' + s.address) : '';
+    var cinLine = s.legalCin ? (' — CIN/CIR: ' + escapeHtml(s.legalCin)) : '';
     return (
-      '<p><strong>Locatore:</strong> Casa Celeste, Via Giuseppe Can. del Drago 9, Monopoli (BA).</p>' +
+      '<p><strong>Locatore:</strong> ' + escapeHtml(landlordName) + escapeHtml(landlordAddress) + cinLine + '.</p>' +
       '<p><strong>Conduttore:</strong> ' + escapeHtml(b.name || '') + ' (' + escapeHtml(b.email || '') + ')</p>' +
-      '<p><strong>Immobile:</strong> ' + escapeHtml(b.roomLabel || '') + ' — Casa Celeste, Monopoli (BA).</p>' +
+      '<p><strong>Immobile:</strong> ' + escapeHtml(b.roomLabel || '') + ' — ' + escapeHtml(siteName) + (s.address ? (', ' + escapeHtml(s.address)) : '') + '.</p>' +
       '<p><strong>Periodo:</strong> dal ' + escapeHtml(b.checkIn || '') + ' al ' + escapeHtml(b.checkOut || '') + ' (' + (b.nights || 0) + ' notti), ' + (b.guests || 0) + ' ospiti.</p>' +
       '<p><strong>Corrispettivo pattuito:</strong> ' + priceLine + ' comprensivo di tassa di soggiorno ove dovuta (€' + taxDue.toFixed(2) + ').</p>' +
       '<p>Il conduttore dichiara di aver letto e accettato i <button type="button" class="link-btn" id="signature-terms-link" style="display:inline; padding:0;">Termini e Condizioni</button> del sito, comprese le clausole su recesso e foro competente, e sottoscrive elettronicamente il presente contratto tramite codice OTP inviato all\'indirizzo email indicato sopra, ai sensi dell\'art. 20 del D.Lgs. 82/2005 (Firma Elettronica Semplice).</p>' +
@@ -335,7 +340,8 @@
   function applyBranding() {
     if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) return;
     window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) {
-      var siteName = (settingsFromDb && settingsFromDb.siteName) || 'Casa Celeste';
+      state.siteSettings = settingsFromDb || {};
+      var siteName = state.siteSettings.siteName || 'La struttura';
       document.title = document.title.replace(/Casa Celeste$/, siteName);
       var logoEl = document.querySelector('.logo-text');
       if (logoEl) logoEl.textContent = siteName;

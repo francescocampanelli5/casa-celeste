@@ -59,7 +59,7 @@ function addDaysIso(iso, days) {
 // elencare tutte le stanze in una frase, condiviso da guest-lifecycle-emails.js
 // e guest-docs-reminder.js.
 function joinRoomNames(bookings, isEn, siteName) {
-  var names = bookings.map(function (b) { return b.roomLabel || siteName || 'Casa Celeste'; });
+  var names = bookings.map(function (b) { return b.roomLabel || siteName || 'La struttura'; });
   if (names.length <= 1) return names[0] || '';
   var last = names[names.length - 1];
   var head = names.slice(0, -1).join(', ');
@@ -211,12 +211,12 @@ async function sendGuestEmail(settings, templateFile, templateParams, label, tex
     console.log('Email "' + label + '" non configurata (mancano i secrets GMAIL_USER/GMAIL_APP_PASSWORD): salto.');
     return { sent: false, reason: 'not_configured' };
   }
-  var siteName = settings.siteName || 'Casa Celeste';
+  var siteName = settings.siteName || 'La struttura';
   var isEnForShared = !!templateParams.isEn;
   var vars = Object.assign({
     siteName: siteName,
-    city: settings.city || 'Monopoli',
-    address: settings.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA)',
+    city: settings.city || '',
+    address: settings.address || '',
     // Impostazioni → Aspetto & personalizzazione → Email: riga di firma
     // facoltativa in fondo a ogni email guidata da qui (promemoria
     // documenti, istruzioni check-in, andamento soggiorno, ringraziamento,

@@ -229,7 +229,7 @@
   function applyBranding() {
     if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) return;
     window.CasaCelesteTourismDB.subscribeSettings(function (settingsFromDb) {
-      var siteName = (settingsFromDb && settingsFromDb.siteName) || 'Casa Celeste';
+      var siteName = (settingsFromDb && settingsFromDb.siteName) || 'La struttura';
       document.title = document.title.replace(/Casa Celeste$/, siteName);
       var logoEl = document.querySelector('.logo-text');
       if (logoEl) logoEl.textContent = siteName;

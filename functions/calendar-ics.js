@@ -45,12 +45,12 @@ function buildBookingIcs(booking, opts) {
   var isEn = booking.lang === 'en';
   var dtStart = romeWallTimeToUtcDate(booking.checkIn, checkInTime);
   var dtEnd = romeWallTimeToUtcDate(booking.checkOut, checkOutTime);
-  var siteName = opts.siteName || 'Casa Celeste';
+  var siteName = opts.siteName || 'La struttura';
   var summary = siteName + ' — ' + (booking.roomLabel || (isEn ? 'stay' : 'soggiorno'));
   var description = isEn
     ? ('Check-in: ' + checkInTime + '. Check-out: ' + checkOutTime + '.')
     : ('Check-in: ore ' + checkInTime + '. Check-out: ore ' + checkOutTime + '.');
-  var location = opts.address || 'Via Giuseppe Can. del Drago 9, Monopoli (BA), Italia';
+  var location = opts.address || '';
   var uid = 'casaceleste-' + (booking.id || Math.random().toString(36).slice(2)) + '@lacasaceleste.it';
   var lines = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//' + siteName + '//Affittacamere//IT', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
