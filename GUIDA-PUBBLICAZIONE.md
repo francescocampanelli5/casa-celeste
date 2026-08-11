@@ -1203,33 +1203,46 @@ password.
 
 ### 9.4 Aggiungere un nuovo cliente
 
-Processo manuale (nessuna automazione per ora — coerente con l'assenza di
-clienti reali finché non ne firmi uno):
+Solo il primo passo resta manuale (richiede il browser e un account Google —
+nessun agente può farlo al posto tuo). Dal secondo in poi uno script guidato
+sostituisce tutti i comandi da terminale visti nelle Parti 3/8:
 
-1. Ripeti la **Parte 3** di questa guida su un progetto Firebase NUOVO,
-   dedicato solo a quel cliente (`nome-cliente-affittacamere` o simile).
-2. Deploya lì l'intero codice di `affittacamere/` + `functions/` (incluso
-   `functions/platform-control.js`, già parte del codebase — nessuna
-   modifica da fare, si porta dietro automaticamente).
-3. Imposta su quel progetto TUTTI i secret già noti (Gmail, Stripe, Telegram,
-   Google Sheet se lo usa) **più** uno nuovo, scelto da te per questo
-   cliente:
+1. Console Firebase → **Aggiungi progetto**, dedicato solo a quel cliente
+   (`nome-cliente-affittacamere` o simile) → attiva **Firestore Database**
+   (modalità produzione) e **Authentication → Email/Password**, esattamente
+   come Parte 3.1/3.2 — nessuna regola da incollare a mano, ci pensa lo
+   script al passo successivo.
+2. Dalla radice del repo (dopo `firebase login`, una volta sola per computer):
    ```
-   firebase functions:secrets:set PLATFORM_SHARED_SECRET --project nome-progetto-cliente
+   node scripts/onboard-tenant.js --project nome-progetto-cliente --secret VALORE-SEGRETO-SCELTO-DA-TE
    ```
-4. Nella piattaforma (`platform-admin/index.html`) → **+ Nuovo cliente** →
-   compila nome struttura, contatti, l'**URL funzioni** (formato
-   `https://europe-west1-NOME-PROGETTO-CLIENTE.cloudfunctions.net`, lo trovi
-   aprendo una qualsiasi Cloud Function di quel progetto in console) e lo
-   **stesso segreto** impostato al passo 3.
-5. Bottone **"Crea utente proprietario"** sulla card del cliente appena
+   Fai prima una prova con `--dry-run` in fondo al comando per vedere
+   l'elenco dei comandi senza eseguire nulla. Lo script, in ordine:
+   pubblica regole Firestore/Storage e indici, imposta un valore
+   placeholder per ogni secret opzionale (Telegram/Gmail/Stripe/Google
+   Sheet — il cliente li sovrascrive da dashboard quando li avrà, vedi
+   sotto), imposta `PLATFORM_SHARED_SECRET` con il valore reale passato a
+   `--secret`, poi pubblica le Cloud Functions. Stampa alla fine l'URL
+   funzioni da usare al passo 3.
+3. Nella piattaforma (`platform-admin/index.html`) → **+ Nuovo cliente** →
+   compila nome struttura, contatti, l'**URL funzioni** stampato dallo
+   script (formato `https://europe-west1-NOME-PROGETTO-CLIENTE.cloudfunctions.net`)
+   e lo **stesso segreto** passato a `--secret`.
+4. Bottone **"Crea utente proprietario"** sulla card del cliente appena
    creato: inserisci l'email del cliente e una password temporanea — la
    piattaforma crea da remoto il suo primo accesso alla propria dashboard
    (`.../dashboard.html` sul SUO progetto), senza che tu debba mai entrare
    manualmente nella console Firebase di quel cliente per crearlo.
-6. Da qui in poi il cliente personalizza tutto da sola/o dalla propria
-   dashboard (nome struttura, stanze, prezzi, email, ecc.) — tu non tocchi
-   mai i suoi contenuti, solo lo stato del suo abbonamento.
+5. Da qui in poi il cliente personalizza tutto da solo dalla propria
+   dashboard (nome struttura, stanze, prezzi, email, credenziali Telegram/
+   Stripe/Gmail/Google Sheet in Impostazioni → Integrazioni, ecc.) — tu non
+   tocchi mai i suoi contenuti, solo lo stato del suo abbonamento.
+
+**Nota sui secret placeholder**: `TELEGRAM_WEBHOOK_SECRET` e `VISION_API_KEY`
+non sono configurabili da dashboard (sono per funzioni avanzate opzionali —
+webhook bot in tempo reale, OCR documenti) e restano sul valore placeholder
+finché non li imposti tu stesso più avanti seguendo la Parte 8.2.1, se e
+quando il cliente vorrà quelle funzioni.
 
 Se un cliente smette di pagare: card del cliente → **"Disattiva servizio"**.
 Il suo sito e la sua dashboard mostreranno subito "Servizio disabilitato" (e
