@@ -416,7 +416,7 @@
     // Struttura, senza una voce propria nel menu.
     { title: 'Contenuti', items: [
       { tab: 'home', label: 'Home' },
-      { tab: 'monopoli', label: 'Monopoli' },
+      { tab: 'monopoli', label: 'La zona' },
       { tab: 'rooms', label: 'Stanze' },
       { tab: 'commons', label: 'Spazi comuni' },
       { tab: 'location', label: 'Posizione' },
@@ -429,7 +429,7 @@
       { tab: 'settings', label: 'Impostazioni' }
     ] }
   ];
-  var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'Monopoli', home: 'Home', location: 'Posizione', host: 'Host', compliance: 'Adempimenti', email: 'Email ospiti', settings: 'Impostazioni' };
+  var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'La zona', home: 'Home', location: 'Posizione', host: 'Host', compliance: 'Adempimenti', email: 'Email ospiti', settings: 'Impostazioni' };
 
   function sidebarLinksHtml() {
     // "Spazi comuni" ha senso solo se la struttura è a stanze con aree
@@ -2091,7 +2091,7 @@
     var cards = ids.map(function (id) { return reviewAdminCardHtml(id, state.reviewsData[id]); }).join('');
     content.innerHTML =
       '<h1 class="dash-section-title">Recensioni</h1>' +
-      '<button type="button" class="dash-seed-btn" id="seed-reviews-btn">Inizializza le recensioni con i valori di esempio</button>' +
+      '<button type="button" class="dash-seed-btn" id="seed-reviews-btn">Inizializza le recensioni con i valori di esempio di Casa Celeste (solo per prova/dimostrazione)</button>' +
       '<div class="dash-room-rows">' + cards + '</div>' +
       '<button type="button" class="dash-add-room-btn" id="add-review-btn">+ Aggiungi una recensione</button>';
     content.querySelectorAll('[data-review-field]').forEach(function (el) {
@@ -2400,8 +2400,8 @@
     var ids = Object.keys(state.monoSlidesData).sort(function (a, b) { return (state.monoSlidesData[a].order || 999999) - (state.monoSlidesData[b].order || 999999); });
     var cards = ids.map(function (id) { return monoSlideAdminCardHtml(id, state.monoSlidesData[id]); }).join('');
     content.innerHTML =
-      '<h1 class="dash-section-title">Monopoli</h1>' +
-      '<button type="button" class="dash-seed-btn" id="seed-mono-btn">Inizializza il carosello con i valori di esempio</button>' +
+      '<h1 class="dash-section-title">La zona</h1>' +
+      '<button type="button" class="dash-seed-btn" id="seed-mono-btn">Inizializza il carosello con i valori di esempio di Casa Celeste (solo per prova/dimostrazione)</button>' +
       '<div class="dash-room-rows">' + cards + '</div>' +
       '<button type="button" class="dash-add-room-btn" id="add-mono-btn">+ Aggiungi uno scatto</button>';
     content.querySelectorAll('[data-mono-field]').forEach(function (el) {
