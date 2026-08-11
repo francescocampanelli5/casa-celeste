@@ -136,10 +136,9 @@
     it: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
     en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   };
-  var DEFAULT_WA_NUMBER = '393381567389';
   function waNumber() {
-    var raw = (state.settings && state.settings.phone) || DEFAULT_WA_NUMBER;
-    return String(raw).replace(/\D/g, '') || DEFAULT_WA_NUMBER;
+    var raw = (state.settings && state.settings.phone) || '';
+    return String(raw).replace(/\D/g, '');
   }
   function formatPhoneDisplay(raw) {
     var d = String(raw || '').replace(/\D/g, '');
@@ -586,10 +585,31 @@
       el.classList.toggle('is-active', el.getAttribute('data-lang-set') === state.lang);
     });
 
+    var wa = waNumber();
     var footerWaPlain = document.getElementById('footer-wa-plain');
-    if (footerWaPlain) footerWaPlain.href = 'https://wa.me/' + waNumber();
+    if (footerWaPlain) {
+      footerWaPlain.style.display = wa ? '' : 'none';
+      footerWaPlain.href = 'https://wa.me/' + wa;
+    }
     var footerWaNumberText = document.getElementById('footer-wa-number');
-    if (footerWaNumberText) footerWaNumberText.textContent = formatPhoneDisplay(waNumber());
+    if (footerWaNumberText) footerWaNumberText.textContent = formatPhoneDisplay(wa);
+    // Email di contatto generale del sito (bottone CTA finale + link footer)
+    // — campo distinto da settings.managerEmail (quello è solo per la card
+    // "Host"/Apartment Manager) apposta: nascosti se non impostato invece di
+    // ricadere sull'email reale di Casa Celeste per qualsiasi altro cliente
+    // che non l'abbia ancora compilato.
+    var contactEmail = (state.settings && state.settings.contactEmail || '').trim();
+    var finalCtaEmail = document.getElementById('final-cta-email');
+    if (finalCtaEmail) {
+      finalCtaEmail.style.display = contactEmail ? '' : 'none';
+      finalCtaEmail.href = contactEmail ? ('mailto:' + contactEmail) : '#';
+    }
+    var footerEmailLink = document.getElementById('footer-email-link');
+    if (footerEmailLink) {
+      footerEmailLink.style.display = contactEmail ? '' : 'none';
+      footerEmailLink.href = contactEmail ? ('mailto:' + contactEmail) : '#';
+      footerEmailLink.textContent = contactEmail;
+    }
   }
   function renderAllDynamic() {
     renderHeroMedia();
@@ -893,11 +913,57 @@
     }
     scriptEl.textContent = JSON.stringify(data);
   }
+  // Dati strutturati LodgingBusiness (per i risultati di ricerca Google) —
+  // il tag statico in index.html resta il fallback pre-JS/senza JS con i
+  // dati reali di Casa Celeste (stesso compromesso già accettato per
+  // <title>/meta description, vedi seoMetaFor); appena settings/stanze sono
+  // caricati questa funzione lo sovrascrive con i dati del tenant reale, mai
+  // inventati né lasciati a metà (ogni sotto-campo è incluso solo se
+  // configurato in Impostazioni → Posizione).
+  function updateLodgingJsonLd() {
+    var scriptEl = document.getElementById('lodging-jsonld');
+    if (!scriptEl) return;
+    var s = state.settings || {};
+    var siteName = (s.siteName || '').trim();
+    if (!siteName) return;
+    var origin = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+    var data = {
+      '@context': 'https://schema.org', '@type': 'LodgingBusiness',
+      name: siteName,
+      description: seoMetaFor('it').description,
+      url: origin,
+      currenciesAccepted: 'EUR',
+      checkinTime: s.checkInTime || '15:00',
+      checkoutTime: s.checkOutTime || '10:00'
+    };
+    var addr = {};
+    if (s.address) addr.streetAddress = s.address;
+    if (s.city) addr.addressLocality = s.city;
+    if (s.addressRegion) addr.addressRegion = s.addressRegion;
+    if (s.postalCode) addr.postalCode = s.postalCode;
+    if (s.addressCountry) addr.addressCountry = s.addressCountry;
+    if (Object.keys(addr).length) { addr['@type'] = 'PostalAddress'; data.address = addr; }
+    var lat = parseFloat(s.geoLat), lng = parseFloat(s.geoLng);
+    if (!isNaN(lat) && !isNaN(lng)) data.geo = { '@type': 'GeoCoordinates', latitude: lat, longitude: lng };
+    var phoneDigits = String(s.phone || '').replace(/\D/g, '');
+    if (phoneDigits) data.telephone = '+' + phoneDigits;
+    if (s.avgRating != null) {
+      var reviewCount = s.reviewCountOverride != null ? s.reviewCountOverride : Object.keys(state.reviewsData || {}).length;
+      data.aggregateRating = { '@type': 'AggregateRating', ratingValue: String(s.avgRating), reviewCount: String(reviewCount || 1), bestRating: '5' };
+    }
+    var prices = orderedIds(state.roomsData).map(function (id) { return state.roomsData[id].nightlyPrice; }).filter(function (p) { return typeof p === 'number' && p > 0; });
+    if (prices.length) {
+      var min = Math.min.apply(null, prices), max = Math.max.apply(null, prices);
+      data.priceRange = min === max ? ('€' + min) : ('€' + min + '-€' + max);
+    }
+    scriptEl.textContent = JSON.stringify(data);
+  }
   function renderRooms() {
     var container = document.getElementById('rooms-section');
     var rooms = state.roomsData;
     var otherIds = orderedIds(rooms);
     updateRoomsJsonLd();
+    updateLodgingJsonLd();
 
     var s = state.search;
     var searched = !!(s.performed && s.checkIn && s.checkOut);
@@ -2289,7 +2355,7 @@
     var phoneHtml = phoneDigits
       ? '<a href="tel:+' + phoneDigits + '" class="manager-contact-row"><span>' + escapeHtml(formatPhoneDisplay(phoneDigits)) + '</span></a>'
       : '';
-    var email = (s.managerEmail || 'lacasacelestemonopoli@gmail.com').trim();
+    var email = (s.managerEmail || '').trim();
     var emailHtml = email
       ? '<a href="mailto:' + escapeHtml(email) + '" class="manager-contact-row"><span>' + escapeHtml(email) + '</span></a>'
       : '';

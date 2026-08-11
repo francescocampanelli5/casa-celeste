@@ -2606,10 +2606,29 @@
         '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Punti d\'interesse vicini</span></div>' +
         infoNoteHtml('Destinazione (per "indicazioni stradali" su Google Maps) e tempo a piedi da casa. Lascia vuoto per mantenere i default di Monopoli.') +
         mapPoiRowsHtml +
+      '</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Dati per i motori di ricerca (facoltativi)</span></div>' +
+        infoNoteHtml('Usati solo nei dati strutturati che aiutano Google a mostrare la scheda della struttura nei risultati di ricerca. Lascia vuoto ciò che non conosci: viene semplicemente omesso, mai sostituito con un valore di un\'altra struttura.') +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Provincia (sigla)</label><input type="text" class="admin-field" id="settings-address-region" value="' + escapeHtml(s.addressRegion || '') + '" placeholder="BA"></div>' +
+          '<div class="admin-field-group"><label>CAP</label><input type="text" class="admin-field" id="settings-postal-code" value="' + escapeHtml(s.postalCode || '') + '" placeholder="70043"></div>' +
+          '<div class="admin-field-group"><label>Paese (codice ISO)</label><input type="text" class="admin-field" id="settings-address-country" value="' + escapeHtml(s.addressCountry || '') + '" placeholder="IT"></div>' +
+        '</div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Latitudine GPS</label><input type="text" class="admin-field" id="settings-geo-lat" value="' + escapeHtml(s.geoLat || '') + '" placeholder="40.9539631"></div>' +
+          '<div class="admin-field-group"><label>Longitudine GPS</label><input type="text" class="admin-field" id="settings-geo-lng" value="' + escapeHtml(s.geoLng || '') + '" placeholder="17.2950498"></div>' +
+        '</div>' +
+        infoNoteHtml('Le coordinate si trovano su Google Maps: cerca il tuo indirizzo, tasto destro sul puntino esatto → il primo numero della riga che compare è la latitudine, il secondo la longitudine.') +
       '</div>';
     document.getElementById('settings-city').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ city: e.target.value.trim() }); });
     document.getElementById('settings-address').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ address: e.target.value.trim() }); });
     document.getElementById('settings-map-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ mapLink: e.target.value.trim() }); });
+    document.getElementById('settings-address-region').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ addressRegion: e.target.value.trim() }); });
+    document.getElementById('settings-postal-code').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ postalCode: e.target.value.trim() }); });
+    document.getElementById('settings-address-country').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ addressCountry: e.target.value.trim() }); });
+    document.getElementById('settings-geo-lat').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ geoLat: e.target.value.trim() }); });
+    document.getElementById('settings-geo-lng').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ geoLng: e.target.value.trim() }); });
     content.querySelectorAll('[data-poi-field]').forEach(function (el) {
       el.addEventListener('change', function (e) {
         var key = e.target.getAttribute('data-poi-key');
@@ -3350,7 +3369,7 @@
     }
     var s = state.settings || {};
     var sp = state.settingsPrivate || {};
-    var phoneVal = s.phone || '393381567389';
+    var phoneVal = s.phone || '';
     var recipients = s.cleaningRecipients || [];
     var authorized = s.bookingCommandAuthorized || [];
     var maintenanceRecipients = s.maintenanceRecipients || [];
@@ -3428,7 +3447,8 @@
         '<div class="admin-room-card">' +
           '<div class="admin-field-group admin-field-group--full"><label>Nome della struttura</label><input type="text" class="admin-field" id="settings-site-name" value="' + escapeHtml(s.siteName || '') + '" placeholder="Es. La Tua Struttura"></div>' +
           '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usato su sito, email e bot Telegram al posto del valore di default.</div>' +
-          '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '"></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Numero WhatsApp di contatto</label><input type="text" class="admin-field" id="settings-phone" value="' + escapeHtml(phoneVal) + '" placeholder="393381234567"></div>' +
+          '<div class="admin-field-group admin-field-group--full"><label>Email di contatto (bottoni "Scrivici" e footer del sito)</label><input type="text" class="admin-field" id="settings-contact-email" value="' + escapeHtml(s.contactEmail || '') + '" placeholder="tuastruttura@gmail.com"></div>' +
           '<div class="admin-field-group"><label>Check-in dalle</label><input type="text" class="admin-field" id="settings-checkin" value="' + escapeHtml(s.checkInTime || '15:00') + '"></div>' +
           '<div class="admin-field-group"><label>Check-out entro</label><input type="text" class="admin-field" id="settings-checkout" value="' + escapeHtml(s.checkOutTime || '10:00') + '"></div>' +
           '<div class="admin-field-group"><label>Tassa di soggiorno (€/notte/persona)</label><input type="number" step="0.5" class="admin-field" id="settings-tax-rate" value="' + (s.touristTaxRate != null ? s.touristTaxRate : 0) + '"></div>' +
@@ -3667,6 +3687,9 @@
     });
     document.getElementById('settings-phone').addEventListener('change', function (e) {
       window.CasaCelesteTourismDB.setSettings({ phone: e.target.value.replace(/\D/g, '') });
+    });
+    document.getElementById('settings-contact-email').addEventListener('change', function (e) {
+      window.CasaCelesteTourismDB.setSettings({ contactEmail: e.target.value.trim() });
     });
     document.getElementById('settings-checkin').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkInTime: e.target.value }); });
     document.getElementById('settings-checkout').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutTime: e.target.value }); });

@@ -34,7 +34,7 @@
 <meta name="twitter:description" content="Locazione turistica indipendente a Monopoli: stanze in affitto a notte, a due passi da centro e mare.">
 <meta name="theme-color" content="#10233B">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232C8FC9'/%3E%3Crect x='14' y='4' width='14' height='14' rx='4' fill='%23FFD24C'/%3E%3C/svg%3E">
-<script type="application/ld+json">
+<script type="application/ld+json" id="lodging-jsonld">
 {"@context":"https://schema.org","@type":"LodgingBusiness","name":"Casa Celeste","alternateName":["Affittacamere Casa Celeste Monopoli","Casa vacanze Monopoli","Locazione turistica Monopoli"],"description":"Locazione turistica indipendente a Monopoli, stanze in affitto a notte a pochi passi dal centro storico e dal mare.","keywords":"affittacamere Monopoli, casa vacanze Monopoli, locazione turistica Monopoli, stanze in affitto a notte Monopoli","url":"https://lacasaceleste.it/affittacamere/","priceRange":"€50-€80","currenciesAccepted":"EUR","paymentAccepted":"Cash, Credit Card, Apple Pay, Google Pay","aggregateRating":{"@type":"AggregateRating","ratingValue":"4.5","reviewCount":"3","bestRating":"5"},"address":{"@type":"PostalAddress","streetAddress":"Via Giuseppe Can. del Drago 9","addressLocality":"Monopoli","addressRegion":"BA","postalCode":"70043","addressCountry":"IT"},"geo":{"@type":"GeoCoordinates","latitude":40.9539631,"longitude":17.2950498},"telephone":"+393381567389","checkinTime":"15:00","checkoutTime":"10:00","petsAllowed":false,"smokingAllowed":false,"amenityFeature":[{"@type":"LocationFeatureSpecification","name":"Wi-Fi gratuito","value":true},{"@type":"LocationFeatureSpecification","name":"Cucina","value":true},{"@type":"LocationFeatureSpecification","name":"Parcheggio","value":true},{"@type":"LocationFeatureSpecification","name":"Ascensore","value":true},{"@type":"LocationFeatureSpecification","name":"Biciclette","value":true}]}
 </script>
 <script type="application/ld+json">
@@ -411,7 +411,7 @@
       <p data-i18n-html="finalcta.text_html">Scrivici due righe: rispondiamo in giornata con tutte le informazioni su disponibilità e prezzi.</p>
       <div class="final-cta-ctas">
         <button type="button" class="btn btn-whatsapp" data-open-assist data-i18n="finalcta.wa_cta">Scrivici su WhatsApp</button>
-        <a href="mailto:lacasacelestemonopoli@gmail.com?subject=Informazioni%20Casa%20Celeste" class="btn btn-outline btn-outline--dark" data-i18n="finalcta.email_cta">Scrivici una email</a>
+        <a href="#" id="final-cta-email" class="btn btn-outline btn-outline--dark" data-i18n="finalcta.email_cta">Scrivici una email</a>
       </div>
     </div>
   </section>
@@ -441,8 +441,8 @@
       <div>
         <div class="footer-col-title" data-i18n="footer.contatti">Contatti</div>
         <div class="footer-links">
-          <a href="https://wa.me/393381567389" target="_blank" rel="noopener" class="footer-link" id="footer-wa-plain">WhatsApp — <span id="footer-wa-number">+39 338 156 7389</span></a>
-          <a href="mailto:lacasacelestemonopoli@gmail.com" class="footer-link">lacasacelestemonopoli@gmail.com</a>
+          <a href="#" target="_blank" rel="noopener" class="footer-link" id="footer-wa-plain">WhatsApp — <span id="footer-wa-number"></span></a>
+          <a href="#" class="footer-link" id="footer-email-link"></a>
           <span class="footer-static" data-brand="address">Via Giuseppe Can. del Drago 9, Monopoli (BA)</span>
         </div>
       </div>
