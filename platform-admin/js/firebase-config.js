@@ -10,12 +10,12 @@
 // ==========================================================================
 
 window.FIREBASE_CONFIG = {
-  apiKey: "INCOLLA_QUI_APIKEY",
-  authDomain: "INCOLLA_QUI_AUTHDOMAIN",
-  projectId: "INCOLLA_QUI_PROJECTID",
-  storageBucket: "INCOLLA_QUI_STORAGEBUCKET",
-  messagingSenderId: "INCOLLA_QUI_SENDERID",
-  appId: "INCOLLA_QUI_APPID"
+  apiKey: "AIzaSyCR5rpVmk8dMAQmqiLvYKWdGMtdJZ8zgSo",
+  authDomain: "celeste-saas-control.firebaseapp.com",
+  projectId: "celeste-saas-control",
+  storageBucket: "celeste-saas-control.firebasestorage.app",
+  messagingSenderId: "31141248565",
+  appId: "1:31141248565:web:30cb2d084c6b27372afb7c"
 };
 
 // Lascia questo a false. Serve solo per i test in locale con gli emulatori
