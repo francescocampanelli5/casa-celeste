@@ -129,11 +129,20 @@ function subjectFor(key, isEn, b, siteName) {
 }
 
 // ---- Gmail (Nodemailer) ----
+// Cache tenuta anche a chiave (utente+password), non solo a "esiste già":
+// da quando le credenziali possono arrivare da Firestore (Impostazioni →
+// Integrazioni, vedi integration-settings.js) invece che solo da un secret
+// CLI fisso, un'istanza Cloud Function calda potrebbe vedere credenziali
+// diverse tra un invito e l'altro — senza la chiave continuerebbe a usare il
+// transporter (e quindi le credenziali) della primissima chiamata.
 let mailTransport = null;
+let mailTransportKey = null;
 function getMailTransport(gmailUser, gmailAppPassword) {
-  if (mailTransport) return mailTransport;
   if (!gmailUser || !gmailAppPassword) return null;
+  const key = gmailUser + '|' + gmailAppPassword;
+  if (mailTransport && mailTransportKey === key) return mailTransport;
   mailTransport = nodemailer.createTransport({ service: 'gmail', auth: { user: gmailUser, pass: gmailAppPassword } });
+  mailTransportKey = key;
   return mailTransport;
 }
 // `fromNameOverride` = settings.emailSenderName (Impostazioni → Aspetto &

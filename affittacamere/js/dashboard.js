@@ -3484,6 +3484,22 @@
           infoNoteHtml('Ogni prenotazione (con dati ospiti, date, contatti) viene scritta in automatico in un tuo Google Sheet appena creata o aggiornata — vedi GUIDA-PUBBLICAZIONE.md per collegarlo la prima volta. Incolla qui SOLO il link normale del foglio (quello che apri per leggerlo), non l\'URL del Web App usato dalle Cloud Functions per scriverci: serve solo per il bottone "Apri il registro" qui sotto in Prenotazioni.') +
           '<div class="admin-field-group"><label>Link del foglio Google Sheets</label><input type="text" class="admin-field" id="settings-bookings-sheet-url" value="' + escapeHtml(s.bookingsSheetUrl || '') + '" placeholder="https://docs.google.com/spreadsheets/d/..."></div>' +
         '</div>' +
+        '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Credenziali tecniche</span></div>' +
+          infoNoteHtml('Salvate in un documento separato dal resto delle Impostazioni, leggibile solo dal proprietario (mai dal sito pubblico) — stesso principio della sezione Adempimenti qui sotto. Lascia un campo vuoto per continuare a usare il valore tecnico già configurato (se presente): non è obbligatorio compilarli per far funzionare il sito.') +
+          '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;"><label style="font-weight:700;">Email conferme prenotazione (Gmail)</label></div>' +
+          infoNoteHtml('Le mail di conferma/annullamento partiranno da questo indirizzo invece del mittente tecnico predefinito. Serve una "password per le app" Gmail (NON la password normale del tuo account) — generala su <span style="text-decoration:underline;">myaccount.google.com/apppasswords</span> dopo aver attivato la verifica in due passaggi.') +
+          '<div class="admin-field-group"><label>Indirizzo Gmail</label><input type="text" class="admin-field" id="priv-int-gmail-user" value="' + escapeHtml((sp.integrations && sp.integrations.gmail && sp.integrations.gmail.user) || '') + '" placeholder="tuastruttura@gmail.com"></div>' +
+          '<div class="admin-field-group"><label>Password per le app</label><input type="password" class="admin-field" id="priv-int-gmail-apppass" value="' + escapeHtml((sp.integrations && sp.integrations.gmail && sp.integrations.gmail.appPassword) || '') + '"></div>' +
+          '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;margin-top:10px;"><label style="font-weight:700;">Pagamenti online (Stripe)</label></div>' +
+          '<div class="admin-field-group"><label>Chiave segreta (sk_...)</label><input type="password" class="admin-field" id="priv-int-stripe-secret" value="' + escapeHtml((sp.integrations && sp.integrations.stripe && sp.integrations.stripe.secretKey) || '') + '"></div>' +
+          '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;margin-top:10px;"><label style="font-weight:700;">Notifiche Telegram</label></div>' +
+          '<div class="admin-field-group"><label>Token del bot</label><input type="password" class="admin-field" id="priv-int-telegram-token" value="' + escapeHtml((sp.integrations && sp.integrations.telegram && sp.integrations.telegram.botToken) || '') + '"></div>' +
+          '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;margin-top:10px;"><label style="font-weight:700;">Sincronizzazione registro (Google Sheet)</label></div>' +
+          infoNoteHtml('URL del Web App Apps Script (non il link del foglio, quello va nel campo qui sopra) e il segreto scelto in fase di collegamento — vedi GUIDA-PUBBLICAZIONE.md.') +
+          '<div class="admin-field-group"><label>URL Web App</label><input type="text" class="admin-field" id="priv-int-sheet-url" value="' + escapeHtml((sp.integrations && sp.integrations.sheetWebhook && sp.integrations.sheetWebhook.url) || '') + '" placeholder="https://script.google.com/macros/s/.../exec"></div>' +
+          '<div class="admin-field-group"><label>Segreto</label><input type="password" class="admin-field" id="priv-int-sheet-secret" value="' + escapeHtml((sp.integrations && sp.integrations.sheetWebhook && sp.integrations.sheetWebhook.secret) || '') + '"></div>' +
+        '</div>' +
       '</div>' +
       '<div class="dash-settings-group" data-settings-cat="sicurezza">' +
         '<div class="dash-settings-group-title">Privacy e conservazione dati</div>' +
@@ -3617,6 +3633,29 @@
         window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err));
       });
     }
+    function saveIntegration(group, patch) {
+      var current = (sp.integrations && sp.integrations[group]) || {};
+      var nextGroup = Object.assign({}, current, patch);
+      savePrivateOrAlert({ integrations: Object.assign({}, sp.integrations, (function () { var o = {}; o[group] = nextGroup; return o; })()) });
+    }
+    document.getElementById('priv-int-gmail-user').addEventListener('change', function (e) {
+      saveIntegration('gmail', { user: e.target.value.trim() });
+    });
+    document.getElementById('priv-int-gmail-apppass').addEventListener('change', function (e) {
+      saveIntegration('gmail', { appPassword: e.target.value.trim() });
+    });
+    document.getElementById('priv-int-stripe-secret').addEventListener('change', function (e) {
+      saveIntegration('stripe', { secretKey: e.target.value.trim() });
+    });
+    document.getElementById('priv-int-telegram-token').addEventListener('change', function (e) {
+      saveIntegration('telegram', { botToken: e.target.value.trim() });
+    });
+    document.getElementById('priv-int-sheet-url').addEventListener('change', function (e) {
+      saveIntegration('sheetWebhook', { url: e.target.value.trim() });
+    });
+    document.getElementById('priv-int-sheet-secret').addEventListener('change', function (e) {
+      saveIntegration('sheetWebhook', { secret: e.target.value.trim() });
+    });
     document.getElementById('priv-alloggiati-user').addEventListener('change', function (e) {
       savePrivateOrAlert({ alloggiatiWeb: Object.assign({}, sp.alloggiatiWeb, { username: e.target.value.trim() }) });
     });

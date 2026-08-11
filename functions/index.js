@@ -41,6 +41,7 @@ const {
 } = require('./staff-actions');
 const { syncBookingsToSheet } = require('./bookings-sheet-sync');
 const { platformSetStatusCore, platformCreateOwnerUserCore, platformResetPasswordCore } = require('./platform-control');
+const { loadIntegrations } = require('./integration-settings');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -109,8 +110,7 @@ async function assertServiceEnabled(db) {
   }
 }
 
-async function notifyOwnerNewBooking(result, data) {
-  const token = telegramBotToken.value();
+async function notifyOwnerNewBooking(result, data, token) {
   if (!token) return; // bot non ancora configurato: nessun errore, semplicemente niente notifica
   try {
     const settingsSnap = await db.collection('tourism_settings').doc('site').get();
@@ -128,8 +128,7 @@ async function notifyOwnerNewBooking(result, data) {
   }
 }
 
-async function notifyOwnerNewGroupBooking(result, data) {
-  const token = telegramBotToken.value();
+async function notifyOwnerNewGroupBooking(result, data, token) {
   if (!token) return;
   try {
     const settingsSnap = await db.collection('tourism_settings').doc('site').get();
@@ -149,8 +148,7 @@ async function notifyOwnerNewGroupBooking(result, data) {
   }
 }
 
-async function notifyOwnerNewAssistMessage(result, data) {
-  const token = telegramBotToken.value();
+async function notifyOwnerNewAssistMessage(result, data, token) {
   if (!token) return;
   try {
     const settingsSnap = await db.collection('tourism_settings').doc('site').get();
@@ -192,12 +190,16 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] },
   if (source !== 'site' && source !== 'site_test' && !isOwner(request)) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
+  // Credenziali di integrazione: valore da dashboard (Impostazioni →
+  // Integrazioni, tourism_settingsPrivate/site.integrations) se presente,
+  // altrimenti il secret CLI — vedi integration-settings.js.
+  const integrations = await loadIntegrations(db);
   // Lo Stripe client serve solo per le richieste dal sito (createBookingCore
   // ricontrolla lì il pagamento prima di confermare — vedi verifyPaidIntent
   // in booking-logic.js): le prenotazioni manuali non lo toccano mai.
   let stripe = null;
   if (source === 'site') {
-    const key = stripeSecretKey.value();
+    const key = (integrations.stripe && integrations.stripe.secretKey) || stripeSecretKey.value();
     if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato.');
     try { stripe = require('stripe')(key); } catch (e) { throw new HttpsError('failed-precondition', 'Pacchetto "stripe" mancante lato server.'); }
   }
@@ -210,7 +212,10 @@ exports.createBooking = onCall({ secrets: [telegramBotToken, stripeSecretKey] },
   }
   // Notifica Telegram al proprietario per le richieste dal sito (le
   // prenotazioni manuali le crea lui stesso, non serve avvisarlo di nuovo).
-  if (source === 'site' || source === 'site_test') await notifyOwnerNewBooking(result, data);
+  if (source === 'site' || source === 'site_test') {
+    const tgToken = (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value();
+    await notifyOwnerNewBooking(result, data, tgToken);
+  }
   return result;
 });
 
@@ -233,9 +238,10 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
   if (source !== 'site' && source !== 'site_test' && !isOwner(request)) {
     throw new HttpsError('permission-denied', 'Solo il proprietario può creare prenotazioni manuali.');
   }
+  const integrations = await loadIntegrations(db);
   let stripe = null;
   if (source === 'site') {
-    const key = stripeSecretKey.value();
+    const key = (integrations.stripe && integrations.stripe.secretKey) || stripeSecretKey.value();
     if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato.');
     try { stripe = require('stripe')(key); } catch (e) { throw new HttpsError('failed-precondition', 'Pacchetto "stripe" mancante lato server.'); }
   }
@@ -246,7 +252,10 @@ exports.createGroupBooking = onCall({ secrets: [telegramBotToken, stripeSecretKe
     if (err.code) throw new HttpsError(err.code, err.message);
     throw new HttpsError('internal', 'Errore imprevisto: riprova.');
   }
-  if (source === 'site' || source === 'site_test') await notifyOwnerNewGroupBooking(result, data);
+  if (source === 'site' || source === 'site_test') {
+    const tgToken = (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value();
+    await notifyOwnerNewGroupBooking(result, data, tgToken);
+  }
   return result;
 });
 
@@ -265,7 +274,8 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
   await enforceRateLimit(db, request, 'createPaymentIntent', 20, 15);
   await assertServiceEnabled(db);
   const data = request.data || {};
-  const key = stripeSecretKey.value();
+  const integrations = await loadIntegrations(db);
+  const key = (integrations.stripe && integrations.stripe.secretKey) || stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato: manca STRIPE_SECRET_KEY.');
 
   const settingsSnap = await db.collection('tourism_settings').doc('site').get();
@@ -315,7 +325,8 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
 exports.cancelBooking = onCall({ secrets: [stripeSecretKey] }, async (request) => {
   await enforceRateLimit(db, request, 'cancelBooking', 10, 15);
   const data = request.data || {};
-  const key = stripeSecretKey.value();
+  const integrations = await loadIntegrations(db);
+  const key = (integrations.stripe && integrations.stripe.secretKey) || stripeSecretKey.value();
   if (!key) throw new HttpsError('failed-precondition', 'Pagamento online non ancora configurato.');
   let stripe;
   try {
@@ -371,7 +382,9 @@ exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (req
     if (err.code) throw new HttpsError(err.code, err.message);
     throw new HttpsError('internal', 'Errore imprevisto: riprova.');
   }
-  await notifyOwnerNewAssistMessage(result, data);
+  const integrations = await loadIntegrations(db);
+  const tgToken = (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value();
+  await notifyOwnerNewAssistMessage(result, data, tgToken);
   return result;
 });
 
@@ -519,8 +532,11 @@ exports.submitGuestDocuments = onCall({}, async (request) => {
 exports.requestSignatureOtp = onCall({ secrets: [gmailUser, gmailAppPassword] }, async (request) => {
   await enforceRateLimit(db, request, 'requestSignatureOtp', 5, 15);
   await assertServiceEnabled(db);
+  const integrations = await loadIntegrations(db);
   return requestSignatureOtpCore({
-    admin, db, request, gmailUser: gmailUser.value(), gmailAppPassword: gmailAppPassword.value()
+    admin, db, request,
+    gmailUser: (integrations.gmail && integrations.gmail.user) || gmailUser.value(),
+    gmailAppPassword: (integrations.gmail && integrations.gmail.appPassword) || gmailAppPassword.value()
   }, request.data || {});
 });
 exports.verifySignatureOtp = onCall({}, async (request) => {
@@ -548,7 +564,9 @@ exports.staffSetCleaningStatus = onCall({}, async (request) => {
 });
 exports.staffReportMaintenance = onCall({ secrets: [telegramBotToken] }, async (request) => {
   await enforceRateLimit(db, request, 'staffReportMaintenance', 10, 15);
-  return staffReportMaintenanceCore({ db, admin, botToken: telegramBotToken.value() }, request.data || {});
+  const integrations = await loadIntegrations(db);
+  const botToken = (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value();
+  return staffReportMaintenanceCore({ db, admin, botToken }, request.data || {});
 });
 
 /* ==========================================================================
@@ -573,7 +591,9 @@ exports.staffSetMaintenanceStatus = onCall({}, async (request) => {
 exports.notifyMaintenanceRecipients = onCall({ secrets: [telegramBotToken] }, async (request) => {
   if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può inviare questa notifica.');
   await enforceRateLimit(db, request, 'notifyMaintenanceRecipients', 15, 15);
-  return notifyMaintenanceRecipientsCore({ db, admin, botToken: telegramBotToken.value() }, request.data || {});
+  const integrations = await loadIntegrations(db);
+  const botToken = (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value();
+  return notifyMaintenanceRecipientsCore({ db, admin, botToken }, request.data || {});
 });
 
 /* ==========================================================================
@@ -666,8 +686,10 @@ exports.telegramWebhook = onRequest({ secrets: [telegramBotToken, telegramWebhoo
     return;
   }
   try {
+    const integrations = await loadIntegrations(db);
+    const botToken = (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value();
     await handleTelegramUpdate(
-      { admin, db, bucket, botToken: telegramBotToken.value(), visionApiKey: visionApiKey.value() },
+      { admin, db, bucket, botToken, visionApiKey: visionApiKey.value() },
       req.body || {}
     );
   } catch (err) {
@@ -793,13 +815,17 @@ exports.onBookingStatusChange = onDocumentWritten({
   document: 'tourism_bookings/{bookingId}',
   secrets: [gmailUser, gmailAppPassword, telegramBotToken, sheetWebhookUrl, sheetWebhookSecret]
 }, async (event) => {
+  const integrations = await loadIntegrations(db);
   const after = event.data.after.exists ? event.data.after.data() : null;
   // Registro Google Sheet: risincronizzato per QUALUNQUE scrittura su una
   // prenotazione, creazione/modifica/cancellazione inclusa (vedi
   // bookings-sheet-sync.js) — best-effort, non deve mai bloccare/rompere la
   // logica email sotto.
-  syncBookingsToSheet({ db: db, webhookUrl: sheetWebhookUrl.value(), webhookSecret: sheetWebhookSecret.value() })
-    .catch((err) => console.error('Errore sync Google Sheet prenotazioni:', err));
+  syncBookingsToSheet({
+    db: db,
+    webhookUrl: (integrations.sheetWebhook && integrations.sheetWebhook.url) || sheetWebhookUrl.value(),
+    webhookSecret: (integrations.sheetWebhook && integrations.sheetWebhook.secret) || sheetWebhookSecret.value()
+  }).catch((err) => console.error('Errore sync Google Sheet prenotazioni:', err));
   if (!after) return; // documento eliminato, niente email da mandare
   const before = event.data.before.exists ? event.data.before.data() : null;
   const beforeStatus = before ? before.status : null;
@@ -807,8 +833,9 @@ exports.onBookingStatusChange = onDocumentWritten({
 
   const ctx = {
     admin: admin, db: db,
-    gmailUser: gmailUser.value(), gmailAppPassword: gmailAppPassword.value(),
-    telegramBotToken: telegramBotToken.value()
+    gmailUser: (integrations.gmail && integrations.gmail.user) || gmailUser.value(),
+    gmailAppPassword: (integrations.gmail && integrations.gmail.appPassword) || gmailAppPassword.value(),
+    telegramBotToken: (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value()
   };
 
   if (after.status === 'confermato' && beforeStatus !== 'confermato') {
@@ -827,6 +854,10 @@ exports.onGuestDocumentsWriteSheet = onDocumentWritten({
   document: 'tourism_guestDocuments/{bookingId}',
   secrets: [sheetWebhookUrl, sheetWebhookSecret]
 }, async () => {
-  await syncBookingsToSheet({ db: db, webhookUrl: sheetWebhookUrl.value(), webhookSecret: sheetWebhookSecret.value() })
-    .catch((err) => console.error('Errore sync Google Sheet prenotazioni (documenti ospiti):', err));
+  const integrations = await loadIntegrations(db);
+  await syncBookingsToSheet({
+    db: db,
+    webhookUrl: (integrations.sheetWebhook && integrations.sheetWebhook.url) || sheetWebhookUrl.value(),
+    webhookSecret: (integrations.sheetWebhook && integrations.sheetWebhook.secret) || sheetWebhookSecret.value()
+  }).catch((err) => console.error('Errore sync Google Sheet prenotazioni (documenti ospiti):', err));
 });
