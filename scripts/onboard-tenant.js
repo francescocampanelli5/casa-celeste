@@ -25,9 +25,18 @@
 // dashboard raggiungibili subito, senza toccare GitHub Pages/il dominio di
 // Casa Celeste.
 //
-// Uso:
-//   node scripts/onboard-tenant.js --project NOME-PROGETTO-CLIENTE --secret VALORE-SEGRETO-CONDIVISO
-//   node scripts/onboard-tenant.js --project NOME-PROGETTO-CLIENTE --secret VALORE-SEGRETO-CONDIVISO --dry-run
+// Dal 2026-08-13 crea anche il progetto Google Cloud/Firebase stesso (prima
+// passo manuale obbligato) e il suo database Firestore predefinito, e
+// genera da solo un PLATFORM_SHARED_SECRET casuale se non ne passi uno —
+// restano manuali SOLO le due cose che questo script non deve mai poter
+// fare da solo: passare il progetto al piano Blaze (serve una carta) e
+// attivare Authentication → Email/Password (30 secondi, un solo click).
+//
+// Uso (il segreto condiviso è opzionale: se lo ometti, ne genera uno forte):
+//   node scripts/onboard-tenant.js --project NOME-PROGETTO-CLIENTE
+//   node scripts/onboard-tenant.js --project NOME-PROGETTO-CLIENTE --secret VALORE-SCELTO-DA-TE
+//   node scripts/onboard-tenant.js --project NOME-PROGETTO-CLIENTE --dry-run
+//   node scripts/onboard-tenant.js --project NOME-PROGETTO-CLIENTE --yes   (salta la pausa di conferma dopo la creazione progetto)
 //
 // --dry-run stampa i comandi senza eseguirli (nessuna scrittura reale su
 // Firebase) — usalo per rivedere cosa farebbe prima del run vero.
@@ -37,6 +46,8 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const crypto = require('crypto');
+const readline = require('readline');
 
 const PLACEHOLDER_SECRETS = [
   'TELEGRAM_BOT_TOKEN',
@@ -51,25 +62,84 @@ const PLACEHOLDER_SECRETS = [
 const PLACEHOLDER_VALUE = 'non-configurato';
 
 function parseArgs(argv) {
-  const out = { dryRun: false };
+  const out = { dryRun: false, yes: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--project') out.project = argv[++i];
     else if (argv[i] === '--secret') out.secret = argv[++i];
     else if (argv[i] === '--dry-run') out.dryRun = true;
+    else if (argv[i] === '--yes') out.yes = true;
   }
   return out;
 }
 
 function usageAndExit() {
   console.error(
-    'Uso: node scripts/onboard-tenant.js --project NOME-PROGETTO --secret VALORE-SEGRETO [--dry-run]\n\n' +
-    'Prerequisiti (da fare a mano, una volta, sul nuovo progetto Firebase del cliente):\n' +
-    '  1. Progetto creato su console.firebase.google.com\n' +
-    '  2. Firestore Database attivato (modalità produzione)\n' +
-    '  3. Authentication → Email/Password attivato\n' +
-    '  4. `firebase login` già eseguito su questo computer con un account che ha accesso a quel progetto\n'
+    'Uso: node scripts/onboard-tenant.js --project NOME-PROGETTO [--secret VALORE] [--dry-run] [--yes]\n\n' +
+    'Unico prerequisito: `firebase login` già eseguito su questo computer con un\n' +
+    'account che può creare progetti Google Cloud. Il resto lo fa lo script — vedi\n' +
+    'in cima al file cosa resta manuale (piano Blaze + Authentication).\n'
   );
   process.exit(1);
+}
+
+// Genera un segreto forte se non ne passi uno tu: 32 byte casuali in
+// base64url (nessun carattere che richieda escaping da riga di comando/URL,
+// più lungo e più difficile da indovinare di quanto chiunque scriverebbe a
+// mano — vedi l'indurimento fatto lato Cloud Function il 2026-08-12
+// (rate limit + confronto a tempo costante): un segreto debole scelto a
+// mano restava comunque il punto più fragile della catena.
+function generateSecret() {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+function ask(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(function (resolve) {
+    rl.question(question, function (answer) { rl.close(); resolve(answer); });
+  });
+}
+
+// Crea il progetto Google Cloud + Firebase se non esiste già (rilanciare lo
+// script su un progetto già creato non lo tocca, così è sempre sicuro
+// rilanciarlo dopo aver fatto i due passi manuali rimasti — vedi main()).
+function ensureProject(project) {
+  const list = runCapture('firebase', ['projects:list']);
+  if (!globalDryRun && list.stdout.indexOf(project) !== -1) {
+    console.log('Progetto "' + project + '" già esistente, salto la creazione.');
+    return false;
+  }
+  if (globalDryRun) {
+    console.log('[dry-run] firebase projects:create ' + project + ' -n ' + project);
+    return true;
+  }
+  const created = runCapture('firebase', ['projects:create', project, '-n', project]);
+  if (created.status !== 0) {
+    console.error('Creazione progetto fallita:\n' + created.stdout + created.stderr);
+    process.exit(1);
+  }
+  console.log(created.stdout);
+  return true;
+}
+
+// Crea il database Firestore predefinito "(default)" in modalità produzione
+// se non esiste già — stessa regione delle Cloud Function (europe-west1),
+// così restano vicine (meno latenza tra funzioni e dati).
+function ensureFirestoreDatabase(project) {
+  const list = runCapture('firebase', ['firestore:databases:list', '--project', project]);
+  if (!globalDryRun && list.stdout.indexOf('(default)') !== -1) {
+    console.log('Database Firestore predefinito già esistente, salto la creazione.');
+    return;
+  }
+  if (globalDryRun) {
+    console.log('[dry-run] firebase firestore:databases:create "(default)" --location europe-west1 --project ' + project);
+    return;
+  }
+  const created = runCapture('firebase', ['firestore:databases:create', '(default)', '--location', 'europe-west1', '--project', project]);
+  if (created.status !== 0) {
+    console.error('Creazione database Firestore fallita:\n' + created.stdout + created.stderr);
+    process.exit(1);
+  }
+  console.log(created.stdout);
 }
 
 function run(cmd, args, opts) {
@@ -221,61 +291,85 @@ function deployHosting(project, root, webConfig) {
 
 let globalDryRun = false;
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.project || !args.secret) usageAndExit();
-  if (args.secret.length < 8) {
+  if (!args.project) usageAndExit();
+  if (args.secret && args.secret.length < 8) {
     console.error('Il segreto condiviso deve avere almeno 8 caratteri (stesso minimo richiesto da platform-admin).');
     process.exit(1);
   }
+  const secret = args.secret || generateSecret();
+  const secretWasGenerated = !args.secret;
   globalDryRun = args.dryRun;
   const root = path.resolve(__dirname, '..');
 
   console.log('Onboarding cliente sul progetto Firebase "' + args.project + '"' + (globalDryRun ? ' (DRY RUN — nessuna modifica reale)' : '') + '\n');
 
-  console.log('1/5 — Regole Firestore/Storage + indici composti');
+  console.log('1/7 — Progetto Google Cloud/Firebase');
+  const justCreated = ensureProject(args.project);
+
+  console.log('\n2/7 — Database Firestore predefinito (modalità produzione, europe-west1)');
+  ensureFirestoreDatabase(args.project);
+
+  if (justCreated && !globalDryRun && !args.yes) {
+    console.log(
+      '\nProgetto appena creato: restano SOLO due cose che questo script non deve\n' +
+      'mai poter fare da solo (nessuna delle due è automatizzabile in sicurezza):\n' +
+      '  A) Console Firebase (' + args.project + ') → Fatturazione → passa al piano Blaze\n' +
+      '     (serve una carta: senza Blaze le Cloud Function qui sotto non deployano).\n' +
+      '  B) Console Firebase (' + args.project + ') → Authentication → Get started →\n' +
+      '     attiva Email/Password.\n'
+    );
+    const answer = await ask('Fatte entrambe? Premi Invio per continuare (o Ctrl+C per fermarti qui e rilanciare lo stesso comando dopo): ');
+    void answer;
+  }
+
+  console.log('\n3/7 — Regole Firestore/Storage + indici composti');
   run('firebase', ['deploy', '--only', 'firestore:rules,firestore:indexes,storage', '--project', args.project], { cwd: root });
 
-  console.log('\n2/5 — Secret placeholder (il cliente li sovrascriverà da Impostazioni → Integrazioni)');
+  console.log('\n4/7 — Secret placeholder (il cliente li sovrascriverà da Impostazioni → Integrazioni)');
   PLACEHOLDER_SECRETS.forEach(function (name) {
     setSecret(args.project, name, PLACEHOLDER_VALUE);
   });
 
-  console.log('\n3/5 — PLATFORM_SHARED_SECRET (valore reale, collega questo progetto a platform-admin)');
-  setSecret(args.project, 'PLATFORM_SHARED_SECRET', args.secret);
+  console.log('\n5/7 — PLATFORM_SHARED_SECRET (' + (secretWasGenerated ? 'generato automaticamente' : 'valore passato con --secret') + ', collega questo progetto a platform-admin)');
+  setSecret(args.project, 'PLATFORM_SHARED_SECRET', secret);
 
-  console.log('\n4/5 — Deploy Cloud Functions');
+  console.log('\n6/7 — Deploy Cloud Functions');
   run('firebase', ['deploy', '--only', 'functions', '--project', args.project], { cwd: root });
 
-  console.log('\n5/5 — Sito pubblico su Firebase Hosting (progetto del cliente, gratuito)');
+  console.log('\n7/7 — Sito pubblico su Firebase Hosting (progetto del cliente, gratuito)');
   const webAppId = ensureWebApp(args.project, args.project);
   const webConfig = fetchWebConfig(args.project, webAppId);
   const hostingUrl = deployHosting(args.project, root, webConfig);
 
   console.log(
-    '\nFatto. Prossimi passi:\n' +
-    '  - Prendi nota dell\'URL funzioni stampato sopra (o console Firebase → una qualsiasi\n' +
-    '    Cloud Function → URL): di solito è\n' +
-    '    https://europe-west1-' + args.project + '.cloudfunctions.net\n' +
-    '  - In platform-admin/index.html → "+ Nuovo cliente": incolla quell\'URL e LO STESSO\n' +
-    '    segreto passato a --secret qui sopra.\n' +
-    '  - Bottone "Crea utente proprietario" sulla card appena creata per dare al cliente\n' +
-    '    il suo primo accesso a dashboard.html — non serve più entrare nella sua console Firebase.\n' +
+    '\n================ FATTO ================\n' +
+    (secretWasGenerated ? 'Segreto condiviso generato ora (copialo, non verrà ripetuto): ' + secret + '\n\n' : '') +
+    'Ultimi due passi, in platform-admin/index.html:\n' +
+    '  1. "+ Nuovo cliente" → incolla come URL funzioni:\n' +
+    '     https://europe-west1-' + args.project + '.cloudfunctions.net\n' +
+    '     e come segreto: ' + (secretWasGenerated ? '(quello generato sopra)' : '(quello passato a --secret)') + '\n' +
+    '  2. Bottone "Crea utente proprietario" sulla card appena creata → email +\n' +
+    '     password temporanea del cliente: la piattaforma crea da remoto il suo\n' +
+    '     primo accesso alla dashboard, non serve entrare nella sua console Firebase.\n\n' +
     (hostingUrl
-      ? '  - Il sito pubblico del cliente è già online: ' + hostingUrl + '\n' +
-        '    (dashboard su ' + hostingUrl + '/dashboard.html). Firebase gli assegna anche\n' +
-        '    ' + args.project + '.firebaseapp.com, stesso sito, indirizzo alternativo.\n' +
-        '    Un dominio personalizzato del cliente si collega dopo da Console Firebase →\n' +
-        '    Hosting → Aggiungi dominio personalizzato, quando lo vorrà.\n'
-      : '  - (--dry-run: nessun sito è stato davvero pubblicato)\n') +
-    '  - ATTENZIONE App Check: js/firebase-init.js usa ancora la chiave reCAPTCHA v3\n' +
-    '    di Casa Celeste, registrata solo per il SUO dominio — su questo nuovo dominio\n' +
-    '    l\'attestazione fallirà silenziosamente (l\'enforcement è già disattivato\n' +
-    '    ovunque, quindi il sito funziona comunque, ma senza protezione anti-bot reale\n' +
-    '    finché non registri una chiave reCAPTCHA v3 dedicata per questo dominio).\n' +
-    '  - Il cliente completa da solo credenziali email/Stripe/Telegram/Google Sheet da\n' +
-    '    Impostazioni → Integrazioni quando le avrà.\n'
+      ? 'Sito pubblico del cliente, già online: ' + hostingUrl + '\n' +
+        '(dashboard: ' + hostingUrl + '/dashboard.html). Indirizzo alternativo, stesso\n' +
+        'sito: https://' + args.project + '.firebaseapp.com — un dominio personalizzato\n' +
+        'del cliente si collega dopo da Console Firebase → Hosting, quando lo vorrà.\n\n'
+      : '(--dry-run: nessun sito è stato davvero pubblicato)\n\n') +
+    'ATTENZIONE App Check: js/firebase-init.js usa ancora la chiave reCAPTCHA v3 di\n' +
+    'Casa Celeste, registrata solo per il SUO dominio — su questo nuovo dominio\n' +
+    'l\'attestazione fallirà silenziosamente (l\'enforcement è già disattivato ovunque,\n' +
+    'quindi il sito funziona comunque, ma senza protezione anti-bot reale finché non\n' +
+    'registri una chiave reCAPTCHA v3 dedicata per questo dominio).\n\n' +
+    'Il cliente completa da solo credenziali email/Stripe/Telegram/Google Sheet da\n' +
+    'Impostazioni → Integrazioni quando le avrà.\n'
   );
 }
 
-main();
+main().catch(function (err) {
+  console.error(err);
+  process.exit(1);
+});

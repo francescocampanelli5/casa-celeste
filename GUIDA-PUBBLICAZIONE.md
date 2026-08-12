@@ -1203,47 +1203,50 @@ password.
 
 ### 9.4 Aggiungere un nuovo cliente
 
-Solo il primo passo resta manuale (richiede il browser e un account Google —
-nessun agente può farlo al posto tuo). Dal secondo in poi uno script guidato
-sostituisce tutti i comandi da terminale visti nelle Parti 3/8:
+Tre passi in tutto: un comando che fa quasi tutto da solo (compresa la
+creazione del progetto Firebase), due click manuali in mezzo che questo
+comando non deve mai poter fare da solo, e un form unico sulla piattaforma.
 
-1. Console Firebase → **Aggiungi progetto**, dedicato solo a quel cliente
-   (`nome-cliente-affittacamere` o simile) → attiva **Firestore Database**
-   (modalità produzione) e **Authentication → Email/Password**, esattamente
-   come Parte 3.1/3.2 — nessuna regola da incollare a mano, ci pensa lo
-   script al passo successivo.
-2. Dalla radice del repo (dopo `firebase login`, una volta sola per computer):
+1. Dalla radice del repo (dopo `firebase login`, una volta sola per
+   computer):
    ```
-   node scripts/onboard-tenant.js --project nome-progetto-cliente --secret VALORE-SEGRETO-SCELTO-DA-TE
+   node scripts/onboard-tenant.js --project nome-progetto-cliente
    ```
-   Fai prima una prova con `--dry-run` in fondo al comando per vedere
-   l'elenco dei comandi senza eseguire nulla. Lo script, in ordine:
-   pubblica regole Firestore/Storage e indici, imposta un valore
-   placeholder per ogni secret opzionale (Telegram/Gmail/Stripe/Google
-   Sheet — il cliente li sovrascrive da dashboard quando li avrà, vedi
-   sotto), imposta `PLATFORM_SHARED_SECRET` con il valore reale passato a
-   `--secret`, pubblica le Cloud Functions, poi pubblica anche il sito
+   (`--dry-run` in fondo per vedere cosa farebbe senza eseguire nulla; il
+   segreto condiviso è **facoltativo** — se lo ometti lo script ne genera
+   uno forte da solo e te lo mostra alla fine). Lo script crea il progetto
+   Google Cloud/Firebase e il suo database Firestore, poi si ferma e ti
+   chiede di fare a mano, una volta sola per cliente, le uniche due cose
+   che non deve mai poter fare da solo:
+   - **Fatturazione → piano Blaze** (serve una carta: senza Blaze le Cloud
+     Function non deployano)
+   - **Authentication → Get started → Email/Password**
+
+   Premi Invio nel terminale per continuare (o `Ctrl+C` e rilancia lo
+   stesso comando più tardi: è sicuro rilanciarlo, salta quello che ha già
+   fatto). Da qui in automatico: regole/indici Firestore, i secret
+   opzionali con un placeholder (Telegram/Gmail/Stripe/Google Sheet — il
+   cliente li sovrascrive da dashboard quando li avrà), il segreto
+   condiviso vero, il deploy delle Cloud Functions, e il deploy del sito
    pubblico (`affittacamere/`, esclusi `scripts/`/`ical/`) su **Firebase
-   Hosting dello stesso progetto cliente** — genera al volo un
-   `js/firebase-config.js` con le chiavi del SUO progetto, mai quelle di
-   Casa Celeste. Stampa alla fine l'URL funzioni da usare al passo 3 e
-   l'URL del sito (`https://nome-progetto-cliente.web.app`), già online.
-3. Nella piattaforma (`platform-admin/index.html`) → **+ Nuovo cliente** →
-   compila nome struttura, contatti, l'**URL funzioni** stampato dallo
-   script (formato `https://europe-west1-NOME-PROGETTO-CLIENTE.cloudfunctions.net`)
-   e lo **stesso segreto** passato a `--secret`.
-4. Bottone **"Crea utente proprietario"** sulla card del cliente appena
-   creato: inserisci l'email del cliente e una password temporanea — la
-   piattaforma crea da remoto il suo primo accesso alla propria dashboard
-   (`.../dashboard.html` sul SUO progetto), senza che tu debba mai entrare
-   manualmente nella console Firebase di quel cliente per crearlo.
-5. Consegna al cliente: l'URL del sito (passo 2), l'URL della dashboard
-   (stesso URL + `/dashboard.html`) ed email+password temporanea (passo
-   4). Da qui in poi personalizza tutto da solo dalla propria dashboard
-   (nome struttura, stanze, prezzi, email, credenziali Telegram/Stripe/
-   Gmail/Google Sheet in Impostazioni → Integrazioni, dominio personalizzato
-   da Console Firebase → Hosting quando lo vorrà, ecc.) — tu non tocchi mai
-   i suoi contenuti, solo lo stato del suo abbonamento.
+   Hosting dello stesso progetto cliente** — con un `js/firebase-config.js`
+   generato su misura, mai quello di Casa Celeste. Stampa alla fine l'URL
+   funzioni, l'URL del sito (`https://nome-progetto-cliente.web.app`, già
+   online) e — se generato — il segreto condiviso da copiare al passo 2.
+2. Nella piattaforma (`platform-admin/index.html`) → **+ Nuovo cliente** →
+   compila nome struttura, contatti, l'**URL funzioni** e il **segreto**
+   stampati dallo script; **nello stesso form**, in fondo, puoi anche
+   inserire email + password temporanea del cliente per creare subito il
+   suo primo accesso alla dashboard — un solo "Salva" fa entrambe le cose
+   (se preferisci farlo dopo, lascia quei due campi vuoti: resta comunque
+   disponibile il bottone "Crea utente proprietario" sulla card).
+3. Consegna al cliente: l'URL del sito e della dashboard (passo 1) ed
+   email+password temporanea (passo 2). Da qui in poi personalizza tutto
+   da solo dalla propria dashboard (nome struttura, stanze, prezzi, email,
+   credenziali Telegram/Stripe/Gmail/Google Sheet in Impostazioni →
+   Integrazioni, dominio personalizzato da Console Firebase → Hosting
+   quando lo vorrà, ecc.) — tu non tocchi mai i suoi contenuti, solo lo
+   stato del suo abbonamento.
 
 **Nota App Check**: `affittacamere/js/firebase-init.js` usa ancora un'unica
 chiave reCAPTCHA v3, registrata solo per il dominio di Casa Celeste — sul

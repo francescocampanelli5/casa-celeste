@@ -200,12 +200,16 @@
     return '<form class="card" id="new-tenant-form">' +
       '<h2>Nuovo cliente</h2>' +
       '<div class="field"><label for="nt-name">Nome struttura</label><input type="text" id="nt-name" required></div>' +
-      '<div class="field"><label for="nt-id">Identificativo (slug, non modificabile dopo la creazione)</label><input type="text" id="nt-id" required pattern="[a-z0-9-]+"></div>' +
+      '<div class="field"><label for="nt-id">Identificativo (slug, non modificabile dopo la creazione)</label><input type="text" id="nt-id" required pattern="[a-z0-9\\-]+"></div>' +
       '<div class="field"><label for="nt-email">Email di contatto</label><input type="email" id="nt-email"></div>' +
       '<div class="field"><label for="nt-phone">Telefono di contatto</label><input type="text" id="nt-phone"></div>' +
       '<div class="field"><label for="nt-url">URL funzioni (es. https://europe-west1-nome-progetto.cloudfunctions.net)</label><input type="text" id="nt-url" required></div>' +
       '<div class="field"><label for="nt-secret">Segreto condiviso (PLATFORM_SHARED_SECRET impostato su quel progetto)</label><input type="text" id="nt-secret" required></div>' +
       '<div class="field"><label for="nt-notes">Note</label><textarea id="nt-notes" rows="2"></textarea></div>' +
+      '<hr>' +
+      '<p>Facoltativo: crea subito anche il primo accesso del cliente alla sua dashboard (altrimenti puoi farlo dopo dalla card, bottone "Crea utente proprietario").</p>' +
+      '<div class="field"><label for="nt-owner-email">Email del cliente</label><input type="email" id="nt-owner-email"></div>' +
+      '<div class="field"><label for="nt-owner-password">Password temporanea</label><input type="text" id="nt-owner-password" minlength="8"></div>' +
       (state.banner && state.banner.kind === 'error' ? '<div class="banner banner--error">' + escapeHtml(state.banner.text) + '</div>' : '') +
       '<div class="action-form-buttons">' +
         '<button type="submit" class="btn">Salva</button>' +
@@ -257,7 +261,25 @@
         sharedSecret: document.getElementById('nt-secret').value.trim(),
         notes: document.getElementById('nt-notes').value.trim()
       };
+      var ownerEmail = document.getElementById('nt-owner-email').value.trim();
+      var ownerPassword = document.getElementById('nt-owner-password').value;
       window.CelesteSaasControl.createTenant(id, data).then(function () {
+        // Facoltativo: crea anche il primo accesso del cliente nello stesso
+        // passaggio, invece di dover riaprire la card e cliccare "Crea utente
+        // proprietario" separatamente — stessa chiamata, solo incatenata qui.
+        if (ownerEmail && ownerPassword) {
+          return window.CelesteSaasControl.createTenantOwner(id, ownerEmail, ownerPassword).then(function () {
+            state.newTenantOpen = false;
+            state.banner = { kind: 'ok', text: 'Cliente creato e primo accesso pronto per ' + ownerEmail + '.' };
+            renderApp();
+          }).catch(function (err) {
+            // Il cliente ESISTE già a questo punto: non un errore bloccante,
+            // solo l'accesso da creare a mano dopo (bottone sulla card).
+            state.newTenantOpen = false;
+            state.banner = { kind: 'error', text: 'Cliente creato, ma la creazione dell\'accesso è fallita: ' + err.message + ' — riprova dal bottone "Crea utente proprietario" sulla card.' };
+            renderApp();
+          });
+        }
         state.newTenantOpen = false; state.banner = { kind: 'ok', text: 'Cliente creato.' }; renderApp();
       }).catch(function (err) {
         state.banner = { kind: 'error', text: 'Errore: ' + err.message }; renderApp();
