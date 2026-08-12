@@ -19,6 +19,7 @@
 // piano gratuito di 2 milioni di invocazioni/mese, per 4 stanze restiamo a
 // poche decine al mese — a costo pratico zero.
 
+const crypto = require('crypto');
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { setGlobalOptions } = require('firebase-functions/v2');
@@ -739,10 +740,23 @@ exports.telegramWebhook = onRequest({ secrets: [telegramBotToken, telegramWebhoo
    giusto (400/404/409/500), il chiamante (adminSetTenantStatus e simili nel
    progetto master) lo usa per capire cosa mostrare a Francesco.
    ========================================================================== */
+// Confronto a tempo costante (hash SHA-256 di entrambi i lati, poi
+// crypto.timingSafeEqual sui digest a lunghezza fissa): una comparazione
+// diretta con !== esce prima al primo carattere diverso, un tempo di
+// risposta misurabile che in teoria permetterebbe di indovinare
+// PLATFORM_SHARED_SECRET un byte alla volta (timing attack) — è questo
+// esatto segreto che decide chi può disattivare/riattivare un cliente,
+// va trattato come l'unica cosa che protegge il kill switch, non come un
+// controllo qualsiasi.
+function safeEqual(a, b) {
+  const ah = crypto.createHash('sha256').update(String(a)).digest();
+  const bh = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ah, bh);
+}
 function checkPlatformSecret(req, res) {
   const expected = platformSharedSecret.value();
-  const received = req.get('X-Platform-Secret');
-  if (!expected || received !== expected) {
+  const received = req.get('X-Platform-Secret') || '';
+  if (!expected || !safeEqual(received, expected)) {
     res.status(401).json({ error: 'Segreto non valido.' });
     return false;
   }
@@ -754,8 +768,22 @@ function statusForPlatformError(err) {
   if (err.code === 'auth/email-already-exists') return 409;
   return 500;
 }
+// Rate limit PRIMA del controllo del segreto (non dopo): altrimenti un
+// tentativo di indovinare PLATFORM_SHARED_SECRET a forza bruta otterrebbe
+// comunque un 401 immediato e illimitato, il limite scatterebbe solo per
+// chi indovina bene. Soglia bassa: l'uso legittimo (Francesco da
+// platform-admin) è a comandi singoli su un pulsante, non un traffico.
+async function guardPlatformRequest(req, res, name, maxRequests) {
+  try {
+    await enforceRateLimit(db, { auth: null, rawRequest: req }, name, maxRequests, 15);
+  } catch (err) {
+    res.status(429).json({ error: 'Troppe richieste in poco tempo: riprova tra qualche minuto.' });
+    return false;
+  }
+  return checkPlatformSecret(req, res);
+}
 exports.platformSetStatus = onRequest({ secrets: [platformSharedSecret] }, async (req, res) => {
-  if (!checkPlatformSecret(req, res)) return;
+  if (!(await guardPlatformRequest(req, res, 'platformSetStatus', 10))) return;
   try {
     const result = await platformSetStatusCore({ db, admin }, req.body || {});
     res.status(200).json(result);
@@ -765,7 +793,7 @@ exports.platformSetStatus = onRequest({ secrets: [platformSharedSecret] }, async
   }
 });
 exports.platformCreateOwnerUser = onRequest({ secrets: [platformSharedSecret] }, async (req, res) => {
-  if (!checkPlatformSecret(req, res)) return;
+  if (!(await guardPlatformRequest(req, res, 'platformCreateOwnerUser', 10))) return;
   try {
     const result = await platformCreateOwnerUserCore({ admin }, req.body || {});
     res.status(200).json(result);
@@ -775,7 +803,7 @@ exports.platformCreateOwnerUser = onRequest({ secrets: [platformSharedSecret] },
   }
 });
 exports.platformResetPassword = onRequest({ secrets: [platformSharedSecret] }, async (req, res) => {
-  if (!checkPlatformSecret(req, res)) return;
+  if (!(await guardPlatformRequest(req, res, 'platformResetPassword', 10))) return;
   try {
     const result = await platformResetPasswordCore({ admin }, req.body || {});
     res.status(200).json(result);
@@ -785,7 +813,7 @@ exports.platformResetPassword = onRequest({ secrets: [platformSharedSecret] }, a
   }
 });
 exports.platformPing = onRequest({ secrets: [platformSharedSecret] }, async (req, res) => {
-  if (!checkPlatformSecret(req, res)) return;
+  if (!(await guardPlatformRequest(req, res, 'platformPing', 30))) return;
   try {
     const result = await platformPingCore();
     res.status(200).json(result);
