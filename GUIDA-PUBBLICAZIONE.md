@@ -1222,8 +1222,12 @@ sostituisce tutti i comandi da terminale visti nelle Parti 3/8:
    placeholder per ogni secret opzionale (Telegram/Gmail/Stripe/Google
    Sheet — il cliente li sovrascrive da dashboard quando li avrà, vedi
    sotto), imposta `PLATFORM_SHARED_SECRET` con il valore reale passato a
-   `--secret`, poi pubblica le Cloud Functions. Stampa alla fine l'URL
-   funzioni da usare al passo 3.
+   `--secret`, pubblica le Cloud Functions, poi pubblica anche il sito
+   pubblico (`affittacamere/`, esclusi `scripts/`/`ical/`) su **Firebase
+   Hosting dello stesso progetto cliente** — genera al volo un
+   `js/firebase-config.js` con le chiavi del SUO progetto, mai quelle di
+   Casa Celeste. Stampa alla fine l'URL funzioni da usare al passo 3 e
+   l'URL del sito (`https://nome-progetto-cliente.web.app`), già online.
 3. Nella piattaforma (`platform-admin/index.html`) → **+ Nuovo cliente** →
    compila nome struttura, contatti, l'**URL funzioni** stampato dallo
    script (formato `https://europe-west1-NOME-PROGETTO-CLIENTE.cloudfunctions.net`)
@@ -1233,10 +1237,21 @@ sostituisce tutti i comandi da terminale visti nelle Parti 3/8:
    piattaforma crea da remoto il suo primo accesso alla propria dashboard
    (`.../dashboard.html` sul SUO progetto), senza che tu debba mai entrare
    manualmente nella console Firebase di quel cliente per crearlo.
-5. Da qui in poi il cliente personalizza tutto da solo dalla propria
-   dashboard (nome struttura, stanze, prezzi, email, credenziali Telegram/
-   Stripe/Gmail/Google Sheet in Impostazioni → Integrazioni, ecc.) — tu non
-   tocchi mai i suoi contenuti, solo lo stato del suo abbonamento.
+5. Consegna al cliente: l'URL del sito (passo 2), l'URL della dashboard
+   (stesso URL + `/dashboard.html`) ed email+password temporanea (passo
+   4). Da qui in poi personalizza tutto da solo dalla propria dashboard
+   (nome struttura, stanze, prezzi, email, credenziali Telegram/Stripe/
+   Gmail/Google Sheet in Impostazioni → Integrazioni, dominio personalizzato
+   da Console Firebase → Hosting quando lo vorrà, ecc.) — tu non tocchi mai
+   i suoi contenuti, solo lo stato del suo abbonamento.
+
+**Nota App Check**: `affittacamere/js/firebase-init.js` usa ancora un'unica
+chiave reCAPTCHA v3, registrata solo per il dominio di Casa Celeste — sul
+dominio `.web.app` del nuovo cliente l'attestazione fallirà silenziosamente
+(l'enforcement è già disattivato ovunque, vedi note nel codice, quindi il
+sito funziona comunque: nessuna protezione anti-bot reale finché non
+registri una chiave reCAPTCHA v3 dedicata per quel dominio in Google Cloud
+Console e non la sostituisci in quella copia del file).
 
 **Nota sui secret placeholder**: `TELEGRAM_WEBHOOK_SECRET` e `VISION_API_KEY`
 non sono configurabili da dashboard (sono per funzioni avanzate opzionali —
