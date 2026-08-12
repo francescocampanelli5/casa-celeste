@@ -29,6 +29,19 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.role == 'owner';
     }
 
+    // Kill switch piattaforma SaaS (celeste-saas-control) lato regole: senza
+    // questo, un proprietario disattivato per mancato pagamento potrebbe
+    // comunque gestire stanze/prenotazioni/impostazioni scrivendo DIRETTO su
+    // Firestore dalla dashboard (bypassa le Cloud Function/assertServiceEnabled
+    // in functions/index.js, che protegge solo le azioni che passano da lì).
+    // Stesso documento platform_control/status letto dal frontend — vedi
+    // affittacamere/js/firebase-init.js. Nessun comportamento cambia finché
+    // non esiste ancora (deploy pre-SaaS) o non è mai stato disattivato.
+    function serviceEnabled() {
+      return !exists(/databases/$(database)/documents/platform_control/status) ||
+        get(/databases/$(database)/documents/platform_control/status).data.enabled != false;
+    }
+
     match /rooms/{roomId} {
       allow read: if true;
       allow write: if isOwner();
@@ -74,23 +87,23 @@ service cloud.firestore {
 
     match /tourism_rooms/{roomId} {
       allow read: if true;
-      allow write: if isOwner();
+      allow write: if isOwner() && serviceEnabled();
     }
     match /tourism_commons/{commonId} {
       allow read: if true;
-      allow write: if isOwner();
+      allow write: if isOwner() && serviceEnabled();
     }
     match /tourism_monoSlides/{slideId} {
       allow read: if true;
-      allow write: if isOwner();
+      allow write: if isOwner() && serviceEnabled();
     }
     match /tourism_reviews/{reviewId} {
       allow read: if true;
-      allow write: if isOwner();
+      allow write: if isOwner() && serviceEnabled();
     }
     match /tourism_settings/{settingId} {
       allow read: if true;
-      allow write: if isOwner();
+      allow write: if isOwner() && serviceEnabled();
     }
 
     // Stato "attivo/disabilitato" della piattaforma SaaS centrale
@@ -112,7 +125,8 @@ service cloud.firestore {
     // non possono starci — chiunque le leggerebbe dalla console del
     // browser. Qui invece lettura e scrittura sono SOLO del proprietario.
     match /tourism_settingsPrivate/{settingId} {
-      allow read, write: if isOwner();
+      allow read: if isOwner();
+      allow write: if isOwner() && serviceEnabled();
     }
 
     // Manutenzioni stanza: nessuna lettura pubblica necessaria (il sito
@@ -121,7 +135,8 @@ service cloud.firestore {
     // o bot Telegram via Admin SDK, che bypassa comunque queste regole)
     // crea/legge/modifica/cancella.
     match /tourism_maintenance/{maintenanceId} {
-      allow read, write: if isOwner();
+      allow read: if isOwner();
+      allow write: if isOwner() && serviceEnabled();
     }
 
     // La creazione di una prenotazione passa SOLO dalla Cloud Function
@@ -131,7 +146,8 @@ service cloud.firestore {
     // scrivere direttamente — evita di aggirare la transazione.
     match /tourism_bookings/{bookingId} {
       allow create: if false;
-      allow read, update, delete: if isOwner();
+      allow read: if isOwner();
+      allow update, delete: if isOwner() && serviceEnabled();
     }
 
     // Messaggi lasciati dal widget di assistenza — la scrittura passa SOLO
@@ -140,7 +156,8 @@ service cloud.firestore {
     // (proprietario autenticato) legge/aggiorna/cancella direttamente.
     match /tourism_assistMessages/{messageId} {
       allow create: if false;
-      allow read, update, delete: if isOwner();
+      allow read: if isOwner();
+      allow update, delete: if isOwner() && serviceEnabled();
     }
 
     // Contatore di click sulle card "Consigli & dintorni" — la scrittura
@@ -149,7 +166,8 @@ service cloud.firestore {
     // leggere né alterare i contatori.
     match /tourism_recsClicks/{clickId} {
       allow create: if false;
-      allow read, update, delete: if isOwner();
+      allow read: if isOwner();
+      allow update, delete: if isOwner() && serviceEnabled();
     }
 
     // Documenti d'identità degli ospiti — dati sensibili, MAI leggibili né

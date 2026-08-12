@@ -324,6 +324,7 @@ exports.createPaymentIntent = onCall({ secrets: [stripeSecretKey] }, async (requ
    ========================================================================== */
 exports.cancelBooking = onCall({ secrets: [stripeSecretKey] }, async (request) => {
   await enforceRateLimit(db, request, 'cancelBooking', 10, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   const integrations = await loadIntegrations(db);
   const key = (integrations.stripe && integrations.stripe.secretKey) || stripeSecretKey.value();
@@ -354,6 +355,7 @@ exports.lookupBookingForCancellation = onCall({}, async (request) => {
   // Limite più stretto: questo endpoint prova a indovinare nome+email+data,
   // il bersaglio più naturale per un tentativo di enumerazione automatizzato.
   await enforceRateLimit(db, request, 'lookupBookingForCancellation', 5, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   try {
     return await lookupBookingForCancellationCore(db, data);
@@ -374,6 +376,7 @@ exports.lookupBookingForCancellation = onCall({}, async (request) => {
    ========================================================================== */
 exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (request) => {
   await enforceRateLimit(db, request, 'submitAssistMessage', 5, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   let result;
   try {
@@ -395,6 +398,7 @@ exports.submitAssistMessage = onCall({ secrets: [telegramBotToken] }, async (req
    ========================================================================== */
 exports.logRecClick = onCall({}, async (request) => {
   await enforceRateLimit(db, request, 'logRecClick', 30, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   try {
     return await logRecClickCore(admin, db, data);
@@ -412,6 +416,7 @@ exports.logRecClick = onCall({}, async (request) => {
    ========================================================================== */
 exports.getBookingForGuestForm = onCall({}, async (request) => {
   await enforceRateLimit(db, request, 'getBookingForGuestForm', 15, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   const bookingId = data.bookingId;
   const token = data.token;
@@ -541,6 +546,7 @@ exports.requestSignatureOtp = onCall({ secrets: [gmailUser, gmailAppPassword] },
 });
 exports.verifySignatureOtp = onCall({}, async (request) => {
   await enforceRateLimit(db, request, 'verifySignatureOtp', 10, 15);
+  await assertServiceEnabled(db);
   return verifySignatureOtpCore({ db, request }, request.data || {});
 });
 
@@ -556,14 +562,17 @@ exports.verifySignatureOtp = onCall({}, async (request) => {
    ========================================================================== */
 exports.staffGetBoard = onCall({}, async (request) => {
   await enforceRateLimit(db, request, 'staffGetBoard', 30, 15);
+  await assertServiceEnabled(db);
   return staffGetBoardCore({ db }, request.data || {});
 });
 exports.staffSetCleaningStatus = onCall({}, async (request) => {
   await enforceRateLimit(db, request, 'staffSetCleaningStatus', 30, 15);
+  await assertServiceEnabled(db);
   return staffSetCleaningStatusCore({ db, admin }, request.data || {});
 });
 exports.staffReportMaintenance = onCall({ secrets: [telegramBotToken] }, async (request) => {
   await enforceRateLimit(db, request, 'staffReportMaintenance', 10, 15);
+  await assertServiceEnabled(db);
   const integrations = await loadIntegrations(db);
   const botToken = (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value();
   return staffReportMaintenanceCore({ db, admin, botToken }, request.data || {});
@@ -577,10 +586,12 @@ exports.staffReportMaintenance = onCall({ secrets: [telegramBotToken] }, async (
    ========================================================================== */
 exports.staffGetMaintenanceBoard = onCall({}, async (request) => {
   await enforceRateLimit(db, request, 'staffGetMaintenanceBoard', 30, 15);
+  await assertServiceEnabled(db);
   return staffGetMaintenanceBoardCore({ db }, request.data || {});
 });
 exports.staffSetMaintenanceStatus = onCall({}, async (request) => {
   await enforceRateLimit(db, request, 'staffSetMaintenanceStatus', 30, 15);
+  await assertServiceEnabled(db);
   return staffSetMaintenanceStatusCore({ db, admin }, request.data || {});
 });
 
@@ -591,6 +602,7 @@ exports.staffSetMaintenanceStatus = onCall({}, async (request) => {
 exports.notifyMaintenanceRecipients = onCall({ secrets: [telegramBotToken] }, async (request) => {
   if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può inviare questa notifica.');
   await enforceRateLimit(db, request, 'notifyMaintenanceRecipients', 15, 15);
+  await assertServiceEnabled(db);
   const integrations = await loadIntegrations(db);
   const botToken = (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value();
   return notifyMaintenanceRecipientsCore({ db, admin, botToken }, request.data || {});
@@ -604,6 +616,7 @@ exports.notifyMaintenanceRecipients = onCall({ secrets: [telegramBotToken] }, as
    ========================================================================== */
 exports.markIdentityVerified = onCall({}, async (request) => {
   if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può confermare la verifica.');
+  await assertServiceEnabled(db);
   const data = request.data || {};
   const bookingId = data.bookingId;
   const method = data.method === 'door_intercom' ? 'door_intercom' : 'video_call';
@@ -634,6 +647,7 @@ exports.markIdentityVerified = onCall({}, async (request) => {
 exports.parseGuestDocPhoto = onCall({ secrets: [visionApiKey] }, async (request) => {
   if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può usare questa funzione.');
   await enforceRateLimit(db, request, 'parseGuestDocPhoto', 20, 15);
+  await assertServiceEnabled(db);
   const data = request.data || {};
   const bookingId = data.bookingId;
   const guestIndex = Number(data.guestIndex);
@@ -688,10 +702,26 @@ exports.telegramWebhook = onRequest({ secrets: [telegramBotToken, telegramWebhoo
   try {
     const integrations = await loadIntegrations(db);
     const botToken = (integrations.telegram && integrations.telegram.botToken) || telegramBotToken.value();
-    await handleTelegramUpdate(
-      { admin, db, bucket, botToken, visionApiKey: visionApiKey.value() },
-      req.body || {}
-    );
+    const update = req.body || {};
+    const statusSnap = await db.collection('platform_control').doc('status').get();
+    if (statusSnap.exists && statusSnap.data().enabled === false) {
+      // Kill switch: il bot non esegue più nessun comando (prenotazioni,
+      // board pulizie/manutenzione...), ma avvisa comunque chi scrive,
+      // altrimenti sembrerebbe semplicemente rotto invece che disattivato.
+      const chatId = (update.message && update.message.chat && update.message.chat.id) ||
+        (update.callback_query && update.callback_query.message && update.callback_query.message.chat && update.callback_query.message.chat.id);
+      if (chatId && botToken) {
+        await fetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text: '🚫 Servizio disabilitato: contatta il gestore della piattaforma.' })
+        }).catch(() => {});
+      }
+    } else {
+      await handleTelegramUpdate(
+        { admin, db, bucket, botToken, visionApiKey: visionApiKey.value() },
+        update
+      );
+    }
   } catch (err) {
     console.error('Errore telegramWebhook:', err);
   }
@@ -779,6 +809,11 @@ exports.bookingCalendarIcs = onRequest(async (req, res) => {
     await enforceRateLimit(db, { auth: null, rawRequest: req }, 'bookingCalendarIcs', 30, 15);
   } catch (err) {
     res.status(429).send('Troppe richieste da questo indirizzo in poco tempo: riprova tra qualche minuto.');
+    return;
+  }
+  const statusSnap = await db.collection('platform_control').doc('status').get();
+  if (statusSnap.exists && statusSnap.data().enabled === false) {
+    res.status(503).send('Servizio disabilitato.');
     return;
   }
   const bookingId = String(req.query.booking || '');

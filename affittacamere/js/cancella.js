@@ -237,7 +237,7 @@
     });
   }
 
-  function init() {
+  function startApp() {
     applyBranding();
     document.getElementById('cancel-confirm-btn').addEventListener('click', doCancel);
     document.getElementById('cancel-lookup-btn').addEventListener('click', doLookup);
@@ -247,6 +247,16 @@
 
     if (!bookingId || !token) { render(); return; }
     loadBooking();
+  }
+
+  // Kill switch totale piattaforma SaaS: niente form cancellazione finché
+  // non è confermato che il servizio è attivo (vedi guardService in firebase-init.js).
+  function init() {
+    if (window.CasaCelesteTourismDB && window.CasaCelesteTourismDB.isConfigured()) {
+      window.CasaCelesteTourismDB.guardService(startApp);
+    } else {
+      startApp();
+    }
   }
 
   if (document.readyState === 'loading') {

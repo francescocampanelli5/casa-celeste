@@ -52,6 +52,32 @@ function requireDb() {
   return db;
 }
 
+// Schermata bianca "Servizio disabilitato" — un'unica implementazione
+// condivisa da OGNI pagina che carica questo file (sito pubblico, dashboard,
+// pulizie/manutenzione/ospiti/cancella), usata da guardService() sotto.
+// z-index al massimo intero possibile e position:fixed;inset:0 così copre
+// letteralmente qualunque altro elemento, incluse modali/overlay già aperti.
+function renderServiceDisabledScreen(title, text) {
+  if (document.getElementById('service-disabled-screen')) return;
+  var el = document.createElement('div');
+  el.id = 'service-disabled-screen';
+  el.setAttribute('role', 'alert');
+  el.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#fff;color:#10233B;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px;font-family:inherit;';
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'max-width:420px;';
+  var h = document.createElement('h1');
+  h.style.cssText = 'font-size:20px;font-weight:800;margin:0 0 12px;';
+  h.textContent = title || 'Servizio disabilitato';
+  var p = document.createElement('p');
+  p.style.cssText = 'font-size:14.5px;line-height:1.6;opacity:0.75;margin:0;';
+  p.textContent = text || 'Questo servizio non è al momento raggiungibile. Contatta il gestore della piattaforma.';
+  wrap.appendChild(h);
+  wrap.appendChild(p);
+  el.appendChild(wrap);
+  document.body.appendChild(el);
+  document.body.style.overflow = 'hidden';
+}
+
 // Auth e Storage caricati solo alla prima chiamata che ne ha davvero bisogno
 // (dynamic import): la maggior parte delle pagine (sito pubblico, pulizie,
 // manutenzione, cancella) non fa mai login né upload, quindi non ha senso
@@ -253,6 +279,24 @@ window.CasaCelesteTourismDB = {
     if (!configured) return function () {};
     return onSnapshot(doc(requireDb(), 'platform_control', 'status'), function (snap) {
       callback(snap.exists() ? snap.data() : { enabled: true });
+    });
+  },
+  // Kill switch totale: chiama onEnabled() SOLO dopo la prima risposta di
+  // Firestore, e SOLO se il servizio risulta attivo — se è disabilitato,
+  // onEnabled() non gira mai (niente rendering della pagina reale, solo la
+  // schermata bianca sopra) invece di renderla e poi coprirla con un
+  // overlay, come succedeva prima. Se il servizio viene disabilitato mentre
+  // la pagina è già aperta, la schermata bianca compare comunque (onEnabled
+  // gira una volta sola grazie a `started`, gli snapshot successivi possono
+  // solo mostrare il blocco, mai "sbloccare" senza un reload).
+  guardService: function (onEnabled, opts) {
+    if (!configured) { onEnabled(); return function () {}; }
+    var started = false;
+    var o = opts || {};
+    return onSnapshot(doc(requireDb(), 'platform_control', 'status'), function (snap) {
+      var status = snap.exists() ? snap.data() : { enabled: true };
+      if (status.enabled === false) { renderServiceDisabledScreen(o.title, o.text); return; }
+      if (!started) { started = true; onEnabled(); }
     });
   },
 

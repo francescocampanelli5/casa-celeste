@@ -349,7 +349,7 @@
     });
   }
 
-  function init() {
+  function startApp() {
     applyBranding();
     document.getElementById('guestdoc-submit-btn').addEventListener('click', submit);
     document.getElementById('guestdoc-privacy-link').addEventListener('click', function () {
@@ -377,6 +377,16 @@
       state.error = (err && err.message) || 'Link non valido o scaduto.';
       render();
     });
+  }
+
+  // Kill switch totale piattaforma SaaS: niente form ospiti finché non è
+  // confermato che il servizio è attivo (vedi guardService in firebase-init.js).
+  function init() {
+    if (window.CasaCelesteTourismDB && window.CasaCelesteTourismDB.isConfigured()) {
+      window.CasaCelesteTourismDB.guardService(startApp);
+    } else {
+      startApp();
+    }
   }
 
   if (document.readyState === 'loading') {

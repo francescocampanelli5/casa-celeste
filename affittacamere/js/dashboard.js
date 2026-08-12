@@ -4022,36 +4022,23 @@
     state.unsubSettingsPrivate = window.CasaCelesteTourismDB.subscribeSettingsPrivate(function (data) { state.settingsPrivate = data || {}; if (state.user) renderTabContent(); });
     state.unsubMaintenance = window.CasaCelesteTourismDB.subscribeMaintenance(function (items) { state.maintenanceData = items; if (state.user) renderTabContent(); });
   }
-  // Piattaforma SaaS (celeste-saas-control): copre l'intera pagina, login
-  // incluso, quando il gestore ha disattivato questo cliente
-  // (platform_control/status.enabled === false). Puramente estetico — il
-  // vero blocco è lato server (assertServiceEnabled in functions/index.js),
-  // questo evita solo che il proprietario continui a lavorare su una
-  // dashboard che in realtà rifiuterebbe ogni scrittura.
-  function renderServiceDisabledScreen() {
-    if (document.getElementById('service-disabled-screen')) return;
-    var el = document.createElement('div');
-    el.id = 'service-disabled-screen';
-    el.setAttribute('role', 'alert');
-    el.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#10233B;color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px;font-family:inherit;';
-    el.innerHTML =
-      '<div style="max-width:420px;">' +
-      '<h1 style="font-size:20px;font-weight:800;margin:0 0 12px;">Servizio temporaneamente disabilitato</h1>' +
-      '<p style="font-size:14.5px;line-height:1.6;opacity:0.85;margin:0;">Questa dashboard non è al momento raggiungibile. Contatta il gestore della piattaforma per riattivarla.</p>' +
-      '</div>';
-    document.body.appendChild(el);
-    document.body.style.overflow = 'hidden';
-  }
-  function init() {
-    if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) { renderNotConfigured(); return; }
-    window.CasaCelesteTourismDB.subscribeServiceStatus(function (status) {
-      if (status && status.enabled === false) renderServiceDisabledScreen();
-    });
+  // Piattaforma SaaS (celeste-saas-control): kill switch totale quando il
+  // gestore ha disattivato questo cliente (platform_control/status.enabled
+  // === false). startApp() (login incluso) non parte finché guardService()
+  // non conferma che il servizio è attivo — prima login/dashboard partivano
+  // comunque e solo DOPO comparivano coperti da un overlay, qui invece se è
+  // disabilitato non gira proprio nulla, solo la schermata bianca "Servizio
+  // disabilitato" condivisa in firebase-init.js.
+  function startApp() {
     window.CasaCelesteTourismDB.onAuthChange(function (user) {
       state.user = user;
       state.mfaResolver = null;
       if (user) { subscribeToData(); renderDashboard(); } else { renderLogin(); }
     });
+  }
+  function init() {
+    if (!window.CasaCelesteTourismDB || !window.CasaCelesteTourismDB.isConfigured()) { renderNotConfigured(); return; }
+    window.CasaCelesteTourismDB.guardService(startApp, { title: 'Servizio disabilitato', text: 'Questa dashboard non è al momento raggiungibile. Contatta il gestore della piattaforma per riattivarla.' });
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
