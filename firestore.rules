@@ -150,6 +150,17 @@ service cloud.firestore {
       allow update, delete: if isOwner() && serviceEnabled();
     }
 
+    // Registro fatture emesse (tab Fatture): scritto SOLO dalla Cloud
+    // Function issueInvoice dopo che il provider (Aruba/Fatture in Cloud) ha
+    // confermato la creazione — l'Admin SDK bypassa comunque queste regole.
+    // Nessuna scrittura diretta client, nemmeno del proprietario: è un
+    // registro di riferimento (ID fattura del provider), non va corretto
+    // a mano da qui.
+    match /tourism_invoices/{invoiceId} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
     // Messaggi lasciati dal widget di assistenza — la scrittura passa SOLO
     // dalla Cloud Function submitAssistMessage (validazione completa lato
     // server, l'Admin SDK bypassa comunque queste regole); la dashboard

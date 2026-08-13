@@ -544,6 +544,23 @@ window.CasaCelesteTourismDB = {
     return httpsCallable(functions, 'getBookingForGuestForm')(data).then(function (res) { return res.data; });
   },
   // Firma OTP del contratto di locazione (FES) — vedi functions/guest-signature.js.
+  // Tab Fatture — schema-driven: getInvoiceSchema dice al frontend come
+  // disegnare la form (vedi functions/invoice-schema.js), issueInvoice
+  // valida e inoltra al provider configurato (Aruba/Fatture in Cloud, vedi
+  // functions/invoice-providers/), listInvoices legge il registro di ciò
+  // che è già stato emesso.
+  getInvoiceSchema: function () {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'getInvoiceSchema')().then(function (res) { return res.data; });
+  },
+  issueInvoice: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'issueInvoice')(data).then(function (res) { return res.data; });
+  },
+  listInvoices: function () {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'listInvoices')().then(function (res) { return res.data; });
+  },
   requestSignatureOtp: function (data) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'requestSignatureOtp')(data).then(function (res) { return res.data; });

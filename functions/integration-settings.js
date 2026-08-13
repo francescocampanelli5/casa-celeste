@@ -1,4 +1,4 @@
-// Credenziali di integrazione (Gmail/Stripe/Telegram/Google Sheet) impostabili
+// Credenziali di integrazione (Gmail/Stripe/Telegram/Google Sheet/Fatturazione) impostabili
 // dal proprietario da dashboard (Impostazioni → Integrazioni), invece che solo
 // da riga di comando via `firebase functions:secrets:set`. Salvate come campo
 // annidato `integrations` dentro tourism_settingsPrivate/site (stesso

@@ -43,6 +43,8 @@ const {
 const { syncBookingsToSheet } = require('./bookings-sheet-sync');
 const { platformSetStatusCore, platformCreateOwnerUserCore, platformResetPasswordCore, platformPingCore } = require('./platform-control');
 const { loadIntegrations } = require('./integration-settings');
+const { loadInvoiceSchema, buildInvoiceZodSchema, normalizeInvoicePayload } = require('./invoice-schema');
+const { getInvoiceProvider } = require('./invoice-providers');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -631,6 +633,78 @@ exports.markIdentityVerified = onCall({}, async (request) => {
   await recordVerifiedGuests(db, admin, guests, bookingId, method);
   await bookingRef.update({ identityVerified: { method: method, verifiedAt: admin.firestore.FieldValue.serverTimestamp() } });
   return { ok: true };
+});
+
+/* ==========================================================================
+   Fatturazione — getInvoiceSchema/issueInvoice/listInvoices: la form del tab
+   Fatture è interamente guidata dallo schema di invoice-schema.js (o dal suo
+   override in tourism_settings/site.invoiceSchema — nessuna struttura
+   hardcoded nel frontend). issueInvoice valida il payload con lo stesso
+   schema (Zod, buildInvoiceZodSchema) e delega la creazione vera e propria
+   all'adapter del provider scelto in Impostazioni → Integrazioni →
+   Fatturazione (Adapter Pattern, vedi invoice-providers/index.js — cambiare
+   provider o aggiungerne uno nuovo non tocca questo file). Solo owner.
+   ========================================================================== */
+exports.getInvoiceSchema = onCall({}, async (request) => {
+  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può accedere alla fatturazione.');
+  await assertServiceEnabled(db);
+  const schema = await loadInvoiceSchema(db);
+  return { schema: schema };
+});
+
+exports.issueInvoice = onCall({}, async (request) => {
+  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può emettere fatture.');
+  await enforceRateLimit(db, request, 'issueInvoice', 10, 15);
+  await assertServiceEnabled(db);
+
+  const schema = await loadInvoiceSchema(db);
+  const parsed = buildInvoiceZodSchema(schema).safeParse(request.data || {});
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    throw new HttpsError('invalid-argument', 'Dati fattura non validi: ' + (firstIssue ? (firstIssue.path.join('.') + ' — ' + firstIssue.message) : 'campo mancante.'));
+  }
+  const standardInvoice = normalizeInvoicePayload(schema, parsed.data);
+
+  const integrations = await loadIntegrations(db);
+  const invoicing = integrations.invoicing || {};
+  if (!invoicing.provider) {
+    throw new HttpsError('failed-precondition', 'Nessun provider di fatturazione configurato: vai in Impostazioni → Integrazioni → Fatturazione.');
+  }
+  const provider = getInvoiceProvider(invoicing.provider);
+  let result;
+  try {
+    result = await provider.createInvoice(standardInvoice, invoicing);
+  } catch (err) {
+    // Errore del provider (es. codice fiscale ospite errato, credenziali
+    // scadute): inoltrato al frontend com'è, mai un generico "internal" se
+    // l'adapter ha già distinto la causa (err.code).
+    const code = ['invalid-argument', 'failed-precondition'].includes(err.code) ? err.code : 'internal';
+    throw new HttpsError(code, err.message || 'Errore imprevisto dal provider di fatturazione.');
+  }
+
+  const docRef = await db.collection('tourism_invoices').add({
+    provider: invoicing.provider,
+    providerInvoiceId: result.providerInvoiceId,
+    bookingId: standardInvoice.bookingId || null,
+    guestName: (standardInvoice.guest && standardInvoice.guest.guestName) || '',
+    documentDate: (standardInvoice.document && standardInvoice.document.documentDate) || '',
+    totals: standardInvoice.totals,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: request.auth.uid
+  });
+  return { ok: true, invoiceId: docRef.id, providerInvoiceId: result.providerInvoiceId, totals: standardInvoice.totals };
+});
+
+exports.listInvoices = onCall({}, async (request) => {
+  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può vedere il registro fatture.');
+  await assertServiceEnabled(db);
+  const snap = await db.collection('tourism_invoices').orderBy('createdAt', 'desc').limit(50).get();
+  return {
+    invoices: snap.docs.map(function (d) {
+      const data = d.data();
+      return Object.assign({ id: d.id }, data, { createdAt: data.createdAt ? data.createdAt.toMillis() : null });
+    })
+  };
 });
 
 /* ==========================================================================

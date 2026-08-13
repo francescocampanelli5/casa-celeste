@@ -1853,6 +1853,33 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 }
 .compliance-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(16,35,59,0.06); font-size: 13px; }
 .compliance-item.is-urgent { color: #B23A3A; font-weight: 700; }
+
+/* Tab Fatture — "carta" della fattura: layout fisso (host/ospite affiancati,
+   tabella righe, totali in fondo a destra) con campi editabili DIRETTO nel
+   punto in cui compaiono su una fattura vera, non un form separato sopra
+   l'anteprima — è il senso di "editor WYSIWYG" richiesto. */
+.invoice-preview {
+  background: var(--white); border: 1px solid var(--border-soft); border-radius: var(--radius-xs);
+  padding: var(--dash-space-5); display: flex; flex-direction: column; gap: var(--dash-space-4);
+}
+.invoice-preview-header { display: grid; grid-template-columns: 1fr 1fr; gap: var(--dash-space-4); }
+@media (max-width: 640px) { .invoice-preview-header { grid-template-columns: 1fr; } }
+.invoice-party { background: var(--grey-bg); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.invoice-party-title { font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faintest); }
+.invoice-field-row { display: flex; flex-direction: column; gap: 3px; }
+.invoice-field-row > label { font-size: 11.5px; font-weight: 600; color: var(--text-body); }
+.invoice-inline-input { background: transparent; }
+.invoice-document-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: var(--dash-space-4); }
+.invoice-section-title { font-size: 12.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--blue-deep); margin-top: 4px; }
+.invoice-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 640px; }
+.invoice-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faintest); padding: 6px 6px; border-bottom: 2px solid var(--border-soft); }
+.invoice-table td { padding: 6px; vertical-align: middle; border-bottom: 1px solid var(--border-hairline); }
+.invoice-table .admin-field { min-width: 90px; }
+.invoice-line-total { font-weight: 700; white-space: nowrap; }
+.invoice-tax-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: var(--dash-space-4); background: var(--grey-bg); border-radius: 10px; padding: 12px; }
+.invoice-totals { align-self: flex-end; width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.invoice-totals > div { display: flex; justify-content: space-between; padding: 4px 0; }
+.invoice-grand-total { border-top: 2px solid var(--border-strong); margin-top: 4px; padding-top: 8px !important; font-size: 16px; font-weight: 700; color: var(--navy); }
 .admin-manual-booking-form { background: #F5FAFD; border-radius: 12px; padding: 18px; margin-bottom: 20px; }
 
 /* Barra bassa "Contatta l'host" — vedi renderContactHostBar() in app.js */

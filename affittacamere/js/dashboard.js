@@ -425,11 +425,12 @@
     ] },
     { title: 'Sistema', items: [
       { tab: 'compliance', label: 'Adempimenti' },
+      { tab: 'invoices', label: 'Fatture' },
       { tab: 'email', label: 'Email ospiti' },
       { tab: 'settings', label: 'Impostazioni' }
     ] }
   ];
-  var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'La zona', home: 'Home', location: 'Posizione', host: 'Host', compliance: 'Adempimenti', email: 'Email ospiti', settings: 'Impostazioni' };
+  var TAB_TITLES = { calendar: 'Calendario', bookings: 'Prenotazioni', rooms: 'Stanze', commons: 'Spazi comuni', reviews: 'Recensioni', assist: 'Assistenza', monopoli: 'La zona', home: 'Home', location: 'Posizione', host: 'Host', compliance: 'Adempimenti', invoices: 'Fatture', email: 'Email ospiti', settings: 'Impostazioni' };
 
   function sidebarLinksHtml() {
     // "Spazi comuni" ha senso solo se la struttura è a stanze con aree
@@ -519,6 +520,7 @@
     else if (state.activeTab === 'location') renderLocationTab(content);
     else if (state.activeTab === 'host') renderHostTab(content);
     else if (state.activeTab === 'compliance') renderComplianceTab(content);
+    else if (state.activeTab === 'invoices') renderInvoiceTab(content);
     else if (state.activeTab === 'email') renderEmailTab(content);
     else if (state.activeTab === 'settings') renderSettingsTab(content);
     else renderRoomsTab(content);
@@ -2464,6 +2466,256 @@
   }
 
   /* ==========================================================================
+     Tab Fatture — editor WYSIWYG guidato dallo schema di
+     functions/invoice-schema.js (chiamato una volta via getInvoiceSchema):
+     aggiungere/togliere/rietichettare un campo nello schema lo fa comparire
+     o sparire qui SENZA toccare questo file — solo il layout "a fattura"
+     (host a sinistra, ospite a destra, tabella righe, tassa di soggiorno,
+     totali in fondo) resta fisso, perché una fattura vera ha una posizione
+     convenzionale per ciascun blocco. issueInvoice (functions/index.js)
+     rivalida tutto lato server con lo stesso schema: questi controlli qui
+     sono solo per un'esperienza di compilazione più comoda.
+     ========================================================================== */
+  function findInvoiceSection(schema, id) {
+    return schema.sections.filter(function (s) { return s.id === id; })[0];
+  }
+  function emptyInvoiceLineItem(itemSection) {
+    var row = {};
+    (itemSection.itemFields || []).forEach(function (f) { row[f.id] = f.default != null ? f.default : ''; });
+    return row;
+  }
+  function ensureInvoiceDraftDefaults(schema) {
+    if (state.invoiceDraftInitialized) return;
+    state.invoiceDraftInitialized = true;
+    state.invoiceDraft = {};
+    schema.sections.forEach(function (section) {
+      if (section.repeatable) return;
+      section.fields.forEach(function (f) { state.invoiceDraft[f.id] = f.default != null ? f.default : ''; });
+    });
+    state.invoiceDraft.hostName = (state.settings && state.settings.siteName) || state.invoiceDraft.hostName || '';
+    state.invoiceDraft.documentDate = todayISO();
+    if (state.settings && state.settings.touristTaxRate != null) state.invoiceDraft.touristTaxRatePerNight = state.settings.touristTaxRate;
+    var itemSection = findInvoiceSection(schema, 'lineItems');
+    state.invoiceLineItems = [emptyInvoiceLineItem(itemSection)];
+  }
+  function invoiceFieldInputHtml(field, value, dataAttrs) {
+    var val = value == null ? '' : value;
+    if (field.type === 'select') {
+      return '<select class="admin-field" ' + dataAttrs + '>' + (field.options || []).map(function (o) {
+        return '<option value="' + escapeHtml(o.value) + '"' + (String(val) === String(o.value) ? ' selected' : '') + '>' + escapeHtml(o.label) + '</option>';
+      }).join('') + '</select>';
+    }
+    if (field.type === 'textarea') {
+      return '<textarea class="admin-field" rows="2" ' + dataAttrs + ' placeholder="' + escapeHtml(field.placeholder || '') + '">' + escapeHtml(val) + '</textarea>';
+    }
+    var inputType = field.type === 'number' ? 'number' : (field.type === 'date' ? 'date' : (field.type === 'email' ? 'email' : 'text'));
+    var stepAttr = field.step != null ? ' step="' + field.step + '"' : (field.type === 'number' ? ' step="any"' : '');
+    var minAttr = field.min != null ? ' min="' + field.min + '"' : '';
+    var maxAttr = field.max != null ? ' max="' + field.max + '"' : '';
+    return '<input type="' + inputType + '" class="admin-field invoice-inline-input" ' + dataAttrs + stepAttr + minAttr + maxAttr + ' placeholder="' + escapeHtml(field.placeholder || '') + '" value="' + escapeHtml(val) + '">';
+  }
+  function invoiceSectionFieldsHtml(section, valuesObj) {
+    return section.fields.map(function (f) {
+      var dataAttrs = 'data-invoice-field="' + f.id + '"';
+      return '<div class="invoice-field-row"><label>' + escapeHtml(f.label) + (f.required ? ' *' : '') + '</label>' + invoiceFieldInputHtml(f, valuesObj[f.id], dataAttrs) + '</div>';
+    }).join('');
+  }
+  function invoiceLineItemsTableHtml(itemSection) {
+    var rows = state.invoiceLineItems.map(function (row, idx) {
+      var cells = itemSection.itemFields.map(function (f) {
+        var dataAttrs = 'data-invoice-item-field="' + f.id + '" data-invoice-item-index="' + idx + '"';
+        return '<td>' + invoiceFieldInputHtml(f, row[f.id], dataAttrs) + '</td>';
+      }).join('');
+      var lineTotal = Number(row.quantity || 0) * Number(row.unitPrice || 0);
+      return '<tr>' + cells + '<td class="invoice-line-total">€' + lineTotal.toFixed(2) + '</td>' +
+        '<td><button type="button" class="admin-stat-remove" data-invoice-item-remove="' + idx + '"' + (state.invoiceLineItems.length <= 1 ? ' disabled' : '') + '>✕</button></td></tr>';
+    }).join('');
+    var headers = itemSection.itemFields.map(function (f) { return '<th>' + escapeHtml(f.label) + '</th>'; }).join('') + '<th>Totale riga</th><th></th>';
+    return '<div style="overflow-x:auto;"><table class="invoice-table"><thead><tr>' + headers + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<button type="button" class="dash-add-room-btn" id="invoice-add-line">+ Aggiungi riga</button>';
+  }
+  function computeInvoiceTotalsClientSide() {
+    var subtotal = 0, vatTotal = 0;
+    state.invoiceLineItems.forEach(function (li) {
+      var net = Number(li.quantity || 0) * Number(li.unitPrice || 0);
+      subtotal += net;
+      if (!li.natura) vatTotal += net * (Number(li.vatRate || 0) / 100);
+    });
+    var tax = Number(state.invoiceDraft.touristTaxAmount || 0);
+    return { subtotal: subtotal, vatTotal: vatTotal, touristTax: tax, grandTotal: subtotal + vatTotal + tax };
+  }
+  function invoiceTotalsHtml() {
+    var t = computeInvoiceTotalsClientSide();
+    return '<div class="invoice-totals">' +
+      '<div><span>Imponibile</span><span>€' + t.subtotal.toFixed(2) + '</span></div>' +
+      '<div><span>IVA</span><span>€' + t.vatTotal.toFixed(2) + '</span></div>' +
+      '<div><span>Imposta di soggiorno</span><span>€' + t.touristTax.toFixed(2) + '</span></div>' +
+      '<div class="invoice-grand-total"><span>Totale</span><span>€' + t.grandTotal.toFixed(2) + '</span></div>' +
+    '</div>';
+  }
+  function invoiceResultBannerHtml() {
+    var r = state.invoiceResult;
+    if (r.ok) return '<div class="compliance-banner">✅ Fattura emessa — ID provider: ' + escapeHtml(r.providerInvoiceId) + ' (salvata nel registro qui sotto).</div>';
+    return '<div class="compliance-banner" style="background:#FDEAEA; color:#B23A3A;">❌ ' + escapeHtml(r.message) + '</div>';
+  }
+  function invoicePastListHtml() {
+    var list = state.invoiceList || [];
+    if (state.invoiceListLoading) return '<div class="admin-note">Caricamento registro fatture…</div>';
+    if (!list.length) return '<div class="admin-note">Nessuna fattura emessa finora.</div>';
+    var rows = list.map(function (inv) {
+      return '<div class="admin-stat-row" style="grid-template-columns:110px 1fr 1fr 90px;">' +
+        '<span>' + escapeHtml(inv.documentDate || '') + '</span>' +
+        '<span>' + escapeHtml(inv.guestName || '') + '</span>' +
+        '<span>' + escapeHtml(inv.provider || '') + ' · ' + escapeHtml(inv.providerInvoiceId || '') + '</span>' +
+        '<span>€' + Number((inv.totals && inv.totals.grandTotal) || 0).toFixed(2) + '</span>' +
+      '</div>';
+    }).join('');
+    return '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Registro fatture emesse</span></div><div class="admin-stats-rows">' + rows + '</div></div>';
+  }
+  function prefillInvoiceFromBooking(bookingId, schema) {
+    var b = (state.bookings || []).filter(function (x) { return x.id === bookingId; })[0];
+    if (!b) return;
+    state.invoiceDraft.guestName = b.name || '';
+    state.invoiceDraft.guestEmail = b.email || '';
+    state.invoiceDraft.causale = 'Locazione turistica breve — ' + (b.roomLabel || '') + ' — soggiorno dal ' + formatDateShort(b.checkIn) + ' al ' + formatDateShort(b.checkOut);
+    var itemSection = findInvoiceSection(schema, 'lineItems');
+    var row = emptyInvoiceLineItem(itemSection);
+    row.description = 'Soggiorno ' + (b.roomLabel || '') + ' — ' + (b.nights || 0) + ' notti';
+    row.quantity = 1;
+    row.unitPrice = (b.pricing && b.pricing.total != null) ? b.pricing.total : 0;
+    state.invoiceLineItems = [row];
+    if (b.touristTax) {
+      state.invoiceDraft.touristTaxNights = b.nights || 0;
+      state.invoiceDraft.touristTaxPersons = Math.max(0, (b.touristTax.totalGuests || 0) - (b.touristTax.exemptGuests || 0));
+      state.invoiceDraft.touristTaxRatePerNight = b.touristTax.perNight || 0;
+      state.invoiceDraft.touristTaxAmount = b.touristTax.totalDue || 0;
+    }
+  }
+  function bindInvoiceTabEvents(content, schema) {
+    var bookingSelect = document.getElementById('invoice-booking-select');
+    if (bookingSelect) bookingSelect.addEventListener('change', function (e) {
+      state.invoiceSelectedBookingId = e.target.value;
+      if (e.target.value) prefillInvoiceFromBooking(e.target.value, schema);
+      renderTabContent();
+    });
+    content.querySelectorAll('[data-invoice-field]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        state.invoiceDraft[el.getAttribute('data-invoice-field')] = e.target.value;
+        renderTabContent();
+      });
+    });
+    content.querySelectorAll('[data-invoice-item-field]').forEach(function (el) {
+      el.addEventListener('change', function (e) {
+        var idx = Number(el.getAttribute('data-invoice-item-index'));
+        state.invoiceLineItems[idx] = Object.assign({}, state.invoiceLineItems[idx]);
+        state.invoiceLineItems[idx][el.getAttribute('data-invoice-item-field')] = e.target.value;
+        renderTabContent();
+      });
+    });
+    var addLineBtn = document.getElementById('invoice-add-line');
+    if (addLineBtn) addLineBtn.addEventListener('click', function () {
+      state.invoiceLineItems.push(emptyInvoiceLineItem(findInvoiceSection(schema, 'lineItems')));
+      renderTabContent();
+    });
+    content.querySelectorAll('[data-invoice-item-remove]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var idx = Number(el.getAttribute('data-invoice-item-remove'));
+        if (state.invoiceLineItems.length <= 1) return;
+        state.invoiceLineItems.splice(idx, 1);
+        renderTabContent();
+      });
+    });
+    var issueBtn = document.getElementById('invoice-issue-btn');
+    if (issueBtn) issueBtn.addEventListener('click', function () {
+      state.invoiceIssuing = true;
+      state.invoiceResult = null;
+      renderTabContent();
+      // Un solo oggetto JSON strutturato con tutto ciò che serve al backend
+      // (issueInvoice in functions/index.js) — vedi requisito "raccolga tutti
+      // i dati inseriti in un singolo oggetto JSON strutturato".
+      var payload = {
+        fields: Object.assign({}, state.invoiceDraft),
+        lineItems: state.invoiceLineItems.map(function (li) {
+          return { description: li.description || '', quantity: Number(li.quantity) || 0, unitPrice: Number(li.unitPrice) || 0, vatRate: Number(li.vatRate) || 0, natura: li.natura || '' };
+        }),
+        bookingId: state.invoiceSelectedBookingId || null
+      };
+      window.CasaCelesteTourismDB.issueInvoice(payload).then(function (res) {
+        state.invoiceIssuing = false;
+        state.invoiceResult = { ok: true, providerInvoiceId: res.providerInvoiceId };
+        state.invoiceList = null;
+        renderTabContent();
+      }).catch(function (err) {
+        state.invoiceIssuing = false;
+        state.invoiceResult = { ok: false, message: (err && err.message) || 'Errore imprevisto.' };
+        renderTabContent();
+      });
+    });
+  }
+  function renderInvoiceTab(content) {
+    if (!state.invoiceSchema && !state.invoiceSchemaLoading) {
+      state.invoiceSchemaLoading = true;
+      window.CasaCelesteTourismDB.getInvoiceSchema().then(function (res) {
+        state.invoiceSchema = res.schema;
+        state.invoiceSchemaLoading = false;
+        if (state.activeTab === 'invoices') renderTabContent();
+      }).catch(function (err) {
+        state.invoiceSchemaLoading = false;
+        state.invoiceSchemaError = (err && err.message) || String(err);
+        if (state.activeTab === 'invoices') renderTabContent();
+      });
+    }
+    if (!state.invoiceList && !state.invoiceListLoading) {
+      state.invoiceListLoading = true;
+      window.CasaCelesteTourismDB.listInvoices().then(function (res) {
+        state.invoiceList = res.invoices || [];
+        state.invoiceListLoading = false;
+        if (state.activeTab === 'invoices') renderTabContent();
+      }).catch(function () { state.invoiceListLoading = false; state.invoiceList = []; });
+    }
+    if (!state.invoiceSchema) {
+      content.innerHTML = '<h1 class="dash-section-title">Fatture</h1>' + (state.invoiceSchemaError ?
+        '<div class="admin-note" style="color:#B23A3A;">Impossibile caricare il modulo fattura: ' + escapeHtml(state.invoiceSchemaError) + '</div>' :
+        '<div class="admin-note">Caricamento modulo…</div>');
+      return;
+    }
+    var schema = state.invoiceSchema;
+    ensureInvoiceDraftDefaults(schema);
+    var hostSection = findInvoiceSection(schema, 'host'), guestSection = findInvoiceSection(schema, 'guest'),
+      docSection = findInvoiceSection(schema, 'document'), itemSection = findInvoiceSection(schema, 'lineItems'),
+      taxSection = findInvoiceSection(schema, 'touristTax');
+    var activeBookings = (state.bookings || []).filter(function (b) { return b.status !== 'annullato'; });
+    var bookingOptions = '<option value="">— nessuna, compila a mano —</option>' + activeBookings.map(function (b) {
+      return '<option value="' + b.id + '"' + (state.invoiceSelectedBookingId === b.id ? ' selected' : '') + '>' + escapeHtml(b.roomLabel || '') + ' — ' + escapeHtml(b.name || '') + ' (' + escapeHtml(formatDateShort(b.checkIn)) + ')</option>';
+    }).join('');
+
+    content.innerHTML =
+      '<h1 class="dash-section-title">Fatture</h1>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-field-group admin-field-group--full"><label>Precompila da una prenotazione (facoltativo)</label>' +
+          '<select class="admin-field" id="invoice-booking-select">' + bookingOptions + '</select>' +
+        '</div>' +
+      '</div>' +
+      (state.invoiceResult ? invoiceResultBannerHtml() : '') +
+      '<div class="invoice-preview">' +
+        '<div class="invoice-preview-header">' +
+          '<div class="invoice-party"><div class="invoice-party-title">Da (host)</div>' + invoiceSectionFieldsHtml(hostSection, state.invoiceDraft) + '</div>' +
+          '<div class="invoice-party"><div class="invoice-party-title">A (ospite)</div>' + invoiceSectionFieldsHtml(guestSection, state.invoiceDraft) + '</div>' +
+        '</div>' +
+        '<div class="invoice-document-meta">' + invoiceSectionFieldsHtml(docSection, state.invoiceDraft) + '</div>' +
+        '<div class="invoice-section-title">Linee di dettaglio</div>' +
+        invoiceLineItemsTableHtml(itemSection) +
+        '<div class="invoice-section-title">Imposta di soggiorno</div>' +
+        '<div class="invoice-tax-row">' + invoiceSectionFieldsHtml(taxSection, state.invoiceDraft) + '</div>' +
+        invoiceTotalsHtml() +
+      '</div>' +
+      '<button type="button" class="dash-add-room-btn" id="invoice-issue-btn"' + (state.invoiceIssuing ? ' disabled' : '') + ' style="margin:14px 0;">' + (state.invoiceIssuing ? 'Invio in corso…' : 'Emetti Fattura') + '</button>' +
+      invoicePastListHtml();
+
+    bindInvoiceTabEvents(content, schema);
+  }
+
+  /* ==========================================================================
      Settings tab
      ========================================================================== */
   var SOCIAL_PLATFORMS = [
@@ -3558,6 +3810,28 @@
           '<div class="admin-field-group"><label>Link del foglio Google Sheets</label><input type="text" class="admin-field" id="settings-bookings-sheet-url" value="' + escapeHtml(s.bookingsSheetUrl || '') + '" placeholder="https://docs.google.com/spreadsheets/d/..."></div>' +
         '</div>' +
         '<div class="admin-room-card">' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Fatturazione (tab Fatture)</span></div>' +
+          infoNoteHtml('Scegli con quale intermediario emettere le fatture dal tab "Fatture" — l\'abbonamento a quel servizio (Aruba o Fatture in Cloud) è a carico tuo/del cliente, non di questa piattaforma. Le API key/credenziali qui sotto sono salvate nello stesso documento privato di sopra, mai lette dal sito pubblico.') +
+          '<div class="admin-field-group admin-field-group--full"><label>Provider</label>' +
+            '<select class="admin-field" id="priv-int-invoicing-provider">' +
+              '<option value=""' + (!(sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.provider) ? ' selected' : '') + '>Nessuno (fatturazione manuale)</option>' +
+              '<option value="aruba"' + ((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.provider) === 'aruba' ? ' selected' : '') + '>Aruba Fatturazione Elettronica</option>' +
+              '<option value="fattureInCloud"' + ((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.provider) === 'fattureInCloud' ? ' selected' : '') + '>Fatture in Cloud</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;margin-top:10px;"><label style="font-weight:700;">Aruba — usate solo se il provider sopra è "Aruba"</label></div>' +
+          '<div class="admin-field-group"><label>Utente</label><input type="text" class="admin-field" id="priv-int-invoicing-aruba-user" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.username) || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Password</label><input type="password" class="admin-field" id="priv-int-invoicing-aruba-password" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.password) || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Partita IVA trasmittente</label><input type="text" class="admin-field" id="priv-int-invoicing-aruba-piva" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.senderPIVA) || '') + '" placeholder="IT01234567890"></div>' +
+          '<div class="admin-field-group"><label>Ambiente</label><select class="admin-field" id="priv-int-invoicing-aruba-env">' +
+            '<option value="demo"' + ((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.environment) !== 'produzione' ? ' selected' : '') + '>Demo (test, nessuna fattura reale)</option>' +
+            '<option value="produzione"' + ((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.environment) === 'produzione' ? ' selected' : '') + '>Produzione</option>' +
+          '</select></div>' +
+          '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;margin-top:10px;"><label style="font-weight:700;">Fatture in Cloud — usate solo se il provider sopra è "Fatture in Cloud"</label></div>' +
+          '<div class="admin-field-group"><label>Access token</label><input type="password" class="admin-field" id="priv-int-invoicing-fic-token" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.accessToken) || '') + '"></div>' +
+          '<div class="admin-field-group"><label>ID azienda</label><input type="text" class="admin-field" id="priv-int-invoicing-fic-company" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.companyId) || '') + '"></div>' +
+        '</div>' +
+        '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Credenziali tecniche</span></div>' +
           infoNoteHtml('Salvate in un documento separato dal resto delle Impostazioni, leggibile solo dal proprietario (mai dal sito pubblico) — stesso principio della sezione Adempimenti qui sotto. Lascia un campo vuoto per continuare a usare il valore tecnico già configurato (se presente): non è obbligatorio compilarli per far funzionare il sito.') +
           '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;"><label style="font-weight:700;">Email conferme prenotazione (Gmail)</label></div>' +
@@ -3734,6 +4008,27 @@
     });
     document.getElementById('priv-int-sheet-secret').addEventListener('change', function (e) {
       saveIntegration('sheetWebhook', { secret: e.target.value.trim() });
+    });
+    document.getElementById('priv-int-invoicing-provider').addEventListener('change', function (e) {
+      saveIntegration('invoicing', { provider: e.target.value });
+    });
+    document.getElementById('priv-int-invoicing-aruba-user').addEventListener('change', function (e) {
+      saveIntegration('invoicing', { username: e.target.value.trim() });
+    });
+    document.getElementById('priv-int-invoicing-aruba-password').addEventListener('change', function (e) {
+      saveIntegration('invoicing', { password: e.target.value });
+    });
+    document.getElementById('priv-int-invoicing-aruba-piva').addEventListener('change', function (e) {
+      saveIntegration('invoicing', { senderPIVA: e.target.value.trim() });
+    });
+    document.getElementById('priv-int-invoicing-aruba-env').addEventListener('change', function (e) {
+      saveIntegration('invoicing', { environment: e.target.value });
+    });
+    document.getElementById('priv-int-invoicing-fic-token').addEventListener('change', function (e) {
+      saveIntegration('invoicing', { accessToken: e.target.value.trim() });
+    });
+    document.getElementById('priv-int-invoicing-fic-company').addEventListener('change', function (e) {
+      saveIntegration('invoicing', { companyId: e.target.value.trim() });
     });
     document.getElementById('priv-alloggiati-user').addEventListener('change', function (e) {
       savePrivateOrAlert({ alloggiatiWeb: Object.assign({}, sp.alloggiatiWeb, { username: e.target.value.trim() }) });
