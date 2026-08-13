@@ -1184,7 +1184,7 @@
         return n > 0 ? '<div class="cal-month-more" style="grid-column:' + (c + 1) + ';grid-row:' + (visibleLanes + 2) + ';">+' + n + '</div>' : '';
       }).join('') : '';
 
-      weeksHtml += '<div class="cal-month-week" style="grid-template-rows:24px repeat(' + (visibleLanes + (hasOverflow ? 1 : 0)) + ',20px);">' +
+      weeksHtml += '<div class="cal-month-week" style="grid-template-rows:26px repeat(' + (visibleLanes + (hasOverflow ? 1 : 0)) + ',26px);">' +
         daycolsHtml + barsHtml + overflowHtml +
       '</div>';
     }

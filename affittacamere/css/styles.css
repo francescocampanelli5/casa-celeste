@@ -1580,22 +1580,40 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 .cal-month-grid-v2 { border: 1px solid var(--border-hairline); border-radius: var(--radius-xs); overflow: hidden; background: var(--white); }
 .cal-month-weekday-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .cal-month-weekday { background: var(--off-white); text-align: center; font-size: 11px; font-weight: 800; color: var(--text-muted); padding: 6px 0; text-transform: uppercase; }
-.cal-month-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--border-hairline); }
+/* row-gap fra le corsie (e fra intestazione-giorno e prima corsia): senza
+   uno spazio esplicito, un'altezza di riga anche solo di un paio di px più
+   bassa del contenuto reale della barra bastava a farla debordare nella
+   corsia sotto — "le dimensioni sbagliate" che si vedevano come barre
+   sovrapposte. Ora ogni corsia ha altezza fissa E la barra al suo interno
+   ha un'altezza esplicita più piccola della corsia (vedi .cal-month-bar):
+   anche il font più "alto" del previsto non può più debordare, il gap dà
+   comunque un margine di sicurezza visivo in più. */
+.cal-month-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 3px; border-top: 1px solid var(--border-hairline); padding-bottom: 4px; }
 /* Colonna di sfondo di UN giorno, alta quanto l'intera riga (grid-row a
    span dinamico impostato inline) — dà il bordo verticale e lo sfondo
    is-oggi/fuori-mese su tutta l'altezza della settimana, non solo sotto al
    numero del giorno, così le barre sopra restano leggibili come "dentro"
    quella colonna anche su più corsie. */
-.cal-month-daycol { grid-row: 1 / -1; border-right: 1px solid var(--border-hairline); padding: 3px 4px; min-width: 0; }
+.cal-month-daycol { grid-row: 1 / -1; border-right: 1px solid var(--border-hairline); padding: 5px 6px 0; min-width: 0; }
 .cal-month-daycol.is-outside { background: var(--off-white); opacity: 0.6; }
 .cal-month-daycol.is-today { background: var(--blue-bg-soft); }
-.cal-month-daynum { font-size: 11.5px; font-weight: 800; color: var(--navy); width: fit-content; }
-.cal-month-daycol.is-today .cal-month-daynum { background: var(--navy); color: var(--white); border-radius: 100px; padding: 0 6px; }
+.cal-month-daynum { display: block; font-size: 12.5px; font-weight: 800; color: var(--navy); width: fit-content; line-height: 20px; }
+.cal-month-daycol.is-today .cal-month-daynum { background: var(--navy); color: var(--white); border-radius: 100px; padding: 0 7px; }
 /* Le barre condividono le stesse celle dei .cal-month-daycol (stessa
    grid-column, righe successive): essendo dopo nel DOM stanno sopra senza
-   bisogno di z-index. min-width:0 già ereditato da .cal-bar. */
-.cal-month-bar { margin: 0 1px; align-self: center; }
-.cal-month-more { grid-row: auto; align-self: start; font-size: 10px; color: var(--text-muted); font-weight: 700; padding: 1px 5px; }
+   bisogno di z-index. Altezza ESPLICITA (non solo padding/line-height
+   ereditati da .cal-bar) più piccola della riga della griglia — vedi nota
+   sopra: è quello che garantisce zero sovrapposizione a prescindere dal
+   font del browser. */
+.cal-month-bar {
+  height: 20px; line-height: 20px; padding: 0 8px; margin: 0 2px;
+  align-self: center; font-size: 11px; box-sizing: border-box;
+}
+.cal-month-more {
+  align-self: center; justify-self: stretch; height: 20px; line-height: 20px; margin: 0 2px;
+  font-size: 10.5px; font-weight: 700; color: var(--text-muted); background: var(--grey-bg);
+  border-radius: var(--radius-xxs); text-align: center; box-sizing: border-box;
+}
 
 /* Colori per stanza (vista Mese): 8 tinte distinguibili, cicliche oltre la
    8ª stanza — vedi roomColorIndex()/ROOM_COLOR_COUNT in dashboard.js. Testo
