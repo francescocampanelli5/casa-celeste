@@ -16,32 +16,26 @@
 // --project casa-celeste), non su Firebase Hosting come i clienti rivenduti
 // — vedi scripts/lib/tenant-deploy.js.
 //
-// Uso:
-//   node scripts/update-tenants.js --project NOME-PROGETTO-CLIENTE
-//   node scripts/update-tenants.js --all
-//   node scripts/update-tenants.js --all --dry-run
+// Uso — il caso normale è "aggiorna tutti", quindi è quello che succede se
+// non specifichi nulla:
+//   node scripts/update-tenants.js                        (tutti i clienti)
+//   node scripts/update-tenants.js --dry-run               (anteprima, tutti)
+//   node scripts/update-tenants.js --project NOME-PROGETTO  (un solo cliente)
 'use strict';
 
 const path = require('path');
 const lib = require('./lib/tenant-deploy');
 
 function parseArgs(argv) {
-  const out = { dryRun: false, all: false };
+  const out = { dryRun: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--project') out.project = argv[++i];
-    else if (argv[i] === '--all') out.all = true;
     else if (argv[i] === '--dry-run') out.dryRun = true;
+    // --all resta accettato per chi lo scrive per abitudine/chiarezza, ma
+    // ormai è il comportamento di default: non serve più specificarlo.
+    else if (argv[i] === '--all') { /* no-op */ }
   }
   return out;
-}
-
-function usageAndExit() {
-  console.error(
-    'Uso: node scripts/update-tenants.js (--project NOME-PROGETTO | --all) [--dry-run]\n\n' +
-    '--all aggiorna ogni progetto elencato in scripts/tenants.json (aggiunto\n' +
-    'automaticamente da onboard-tenant.js a ogni nuovo cliente collegato).\n'
-  );
-  process.exit(1);
 }
 
 function updateOne(project, root) {
@@ -56,16 +50,15 @@ function updateOne(project, root) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.project && !args.all) usageAndExit();
   lib.state.dryRun = args.dryRun;
   const root = path.resolve(__dirname, '..');
 
-  const targets = args.all ? lib.listTenantProjects() : [args.project];
+  const targets = args.project ? [args.project] : lib.listTenantProjects();
   if (!targets.length) {
     console.error(
-      'Nessun cliente in scripts/tenants.json. Usa --project NOME per aggiornarne\n' +
-      'uno specifico (es. un cliente collegato prima che questo file esistesse),\n' +
-      'oppure collega prima un cliente con onboard-tenant.js.'
+      'Nessun cliente in scripts/tenants.json — niente da aggiornare.\n' +
+      'Collega prima un cliente con onboard-tenant.js (ci finisce da solo), oppure\n' +
+      'usa --project NOME per aggiornarne uno specifico non ancora nell\'elenco.'
     );
     process.exit(1);
   }

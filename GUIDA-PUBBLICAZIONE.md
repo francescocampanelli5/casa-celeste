@@ -1279,11 +1279,12 @@ Un bug fix o una nuova funzione nel codice condiviso (`affittacamere/`,
 `functions/`, `firestore.rules`) non raggiunge da solo i clienti già
 collegati — ognuno vive su un deploy separato del proprio progetto. Dopo
 aver verificato la modifica su Casa Celeste come sempre (`firebase deploy`
-+ `git push`), pubblicala anche a loro:
++ `git push`), pubblicala anche a loro con un comando solo — senza
+argomenti aggiorna TUTTI i clienti, è il caso normale:
 ```
-node scripts/update-tenants.js --project nome-progetto-cliente   # un solo cliente
-node scripts/update-tenants.js --all                             # tutti quelli in scripts/tenants.json
-node scripts/update-tenants.js --all --dry-run                   # anteprima, nessuna modifica reale
+node scripts/update-tenants.js                                   # tutti i clienti, quello che userai quasi sempre
+node scripts/update-tenants.js --dry-run                         # anteprima, nessuna modifica reale
+node scripts/update-tenants.js --project nome-progetto-cliente   # solo un cliente specifico
 ```
 Ripubblica regole/indici Firestore, Cloud Functions e sito pubblico —
 **mai** i secret (restano quelli che ogni cliente ha già impostato da
