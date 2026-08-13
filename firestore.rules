@@ -161,6 +161,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Registro INTERNO (non fiscale) dei compensi a chi lavora per l'host
+    // (pulizie/manutenzione/collaboratori) — tab Fatture → Registro compensi.
+    // Non è un documento fiscale: se chi lavora ha Partita IVA fattura lui
+    // all'host, se è un collaboratore occasionale emette lui una ricevuta;
+    // qui si tiene solo traccia di quanto pagato, per la contabilità
+    // dell'host. Scrittura diretta client (stesso pattern di
+    // tourism_maintenance): niente logica server da validare.
+    match /tourism_staffPayments/{paymentId} {
+      allow read, write: if isOwner() && serviceEnabled();
+    }
+
     // Messaggi lasciati dal widget di assistenza — la scrittura passa SOLO
     // dalla Cloud Function submitAssistMessage (validazione completa lato
     // server, l'Admin SDK bypassa comunque queste regole); la dashboard

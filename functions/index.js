@@ -686,7 +686,7 @@ exports.issueInvoice = onCall({}, async (request) => {
     provider: invoicing.provider,
     providerInvoiceId: result.providerInvoiceId,
     bookingId: standardInvoice.bookingId || null,
-    guestName: (standardInvoice.guest && standardInvoice.guest.guestName) || '',
+    recipientName: (standardInvoice.recipient && standardInvoice.recipient.recipientName) || '',
     documentDate: (standardInvoice.document && standardInvoice.document.documentDate) || '',
     totals: standardInvoice.totals,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),

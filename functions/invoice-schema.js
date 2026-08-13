@@ -32,21 +32,35 @@ const DEFAULT_INVOICE_SCHEMA = {
       ]
     },
     {
-      id: 'guest',
-      title: 'Dati ospite',
+      // Destinatario generico (non solo "ospite"): copre anche aziende/enti
+      // committenti e note di credito. NON va usato per il personale che
+      // lavora per l'host (pulizie/manutenzione/collaboratori) — se ha
+      // Partita IVA è lui a fatturare all'host, se è un collaboratore
+      // occasionale senza P.IVA emette lui una ricevuta: in nessuno dei due
+      // casi l'host fattura verso chi lavora per lui. Per tracciare quei
+      // compensi c'è il registro separato (non fiscale) tourism_staffPayments.
+      id: 'recipient',
+      title: 'Destinatario',
       fields: [
-        { id: 'guestName', label: 'Nome e cognome (o ragione sociale)', type: 'text', required: true },
-        { id: 'guestFiscalCode', label: 'Codice fiscale', type: 'text', required: false, pattern: '^[A-Za-z0-9]{11,16}$' },
-        { id: 'guestVat', label: 'Partita IVA (se azienda)', type: 'text', required: false },
-        { id: 'guestAddress', label: 'Indirizzo', type: 'text', required: false },
-        { id: 'guestEmail', label: 'Email', type: 'email', required: false },
-        { id: 'guestCountry', label: 'Paese (codice ISO)', type: 'text', required: true, default: 'IT' }
+        { id: 'recipientName', label: 'Nome e cognome (o ragione sociale)', type: 'text', required: true },
+        { id: 'recipientFiscalCode', label: 'Codice fiscale', type: 'text', required: false, pattern: '^[A-Za-z0-9]{11,16}$' },
+        { id: 'recipientVat', label: 'Partita IVA (se azienda)', type: 'text', required: false },
+        { id: 'recipientAddress', label: 'Indirizzo', type: 'text', required: false },
+        { id: 'recipientEmail', label: 'Email', type: 'email', required: false },
+        { id: 'recipientCountry', label: 'Paese (codice ISO)', type: 'text', required: true, default: 'IT' }
       ]
     },
     {
       id: 'document',
       title: 'Dati documento',
       fields: [
+        {
+          id: 'documentType', label: 'Tipo documento', type: 'select', required: true, default: 'invoice',
+          options: [
+            { value: 'invoice', label: 'Fattura' },
+            { value: 'credit_note', label: 'Nota di credito (storno)' }
+          ]
+        },
         { id: 'documentDate', label: 'Data documento', type: 'date', required: true },
         { id: 'causale', label: 'Causale', type: 'textarea', required: true, placeholder: 'Es. Locazione turistica breve — soggiorno dal 10/08/2026 al 15/08/2026' }
       ]
@@ -136,10 +150,11 @@ function buildInvoiceZodSchema(schema) {
   });
 }
 
-// Raggruppa i campi piatti {fields: {hostName, guestName, ...}} nelle stesse
-// sezioni dello schema (host/guest/document/touristTax), così gli adapter
-// leggono standardInvoice.host.name invece di dover conoscere ogni id di
-// campo — è il "formato standardizzato" richiesto tra dashboard e adapter.
+// Raggruppa i campi piatti {fields: {hostName, recipientName, ...}} nelle
+// stesse sezioni dello schema (host/recipient/document/touristTax), così gli
+// adapter leggono standardInvoice.recipient.recipientName invece di dover
+// conoscere ogni id di campo — è il "formato standardizzato" richiesto tra
+// dashboard e adapter.
 function groupFieldsBySections(schema, fields) {
   const grouped = {};
   schema.sections.forEach((section) => {

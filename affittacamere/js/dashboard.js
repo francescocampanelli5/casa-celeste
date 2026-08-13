@@ -26,6 +26,7 @@
     settings: {},
     settingsPrivate: {},
     maintenanceData: [],
+    staffPayments: [],
     assistMessages: [],
     manualBookingOpen: false,
     // Valorizzato quando si clicca una cella vuota data/stanza nel
@@ -2479,6 +2480,38 @@
   function findInvoiceSection(schema, id) {
     return schema.sections.filter(function (s) { return s.id === id; })[0];
   }
+  // Scenari rapidi: stesso modulo per casi diversi da "ospite in soggiorno"
+  // (richiesta esplicita: coprire ogni evenienza) — precompilano causale,
+  // tipo documento, riga e tassa di soggiorno, ma non introducono NESSUN
+  // campo nuovo nello schema, solo valori di partenza diversi. Il caso
+  // "personale che lavora per l'host" volutamente non è tra questi: se ha
+  // Partita IVA fattura lui all'host, se è un collaboratore occasionale
+  // emette una ricevuta — l'host non fattura mai verso chi lavora per lui.
+  // Per tracciare quei compensi c'è il registro separato più sotto
+  // (renderStaffPaymentsSection), che non è un documento fiscale.
+  var INVOICE_SCENARIOS = [
+    { id: 'guest', label: 'Soggiorno ospite', documentType: 'invoice', taxEnabled: true, causale: '', lineItem: null },
+    { id: 'company', label: 'Servizio verso azienda/ente', documentType: 'invoice', taxEnabled: false,
+      causale: 'Prestazione di servizio', lineItem: { description: '', quantity: 1, unitPrice: '', vatRate: 22, natura: '' } },
+    { id: 'credit', label: 'Nota di credito', documentType: 'credit_note', taxEnabled: false,
+      causale: 'Storno per fattura n. ___ del __/__/____', lineItem: { description: 'Storno', quantity: 1, unitPrice: '', vatRate: 0, natura: '' } },
+    { id: 'other', label: 'Altro', documentType: 'invoice', taxEnabled: false, causale: '', lineItem: null }
+  ];
+  function applyInvoiceScenario(id) {
+    var s = INVOICE_SCENARIOS.filter(function (x) { return x.id === id; })[0];
+    if (!s) return;
+    state.invoiceScenario = id;
+    state.invoiceDraft.documentType = s.documentType;
+    if (s.causale) state.invoiceDraft.causale = s.causale;
+    state.invoiceTaxEnabled = !!s.taxEnabled;
+    if (s.lineItem) state.invoiceLineItems = [Object.assign({}, s.lineItem)];
+    renderTabContent();
+  }
+  function invoiceScenarioChipsHtml() {
+    return INVOICE_SCENARIOS.map(function (s) {
+      return '<button type="button" class="invoice-chip' + (state.invoiceScenario === s.id ? ' is-active' : '') + '" data-invoice-scenario="' + s.id + '">' + escapeHtml(s.label) + '</button>';
+    }).join('');
+  }
   function emptyInvoiceLineItem(itemSection) {
     var row = {};
     (itemSection.itemFields || []).forEach(function (f) { row[f.id] = f.default != null ? f.default : ''; });
@@ -2497,6 +2530,8 @@
     if (state.settings && state.settings.touristTaxRate != null) state.invoiceDraft.touristTaxRatePerNight = state.settings.touristTaxRate;
     var itemSection = findInvoiceSection(schema, 'lineItems');
     state.invoiceLineItems = [emptyInvoiceLineItem(itemSection)];
+    state.invoiceScenario = 'guest';
+    state.invoiceTaxEnabled = false;
   }
   function invoiceFieldInputHtml(field, value, dataAttrs) {
     var val = value == null ? '' : value;
@@ -2541,16 +2576,17 @@
       subtotal += net;
       if (!li.natura) vatTotal += net * (Number(li.vatRate || 0) / 100);
     });
-    var tax = Number(state.invoiceDraft.touristTaxAmount || 0);
+    var tax = state.invoiceTaxEnabled ? Number(state.invoiceDraft.touristTaxAmount || 0) : 0;
     return { subtotal: subtotal, vatTotal: vatTotal, touristTax: tax, grandTotal: subtotal + vatTotal + tax };
   }
   function invoiceTotalsHtml() {
     var t = computeInvoiceTotalsClientSide();
+    var isCredit = state.invoiceDraft.documentType === 'credit_note';
     return '<div class="invoice-totals">' +
       '<div><span>Imponibile</span><span>€' + t.subtotal.toFixed(2) + '</span></div>' +
       '<div><span>IVA</span><span>€' + t.vatTotal.toFixed(2) + '</span></div>' +
-      '<div><span>Imposta di soggiorno</span><span>€' + t.touristTax.toFixed(2) + '</span></div>' +
-      '<div class="invoice-grand-total"><span>Totale</span><span>€' + t.grandTotal.toFixed(2) + '</span></div>' +
+      (state.invoiceTaxEnabled ? '<div><span>Imposta di soggiorno</span><span>€' + t.touristTax.toFixed(2) + '</span></div>' : '') +
+      '<div class="invoice-grand-total"><span>' + (isCredit ? 'Totale a storno' : 'Totale') + '</span><span>€' + t.grandTotal.toFixed(2) + '</span></div>' +
     '</div>';
   }
   function invoiceResultBannerHtml() {
@@ -2565,7 +2601,7 @@
     var rows = list.map(function (inv) {
       return '<div class="admin-stat-row" style="grid-template-columns:110px 1fr 1fr 90px;">' +
         '<span>' + escapeHtml(inv.documentDate || '') + '</span>' +
-        '<span>' + escapeHtml(inv.guestName || '') + '</span>' +
+        '<span>' + escapeHtml(inv.recipientName || '') + '</span>' +
         '<span>' + escapeHtml(inv.provider || '') + ' · ' + escapeHtml(inv.providerInvoiceId || '') + '</span>' +
         '<span>€' + Number((inv.totals && inv.totals.grandTotal) || 0).toFixed(2) + '</span>' +
       '</div>';
@@ -2575,8 +2611,10 @@
   function prefillInvoiceFromBooking(bookingId, schema) {
     var b = (state.bookings || []).filter(function (x) { return x.id === bookingId; })[0];
     if (!b) return;
-    state.invoiceDraft.guestName = b.name || '';
-    state.invoiceDraft.guestEmail = b.email || '';
+    state.invoiceScenario = 'guest';
+    state.invoiceDraft.documentType = 'invoice';
+    state.invoiceDraft.recipientName = b.name || '';
+    state.invoiceDraft.recipientEmail = b.email || '';
     state.invoiceDraft.causale = 'Locazione turistica breve — ' + (b.roomLabel || '') + ' — soggiorno dal ' + formatDateShort(b.checkIn) + ' al ' + formatDateShort(b.checkOut);
     var itemSection = findInvoiceSection(schema, 'lineItems');
     var row = emptyInvoiceLineItem(itemSection);
@@ -2584,6 +2622,7 @@
     row.quantity = 1;
     row.unitPrice = (b.pricing && b.pricing.total != null) ? b.pricing.total : 0;
     state.invoiceLineItems = [row];
+    state.invoiceTaxEnabled = !!b.touristTax;
     if (b.touristTax) {
       state.invoiceDraft.touristTaxNights = b.nights || 0;
       state.invoiceDraft.touristTaxPersons = Math.max(0, (b.touristTax.totalGuests || 0) - (b.touristTax.exemptGuests || 0));
@@ -2592,6 +2631,19 @@
     }
   }
   function bindInvoiceTabEvents(content, schema) {
+    content.querySelectorAll('[data-invoice-scenario]').forEach(function (el) {
+      el.addEventListener('click', function () { applyInvoiceScenario(el.getAttribute('data-invoice-scenario')); });
+    });
+    var taxToggle = document.getElementById('invoice-tax-toggle');
+    if (taxToggle) taxToggle.addEventListener('change', function (e) {
+      state.invoiceTaxEnabled = e.target.checked;
+      // blur prima del re-render: altrimenti la guardia "non ridisegnare se
+      // c'è un INPUT con focus" (pensata per non perdere testo in corso di
+      // digitazione) rimanda il redraw a un focusout futuro, e la checkbox
+      // risulta spuntata senza che compaiano i campi tassa di soggiorno.
+      e.target.blur();
+      renderTabContent();
+    });
     var bookingSelect = document.getElementById('invoice-booking-select');
     if (bookingSelect) bookingSelect.addEventListener('change', function (e) {
       state.invoiceSelectedBookingId = e.target.value;
@@ -2633,8 +2685,10 @@
       // Un solo oggetto JSON strutturato con tutto ciò che serve al backend
       // (issueInvoice in functions/index.js) — vedi requisito "raccolga tutti
       // i dati inseriti in un singolo oggetto JSON strutturato".
+      var payloadFields = Object.assign({}, state.invoiceDraft);
+      if (!state.invoiceTaxEnabled) payloadFields.touristTaxAmount = 0;
       var payload = {
-        fields: Object.assign({}, state.invoiceDraft),
+        fields: payloadFields,
         lineItems: state.invoiceLineItems.map(function (li) {
           return { description: li.description || '', quantity: Number(li.quantity) || 0, unitPrice: Number(li.unitPrice) || 0, vatRate: Number(li.vatRate) || 0, natura: li.natura || '' };
         }),
@@ -2652,7 +2706,92 @@
       });
     });
   }
+  var INVOICE_SUBNAV = [
+    { id: 'fatture', label: 'Fatture' },
+    { id: 'compensi', label: 'Registro compensi personale' }
+  ];
+  function invoiceSubnavHtml() {
+    if (!state.invoiceSubTab) state.invoiceSubTab = 'fatture';
+    return '<div class="settings-subnav">' + INVOICE_SUBNAV.map(function (s) {
+      return '<button type="button" class="settings-subnav-btn' + (state.invoiceSubTab === s.id ? ' is-active' : '') + '" data-invoice-subnav="' + s.id + '">' + s.label + '</button>';
+    }).join('') + '</div>';
+  }
+  function bindInvoiceSubnavEvents(content) {
+    content.querySelectorAll('[data-invoice-subnav]').forEach(function (el) {
+      el.addEventListener('click', function () { state.invoiceSubTab = el.getAttribute('data-invoice-subnav'); renderTabContent(); });
+    });
+  }
+  function staffPaymentRowsHtml() {
+    var list = state.staffPayments || [];
+    if (!list.length) return '<div class="admin-note">Nessun compenso registrato finora.</div>';
+    return list.map(function (p) {
+      return '<div class="admin-stat-row" style="grid-template-columns:100px 1fr 110px 1fr 90px auto;">' +
+        '<span>' + escapeHtml(formatDateShort(p.date || '')) + '</span>' +
+        '<span>' + escapeHtml(p.recipientLabel || '') + '</span>' +
+        '<span>' + escapeHtml(STAFF_PAYMENT_CATEGORIES[p.category] || p.category || '') + '</span>' +
+        '<span>' + escapeHtml(p.description || '') + '</span>' +
+        '<span>€' + Number(p.amount || 0).toFixed(2) + '</span>' +
+        '<button type="button" class="admin-stat-remove" data-staff-payment-remove="' + p.id + '">✕</button>' +
+      '</div>';
+    }).join('');
+  }
+  var STAFF_PAYMENT_CATEGORIES = { pulizie: 'Pulizie', manutenzione: 'Manutenzione', altro: 'Altro' };
+  function staffPaymentRecipientOptionsHtml() {
+    var names = {};
+    ((state.settings && state.settings.cleaningRecipients) || []).forEach(function (r) { if (r.label) names[r.label] = true; });
+    ((state.settings && state.settings.maintenanceRecipients) || []).forEach(function (r) { if (r.label) names[r.label] = true; });
+    return Object.keys(names).map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join('');
+  }
+  function renderStaffPaymentsSection(content) {
+    var yearNow = new Date().getFullYear();
+    var yearTotal = (state.staffPayments || []).filter(function (p) { return String(p.date || '').slice(0, 4) === String(yearNow); })
+      .reduce(function (sum, p) { return sum + Number(p.amount || 0); }, 0);
+    content.insertAdjacentHTML('beforeend',
+      '<div class="admin-note">Registro interno, NON un documento fiscale: se chi lavora per te ha Partita IVA fattura lui a te, se è un collaboratore occasionale ti rilascia una ricevuta. Qui tieni solo traccia di quanto hai pagato, per i tuoi conti.</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Totale ' + yearNow + '</span><span style="font-weight:700; font-size:16px;">€' + yearTotal.toFixed(2) + '</span></div>' +
+      '</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Nuovo compenso</span></div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Data</label><input type="date" class="admin-field" id="staff-payment-date" value="' + todayISO() + '"></div>' +
+          '<div class="admin-field-group"><label>Categoria</label><select class="admin-field" id="staff-payment-category">' +
+            '<option value="pulizie">Pulizie</option><option value="manutenzione">Manutenzione</option><option value="altro">Altro</option>' +
+          '</select></div>' +
+          '<div class="admin-field-group"><label>Chi</label><input type="text" class="admin-field" id="staff-payment-recipient" list="staff-payment-recipients" placeholder="Nome della persona"><datalist id="staff-payment-recipients">' + staffPaymentRecipientOptionsHtml() + '</datalist></div>' +
+          '<div class="admin-field-group"><label>Importo (€)</label><input type="number" class="admin-field" id="staff-payment-amount" min="0" step="0.01"></div>' +
+        '</div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Descrizione (facoltativa)</label><input type="text" class="admin-field" id="staff-payment-description" placeholder="Es. pulizie straordinarie dopo il check-out"></div>' +
+        '<button type="button" class="dash-add-room-btn" id="staff-payment-add-btn">+ Aggiungi</button>' +
+      '</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Storico</span></div>' +
+        '<div class="admin-stats-rows">' + staffPaymentRowsHtml() + '</div>' +
+      '</div>'
+    );
+    var addBtn = document.getElementById('staff-payment-add-btn');
+    if (addBtn) addBtn.addEventListener('click', function () {
+      var recipientLabel = document.getElementById('staff-payment-recipient').value.trim();
+      var amount = Number(document.getElementById('staff-payment-amount').value) || 0;
+      if (!recipientLabel || !amount) { window.alert('Servono almeno "Chi" e "Importo".'); return; }
+      window.CasaCelesteTourismDB.createStaffPayment({
+        date: document.getElementById('staff-payment-date').value || todayISO(),
+        category: document.getElementById('staff-payment-category').value,
+        recipientLabel: recipientLabel,
+        amount: amount,
+        description: document.getElementById('staff-payment-description').value.trim()
+      }).catch(function (err) { window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err)); });
+    });
+    content.querySelectorAll('[data-staff-payment-remove]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        window.CasaCelesteTourismDB.deleteStaffPayment(el.getAttribute('data-staff-payment-remove'));
+      });
+    });
+  }
   function renderInvoiceTab(content) {
+    content.innerHTML = '<h1 class="dash-section-title">Fatture</h1>' + invoiceSubnavHtml();
+    bindInvoiceSubnavEvents(content);
+    if (state.invoiceSubTab === 'compensi') { renderStaffPaymentsSection(content); return; }
     if (!state.invoiceSchema && !state.invoiceSchemaLoading) {
       state.invoiceSchemaLoading = true;
       window.CasaCelesteTourismDB.getInvoiceSchema().then(function (res) {
@@ -2674,14 +2813,14 @@
       }).catch(function () { state.invoiceListLoading = false; state.invoiceList = []; });
     }
     if (!state.invoiceSchema) {
-      content.innerHTML = '<h1 class="dash-section-title">Fatture</h1>' + (state.invoiceSchemaError ?
+      content.insertAdjacentHTML('beforeend', state.invoiceSchemaError ?
         '<div class="admin-note" style="color:#B23A3A;">Impossibile caricare il modulo fattura: ' + escapeHtml(state.invoiceSchemaError) + '</div>' :
         '<div class="admin-note">Caricamento modulo…</div>');
       return;
     }
     var schema = state.invoiceSchema;
     ensureInvoiceDraftDefaults(schema);
-    var hostSection = findInvoiceSection(schema, 'host'), guestSection = findInvoiceSection(schema, 'guest'),
+    var hostSection = findInvoiceSection(schema, 'host'), recipientSection = findInvoiceSection(schema, 'recipient'),
       docSection = findInvoiceSection(schema, 'document'), itemSection = findInvoiceSection(schema, 'lineItems'),
       taxSection = findInvoiceSection(schema, 'touristTax');
     var activeBookings = (state.bookings || []).filter(function (b) { return b.status !== 'annullato'; });
@@ -2689,10 +2828,11 @@
       return '<option value="' + b.id + '"' + (state.invoiceSelectedBookingId === b.id ? ' selected' : '') + '>' + escapeHtml(b.roomLabel || '') + ' — ' + escapeHtml(b.name || '') + ' (' + escapeHtml(formatDateShort(b.checkIn)) + ')</option>';
     }).join('');
 
-    content.innerHTML =
-      '<h1 class="dash-section-title">Fatture</h1>' +
+    content.insertAdjacentHTML('beforeend',
       '<div class="admin-room-card">' +
-        '<div class="admin-field-group admin-field-group--full"><label>Precompila da una prenotazione (facoltativo)</label>' +
+        '<div class="admin-field-group admin-field-group--full"><label>A chi è rivolta (precompila causale, riga e tassa di soggiorno)</label></div>' +
+        '<div class="invoice-chip-row">' + invoiceScenarioChipsHtml() + '</div>' +
+        '<div class="admin-field-group admin-field-group--full" style="margin-top:10px;"><label>Precompila da una prenotazione (facoltativo)</label>' +
           '<select class="admin-field" id="invoice-booking-select">' + bookingOptions + '</select>' +
         '</div>' +
       '</div>' +
@@ -2700,17 +2840,18 @@
       '<div class="invoice-preview">' +
         '<div class="invoice-preview-header">' +
           '<div class="invoice-party"><div class="invoice-party-title">Da (host)</div>' + invoiceSectionFieldsHtml(hostSection, state.invoiceDraft) + '</div>' +
-          '<div class="invoice-party"><div class="invoice-party-title">A (ospite)</div>' + invoiceSectionFieldsHtml(guestSection, state.invoiceDraft) + '</div>' +
+          '<div class="invoice-party"><div class="invoice-party-title">A (' + escapeHtml((recipientSection.title || 'destinatario').toLowerCase()) + ')</div>' + invoiceSectionFieldsHtml(recipientSection, state.invoiceDraft) + '</div>' +
         '</div>' +
         '<div class="invoice-document-meta">' + invoiceSectionFieldsHtml(docSection, state.invoiceDraft) + '</div>' +
         '<div class="invoice-section-title">Linee di dettaglio</div>' +
         invoiceLineItemsTableHtml(itemSection) +
-        '<div class="invoice-section-title">Imposta di soggiorno</div>' +
-        '<div class="invoice-tax-row">' + invoiceSectionFieldsHtml(taxSection, state.invoiceDraft) + '</div>' +
+        '<div class="tax-toggle-row"><label><input type="checkbox" id="invoice-tax-toggle"' + (state.invoiceTaxEnabled ? ' checked' : '') + '> Includi imposta di soggiorno in questo documento</label></div>' +
+        (state.invoiceTaxEnabled ? '<div class="invoice-tax-row">' + invoiceSectionFieldsHtml(taxSection, state.invoiceDraft) + '</div>' : '') +
         invoiceTotalsHtml() +
       '</div>' +
       '<button type="button" class="dash-add-room-btn" id="invoice-issue-btn"' + (state.invoiceIssuing ? ' disabled' : '') + ' style="margin:14px 0;">' + (state.invoiceIssuing ? 'Invio in corso…' : 'Emetti Fattura') + '</button>' +
-      invoicePastListHtml();
+      invoicePastListHtml()
+    );
 
     bindInvoiceTabEvents(content, schema);
   }
@@ -4292,6 +4433,7 @@
     if (state.unsubAssistMessages) state.unsubAssistMessages();
     if (state.unsubSettingsPrivate) state.unsubSettingsPrivate();
     if (state.unsubMaintenance) state.unsubMaintenance();
+    if (state.unsubStaffPayments) state.unsubStaffPayments();
     state.unsubBookings = window.CasaCelesteTourismDB.subscribeBookings(function (items) {
       state.bookings = items;
       // Precarica i documenti ospiti delle prenotazioni con check-in vicino,
@@ -4316,6 +4458,7 @@
     state.unsubAssistMessages = window.CasaCelesteTourismDB.subscribeAssistMessages(function (items) { state.assistMessages = items; if (state.user) renderTabContent(); });
     state.unsubSettingsPrivate = window.CasaCelesteTourismDB.subscribeSettingsPrivate(function (data) { state.settingsPrivate = data || {}; if (state.user) renderTabContent(); });
     state.unsubMaintenance = window.CasaCelesteTourismDB.subscribeMaintenance(function (items) { state.maintenanceData = items; if (state.user) renderTabContent(); });
+    state.unsubStaffPayments = window.CasaCelesteTourismDB.subscribeStaffPayments(function (items) { state.staffPayments = items; if (state.user) renderTabContent(); });
   }
   // Piattaforma SaaS (celeste-saas-control): kill switch totale quando il
   // gestore ha disattivato questo cliente (platform_control/status.enabled

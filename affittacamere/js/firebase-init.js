@@ -12,7 +12,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, connectFirestoreEmulator,
-  collection, doc, setDoc, updateDoc, deleteDoc, getDoc,
+  collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc,
   onSnapshot, query, orderBy, getDocs, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
@@ -544,6 +544,24 @@ window.CasaCelesteTourismDB = {
     return httpsCallable(functions, 'getBookingForGuestForm')(data).then(function (res) { return res.data; });
   },
   // Firma OTP del contratto di locazione (FES) — vedi functions/guest-signature.js.
+  // Registro INTERNO (non fiscale) dei compensi al personale — vedi nota in
+  // firestore.rules: scrittura diretta client, nessuna Cloud Function serve
+  // (nessuna logica da validare lato server, a differenza di createBooking).
+  subscribeStaffPayments: function (callback) {
+    if (!configured) return function () {};
+    var q = query(collection(requireDb(), 'tourism_staffPayments'), orderBy('date', 'desc'));
+    return onSnapshot(q, function (snap) {
+      var items = [];
+      snap.forEach(function (d) { items.push(Object.assign({ id: d.id }, d.data())); });
+      callback(items);
+    });
+  },
+  createStaffPayment: function (data) {
+    return addDoc(collection(requireDb(), 'tourism_staffPayments'), Object.assign({}, data, { createdAt: serverTimestamp() }));
+  },
+  deleteStaffPayment: function (paymentId) {
+    return deleteDoc(doc(requireDb(), 'tourism_staffPayments', paymentId));
+  },
   // Tab Fatture — schema-driven: getInvoiceSchema dice al frontend come
   // disegnare la form (vedi functions/invoice-schema.js), issueInvoice
   // valida e inoltra al provider configurato (Aruba/Fatture in Cloud, vedi

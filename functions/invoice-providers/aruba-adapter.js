@@ -81,8 +81,10 @@ function buildRiepilogoXml(lineItems) {
   }).join('');
 }
 
+const TIPO_DOCUMENTO = { invoice: 'TD01', credit_note: 'TD04' };
+
 function buildFatturaPAXml(standardInvoice, credentials, progressivo) {
-  const host = standardInvoice.host, guest = standardInvoice.guest, doc = standardInvoice.document, tax = standardInvoice.touristTax || {};
+  const host = standardInvoice.host, recipient = standardInvoice.recipient, doc = standardInvoice.document, tax = standardInvoice.touristTax || {};
   const lineItems = standardInvoice.lineItems.slice();
   // La tassa di soggiorno è un'anticipazione in nome e per conto del Comune
   // (art. 15 c.1 n.3 DPR 633/72): riga a parte, natura N1, fuori dalla base
@@ -116,16 +118,16 @@ function buildFatturaPAXml(standardInvoice, credentials, progressivo) {
         '</CedentePrestatore>' +
         '<CessionarioCommittente>' +
           '<DatiAnagrafici>' +
-            (guest.guestVat ? '<IdFiscaleIVA><IdPaese>' + xmlEscape(guest.guestCountry || 'IT') + '</IdPaese><IdCodice>' + xmlEscape(guest.guestVat) + '</IdCodice></IdFiscaleIVA>' : '') +
-            (guest.guestFiscalCode ? '<CodiceFiscale>' + xmlEscape(guest.guestFiscalCode) + '</CodiceFiscale>' : '') +
-            '<Anagrafica><Denominazione>' + xmlEscape(guest.guestName) + '</Denominazione></Anagrafica>' +
+            (recipient.recipientVat ? '<IdFiscaleIVA><IdPaese>' + xmlEscape(recipient.recipientCountry || 'IT') + '</IdPaese><IdCodice>' + xmlEscape(recipient.recipientVat) + '</IdCodice></IdFiscaleIVA>' : '') +
+            (recipient.recipientFiscalCode ? '<CodiceFiscale>' + xmlEscape(recipient.recipientFiscalCode) + '</CodiceFiscale>' : '') +
+            '<Anagrafica><Denominazione>' + xmlEscape(recipient.recipientName) + '</Denominazione></Anagrafica>' +
           '</DatiAnagrafici>' +
-          '<Sede><Indirizzo>' + xmlEscape(guest.guestAddress || 'N/D') + '</Indirizzo><Nazione>' + xmlEscape(guest.guestCountry || 'IT') + '</Nazione></Sede>' +
+          '<Sede><Indirizzo>' + xmlEscape(recipient.recipientAddress || 'N/D') + '</Indirizzo><Nazione>' + xmlEscape(recipient.recipientCountry || 'IT') + '</Nazione></Sede>' +
         '</CessionarioCommittente>' +
       '</FatturaElettronicaHeader>' +
       '<FatturaElettronicaBody>' +
         '<DatiGenerali><DatiGeneraliDocumento>' +
-          '<TipoDocumento>TD01</TipoDocumento>' +
+          '<TipoDocumento>' + (TIPO_DOCUMENTO[doc.documentType] || 'TD01') + '</TipoDocumento>' +
           '<Divisa>EUR</Divisa>' +
           '<Data>' + xmlEscape(doc.documentDate) + '</Data>' +
           '<Numero>' + progressivo + '</Numero>' +

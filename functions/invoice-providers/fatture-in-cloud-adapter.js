@@ -21,7 +21,7 @@ class FattureInCloudAdapter extends InvoiceProvider {
       err.code = 'failed-precondition';
       throw err;
     }
-    const host = standardInvoice.host, guest = standardInvoice.guest, doc = standardInvoice.document, tax = standardInvoice.touristTax || {};
+    const host = standardInvoice.host, recipient = standardInvoice.recipient, doc = standardInvoice.document, tax = standardInvoice.touristTax || {};
     const itemsList = standardInvoice.lineItems.map((li) => ({
       name: li.description,
       qty: Number(li.quantity || 0),
@@ -38,14 +38,17 @@ class FattureInCloudAdapter extends InvoiceProvider {
     }
     const payload = {
       data: {
-        type: 'invoice',
+        // "credit_note" ricostruito dal nome comune usato dall'API v2 per le
+        // note di credito — da verificare in sandbox come il resto dei nomi
+        // campo di questo adapter (vedi nota in cima al file).
+        type: doc.documentType === 'credit_note' ? 'credit_note' : 'invoice',
         entity: {
-          name: guest.guestName,
-          vat_number: guest.guestVat || undefined,
-          tax_code: guest.guestFiscalCode || undefined,
-          address_street: guest.guestAddress || undefined,
-          country: guest.guestCountry || 'IT',
-          email: guest.guestEmail || undefined
+          name: recipient.recipientName,
+          vat_number: recipient.recipientVat || undefined,
+          tax_code: recipient.recipientFiscalCode || undefined,
+          address_street: recipient.recipientAddress || undefined,
+          country: recipient.recipientCountry || 'IT',
+          email: recipient.recipientEmail || undefined
         },
         date: doc.documentDate,
         subject: host.hostName,
