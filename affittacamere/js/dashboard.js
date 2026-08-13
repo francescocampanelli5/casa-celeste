@@ -81,6 +81,22 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  // Wrapper unico per QUALSIASI scrittura in tourism_settings da dashboard
+  // (testi Home/Posizione/Host, prezzi, canali iCal, tutto): prima ogni
+  // singolo campo chiamava window.CasaCelesteTourismDB.setSettings(...) allo
+  // stato "fire and forget", senza .catch — un rifiuto (permessi, App
+  // Check, rete) spariva nella console senza che l'host se ne accorgesse: il
+  // campo sembrava accettare la modifica ma su Firestore non veniva scritto
+  // nulla, e il sito pubblico restava quindi invariato ("sembra non stia
+  // modificando nulla", segnalato 2026-08-13). Un solo punto per garantire
+  // che un fallimento sia SEMPRE visibile, invece di ripetere .catch in 60+
+  // punti diversi (già lo schema seguito dal saveSettingsOrAlert locale
+  // usato nella sotto-sezione canali iCal, qui promosso a helper globale).
+  function saveSettings(patch) {
+    return window.CasaCelesteTourismDB.setSettings(patch).catch(function (err) {
+      window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err) + '\n\nProva a uscire (bottone "Esci") e rientrare, poi riprova. Se il problema persiste dopo il rientro, segnalalo: il sito pubblico NON ha ricevuto questa modifica.');
+    });
+  }
   // Etichetta breve + input, con un'eventuale spiegazione più lunga
   // separata sotto (.admin-field-hint) invece che infilata dentro il
   // <label> stesso — quella era la causa dei "muri di maiuscolo" con
@@ -557,10 +573,10 @@
         '</div>'
       );
       document.getElementById('ptype-rooms-btn').addEventListener('click', function () {
-        window.CasaCelesteTourismDB.setSettings({ propertyType: 'rooms' });
+        saveSettings({ propertyType: 'rooms' });
       });
       document.getElementById('ptype-apartment-btn').addEventListener('click', function () {
-        window.CasaCelesteTourismDB.setSettings({ propertyType: 'apartment' });
+        saveSettings({ propertyType: 'apartment' });
       });
     }
   }
@@ -1655,17 +1671,17 @@
       if (kind === 'room') return window.CasaCelesteTourismDB.setRoom;
       if (kind === 'common') return window.CasaCelesteTourismDB.setCommon;
       if (kind === 'mono') return window.CasaCelesteTourismDB.setMonoSlide;
-      if (kind === 'manager') return function (id, patch) { return window.CasaCelesteTourismDB.setSettings({ managerPhoto: (patch.photos && patch.photos[0]) || '' }); };
-      if (kind === 'logo') return function (id, patch) { return window.CasaCelesteTourismDB.setSettings({ logoUrl: (patch.photos && patch.photos[0]) || '' }); };
+      if (kind === 'manager') return function (id, patch) { return saveSettings({ managerPhoto: (patch.photos && patch.photos[0]) || '' }); };
+      if (kind === 'logo') return function (id, patch) { return saveSettings({ logoUrl: (patch.photos && patch.photos[0]) || '' }); };
       if (kind === 'rec') return function (recId, patch) {
         var list = (state.settings.recommendations || []).slice();
         var idx = -1;
         list.forEach(function (r, i) { if ((r.id || ('rec' + i)) === recId) idx = i; });
         if (idx === -1) return Promise.resolve();
         list[idx] = Object.assign({}, list[idx], { photo: (patch.photos && patch.photos[0]) || '' });
-        return window.CasaCelesteTourismDB.setSettings({ recommendations: list });
+        return saveSettings({ recommendations: list });
       };
-      return function (id, patch) { return window.CasaCelesteTourismDB.setSettings({ facadePhotos: patch.photos }); };
+      return function (id, patch) { return saveSettings({ facadePhotos: patch.photos }); };
     }
     function uploadFnFor(kind) {
       if (kind === 'room') return window.CasaCelesteTourismDB.uploadRoomPhoto;
@@ -2440,7 +2456,7 @@
       });
     });
 
-    function saveTopics(list) { window.CasaCelesteTourismDB.setSettings({ assistTopics: list }); }
+    function saveTopics(list) { saveSettings({ assistTopics: list }); }
     content.querySelectorAll('[data-assist-topic-field]').forEach(function (el) {
       el.addEventListener('change', function (e) {
         var idx = Number(el.getAttribute('data-topic-index')), part = el.getAttribute('data-topic-part');
@@ -3467,14 +3483,14 @@
       el.addEventListener('change', function (e) {
         var key = el.getAttribute('data-social-key'), socials = Object.assign({}, currentSocials());
         socials[key] = Object.assign({}, socials[key], { enabled: e.target.checked });
-        window.CasaCelesteTourismDB.setSettings({ socials: socials });
+        saveSettings({ socials: socials });
       });
     });
     content.querySelectorAll('[data-social-url]').forEach(function (el) {
       el.addEventListener('change', function (e) {
         var key = el.getAttribute('data-social-key'), socials = Object.assign({}, currentSocials());
         socials[key] = Object.assign({}, socials[key], { url: e.target.value.trim() });
-        window.CasaCelesteTourismDB.setSettings({ socials: socials });
+        saveSettings({ socials: socials });
       });
     });
   }
@@ -3521,6 +3537,36 @@
   // nota su SIDEBAR_GROUPS più sopra). Contenuto e binding identici a prima,
   // solo spostati in una pagina dedicata a testa propria.
   // ==========================================================================
+  // Anteprima live del sito pubblico accanto ai campi (richiesta esplicita
+  // 2026-08-13, "come per le mail"): un iframe sulla index.html vera invece
+  // di ricostruire a mano l'aspetto del sito, con l'ancora della sezione
+  // pertinente (#top per Home, #posizione, #manager-slot per Host) e un
+  // toggle IT/EN via ?lang=, stesso parametro già letto da app.js. Non
+  // "live-mentre-scrivi" come l'editor a blocchi email (qui il testo passa
+  // da Firestore, non da una bozza locale): si aggiorna da sola non appena
+  // saveSettings() ha scritto e la sottoscrizione del sito pubblico
+  // (subscribeSettings, la STESSA usata dal sito vero) riceve il cambiamento
+  // — un ricaricamento completo dell'iframe ad ogni renderTabContent(),
+  // volutamente: vedere la pagina ricaricarsi con il nuovo testo è anche la
+  // conferma visibile che il salvataggio è arrivato davvero al sito.
+  function contentPreviewPanelHtml(anchor) {
+    var lang = state.contentPreviewLang || 'it';
+    return '<div class="content-preview-panel">' +
+      '<div class="content-preview-toolbar">' +
+        '<span class="content-preview-label">Anteprima sito pubblico</span>' +
+        '<div class="content-preview-lang-toggle">' +
+          '<button type="button" class="settings-subnav-btn' + (lang === 'it' ? ' is-active' : '') + '" data-content-preview-lang="it">IT</button>' +
+          '<button type="button" class="settings-subnav-btn' + (lang === 'en' ? ' is-active' : '') + '" data-content-preview-lang="en">EN</button>' +
+        '</div>' +
+      '</div>' +
+      '<iframe class="content-preview-frame" src="index.html?lang=' + lang + '#' + anchor + '" title="Anteprima sito pubblico" loading="lazy"></iframe>' +
+    '</div>';
+  }
+  function bindContentPreviewEvents(content) {
+    content.querySelectorAll('[data-content-preview-lang]').forEach(function (btn) {
+      btn.addEventListener('click', function () { state.contentPreviewLang = btn.getAttribute('data-content-preview-lang'); renderTabContent(); });
+    });
+  }
   function renderHomeTab(content) {
     var s = state.settings || {};
     function bilingualOverrideHandler(field) {
@@ -3529,27 +3575,32 @@
         var en = document.getElementById('settings-' + field + '-en').value.trim();
         var patch = {};
         patch[field === 'hero-lead' ? 'heroLeadOverride' : field === 'welcome-text' ? 'welcomeTextOverride' : 'contactButtonLabelOverride'] = { it: it, en: en };
-        window.CasaCelesteTourismDB.setSettings(patch);
+        saveSettings(patch);
       };
     }
     content.innerHTML =
       '<h1 class="dash-section-title">Home</h1>' +
-      infoNoteHtml('Testi e foto della prima schermata del sito (quello che un ospite vede per primo aprendo il link).') +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Testo di benvenuto</span></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva sotto il titolo — italiano</label><textarea class="admin-field" id="settings-hero-lead-it" rows="3" placeholder="Lascia vuoto per il testo già scritto di default">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.it) || '') + '</textarea></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva — English</label><textarea class="admin-field" id="settings-hero-lead-en" rows="3">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.en) || '') + '</textarea></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — italiano</label><textarea class="admin-field" id="settings-welcome-text-it" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.it) || '') + '</textarea></div>' +
-        '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — English</label><textarea class="admin-field" id="settings-welcome-text-en" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.en) || '') + '</textarea></div>' +
-      '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Bottone "Contatta l\'host"</span></div>' +
-        '<div class="admin-room-type-row">' +
-          '<div class="admin-field-group"><label>Etichetta — italiano</label><input type="text" class="admin-field" id="settings-contact-label-it" placeholder="Contatta l\'host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.it) || '') + '"></div>' +
-          '<div class="admin-field-group"><label>Etichetta — English</label><input type="text" class="admin-field" id="settings-contact-label-en" placeholder="Contact the host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.en) || '') + '"></div>' +
+      infoNoteHtml('Testi e foto della prima schermata del sito (quello che un ospite vede per primo aprendo il link). L\'anteprima qui accanto è il sito vero: si aggiorna da sola non appena una modifica è salvata.') +
+      '<div class="content-editor-layout">' +
+        '<div class="content-editor-fields">' +
+          '<div class="admin-room-card">' +
+            '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Testo di benvenuto</span></div>' +
+            '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva sotto il titolo — italiano</label><textarea class="admin-field" id="settings-hero-lead-it" rows="3" placeholder="Lascia vuoto per il testo già scritto di default">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.it) || '') + '</textarea></div>' +
+            '<div class="admin-field-group admin-field-group--full"><label>Frase introduttiva — English</label><textarea class="admin-field" id="settings-hero-lead-en" rows="3">' + escapeHtml((s.heroLeadOverride && s.heroLeadOverride.en) || '') + '</textarea></div>' +
+            '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — italiano</label><textarea class="admin-field" id="settings-welcome-text-it" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.it) || '') + '</textarea></div>' +
+            '<div class="admin-field-group admin-field-group--full"><label>Testo sezione "Benvenuto/a" — English</label><textarea class="admin-field" id="settings-welcome-text-en" rows="3">' + escapeHtml((s.welcomeTextOverride && s.welcomeTextOverride.en) || '') + '</textarea></div>' +
+          '</div>' +
+          '<div class="admin-room-card">' +
+            '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Bottone "Contatta l\'host"</span></div>' +
+            '<div class="admin-room-type-row">' +
+              '<div class="admin-field-group"><label>Etichetta — italiano</label><input type="text" class="admin-field" id="settings-contact-label-it" placeholder="Contatta l\'host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.it) || '') + '"></div>' +
+              '<div class="admin-field-group"><label>Etichetta — English</label><input type="text" class="admin-field" id="settings-contact-label-en" placeholder="Contact the host" value="' + escapeHtml((s.contactButtonLabelOverride && s.contactButtonLabelOverride.en) || '') + '"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' + photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) + '</div>' +
         '</div>' +
-      '</div>' +
-      '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Foto facciata (home)</span></div>' + photoSlotsHtml('facade', 'facciata', { photos: s.facadePhotos }) + '</div>';
+        contentPreviewPanelHtml('top') +
+      '</div>';
     ['hero-lead', 'welcome-text', 'contact-label'].forEach(function (field) {
       var itEl = document.getElementById('settings-' + field + '-it');
       var enEl = document.getElementById('settings-' + field + '-en');
@@ -3557,6 +3608,7 @@
       if (enEl) enEl.addEventListener('change', bilingualOverrideHandler(field));
     });
     bindPhotoUploadEvents(content);
+    bindContentPreviewEvents(content);
   }
   function renderLocationTab(content) {
     var s = state.settings || {};
@@ -3574,41 +3626,46 @@
     }).join('');
     content.innerHTML =
       '<h1 class="dash-section-title">Posizione</h1>' +
-      infoNoteHtml('Indirizzo, mappa e punti d\'interesse mostrati nella sezione "Posizione" del sito.') +
-      '<div class="admin-room-card">' +
-        '<div class="admin-field-group"><label>Città</label><input type="text" class="admin-field" id="settings-city" value="' + escapeHtml(s.city || '') + '" placeholder="Monopoli"></div>' +
-        '<div class="admin-field-group"><label>Indirizzo completo</label><input type="text" class="admin-field" id="settings-address" value="' + escapeHtml(s.address || '') + '" placeholder="Via Giuseppe Can. del Drago 9, Monopoli (BA)"></div>' +
-        fieldGroupHtml('Link Google Maps', 'Facoltativo, posizione più precisa dell\'indirizzo testuale.',
-          '<input type="text" class="admin-field" id="settings-map-link" value="' + escapeHtml(s.mapLink || '') + '" placeholder="Incolla qui il link da Google Maps → Condividi">', true) +
-        '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usato subito per il bottone "Apri indicazioni". Per la mappa incorporata nella pagina, incolla invece il link da Google Maps → Condividi → Incorpora una mappa (contiene "maps/embed"): senza quello, la mappa incorporata continua a usare l\'indirizzo testuale sopra.</div>' +
-      '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Punti d\'interesse vicini</span></div>' +
-        infoNoteHtml('Destinazione (per "indicazioni stradali" su Google Maps) e tempo a piedi da casa. Lascia vuoto per mantenere i default di Monopoli.') +
-        mapPoiRowsHtml +
-      '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Dati per i motori di ricerca (facoltativi)</span></div>' +
-        infoNoteHtml('Usati solo nei dati strutturati che aiutano Google a mostrare la scheda della struttura nei risultati di ricerca. Lascia vuoto ciò che non conosci: viene semplicemente omesso, mai sostituito con un valore di un\'altra struttura.') +
-        '<div class="admin-room-type-row">' +
-          '<div class="admin-field-group"><label>Provincia (sigla)</label><input type="text" class="admin-field" id="settings-address-region" value="' + escapeHtml(s.addressRegion || '') + '" placeholder="BA"></div>' +
-          '<div class="admin-field-group"><label>CAP</label><input type="text" class="admin-field" id="settings-postal-code" value="' + escapeHtml(s.postalCode || '') + '" placeholder="70043"></div>' +
-          '<div class="admin-field-group"><label>Paese (codice ISO)</label><input type="text" class="admin-field" id="settings-address-country" value="' + escapeHtml(s.addressCountry || '') + '" placeholder="IT"></div>' +
+      infoNoteHtml('Indirizzo, mappa e punti d\'interesse mostrati nella sezione "Posizione" del sito. L\'anteprima qui accanto è il sito vero: si aggiorna da sola non appena una modifica è salvata.') +
+      '<div class="content-editor-layout">' +
+        '<div class="content-editor-fields">' +
+          '<div class="admin-room-card">' +
+            '<div class="admin-field-group"><label>Città</label><input type="text" class="admin-field" id="settings-city" value="' + escapeHtml(s.city || '') + '" placeholder="Monopoli"></div>' +
+            '<div class="admin-field-group"><label>Indirizzo completo</label><input type="text" class="admin-field" id="settings-address" value="' + escapeHtml(s.address || '') + '" placeholder="Via Giuseppe Can. del Drago 9, Monopoli (BA)"></div>' +
+            fieldGroupHtml('Link Google Maps', 'Facoltativo, posizione più precisa dell\'indirizzo testuale.',
+              '<input type="text" class="admin-field" id="settings-map-link" value="' + escapeHtml(s.mapLink || '') + '" placeholder="Incolla qui il link da Google Maps → Condividi">', true) +
+            '<div class="admin-field-group--full" style="font-size:13px; color:var(--admin-muted,#6B7A8C); margin-top:-6px;">Usato subito per il bottone "Apri indicazioni". Per la mappa incorporata nella pagina, incolla invece il link da Google Maps → Condividi → Incorpora una mappa (contiene "maps/embed"): senza quello, la mappa incorporata continua a usare l\'indirizzo testuale sopra.</div>' +
+          '</div>' +
+          '<div class="admin-room-card">' +
+            '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Punti d\'interesse vicini</span></div>' +
+            infoNoteHtml('Destinazione (per "indicazioni stradali" su Google Maps) e tempo a piedi da casa. Lascia vuoto per mantenere i default di Monopoli.') +
+            mapPoiRowsHtml +
+          '</div>' +
+          '<div class="admin-room-card">' +
+            '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Dati per i motori di ricerca (facoltativi)</span></div>' +
+            infoNoteHtml('Usati solo nei dati strutturati che aiutano Google a mostrare la scheda della struttura nei risultati di ricerca. Lascia vuoto ciò che non conosci: viene semplicemente omesso, mai sostituito con un valore di un\'altra struttura.') +
+            '<div class="admin-room-type-row">' +
+              '<div class="admin-field-group"><label>Provincia (sigla)</label><input type="text" class="admin-field" id="settings-address-region" value="' + escapeHtml(s.addressRegion || '') + '" placeholder="BA"></div>' +
+              '<div class="admin-field-group"><label>CAP</label><input type="text" class="admin-field" id="settings-postal-code" value="' + escapeHtml(s.postalCode || '') + '" placeholder="70043"></div>' +
+              '<div class="admin-field-group"><label>Paese (codice ISO)</label><input type="text" class="admin-field" id="settings-address-country" value="' + escapeHtml(s.addressCountry || '') + '" placeholder="IT"></div>' +
+            '</div>' +
+            '<div class="admin-room-type-row">' +
+              '<div class="admin-field-group"><label>Latitudine GPS</label><input type="text" class="admin-field" id="settings-geo-lat" value="' + escapeHtml(s.geoLat || '') + '" placeholder="40.9539631"></div>' +
+              '<div class="admin-field-group"><label>Longitudine GPS</label><input type="text" class="admin-field" id="settings-geo-lng" value="' + escapeHtml(s.geoLng || '') + '" placeholder="17.2950498"></div>' +
+            '</div>' +
+            infoNoteHtml('Le coordinate si trovano su Google Maps: cerca il tuo indirizzo, tasto destro sul puntino esatto → il primo numero della riga che compare è la latitudine, il secondo la longitudine.') +
+          '</div>' +
         '</div>' +
-        '<div class="admin-room-type-row">' +
-          '<div class="admin-field-group"><label>Latitudine GPS</label><input type="text" class="admin-field" id="settings-geo-lat" value="' + escapeHtml(s.geoLat || '') + '" placeholder="40.9539631"></div>' +
-          '<div class="admin-field-group"><label>Longitudine GPS</label><input type="text" class="admin-field" id="settings-geo-lng" value="' + escapeHtml(s.geoLng || '') + '" placeholder="17.2950498"></div>' +
-        '</div>' +
-        infoNoteHtml('Le coordinate si trovano su Google Maps: cerca il tuo indirizzo, tasto destro sul puntino esatto → il primo numero della riga che compare è la latitudine, il secondo la longitudine.') +
+        contentPreviewPanelHtml('posizione') +
       '</div>';
-    document.getElementById('settings-city').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ city: e.target.value.trim() }); });
-    document.getElementById('settings-address').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ address: e.target.value.trim() }); });
-    document.getElementById('settings-map-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ mapLink: e.target.value.trim() }); });
-    document.getElementById('settings-address-region').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ addressRegion: e.target.value.trim() }); });
-    document.getElementById('settings-postal-code').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ postalCode: e.target.value.trim() }); });
-    document.getElementById('settings-address-country').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ addressCountry: e.target.value.trim() }); });
-    document.getElementById('settings-geo-lat').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ geoLat: e.target.value.trim() }); });
-    document.getElementById('settings-geo-lng').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ geoLng: e.target.value.trim() }); });
+    document.getElementById('settings-city').addEventListener('change', function (e) { saveSettings({ city: e.target.value.trim() }); });
+    document.getElementById('settings-address').addEventListener('change', function (e) { saveSettings({ address: e.target.value.trim() }); });
+    document.getElementById('settings-map-link').addEventListener('change', function (e) { saveSettings({ mapLink: e.target.value.trim() }); });
+    document.getElementById('settings-address-region').addEventListener('change', function (e) { saveSettings({ addressRegion: e.target.value.trim() }); });
+    document.getElementById('settings-postal-code').addEventListener('change', function (e) { saveSettings({ postalCode: e.target.value.trim() }); });
+    document.getElementById('settings-address-country').addEventListener('change', function (e) { saveSettings({ addressCountry: e.target.value.trim() }); });
+    document.getElementById('settings-geo-lat').addEventListener('change', function (e) { saveSettings({ geoLat: e.target.value.trim() }); });
+    document.getElementById('settings-geo-lng').addEventListener('change', function (e) { saveSettings({ geoLng: e.target.value.trim() }); });
     content.querySelectorAll('[data-poi-field]').forEach(function (el) {
       el.addEventListener('change', function (e) {
         var key = e.target.getAttribute('data-poi-key');
@@ -3616,33 +3673,40 @@
         var updated = Object.assign({}, s.mapPois || {});
         updated[key] = Object.assign({}, updated[key] || {});
         updated[key][field] = e.target.value.trim();
-        window.CasaCelesteTourismDB.setSettings({ mapPois: updated });
+        saveSettings({ mapPois: updated });
       });
     });
+    bindContentPreviewEvents(content);
   }
   function renderHostTab(content) {
     var s = state.settings || {};
     content.innerHTML =
       '<h1 class="dash-section-title">Host</h1>' +
-      infoNoteHtml('Chi accoglie l\'ospite — mostrato nella sezione "Host" del sito.') +
-      '<div class="admin-room-card">' +
-        '<div class="admin-field-group admin-field-group--full"><label>Nome e cognome</label><input type="text" class="admin-field" id="manager-name" value="' + escapeHtml(s.managerName || '') + '"></div>' +
-        '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="manager-phone" value="' + escapeHtml(s.managerPhone || '') + '"></div>' +
-        '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" value="' + escapeHtml(s.managerEmail || '') + '"></div>' +
-        photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +
-      '</div>' +
-      '<div class="admin-room-card">' +
-        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Dati legali (contratto e privacy)</span></div>' +
-        infoNoteHtml('Usati SOLO nel contratto di locazione e nell\'informativa privacy mostrati agli ospiti (mai sul resto del sito) — obbligatorio compilarli prima di ricevere ospiti reali: senza questi dati quei due testi restano incompleti.') +
-        '<div class="admin-field-group admin-field-group--full"><label>Ragione sociale / nome del locatore</label><input type="text" class="admin-field" id="legal-entity-name" value="' + escapeHtml(s.legalEntityName || '') + '" placeholder="Es. Mario Rossi, oppure Nome Srl"></div>' +
-        '<div class="admin-field-group"><label>Codice identificativo struttura (CIN/CIR)</label><input type="text" class="admin-field" id="legal-cin" value="' + escapeHtml(s.legalCin || '') + '" placeholder="Se assegnato dalla tua Regione"></div>' +
+      infoNoteHtml('Chi accoglie l\'ospite — mostrato nella sezione "Host" del sito. L\'anteprima qui accanto è il sito vero: si aggiorna da sola non appena una modifica è salvata.') +
+      '<div class="content-editor-layout">' +
+        '<div class="content-editor-fields">' +
+          '<div class="admin-room-card">' +
+            '<div class="admin-field-group admin-field-group--full"><label>Nome e cognome</label><input type="text" class="admin-field" id="manager-name" value="' + escapeHtml(s.managerName || '') + '"></div>' +
+            '<div class="admin-field-group"><label>Telefono</label><input type="text" class="admin-field" id="manager-phone" value="' + escapeHtml(s.managerPhone || '') + '"></div>' +
+            '<div class="admin-field-group"><label>Email</label><input type="text" class="admin-field" id="manager-email" value="' + escapeHtml(s.managerEmail || '') + '"></div>' +
+            photoSlotsHtml('manager', 'manager', { photos: s.managerPhoto ? [s.managerPhoto] : [] }, 1) +
+          '</div>' +
+          '<div class="admin-room-card">' +
+            '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Dati legali (contratto e privacy)</span></div>' +
+            infoNoteHtml('Usati SOLO nel contratto di locazione e nell\'informativa privacy mostrati agli ospiti (mai sul resto del sito) — obbligatorio compilarli prima di ricevere ospiti reali: senza questi dati quei due testi restano incompleti.') +
+            '<div class="admin-field-group admin-field-group--full"><label>Ragione sociale / nome del locatore</label><input type="text" class="admin-field" id="legal-entity-name" value="' + escapeHtml(s.legalEntityName || '') + '" placeholder="Es. Mario Rossi, oppure Nome Srl"></div>' +
+            '<div class="admin-field-group"><label>Codice identificativo struttura (CIN/CIR)</label><input type="text" class="admin-field" id="legal-cin" value="' + escapeHtml(s.legalCin || '') + '" placeholder="Se assegnato dalla tua Regione"></div>' +
+          '</div>' +
+        '</div>' +
+        contentPreviewPanelHtml('manager-slot') +
       '</div>';
-    document.getElementById('manager-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerName: e.target.value.trim() }); });
-    document.getElementById('manager-phone').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerPhone: e.target.value.replace(/\D/g, '') }); });
-    document.getElementById('manager-email').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ managerEmail: e.target.value.trim() }); });
-    document.getElementById('legal-entity-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ legalEntityName: e.target.value.trim() }); });
-    document.getElementById('legal-cin').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ legalCin: e.target.value.trim() }); });
+    document.getElementById('manager-name').addEventListener('change', function (e) { saveSettings({ managerName: e.target.value.trim() }); });
+    document.getElementById('manager-phone').addEventListener('change', function (e) { saveSettings({ managerPhone: e.target.value.replace(/\D/g, '') }); });
+    document.getElementById('manager-email').addEventListener('change', function (e) { saveSettings({ managerEmail: e.target.value.trim() }); });
+    document.getElementById('legal-entity-name').addEventListener('change', function (e) { saveSettings({ legalEntityName: e.target.value.trim() }); });
+    document.getElementById('legal-cin').addEventListener('change', function (e) { saveSettings({ legalCin: e.target.value.trim() }); });
     bindPhotoUploadEvents(content);
+    bindContentPreviewEvents(content);
   }
 
   // ==========================================================================
@@ -4303,7 +4367,7 @@
         cur[lang] = value;
         rootObj[field] = cur;
         var patch = {}; patch[section] = rootObj;
-        window.CasaCelesteTourismDB.setSettings(patch);
+        saveSettings(patch);
       } else {
         var etObj = Object.assign({}, s.emailTexts || {});
         var secObj = Object.assign({}, etObj[section] || {});
@@ -4311,7 +4375,7 @@
         curField[lang] = value;
         secObj[field] = curField;
         etObj[section] = secObj;
-        window.CasaCelesteTourismDB.setSettings({ emailTexts: etObj });
+        saveSettings({ emailTexts: etObj });
       }
     }
     content.querySelectorAll('[data-email-text]').forEach(function (ta) {
@@ -4633,15 +4697,15 @@
         content.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     });
-    document.getElementById('settings-theme-primary').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ themeColorPrimary: e.target.value }); });
-    document.getElementById('settings-theme-accent').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ themeColorAccent: e.target.value }); });
-    document.getElementById('settings-same-night-cutoff').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ sameNightBookingCutoff: e.target.value.trim() }); });
-    document.getElementById('settings-email-sender-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailSenderName: e.target.value.trim() }); });
-    document.getElementById('settings-email-footer-signature').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ emailFooterSignature: e.target.value.trim() }); });
-    document.getElementById('settings-site-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ siteName: e.target.value.trim() }); });
+    document.getElementById('settings-theme-primary').addEventListener('change', function (e) { saveSettings({ themeColorPrimary: e.target.value }); });
+    document.getElementById('settings-theme-accent').addEventListener('change', function (e) { saveSettings({ themeColorAccent: e.target.value }); });
+    document.getElementById('settings-same-night-cutoff').addEventListener('change', function (e) { saveSettings({ sameNightBookingCutoff: e.target.value.trim() }); });
+    document.getElementById('settings-email-sender-name').addEventListener('change', function (e) { saveSettings({ emailSenderName: e.target.value.trim() }); });
+    document.getElementById('settings-email-footer-signature').addEventListener('change', function (e) { saveSettings({ emailFooterSignature: e.target.value.trim() }); });
+    document.getElementById('settings-site-name').addEventListener('change', function (e) { saveSettings({ siteName: e.target.value.trim() }); });
     var dynPricingToggle = document.getElementById('settings-dynamic-pricing-enabled');
     if (dynPricingToggle) dynPricingToggle.addEventListener('change', function (e) {
-      window.CasaCelesteTourismDB.setSettings({ dynamicPricingEnabled: !!e.target.checked });
+      saveSettings({ dynamicPricingEnabled: !!e.target.checked });
     });
     content.querySelectorAll('[data-season-field]').forEach(function (el) {
       el.addEventListener('change', function (e) {
@@ -4652,45 +4716,45 @@
         list[idx][field] = (field === 'multiplier' || field === 'weekendMultiplier')
           ? (e.target.value === '' ? null : Number(e.target.value))
           : e.target.value.trim();
-        window.CasaCelesteTourismDB.setSettings({ seasonalPeriods: list });
+        saveSettings({ seasonalPeriods: list });
       });
     });
     var addSeasonBtn = document.getElementById('add-season-btn');
     if (addSeasonBtn) addSeasonBtn.addEventListener('click', function () {
       var list = (Array.isArray(s.seasonalPeriods) ? s.seasonalPeriods : []).slice();
       list.push({ startMD: '', endMD: '', multiplier: 1, weekendMultiplier: null });
-      window.CasaCelesteTourismDB.setSettings({ seasonalPeriods: list });
+      saveSettings({ seasonalPeriods: list });
     });
     content.querySelectorAll('[data-season-remove]').forEach(function (el) {
       el.addEventListener('click', function () {
         var idx = Number(el.getAttribute('data-season-index'));
         var list = (Array.isArray(s.seasonalPeriods) ? s.seasonalPeriods : []).slice();
         list.splice(idx, 1);
-        window.CasaCelesteTourismDB.setSettings({ seasonalPeriods: list });
+        saveSettings({ seasonalPeriods: list });
       });
     });
     document.getElementById('settings-phone').addEventListener('change', function (e) {
-      window.CasaCelesteTourismDB.setSettings({ phone: e.target.value.replace(/\D/g, '') });
+      saveSettings({ phone: e.target.value.replace(/\D/g, '') });
     });
     document.getElementById('settings-contact-email').addEventListener('change', function (e) {
-      window.CasaCelesteTourismDB.setSettings({ contactEmail: e.target.value.trim() });
+      saveSettings({ contactEmail: e.target.value.trim() });
     });
-    document.getElementById('settings-checkin').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkInTime: e.target.value }); });
-    document.getElementById('settings-checkout').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutTime: e.target.value }); });
-    document.getElementById('settings-tax-rate').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ touristTaxRate: Number(e.target.value) || 0 }); });
+    document.getElementById('settings-checkin').addEventListener('change', function (e) { saveSettings({ checkInTime: e.target.value }); });
+    document.getElementById('settings-checkout').addEventListener('change', function (e) { saveSettings({ checkOutTime: e.target.value }); });
+    document.getElementById('settings-tax-rate').addEventListener('change', function (e) { saveSettings({ touristTaxRate: Number(e.target.value) || 0 }); });
     document.getElementById('settings-avg-rating').addEventListener('change', function (e) {
       var v = e.target.value === '' ? null : Math.max(0, Math.min(5, Number(e.target.value)));
-      window.CasaCelesteTourismDB.setSettings({ avgRating: (v == null || isNaN(v)) ? null : v });
+      saveSettings({ avgRating: (v == null || isNaN(v)) ? null : v });
     });
     document.getElementById('settings-review-count').addEventListener('change', function (e) {
       var v = e.target.value === '' ? null : Math.max(0, Number(e.target.value));
-      window.CasaCelesteTourismDB.setSettings({ reviewCountOverride: (v == null || isNaN(v)) ? null : Math.round(v) });
+      saveSettings({ reviewCountOverride: (v == null || isNaN(v)) ? null : Math.round(v) });
     });
     document.getElementById('settings-property-type').addEventListener('change', function (e) {
-      window.CasaCelesteTourismDB.setSettings({ propertyType: e.target.value === 'apartment' ? 'apartment' : 'rooms' });
+      saveSettings({ propertyType: e.target.value === 'apartment' ? 'apartment' : 'rooms' });
     });
-    document.getElementById('settings-retention-hours').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ guestDocsRetentionHours: Number(e.target.value) || 48 }); });
-    document.getElementById('settings-bookings-sheet-url').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ bookingsSheetUrl: e.target.value.trim() }); });
+    document.getElementById('settings-retention-hours').addEventListener('change', function (e) { saveSettings({ guestDocsRetentionHours: Number(e.target.value) || 48 }); });
+    document.getElementById('settings-bookings-sheet-url').addEventListener('change', function (e) { saveSettings({ bookingsSheetUrl: e.target.value.trim() }); });
     function savePrivateOrAlert(patch) {
       window.CasaCelesteTourismDB.setSettingsPrivate(patch).catch(function (err) {
         window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err));
@@ -4774,33 +4838,28 @@
       var newToken = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
       savePrivateOrAlert({ maintenanceAccessToken: newToken });
     });
-    document.getElementById('settings-wifi-name').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiName: e.target.value.trim() }); });
-    document.getElementById('settings-wifi-password').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ wifiPassword: e.target.value }); });
-    document.getElementById('settings-street-gate-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ streetGateLink: e.target.value }); });
-    document.getElementById('settings-video-call-enabled').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ videoCallEnabled: e.target.checked }); });
-    document.getElementById('settings-contract-signature-enabled').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ contractSignatureEnabled: e.target.checked }); });
-    document.getElementById('settings-checkin-instructions').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkInInstructionsText: { it: e.target.value, en: (state.settings.checkInInstructionsText && state.settings.checkInInstructionsText.en) || '' } }); });
-    document.getElementById('settings-checkin-instructions-en').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkInInstructionsText: { it: (state.settings.checkInInstructionsText && state.settings.checkInInstructionsText.it) || '', en: e.target.value } }); });
-    document.getElementById('settings-checkout-instructions').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutInstructionsText: { it: e.target.value, en: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.en) || '' } }); });
-    document.getElementById('settings-checkout-instructions-en').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ checkOutInstructionsText: { it: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.it) || '', en: e.target.value } }); });
-    document.getElementById('settings-review-link').addEventListener('change', function (e) { window.CasaCelesteTourismDB.setSettings({ reviewLink: e.target.value.trim() }); });
+    document.getElementById('settings-wifi-name').addEventListener('change', function (e) { saveSettings({ wifiName: e.target.value.trim() }); });
+    document.getElementById('settings-wifi-password').addEventListener('change', function (e) { saveSettings({ wifiPassword: e.target.value }); });
+    document.getElementById('settings-street-gate-link').addEventListener('change', function (e) { saveSettings({ streetGateLink: e.target.value }); });
+    document.getElementById('settings-video-call-enabled').addEventListener('change', function (e) { saveSettings({ videoCallEnabled: e.target.checked }); });
+    document.getElementById('settings-contract-signature-enabled').addEventListener('change', function (e) { saveSettings({ contractSignatureEnabled: e.target.checked }); });
+    document.getElementById('settings-checkin-instructions').addEventListener('change', function (e) { saveSettings({ checkInInstructionsText: { it: e.target.value, en: (state.settings.checkInInstructionsText && state.settings.checkInInstructionsText.en) || '' } }); });
+    document.getElementById('settings-checkin-instructions-en').addEventListener('change', function (e) { saveSettings({ checkInInstructionsText: { it: (state.settings.checkInInstructionsText && state.settings.checkInInstructionsText.it) || '', en: e.target.value } }); });
+    document.getElementById('settings-checkout-instructions').addEventListener('change', function (e) { saveSettings({ checkOutInstructionsText: { it: e.target.value, en: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.en) || '' } }); });
+    document.getElementById('settings-checkout-instructions-en').addEventListener('change', function (e) { saveSettings({ checkOutInstructionsText: { it: (state.settings.checkOutInstructionsText && state.settings.checkOutInstructionsText.it) || '', en: e.target.value } }); });
+    document.getElementById('settings-review-link').addEventListener('change', function (e) { saveSettings({ reviewLink: e.target.value.trim() }); });
 
     function recipientKeyFor(kind) {
       if (kind === 'cleaning') return 'cleaningRecipients';
       if (kind === 'maintenance') return 'maintenanceRecipients';
       return 'bookingCommandAuthorized';
     }
-    function saveSettingsOrAlert(patch) {
-      window.CasaCelesteTourismDB.setSettings(patch).catch(function (err) {
-        window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err) + '\n\nProva a uscire (bottone "Esci") e rientrare, poi riprova.');
-      });
-    }
     content.querySelectorAll('[data-add-recipient]').forEach(function (el) {
       el.addEventListener('click', function () {
         var kind = el.getAttribute('data-add-recipient'), key = recipientKeyFor(kind);
         var list = (state.settings[key] || []).slice();
         list.push({ label: '', chatId: '', enabled: true });
-        saveSettingsOrAlert((function () { var p = {}; p[key] = list; return p; })());
+        saveSettings((function () { var p = {}; p[key] = list; return p; })());
       });
     });
     content.querySelectorAll('[data-recipient-field]').forEach(function (el) {
@@ -4808,7 +4867,7 @@
         var kind = el.getAttribute('data-recipient-kind'), key = recipientKeyFor(kind), idx = Number(el.getAttribute('data-recipient-index')), part = el.getAttribute('data-recipient-part');
         var list = (state.settings[key] || []).slice();
         list[idx] = Object.assign({}, list[idx]); list[idx][part] = e.target.value;
-        saveSettingsOrAlert((function () { var p = {}; p[key] = list; return p; })());
+        saveSettings((function () { var p = {}; p[key] = list; return p; })());
       });
     });
     content.querySelectorAll('[data-recipient-enabled]').forEach(function (el) {
@@ -4816,14 +4875,14 @@
         var kind = el.getAttribute('data-recipient-kind'), key = recipientKeyFor(kind), idx = Number(el.getAttribute('data-recipient-index'));
         var list = (state.settings[key] || []).slice();
         list[idx] = Object.assign({}, list[idx], { enabled: e.target.checked });
-        saveSettingsOrAlert((function () { var p = {}; p[key] = list; return p; })());
+        saveSettings((function () { var p = {}; p[key] = list; return p; })());
       });
     });
     content.querySelectorAll('[data-recipient-remove]').forEach(function (el) {
       el.addEventListener('click', function () {
         var kind = el.getAttribute('data-recipient-kind'), key = recipientKeyFor(kind), idx = Number(el.getAttribute('data-recipient-index'));
         var list = (state.settings[key] || []).slice(); list.splice(idx, 1);
-        saveSettingsOrAlert((function () { var p = {}; p[key] = list; return p; })());
+        saveSettings((function () { var p = {}; p[key] = list; return p; })());
       });
     });
     // Il primo edit su una stanza (modifica/aggiunta/rimozione di un
@@ -4844,7 +4903,7 @@
         var roomId = el.getAttribute('data-ical-room'), idx = Number(el.getAttribute('data-ical-index')), part = el.getAttribute('data-ical-part');
         var channels = icalChannelsForRoom(roomId).slice();
         channels[idx] = Object.assign({}, channels[idx]); channels[idx][part] = e.target.value.trim();
-        saveSettingsOrAlert(icalChannelsSetPatch(roomId, channels));
+        saveSettings(icalChannelsSetPatch(roomId, channels));
       });
     });
     content.querySelectorAll('[data-ical-add]').forEach(function (el) {
@@ -4852,7 +4911,7 @@
         var roomId = el.getAttribute('data-ical-add');
         var channels = icalChannelsForRoom(roomId).slice();
         channels.push({ id: 'manual_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), label: '', url: '' });
-        saveSettingsOrAlert(icalChannelsSetPatch(roomId, channels));
+        saveSettings(icalChannelsSetPatch(roomId, channels));
       });
     });
     content.querySelectorAll('[data-ical-remove]').forEach(function (el) {
@@ -4860,7 +4919,7 @@
         var roomId = el.getAttribute('data-ical-room'), idx = Number(el.getAttribute('data-ical-index'));
         var channels = icalChannelsForRoom(roomId).slice();
         channels.splice(idx, 1);
-        saveSettingsOrAlert(icalChannelsSetPatch(roomId, channels));
+        saveSettings(icalChannelsSetPatch(roomId, channels));
       });
     });
     content.querySelectorAll('[data-rec-field]').forEach(function (el) {
@@ -4868,20 +4927,20 @@
         var idx = Number(el.getAttribute('data-rec-index')), part = el.getAttribute('data-rec-part');
         var list = (state.settings.recommendations || []).slice();
         list[idx] = Object.assign({}, list[idx]); list[idx][part] = e.target.value;
-        window.CasaCelesteTourismDB.setSettings({ recommendations: list });
+        saveSettings({ recommendations: list });
       });
     });
     var addRecBtn = document.getElementById('add-rec-btn');
     if (addRecBtn) addRecBtn.addEventListener('click', function () {
       var list = (state.settings.recommendations || []).slice();
       list.push({ id: 'rec-' + Date.now(), title: '', url: '', category: '', cost: '', text: '', photo: '' });
-      window.CasaCelesteTourismDB.setSettings({ recommendations: list });
+      saveSettings({ recommendations: list });
     });
     content.querySelectorAll('[data-rec-remove]').forEach(function (el) {
       el.addEventListener('click', function () {
         var idx = Number(el.getAttribute('data-rec-index'));
         var list = (state.settings.recommendations || []).slice(); list.splice(idx, 1);
-        window.CasaCelesteTourismDB.setSettings({ recommendations: list });
+        saveSettings({ recommendations: list });
       });
     });
     bindSocialFieldsEvents(content);

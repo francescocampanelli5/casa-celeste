@@ -591,6 +591,26 @@ button { font-family: inherit; }
 }
 .admin-room-card:last-child { margin-bottom: 0; }
 .dash-room-rows .admin-room-card { margin-bottom: 0; }
+
+/* Editor di contenuto (tab Home/Posizione/Host) con anteprima live del
+   sito pubblico affiancata — stesso principio del riquadro "Anteprima"
+   già usato per l'Impaginazione email (renderEmailLayoutPreviewHtml):
+   qui invece di riprodurre a mano l'HTML del sito (che andrebbe fuori
+   sincrono ad ogni modifica del sito vero), l'anteprima è un iframe sulla
+   pagina pubblica reale — 1:1 per costruzione, mai da mantenere allineata
+   a mano. Si aggiorna da sola quando il salvataggio del campo (saveSettings)
+   arriva su Firestore, la stessa sottoscrizione live che usa il sito vero. */
+.content-editor-layout { display: flex; gap: var(--dash-space-5); align-items: flex-start; flex-wrap: wrap; }
+.content-editor-fields { flex: 1 1 380px; min-width: 300px; }
+.content-preview-panel {
+  flex: 1 1 340px; min-width: 300px; position: sticky; top: var(--dash-space-4);
+  border: 1px solid var(--border-soft); border-radius: var(--radius-xs); background: var(--white); overflow: hidden;
+}
+.content-preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border-hairline); background: var(--grey-bg); }
+.content-preview-label { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.content-preview-lang-toggle { display: flex; gap: 6px; }
+.content-preview-frame { display: block; width: 100%; height: 640px; border: 0; background: var(--white); }
+@media (max-width: 900px) { .content-preview-panel { position: static; } .content-preview-frame { height: 480px; } }
 .admin-room-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rec-clicks-hint { font-size: 12px; font-weight: 700; color: var(--blue-deep); background: var(--blue-bg-soft); border-radius: var(--radius-xs); padding: 6px 10px; display: inline-block; width: fit-content; }
 .admin-room-name { font-weight: 700; font-size: 14px; flex: 1; min-width: 0; }
