@@ -1572,24 +1572,43 @@ button.dash-status-pill:hover { filter: brightness(0.94); }
 }
 .cal-bar--pending { opacity: 0.6; border: 1px dashed rgba(255,255,255,0.7); }
 
-/* minmax(0,1fr), non solo 1fr: senza lo 0 esplicito ogni colonna non può
-   restringersi sotto la larghezza minima del proprio contenuto (min-content),
-   quindi una chip con un nome ospite lungo "spinge" l'intera griglia oltre il
-   contenitore — e con overflow:hidden sul contenitore, sabato e domenica
-   sparivano tagliati fuori a destra invece di andare in ellissi. */
-.cal-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--border-hairline); border: 1px solid var(--border-hairline); border-radius: var(--radius-xs); overflow: hidden; }
+/* Vista Mese (v2): non più una cella per giorno con dentro chip ripetute,
+   ma una riga per settimana con barre CONTINUE che attraversano le colonne
+   dal check-in al check-out (stesso principio del Gantt, qui su 7 giorni
+   fissi per riga invece di una finestra scorrevole) — vedi calendarMonthHtml
+   in dashboard.js. */
+.cal-month-grid-v2 { border: 1px solid var(--border-hairline); border-radius: var(--radius-xs); overflow: hidden; background: var(--white); }
+.cal-month-weekday-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .cal-month-weekday { background: var(--off-white); text-align: center; font-size: 11px; font-weight: 800; color: var(--text-muted); padding: 6px 0; text-transform: uppercase; }
-.cal-month-cell { background: var(--white); min-height: 92px; min-width: 0; padding: 6px; display: flex; flex-direction: column; gap: 3px; }
-.cal-month-cell.is-outside { background: var(--off-white); opacity: 0.55; }
-.cal-month-cell.is-today .cal-month-daynum { background: var(--navy); color: var(--white); border-radius: 100px; padding: 0 6px; }
-.cal-month-daynum { font-size: 12px; font-weight: 800; color: var(--navy); width: fit-content; }
-/* .cal-bar ha align-self:center (giusto per centrarsi verticalmente nella
-   riga del Gantt) — qui nella cella flex-column del mese va invece
-   sovrascritto ad align-self:stretch, altrimenti la chip si allarga solo
-   quanto il proprio testo (non riempie la cella) e l'ellissi non entra mai
-   in funzione: sembra "traboccare" nella cella accanto invece di troncare. */
-.cal-month-chip { align-self: stretch; font-size: 10.5px; padding: 2px 6px; }
-.cal-month-more { font-size: 10.5px; color: var(--text-muted); font-weight: 700; }
+.cal-month-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--border-hairline); }
+/* Colonna di sfondo di UN giorno, alta quanto l'intera riga (grid-row a
+   span dinamico impostato inline) — dà il bordo verticale e lo sfondo
+   is-oggi/fuori-mese su tutta l'altezza della settimana, non solo sotto al
+   numero del giorno, così le barre sopra restano leggibili come "dentro"
+   quella colonna anche su più corsie. */
+.cal-month-daycol { grid-row: 1 / -1; border-right: 1px solid var(--border-hairline); padding: 3px 4px; min-width: 0; }
+.cal-month-daycol.is-outside { background: var(--off-white); opacity: 0.6; }
+.cal-month-daycol.is-today { background: var(--blue-bg-soft); }
+.cal-month-daynum { font-size: 11.5px; font-weight: 800; color: var(--navy); width: fit-content; }
+.cal-month-daycol.is-today .cal-month-daynum { background: var(--navy); color: var(--white); border-radius: 100px; padding: 0 6px; }
+/* Le barre condividono le stesse celle dei .cal-month-daycol (stessa
+   grid-column, righe successive): essendo dopo nel DOM stanno sopra senza
+   bisogno di z-index. min-width:0 già ereditato da .cal-bar. */
+.cal-month-bar { margin: 0 1px; align-self: center; }
+.cal-month-more { grid-row: auto; align-self: start; font-size: 10px; color: var(--text-muted); font-weight: 700; padding: 1px 5px; }
+
+/* Colori per stanza (vista Mese): 8 tinte distinguibili, cicliche oltre la
+   8ª stanza — vedi roomColorIndex()/ROOM_COLOR_COUNT in dashboard.js. Testo
+   bianco tranne dove il contrasto lo sconsiglia (ambra chiaro). */
+.cal-room-color-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.cal-room-c0 { background: var(--blue); }
+.cal-room-c1 { background: var(--green); }
+.cal-room-c2 { background: #C9971A; color: var(--navy); }
+.cal-room-c3 { background: #C1652E; }
+.cal-room-c4 { background: #6B5FA8; }
+.cal-room-c5 { background: #1E8A8A; }
+.cal-room-c6 { background: #B05070; }
+.cal-room-c7 { background: #55647A; }
 
 .cal-agenda-group { margin-bottom: 18px; }
 .cal-agenda-date { font-family: var(--font-display); font-weight: 800; font-size: 14px; color: var(--navy); text-transform: capitalize; margin-bottom: 6px; }

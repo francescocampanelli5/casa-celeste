@@ -161,6 +161,18 @@
   function sortedRoomIds() {
     return Object.keys(state.roomsData).sort(function (a, b) { return (state.roomsData[a].order || 999999) - (state.roomsData[b].order || 999999); });
   }
+  // Indice colore stabile per stanza (0-7, vedi .cal-room-c0..c7 in
+  // styles.css): calcolato sull'ordine COMPLETO di tutte le stanze (non
+  // sulla lista eventualmente filtrata passata alla vista Calendario), così
+  // una stanza mantiene sempre lo stesso colore anche filtrando su di essa
+  // da sola. Usato solo dalla vista Mese (Gantt/Agenda già distinguono la
+  // stanza dalla riga/colonna "Stanza", qui invece più prenotazioni di
+  // stanze diverse finiscono nello stesso giorno senza altro indizio).
+  var ROOM_COLOR_COUNT = 8;
+  function roomColorIndex(roomId) {
+    var idx = sortedRoomIds().indexOf(roomId);
+    return idx < 0 ? 0 : idx % ROOM_COLOR_COUNT;
+  }
   function formatCreatedAt(ts) {
     try { if (ts && typeof ts.toDate === 'function') return ts.toDate().toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) {}
     return '—';
@@ -1077,40 +1089,106 @@
   // stessa informazione/interattività della colonna a sinistra del Gantt,
   // qui perché la vista mensile non ha una riga fissa per stanza.
   function roomStatusStripHtml(roomIds) {
+    // Pallino colorato = stesso colore usato per le barre di questa stanza
+    // nella vista Mese qui sotto: la striscia fa così anche da legenda,
+    // senza bisogno di una legenda separata.
     return '<div class="cal-room-status-strip">' + roomIds.map(function (roomId) {
       var room = state.roomsData[roomId] || {};
       var st = roomLiveStatusInfo(roomId, room);
       return '<button type="button" class="dash-status-pill cal-room-status-chip ' + st.pillClass + '" data-room-status-pill data-room-id="' + roomId + '" title="Stato oggi — clicca per i dettagli">' +
+        '<span class="cal-room-color-dot cal-room-c' + roomColorIndex(roomId) + '"></span>' +
         '<strong>' + escapeHtml(room.name || roomId) + '</strong>' + escapeHtml(st.label) +
       '</button>';
     }).join('') + '</div>';
   }
+  // Colore per stanza (booking) o motivo hatching già esistente
+  // (manutenzione) — SOLO per la vista Mese: Gantt/Agenda hanno già la
+  // stanza in etichetta di riga/colonna, lì il colore per provenienza
+  // (calendarBarClass) resta più utile.
+  function calendarMonthBarClass(ev) {
+    if (ev.kind === 'maintenance') return 'cal-bar cal-bar--maintenance';
+    return 'cal-bar cal-room-c' + roomColorIndex(ev.roomId) + (ev.status === 'nuovo' ? ' cal-bar--pending' : '');
+  }
+  // Vista Mese: una barra CONTINUA per prenotazione (dal check-in al
+  // check-out, non più una chip ripetuta identica in ogni giorno) colorata
+  // per stanza — richiesta esplicita dell'host per capire a colpo d'occhio
+  // quale stanza è occupata quando senza guardare il testo. Una barra può
+  // attraversare al più una settimana (la griglia è a righe indipendenti,
+  // una per settimana): un soggiorno che copre più settimane produce più
+  // barre, una per riga, ciascuna clampata ai bordi di quella settimana —
+  // stesso identico principio già usato dal Gantt con la finestra di 7
+  // giorni. Le barre nella stessa settimana che si sovrappongono nelle
+  // colonne vanno su "corsie" (lane) diverse (bin-packing greedy, come un
+  // calendario mensile normale) fino a un massimo di CAL_MONTH_MAX_LANES,
+  // oltre le quali il giorno mostra solo un "+N" (stesso limite già usato
+  // prima come "primi 4 poi +N altro", qui per corsia invece che per riga).
+  var CAL_MONTH_MAX_LANES = 3;
   function calendarMonthHtml(roomIds) {
     var days = calendarMonthGridDays(state.calendarWindowStart);
     var monthNum = new Date(state.calendarWindowStart + 'T00:00:00').getMonth();
     var todayIso = todayISO();
-    var weekdayHeader = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(function (w) {
+    var weekdayHeader = '<div class="cal-month-weekday-row">' + ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(function (w) {
       return '<div class="cal-month-weekday">' + w + '</div>';
-    }).join('');
-    var cells = days.map(function (iso) {
-      var d = new Date(iso + 'T00:00:00');
-      var dayEvents = [];
-      roomIds.forEach(function (roomId) {
-        calendarEventsForRoom(roomId).forEach(function (ev) {
-          if (iso >= ev.start && iso < ev.end) dayEvents.push(Object.assign({ roomId: roomId }, ev));
-        });
+    }).join('') + '</div>';
+
+    var allEvents = [];
+    roomIds.forEach(function (roomId) {
+      calendarEventsForRoom(roomId).forEach(function (ev) { allEvents.push(Object.assign({ roomId: roomId }, ev)); });
+    });
+
+    var weeksHtml = '';
+    for (var w = 0; w < 6; w++) {
+      var weekDays = days.slice(w * 7, w * 7 + 7);
+      var weekStart = weekDays[0], weekEndExclusive = addDaysIso(weekStart, 7);
+      var weekEvents = allEvents.filter(function (ev) { return ev.end > weekStart && ev.start < weekEndExclusive; });
+      // Prima le prenotazioni che iniziano prima e durano di più: riempie le
+      // corsie dall'alto in modo più stabile (meno "salti" di corsia da una
+      // settimana all'altra per lo stesso soggiorno) di un ordine arbitrario.
+      weekEvents.sort(function (a, b) {
+        if (a.start !== b.start) return a.start < b.start ? -1 : 1;
+        return diffDaysIso(b.start, b.end) - diffDaysIso(a.start, a.end);
       });
-      var chips = dayEvents.slice(0, 4).map(function (ev) {
-        var room = state.roomsData[ev.roomId];
-        var text = (room ? room.name : ev.roomId) + ' — ' + ev.label;
-        return '<div class="' + calendarBarClass(ev) + ' cal-month-chip" data-cal-bar data-kind="' + ev.kind + '" data-id="' + ev.id + '" title="' + escapeHtml(text) + '">' + escapeHtml(text) + '</div>';
+      var lanes = [], placed = [];
+      weekEvents.forEach(function (ev) {
+        var startCol = Math.max(0, diffDaysIso(weekStart, ev.start));
+        var endCol = Math.min(7, diffDaysIso(weekStart, ev.end));
+        if (endCol <= startCol) return;
+        var laneIdx = lanes.findIndex(function (occupied) {
+          return !occupied.some(function (r) { return startCol < r[1] && endCol > r[0]; });
+        });
+        if (laneIdx === -1) { lanes.push([]); laneIdx = lanes.length - 1; }
+        lanes[laneIdx].push([startCol, endCol]);
+        placed.push({ ev: ev, lane: laneIdx, startCol: startCol, endCol: endCol });
+      });
+      var overflowByCol = [0, 0, 0, 0, 0, 0, 0];
+      placed.forEach(function (p) {
+        if (p.lane < CAL_MONTH_MAX_LANES) return;
+        for (var c = p.startCol; c < p.endCol; c++) overflowByCol[c]++;
+      });
+      var visibleLanes = Math.min(CAL_MONTH_MAX_LANES, lanes.length);
+      var hasOverflow = overflowByCol.some(function (n) { return n > 0; });
+      var totalRows = 1 + visibleLanes + (hasOverflow ? 1 : 0);
+
+      var daycolsHtml = weekDays.map(function (iso, c) {
+        var d = new Date(iso + 'T00:00:00');
+        return '<div class="cal-month-daycol' + (d.getMonth() !== monthNum ? ' is-outside' : '') + (iso === todayIso ? ' is-today' : '') + '" style="grid-column:' + (c + 1) + ';grid-row:1 / span ' + totalRows + ';">' +
+          '<span class="cal-month-daynum">' + d.getDate() + '</span>' +
+        '</div>';
       }).join('');
-      var more = dayEvents.length > 4 ? '<div class="cal-month-more">+' + (dayEvents.length - 4) + ' altro/i</div>' : '';
-      return '<div class="cal-month-cell' + (d.getMonth() !== monthNum ? ' is-outside' : '') + (iso === todayIso ? ' is-today' : '') + '">' +
-        '<div class="cal-month-daynum">' + d.getDate() + '</div>' + chips + more +
+      var barsHtml = placed.filter(function (p) { return p.lane < CAL_MONTH_MAX_LANES; }).map(function (p) {
+        var room = state.roomsData[p.ev.roomId];
+        var text = (room ? room.name : p.ev.roomId) + ' — ' + p.ev.label;
+        return '<div class="' + calendarMonthBarClass(p.ev) + ' cal-month-bar" data-cal-bar data-kind="' + p.ev.kind + '" data-id="' + p.ev.id + '" style="grid-column:' + (p.startCol + 1) + ' / ' + (p.endCol + 1) + ';grid-row:' + (p.lane + 2) + ';" title="' + escapeHtml(text) + '">' + escapeHtml(text) + '</div>';
+      }).join('');
+      var overflowHtml = hasOverflow ? overflowByCol.map(function (n, c) {
+        return n > 0 ? '<div class="cal-month-more" style="grid-column:' + (c + 1) + ';grid-row:' + (visibleLanes + 2) + ';">+' + n + '</div>' : '';
+      }).join('') : '';
+
+      weeksHtml += '<div class="cal-month-week" style="grid-template-rows:24px repeat(' + (visibleLanes + (hasOverflow ? 1 : 0)) + ',20px);">' +
+        daycolsHtml + barsHtml + overflowHtml +
       '</div>';
-    }).join('');
-    return roomStatusStripHtml(roomIds) + '<div class="cal-month-grid">' + weekdayHeader + cells + '</div>';
+    }
+    return roomStatusStripHtml(roomIds) + '<div class="cal-month-grid-v2">' + weekdayHeader + weeksHtml + '</div>';
   }
   function calendarAgendaHtml(roomIds) {
     var horizonStart = todayISO(), horizonEnd = addDaysIso(horizonStart, 60);
