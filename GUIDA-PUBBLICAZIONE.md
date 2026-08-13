@@ -1266,7 +1266,32 @@ Se un cliente smette di pagare: card del cliente → **"Disattiva servizio"**.
 Il suo sito e la sua dashboard mostreranno subito "Servizio disabilitato" (e
 ogni nuova prenotazione/pagamento viene rifiutato anche lato server, non solo
 nascosto). **"Riattiva servizio"** per riaccendere tutto quando torna in
-regola.
+regola. La sola cosa che resta consultabile anche da disattivato è la lettura
+dei dati già raccolti (prenotazioni, documenti ospiti) — scelta deliberata:
+quei dati appartengono legalmente al cliente (è lui il titolare del
+trattamento verso i SUOI ospiti), negargliene l'accesso anche solo in lettura
+per un mancato pagamento sarebbe una leva commerciale scorretta e un rischio
+per te, non solo per lui.
+
+### 9.5 Pubblicare un aggiornamento su tutti i clienti
+
+Un bug fix o una nuova funzione nel codice condiviso (`affittacamere/`,
+`functions/`, `firestore.rules`) non raggiunge da solo i clienti già
+collegati — ognuno vive su un deploy separato del proprio progetto. Dopo
+aver verificato la modifica su Casa Celeste come sempre (`firebase deploy`
++ `git push`), pubblicala anche a loro:
+```
+node scripts/update-tenants.js --project nome-progetto-cliente   # un solo cliente
+node scripts/update-tenants.js --all                             # tutti quelli in scripts/tenants.json
+node scripts/update-tenants.js --all --dry-run                   # anteprima, nessuna modifica reale
+```
+Ripubblica regole/indici Firestore, Cloud Functions e sito pubblico —
+**mai** i secret (restano quelli che ogni cliente ha già impostato da
+dashboard) né i suoi dati. `scripts/tenants.json` si popola da solo:
+`onboard-tenant.js` ci aggiunge ogni cliente appena collegato. Casa Celeste
+non è nell'elenco (resta sul suo deploy separato, GitHub Pages + `--project
+casa-celeste`) — aggiungerla per sbaglio pubblicherebbe una copia inutile
+su Firebase Hosting invece del sito vero.
 
 ---
 
