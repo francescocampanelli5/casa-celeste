@@ -2654,6 +2654,11 @@
     }
   }
   function bindInvoiceTabEvents(content, schema) {
+    var connectCta = document.getElementById('invoice-connect-cta');
+    if (connectCta) {
+      connectCta.addEventListener('click', function () { state.invoiceSubTab = 'collegamento'; renderTabContent(); });
+      connectCta.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); connectCta.click(); } });
+    }
     content.querySelectorAll('[data-invoice-scenario]').forEach(function (el) {
       el.addEventListener('click', function () { applyInvoiceScenario(el.getAttribute('data-invoice-scenario')); });
     });
@@ -2778,12 +2783,21 @@
     { id: 'bozze', label: 'Bozze e programmate' },
     { id: 'rubrica', label: 'Rubrica' },
     { id: 'costi', label: 'Costi & fornitori' },
-    { id: 'compensi', label: 'Registro compensi personale' }
+    { id: 'compensi', label: 'Registro compensi personale' },
+    { id: 'collegamento', label: 'Collegamento' }
   ];
+  function invoiceProviderConnected() {
+    var inv = (state.settingsPrivate && state.settingsPrivate.integrations && state.settingsPrivate.integrations.invoicing) || {};
+    if (inv.provider === 'aruba') return !!(inv.username && inv.password && inv.senderPIVA);
+    if (inv.provider === 'fattureInCloud') return !!(inv.accessToken && inv.companyId);
+    return false;
+  }
   function invoiceSubnavHtml() {
     if (!state.invoiceSubTab) state.invoiceSubTab = 'fatture';
+    var connected = invoiceProviderConnected();
     return '<div class="settings-subnav">' + INVOICE_SUBNAV.map(function (s) {
-      return '<button type="button" class="settings-subnav-btn' + (state.invoiceSubTab === s.id ? ' is-active' : '') + '" data-invoice-subnav="' + s.id + '">' + s.label + '</button>';
+      var badge = s.id === 'collegamento' ? '<span class="invoice-subnav-dot' + (connected ? ' is-on' : '') + '"></span>' : '';
+      return '<button type="button" class="settings-subnav-btn' + (state.invoiceSubTab === s.id ? ' is-active' : '') + '" data-invoice-subnav="' + s.id + '">' + s.label + badge + '</button>';
     }).join('') + '</div>';
   }
   function bindInvoiceSubnavEvents(content) {
@@ -3004,6 +3018,184 @@
       });
     });
   }
+  /* ---- Collegamento fatturazione (Aruba / Fatture in Cloud) ----
+     Prima viveva solo in Impostazioni → Integrazioni, lontano da dove serve
+     davvero (il tab Fatture): spostato qui per intero, con stato di
+     collegamento a colpo d'occhio, guida passo-passo per procurarsi le
+     credenziali di ciascun provider e un bottone che verifica l'autenticazione
+     senza emettere alcun documento (vedi testInvoiceConnection in
+     functions/index.js). Impostazioni mantiene solo un rimando. */
+  function invoiceConnectionStatusHtml() {
+    var inv = (state.settingsPrivate && state.settingsPrivate.integrations && state.settingsPrivate.integrations.invoicing) || {};
+    var provider = inv.provider || '';
+    if (!provider) {
+      return '<div class="invoice-connection-status is-off"><span class="invoice-connection-dot"></span>' +
+        '<div><strong>Nessun provider collegato</strong><span>Le fatture create nel tab "Fatture" restano solo bozze: nessun documento fiscale viene trasmesso finché non colleghi un intermediario qui sotto.</span></div></div>';
+    }
+    var label = provider === 'aruba' ? 'Aruba Fatturazione Elettronica' : 'Fatture in Cloud';
+    var ready = invoiceProviderConnected();
+    var detail = ready
+      ? (provider === 'aruba' ? 'Ambiente ' + (inv.environment === 'produzione' ? 'produzione' : 'demo') + '.' : 'Azienda ID ' + escapeHtml(inv.companyId) + '.')
+      : 'Mancano dei campi qui sotto — completali per poter emettere fatture.';
+    return '<div class="invoice-connection-status' + (ready ? ' is-on' : ' is-partial') + '"><span class="invoice-connection-dot"></span>' +
+      '<div><strong>' + (ready ? 'Collegato: ' : 'Da completare: ') + escapeHtml(label) + '</strong><span>' + detail + '</span></div></div>';
+  }
+  function saveInvoicingIntegration(patch) {
+    var sp = state.settingsPrivate || {};
+    var current = (sp.integrations && sp.integrations.invoicing) || {};
+    var nextIntegrations = Object.assign({}, sp.integrations, { invoicing: Object.assign({}, current, patch) });
+    window.CasaCelesteTourismDB.setSettingsPrivate({ integrations: nextIntegrations }).catch(function (err) {
+      window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err));
+    });
+  }
+  function renderInvoiceConnectionSection(content) {
+    var sp = state.settingsPrivate || {};
+    var inv = (sp.integrations && sp.integrations.invoicing) || {};
+    var provider = inv.provider || '';
+    var html = invoiceConnectionStatusHtml() +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Provider di fatturazione</span></div>' +
+        infoNoteHtml('Scegli con quale intermediario emettere le fatture da questo tab. L\'abbonamento al servizio (Aruba o Fatture in Cloud) è a carico tuo/del cliente, non di questa piattaforma: qui salvi solo le credenziali per farli comunicare. Sono conservate in un documento privato, mai letto dal sito pubblico.') +
+        '<div class="admin-field-group admin-field-group--full"><label>Provider</label>' +
+          '<select class="admin-field" id="inv-conn-provider">' +
+            '<option value=""' + (!provider ? ' selected' : '') + '>Nessuno (fatturazione manuale, solo registro interno)</option>' +
+            '<option value="aruba"' + (provider === 'aruba' ? ' selected' : '') + '>Aruba Fatturazione Elettronica</option>' +
+            '<option value="fattureInCloud"' + (provider === 'fattureInCloud' ? ' selected' : '') + '>Fatture in Cloud</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>';
+
+    if (provider === 'aruba') {
+      html += '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Credenziali Aruba</span></div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Utente</label><input type="text" class="admin-field" id="inv-conn-aruba-user" value="' + escapeHtml(inv.username || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Password</label><input type="password" class="admin-field" id="inv-conn-aruba-password" value="' + escapeHtml(inv.password || '') + '"></div>' +
+          '<div class="admin-field-group"><label>Partita IVA trasmittente</label><input type="text" class="admin-field" id="inv-conn-aruba-piva" value="' + escapeHtml(inv.senderPIVA || '') + '" placeholder="IT01234567890"></div>' +
+        '</div>' +
+        '<div class="admin-field-group"><label>Ambiente</label><select class="admin-field" id="inv-conn-aruba-env">' +
+          '<option value="demo"' + (inv.environment !== 'produzione' ? ' selected' : '') + '>Demo (test, nessuna fattura reale)</option>' +
+          '<option value="produzione"' + (inv.environment === 'produzione' ? ' selected' : '') + '>Produzione</option>' +
+        '</select></div>' +
+      '</div>' +
+      '<div class="admin-room-card invoice-guide-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Come procurarti queste credenziali</span></div>' +
+        '<ol class="invoice-guide-list">' +
+          '<li>Serve un account Aruba con il servizio "Fatturazione Elettronica" attivo (incluso in alcuni piani Premium, oppure attivabile a parte dal tuo pannello Aruba/assistenza Aruba).</li>' +
+          '<li>Utente e password sono gli STESSI con cui accedi al pannello web su <em>fatturazioneelettronica.aruba.it</em> — non è una API key separata da generare altrove.</li>' +
+          '<li>La Partita IVA trasmittente è la tua (quella dell\'host/struttura), non quella di Aruba.</li>' +
+          '<li>L\'ambiente "Demo" è riservato ai partner Aruba con un accredito dedicato: se non lo hai, scegli "Produzione" e usa "Verifica collegamento" qui sotto prima di emettere qualsiasi fattura reale — il test si limita ad autenticarsi, non emette nulla.</li>' +
+        '</ol>' +
+      '</div>';
+    } else if (provider === 'fattureInCloud') {
+      html += '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Credenziali Fatture in Cloud</span></div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Access token</label><input type="password" class="admin-field" id="inv-conn-fic-token" value="' + escapeHtml(inv.accessToken || '') + '"></div>' +
+          '<div class="admin-field-group"><label>ID azienda</label><input type="text" class="admin-field" id="inv-conn-fic-company" value="' + escapeHtml(inv.companyId || '') + '"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="admin-room-card invoice-guide-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Come procurarti queste credenziali</span></div>' +
+        '<ol class="invoice-guide-list">' +
+          '<li>Crea un account gratuito su <em>fattureincloud.it</em>, se non ce l\'hai già.</li>' +
+          '<li>Registrati come sviluppatore su <em>developers.fattureincloud.it</em> e crea una nuova app (bastano pochi campi, va bene anche per uso personale/singola struttura).</li>' +
+          '<li>Nell\'app web di Fatture in Cloud vai su <em>Impostazioni → Applicazioni collegate → Collega una nuova applicazione</em>, incolla il "Client ID" dell\'app appena creata, scegli l\'azienda e i permessi (almeno "Documenti"), poi copia l\'"Access Token" mostrato a schermo: è quello da incollare qui sopra.</li>' +
+          '<li>L\'ID azienda si vede in alto a sinistra nell\'app di Fatture in Cloud, accanto al nome dell\'azienda.</li>' +
+        '</ol>' +
+      '</div>';
+    } else {
+      html += '<div class="admin-note">Senza un provider collegato puoi comunque compilare ed emettere fatture nel tab "Fatture": restano salvate solo nel registro interno di questo sito, senza alcuna trasmissione allo SDI (non hanno valore di fattura elettronica). Se hai già Aruba o Fatture in Cloud per la tua contabilità, collegalo qui; altrimenti scegline uno tra i due sopra.</div>';
+    }
+
+    html += '<div class="admin-room-card invoice-guide-card">' +
+      '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Perché non c\'è un\'opzione "Agenzia delle Entrate" diretta</span></div>' +
+      '<div class="admin-note" style="margin:0;">Collegarsi direttamente al Sistema di Interscambio (SDI) senza un intermediario richiede un canale telematico dedicato (SFTP o Web Service) accreditato dall\'Agenzia delle Entrate, con firma digitale e requisiti tecnici pensati per software gestionali strutturati — non è un\'opzione realistica per una singola struttura ricettiva. La via seguita anche da migliaia di piccole attività è passare da un intermediario accreditato come Aruba o Fatture in Cloud (sopra): sono loro a parlare con lo SDI al posto tuo.</div>' +
+    '</div>';
+
+    if (provider) {
+      var testResult = state.invoiceConnTestResult;
+      html += '<div class="invoice-test-bar">' +
+        '<button type="button" class="dash-action-btn" id="inv-conn-test-btn"' + (state.invoiceConnTesting ? ' disabled' : '') + '>' + (state.invoiceConnTesting ? 'Verifica in corso…' : '🔌 Verifica collegamento') + '</button>' +
+        '<span class="invoice-test-result' + (testResult ? (testResult.ok ? ' is-ok' : ' is-error') : '') + '">' +
+          (testResult ? ((testResult.ok ? '✅ ' : '❌ ') + escapeHtml(testResult.message)) : '') +
+        '</span>' +
+      '</div>';
+    }
+
+    content.insertAdjacentHTML('beforeend', html);
+    bindInvoiceConnectionEvents(content);
+  }
+  function bindInvoiceConnectionEvents(content) {
+    var providerSelect = document.getElementById('inv-conn-provider');
+    if (providerSelect) providerSelect.addEventListener('change', function (e) { saveInvoicingIntegration({ provider: e.target.value }); });
+    var fields = [
+      ['inv-conn-aruba-user', 'username', false],
+      ['inv-conn-aruba-password', 'password', false],
+      ['inv-conn-aruba-piva', 'senderPIVA', true],
+      ['inv-conn-aruba-env', 'environment', false],
+      ['inv-conn-fic-token', 'accessToken', true],
+      ['inv-conn-fic-company', 'companyId', true]
+    ];
+    fields.forEach(function (f) {
+      var el = document.getElementById(f[0]);
+      if (!el) return;
+      el.addEventListener('change', function (e) {
+        var val = f[2] ? e.target.value.trim() : e.target.value;
+        var patch = {}; patch[f[1]] = val;
+        saveInvoicingIntegration(patch);
+      });
+    });
+    // Delegato su `content` (stabile tra un render e l'altro, solo il suo
+    // innerHTML viene sostituito) invece che sul bottone stesso: editare un
+    // campo appena prima di cliccare "Verifica" fa scattare 'change' →
+    // salvataggio → renderTabContent() PRIMA che il click sul vecchio nodo
+    // bottone si completi, perdendolo silenziosamente. Un listener su un
+    // antenato che non sparisce mai intercetta comunque il click, anche se
+    // nel frattempo il bottone sotto è stato ricreato. Registrato una sola
+    // volta per elemento content (guardia su una proprietà privata), il
+    // provider corrente si rilegge da state a ogni click invece che da una
+    // closure che diventerebbe stale dopo un cambio provider.
+    if (!content.__invoiceTestDelegated) {
+      content.__invoiceTestDelegated = true;
+      content.addEventListener('click', function (e) {
+        var btn = e.target.closest && e.target.closest('#inv-conn-test-btn');
+        if (!btn || state.invoiceConnTesting) return;
+        var currentInv = (state.settingsPrivate && state.settingsPrivate.integrations && state.settingsPrivate.integrations.invoicing) || {};
+        var currentProvider = currentInv.provider || '';
+        var payload = { provider: currentProvider };
+        if (currentProvider === 'aruba') {
+          var arubaUser = document.getElementById('inv-conn-aruba-user'), arubaPass = document.getElementById('inv-conn-aruba-password'),
+            arubaPiva = document.getElementById('inv-conn-aruba-piva'), arubaEnv = document.getElementById('inv-conn-aruba-env');
+          payload.username = arubaUser ? arubaUser.value.trim() : '';
+          payload.password = arubaPass ? arubaPass.value : '';
+          payload.senderPIVA = arubaPiva ? arubaPiva.value.trim() : '';
+          payload.environment = arubaEnv ? arubaEnv.value : 'demo';
+        } else if (currentProvider === 'fattureInCloud') {
+          var ficToken = document.getElementById('inv-conn-fic-token'), ficCompany = document.getElementById('inv-conn-fic-company');
+          payload.accessToken = ficToken ? ficToken.value.trim() : '';
+          payload.companyId = ficCompany ? ficCompany.value.trim() : '';
+        }
+        // Stato in `state` (non manipolazione diretta del DOM): un
+        // renderTabContent() nel frattempo (es. onSnapshot in arrivo mentre
+        // il test è in volo) ricrea questi nodi da zero, e un testo scritto
+        // solo nel vecchio nodo sparirebbe silenziosamente — stesso motivo
+        // per cui "Emetti Fattura" usa state.invoiceIssuing/invoiceResult.
+        state.invoiceConnTesting = true;
+        state.invoiceConnTestResult = null;
+        renderTabContent();
+        window.CasaCelesteTourismDB.testInvoiceConnection(payload).then(function (res) {
+          state.invoiceConnTesting = false;
+          state.invoiceConnTestResult = { ok: true, message: res.message || 'Collegamento riuscito.' };
+          renderTabContent();
+        }).catch(function (err) {
+          state.invoiceConnTesting = false;
+          state.invoiceConnTestResult = { ok: false, message: (err && err.message) || 'Verifica non riuscita.' };
+          renderTabContent();
+        });
+      });
+    }
+  }
   /* ---- Bozze e fatture programmate ---- */
   function currentInvoiceDraftPayload() {
     var fields = Object.assign({}, state.invoiceDraft);
@@ -3083,6 +3275,7 @@
     if (state.invoiceSubTab === 'compensi') { renderStaffPaymentsSection(content); return; }
     if (state.invoiceSubTab === 'rubrica') { renderInvoiceRecipientsSection(content); return; }
     if (state.invoiceSubTab === 'costi') { renderSupplierInvoicesSection(content); return; }
+    if (state.invoiceSubTab === 'collegamento') { renderInvoiceConnectionSection(content); return; }
     if (!state.invoiceSchema && !state.invoiceSchemaLoading) {
       state.invoiceSchemaLoading = true;
       window.CasaCelesteTourismDB.getInvoiceSchema().then(function (res) {
@@ -3125,8 +3318,14 @@
 
     content.insertAdjacentHTML('beforeend',
       invoiceSummaryHtml() +
+      (!invoiceProviderConnected() ?
+        '<div class="invoice-connection-status is-partial invoice-connection-cta" id="invoice-connect-cta" role="button" tabindex="0">' +
+          '<span class="invoice-connection-dot"></span>' +
+          '<div><strong>Nessun provider di fatturazione collegato</strong><span>Quello che emetti qui sotto resta solo nel registro interno, senza invio allo SDI. Tocca qui per collegare Aruba o Fatture in Cloud (sotto-scheda "Collegamento").</span></div>' +
+        '</div>' : '') +
       '<div class="admin-room-card">' +
-        '<div class="admin-field-group admin-field-group--full"><label>A chi è rivolta (precompila causale, riga e tassa di soggiorno)</label></div>' +
+        '<div class="invoice-step-label">1. A chi è rivolta</div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Scenario (precompila causale, riga e tassa di soggiorno)</label></div>' +
         '<div class="invoice-chip-row">' + invoiceScenarioChipsHtml() + '</div>' +
         '<div class="admin-room-type-row" style="margin-top:10px;">' +
           '<div class="admin-field-group"><label>Precompila da una prenotazione</label><select class="admin-field" id="invoice-booking-select">' + bookingOptions + '</select></div>' +
@@ -3135,6 +3334,7 @@
       '</div>' +
       (state.invoiceEditingDraftId ? '<div class="admin-note">Stai modificando una bozza salvata — "Salva bozza" la aggiorna, "Emetti Fattura" la trasforma in un documento definitivo.</div>' : '') +
       (state.invoiceResult ? invoiceResultBannerHtml() : '') +
+      '<div class="invoice-step-label">2. Compila il documento</div>' +
       '<div class="invoice-preview">' +
         '<div class="invoice-paper-head">' +
           '<div class="invoice-paper-title">' + escapeHtml(DOCUMENT_TYPE_LABELS[state.invoiceDraft.documentType] || 'Fattura') + '</div>' +
@@ -4260,26 +4460,8 @@
           '<div class="admin-field-group"><label>Link del foglio Google Sheets</label><input type="text" class="admin-field" id="settings-bookings-sheet-url" value="' + escapeHtml(s.bookingsSheetUrl || '') + '" placeholder="https://docs.google.com/spreadsheets/d/..."></div>' +
         '</div>' +
         '<div class="admin-room-card">' +
-          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Fatturazione (tab Fatture)</span></div>' +
-          infoNoteHtml('Scegli con quale intermediario emettere le fatture dal tab "Fatture" — l\'abbonamento a quel servizio (Aruba o Fatture in Cloud) è a carico tuo/del cliente, non di questa piattaforma. Le API key/credenziali qui sotto sono salvate nello stesso documento privato di sopra, mai lette dal sito pubblico.') +
-          '<div class="admin-field-group admin-field-group--full"><label>Provider</label>' +
-            '<select class="admin-field" id="priv-int-invoicing-provider">' +
-              '<option value=""' + (!(sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.provider) ? ' selected' : '') + '>Nessuno (fatturazione manuale)</option>' +
-              '<option value="aruba"' + ((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.provider) === 'aruba' ? ' selected' : '') + '>Aruba Fatturazione Elettronica</option>' +
-              '<option value="fattureInCloud"' + ((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.provider) === 'fattureInCloud' ? ' selected' : '') + '>Fatture in Cloud</option>' +
-            '</select>' +
-          '</div>' +
-          '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;margin-top:10px;"><label style="font-weight:700;">Aruba — usate solo se il provider sopra è "Aruba"</label></div>' +
-          '<div class="admin-field-group"><label>Utente</label><input type="text" class="admin-field" id="priv-int-invoicing-aruba-user" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.username) || '') + '"></div>' +
-          '<div class="admin-field-group"><label>Password</label><input type="password" class="admin-field" id="priv-int-invoicing-aruba-password" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.password) || '') + '"></div>' +
-          '<div class="admin-field-group"><label>Partita IVA trasmittente</label><input type="text" class="admin-field" id="priv-int-invoicing-aruba-piva" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.senderPIVA) || '') + '" placeholder="IT01234567890"></div>' +
-          '<div class="admin-field-group"><label>Ambiente</label><select class="admin-field" id="priv-int-invoicing-aruba-env">' +
-            '<option value="demo"' + ((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.environment) !== 'produzione' ? ' selected' : '') + '>Demo (test, nessuna fattura reale)</option>' +
-            '<option value="produzione"' + ((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.environment) === 'produzione' ? ' selected' : '') + '>Produzione</option>' +
-          '</select></div>' +
-          '<div class="admin-field-group admin-field-group--full" style="margin-bottom:6px;margin-top:10px;"><label style="font-weight:700;">Fatture in Cloud — usate solo se il provider sopra è "Fatture in Cloud"</label></div>' +
-          '<div class="admin-field-group"><label>Access token</label><input type="password" class="admin-field" id="priv-int-invoicing-fic-token" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.accessToken) || '') + '"></div>' +
-          '<div class="admin-field-group"><label>ID azienda</label><input type="text" class="admin-field" id="priv-int-invoicing-fic-company" value="' + escapeHtml((sp.integrations && sp.integrations.invoicing && sp.integrations.invoicing.companyId) || '') + '"></div>' +
+          '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Fatturazione</span></div>' +
+          infoNoteHtml('Provider (Aruba/Fatture in Cloud), credenziali e verifica del collegamento si gestiscono ora direttamente nel tab "Fatture" → sotto-scheda "Collegamento", insieme alla guida per procurarsi le credenziali di ciascun provider — più comodo di venire a cercarle qui.') +
         '</div>' +
         '<div class="admin-room-card">' +
           '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Credenziali tecniche</span></div>' +
@@ -4458,27 +4640,6 @@
     });
     document.getElementById('priv-int-sheet-secret').addEventListener('change', function (e) {
       saveIntegration('sheetWebhook', { secret: e.target.value.trim() });
-    });
-    document.getElementById('priv-int-invoicing-provider').addEventListener('change', function (e) {
-      saveIntegration('invoicing', { provider: e.target.value });
-    });
-    document.getElementById('priv-int-invoicing-aruba-user').addEventListener('change', function (e) {
-      saveIntegration('invoicing', { username: e.target.value.trim() });
-    });
-    document.getElementById('priv-int-invoicing-aruba-password').addEventListener('change', function (e) {
-      saveIntegration('invoicing', { password: e.target.value });
-    });
-    document.getElementById('priv-int-invoicing-aruba-piva').addEventListener('change', function (e) {
-      saveIntegration('invoicing', { senderPIVA: e.target.value.trim() });
-    });
-    document.getElementById('priv-int-invoicing-aruba-env').addEventListener('change', function (e) {
-      saveIntegration('invoicing', { environment: e.target.value });
-    });
-    document.getElementById('priv-int-invoicing-fic-token').addEventListener('change', function (e) {
-      saveIntegration('invoicing', { accessToken: e.target.value.trim() });
-    });
-    document.getElementById('priv-int-invoicing-fic-company').addEventListener('change', function (e) {
-      saveIntegration('invoicing', { companyId: e.target.value.trim() });
     });
     document.getElementById('priv-alloggiati-user').addEventListener('change', function (e) {
       savePrivateOrAlert({ alloggiatiWeb: Object.assign({}, sp.alloggiatiWeb, { username: e.target.value.trim() }) });

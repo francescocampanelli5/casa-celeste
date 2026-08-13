@@ -717,6 +717,30 @@ exports.listInvoices = onCall({}, async (request) => {
   };
 });
 
+// testInvoiceConnection — bottone "Verifica collegamento" nel tab Fatture →
+// Collegamento: prova le credenziali passate dalla dashboard (anche non
+// ancora salvate, così l'host può controllare PRIMA di salvarle) senza
+// emettere alcun documento. Delega all'adapter tramite lo stesso Adapter
+// Pattern di issueInvoice — vedi InvoiceProvider.testConnection.
+exports.testInvoiceConnection = onCall({}, async (request) => {
+  if (!isOwner(request)) throw new HttpsError('permission-denied', 'Solo il proprietario può verificare il collegamento di fatturazione.');
+  await enforceRateLimit(db, request, 'testInvoiceConnection', 10, 15);
+  const data = request.data || {};
+  if (!data.provider) throw new HttpsError('invalid-argument', 'Scegli prima un provider (Aruba o Fatture in Cloud).');
+  let provider;
+  try {
+    provider = getInvoiceProvider(data.provider);
+  } catch (err) {
+    throw new HttpsError(err.code || 'invalid-argument', err.message);
+  }
+  try {
+    return await provider.testConnection(data);
+  } catch (err) {
+    const code = ['invalid-argument', 'failed-precondition', 'unimplemented'].includes(err.code) ? err.code : 'internal';
+    throw new HttpsError(code, err.message || 'Errore imprevisto durante la verifica del collegamento.');
+  }
+});
+
 /* ==========================================================================
    parseGuestDocPhoto — il proprietario carica dalla dashboard (invece che
    l'ospite da ospiti.html o via bot Telegram) la foto documento di un

@@ -15,6 +15,31 @@ const { InvoiceProvider } = require('./invoice-provider');
 const API_BASE = 'https://api-v2.fattureincloud.it';
 
 class FattureInCloudAdapter extends InvoiceProvider {
+  async testConnection(credentials) {
+    if (!credentials || !credentials.accessToken || !credentials.companyId) {
+      const err = new Error('Compila almeno access token e ID azienda prima di verificare.');
+      err.code = 'failed-precondition';
+      throw err;
+    }
+    const res = await fetch(API_BASE + '/user/companies', {
+      headers: { Authorization: 'Bearer ' + credentials.accessToken }
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error('Access token non valido o scaduto: ' + ((body.error && body.error.message) || ('HTTP ' + res.status)));
+      err.code = 'invalid-argument';
+      throw err;
+    }
+    const companies = (body.data && body.data.companies) || [];
+    const match = companies.filter((c) => String(c.id) === String(credentials.companyId))[0];
+    if (!match) {
+      const err = new Error('Token valido, ma l\'ID azienda "' + credentials.companyId + '" non è tra le aziende collegate a questo token.');
+      err.code = 'invalid-argument';
+      throw err;
+    }
+    return { ok: true, message: 'Autenticazione riuscita su Fatture in Cloud — azienda: ' + (match.name || credentials.companyId) + '.' };
+  }
+
   async createInvoice(standardInvoice, credentials) {
     if (!credentials || !credentials.accessToken || !credentials.companyId) {
       const err = new Error('Credenziali Fatture in Cloud incomplete: imposta access token e ID azienda in Impostazioni → Integrazioni.');

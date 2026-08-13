@@ -153,6 +153,17 @@ function buildFatturaPAXml(standardInvoice, credentials, progressivo) {
 }
 
 class ArubaAdapter extends InvoiceProvider {
+  async testConnection(credentials) {
+    if (!credentials || !credentials.username || !credentials.password) {
+      const err = new Error('Compila almeno utente e password Aruba prima di verificare.');
+      err.code = 'failed-precondition';
+      throw err;
+    }
+    const env = credentials.environment === 'produzione' ? 'produzione' : 'demo';
+    await getAccessToken(env, credentials); // lancia già invalid-argument se le credenziali sono sbagliate
+    return { ok: true, message: 'Autenticazione riuscita su Aruba (ambiente ' + (env === 'produzione' ? 'produzione' : 'demo') + ').' };
+  }
+
   async createInvoice(standardInvoice, credentials) {
     if (!credentials || !credentials.username || !credentials.password || !credentials.senderPIVA) {
       const err = new Error('Credenziali Aruba incomplete: imposta utente, password e Partita IVA trasmittente in Impostazioni → Integrazioni.');

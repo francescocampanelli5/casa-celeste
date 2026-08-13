@@ -636,6 +636,12 @@ window.CasaCelesteTourismDB = {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'listInvoices')().then(function (res) { return res.data; });
   },
+  // Bottone "Verifica collegamento" (tab Fatture → Collegamento): testa le
+  // credenziali del form (anche non ancora salvate) senza emettere nulla.
+  testInvoiceConnection: function (data) {
+    if (!configured) return Promise.reject(new Error('Firebase non configurato'));
+    return httpsCallable(functions, 'testInvoiceConnection')(data).then(function (res) { return res.data; });
+  },
   requestSignatureOtp: function (data) {
     if (!configured) return Promise.reject(new Error('Firebase non configurato'));
     return httpsCallable(functions, 'requestSignatureOtp')(data).then(function (res) { return res.data; });

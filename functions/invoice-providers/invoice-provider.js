@@ -15,6 +15,17 @@ class InvoiceProvider {
   async createInvoice(standardInvoice, credentials) {
     throw new Error('createInvoice non implementato da ' + this.constructor.name);
   }
+
+  // Verifica "leggera": autentica/valida le credenziali senza emettere
+  // alcun documento — usata dal bottone "Verifica collegamento" in
+  // dashboard (tab Fatture → Collegamento) per dare un riscontro immediato
+  // prima ancora di compilare una fattura vera. Ritorno atteso in caso di
+  // successo: { ok: true, message }.
+  async testConnection(credentials) {
+    const err = new Error('Verifica collegamento non disponibile per ' + this.constructor.name);
+    err.code = 'unimplemented';
+    throw err;
+  }
 }
 
 module.exports = { InvoiceProvider };
