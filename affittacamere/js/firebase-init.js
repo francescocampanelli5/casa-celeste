@@ -562,6 +562,63 @@ window.CasaCelesteTourismDB = {
   deleteStaffPayment: function (paymentId) {
     return deleteDoc(doc(requireDb(), 'tourism_staffPayments', paymentId));
   },
+  // Rubrica destinatari fattura — ospiti/aziende ricorrenti salvati una
+  // volta, riusabili da qualunque fattura futura senza ridigitarli.
+  subscribeInvoiceRecipients: function (callback) {
+    if (!configured) return function () {};
+    var q = query(collection(requireDb(), 'tourism_invoiceRecipients'), orderBy('name', 'asc'));
+    return onSnapshot(q, function (snap) {
+      var items = [];
+      snap.forEach(function (d) { items.push(Object.assign({ id: d.id }, d.data())); });
+      callback(items);
+    });
+  },
+  createInvoiceRecipient: function (data) {
+    return addDoc(collection(requireDb(), 'tourism_invoiceRecipients'), Object.assign({}, data, { createdAt: serverTimestamp() }));
+  },
+  deleteInvoiceRecipient: function (recipientId) {
+    return deleteDoc(doc(requireDb(), 'tourism_invoiceRecipients', recipientId));
+  },
+  // Registro costi/fatture PASSIVE (fornitori: agenzie pulizie, property
+  // manager, manutentori con P.IVA...) — vedi nota in firestore.rules.
+  subscribeSupplierInvoices: function (callback) {
+    if (!configured) return function () {};
+    var q = query(collection(requireDb(), 'tourism_supplierInvoices'), orderBy('date', 'desc'));
+    return onSnapshot(q, function (snap) {
+      var items = [];
+      snap.forEach(function (d) { items.push(Object.assign({ id: d.id }, d.data())); });
+      callback(items);
+    });
+  },
+  createSupplierInvoice: function (data) {
+    return addDoc(collection(requireDb(), 'tourism_supplierInvoices'), Object.assign({}, data, { createdAt: serverTimestamp() }));
+  },
+  setSupplierInvoice: function (invoiceId, data) {
+    return updateDoc(doc(requireDb(), 'tourism_supplierInvoices', invoiceId), data);
+  },
+  deleteSupplierInvoice: function (invoiceId) {
+    return deleteDoc(doc(requireDb(), 'tourism_supplierInvoices', invoiceId));
+  },
+  // Bozze e fatture PROGRAMMATE — scrittura diretta client (WIP, nessuna
+  // validazione server finché non emessa davvero, vedi firestore.rules).
+  subscribeInvoiceDrafts: function (callback) {
+    if (!configured) return function () {};
+    var q = query(collection(requireDb(), 'tourism_invoiceDrafts'), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, function (snap) {
+      var items = [];
+      snap.forEach(function (d) { items.push(Object.assign({ id: d.id }, d.data())); });
+      callback(items);
+    });
+  },
+  createInvoiceDraft: function (data) {
+    return addDoc(collection(requireDb(), 'tourism_invoiceDrafts'), Object.assign({}, data, { createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  },
+  setInvoiceDraft: function (draftId, data) {
+    return updateDoc(doc(requireDb(), 'tourism_invoiceDrafts', draftId), Object.assign({}, data, { updatedAt: serverTimestamp() }));
+  },
+  deleteInvoiceDraft: function (draftId) {
+    return deleteDoc(doc(requireDb(), 'tourism_invoiceDrafts', draftId));
+  },
   // Tab Fatture — schema-driven: getInvoiceSchema dice al frontend come
   // disegnare la form (vedi functions/invoice-schema.js), issueInvoice
   // valida e inoltra al provider configurato (Aruba/Fatture in Cloud, vedi

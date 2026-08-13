@@ -47,7 +47,15 @@ const DEFAULT_INVOICE_SCHEMA = {
         { id: 'recipientVat', label: 'Partita IVA (se azienda)', type: 'text', required: false },
         { id: 'recipientAddress', label: 'Indirizzo', type: 'text', required: false },
         { id: 'recipientEmail', label: 'Email', type: 'email', required: false },
-        { id: 'recipientCountry', label: 'Paese (codice ISO)', type: 'text', required: true, default: 'IT' }
+        { id: 'recipientCountry', label: 'Paese (codice ISO)', type: 'text', required: true, default: 'IT' },
+        {
+          id: 'recipientSdiCode', label: 'Codice destinatario (SDI)', type: 'text', required: false, pattern: '^[A-Za-z0-9]{6,7}$',
+          hint: 'Solo per aziende/enti con Partita IVA: è il codice a 7 caratteri che il destinatario comunica per ricevere le fatture elettroniche direttamente nel suo gestionale. Se non lo conosci lascia vuoto — verrà usato il codice generico "0000000" e il destinatario la troverà comunque nel portale "Fatture e Corrispettivi" (o via PEC se ne indichi una qui sotto).'
+        },
+        {
+          id: 'recipientPec', label: 'PEC (alternativa al codice destinatario)', type: 'email', required: false,
+          hint: 'Se il destinatario non ti ha dato un codice SDI ma solo la PEC, la fattura elettronica gli arriva lì.'
+        }
       ]
     },
     {
@@ -58,7 +66,8 @@ const DEFAULT_INVOICE_SCHEMA = {
           id: 'documentType', label: 'Tipo documento', type: 'select', required: true, default: 'invoice',
           options: [
             { value: 'invoice', label: 'Fattura' },
-            { value: 'credit_note', label: 'Nota di credito (storno)' }
+            { value: 'credit_note', label: 'Nota di credito (storno)' },
+            { value: 'debit_note', label: 'Nota di debito (addebito integrativo)' }
           ]
         },
         { id: 'documentDate', label: 'Data documento', type: 'date', required: true },

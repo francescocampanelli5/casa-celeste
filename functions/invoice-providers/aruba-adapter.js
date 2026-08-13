@@ -81,7 +81,7 @@ function buildRiepilogoXml(lineItems) {
   }).join('');
 }
 
-const TIPO_DOCUMENTO = { invoice: 'TD01', credit_note: 'TD04' };
+const TIPO_DOCUMENTO = { invoice: 'TD01', credit_note: 'TD04', debit_note: 'TD05' };
 
 function buildFatturaPAXml(standardInvoice, credentials, progressivo) {
   const host = standardInvoice.host, recipient = standardInvoice.recipient, doc = standardInvoice.document, tax = standardInvoice.touristTax || {};
@@ -97,6 +97,13 @@ function buildFatturaPAXml(standardInvoice, credentials, progressivo) {
   const needsStamp = host.hostRegime === 'forfettario' && exemptTotal > VIRTUAL_STAMP_THRESHOLD;
   const importoTotale = lineItems.reduce((sum, li) => sum + Number(li.quantity || 0) * Number(li.unitPrice || 0) * (1 + (li.natura ? 0 : Number(li.vatRate || 0) / 100)), 0);
 
+  // Codice destinatario: se il destinatario ce l'ha dato, la fattura arriva
+  // dritta nel suo gestionale; altrimenti "0000000" generico — con una PEC
+  // (se indicata) SDI gliela recapita lì, senza dover andare a recuperarla
+  // dal portale "Fatture e Corrispettivi".
+  const sdiCode = (recipient.recipientSdiCode || '').trim().toUpperCase() || '0000000';
+  const recipientPec = sdiCode === '0000000' ? (recipient.recipientPec || '').trim() : '';
+
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<p:FatturaElettronica versione="FPR12" xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
@@ -105,7 +112,8 @@ function buildFatturaPAXml(standardInvoice, credentials, progressivo) {
           '<IdTrasmittente><IdPaese>IT</IdPaese><IdCodice>' + ARUBA_TRANSMITTER_CODE + '</IdCodice></IdTrasmittente>' +
           '<ProgressivoInvio>' + String(progressivo).padStart(5, '0') + '</ProgressivoInvio>' +
           '<FormatoTrasmissione>FPR12</FormatoTrasmissione>' +
-          '<CodiceDestinatario>0000000</CodiceDestinatario>' +
+          '<CodiceDestinatario>' + xmlEscape(sdiCode) + '</CodiceDestinatario>' +
+          (recipientPec ? '<PECDestinatario>' + xmlEscape(recipientPec) + '</PECDestinatario>' : '') +
         '</DatiTrasmissione>' +
         '<CedentePrestatore>' +
           '<DatiAnagrafici>' +
@@ -130,7 +138,7 @@ function buildFatturaPAXml(standardInvoice, credentials, progressivo) {
           '<TipoDocumento>' + (TIPO_DOCUMENTO[doc.documentType] || 'TD01') + '</TipoDocumento>' +
           '<Divisa>EUR</Divisa>' +
           '<Data>' + xmlEscape(doc.documentDate) + '</Data>' +
-          '<Numero>' + progressivo + '</Numero>' +
+          '<Numero>' + xmlEscape(doc.documentNumber || progressivo) + '</Numero>' +
           '<ImportoTotaleDocumento>' + importoTotale.toFixed(2) + '</ImportoTotaleDocumento>' +
           '<Causale>' + xmlEscape(doc.causale) + '</Causale>' +
           (needsStamp ? '<DatiBollo><BolloVirtuale>SI</BolloVirtuale><ImportoBollo>' + VIRTUAL_STAMP_AMOUNT.toFixed(2) + '</ImportoBollo></DatiBollo>' : '') +

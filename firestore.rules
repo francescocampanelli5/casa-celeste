@@ -172,6 +172,31 @@ service cloud.firestore {
       allow read, write: if isOwner() && serviceEnabled();
     }
 
+    // Rubrica destinatari fattura (ospiti/aziende ricorrenti, riutilizzabili
+    // senza ridigitarli ogni volta) — solo dati anagrafici, niente di
+    // sensibile: scrittura diretta client come tourism_maintenance.
+    match /tourism_invoiceRecipients/{recipientId} {
+      allow read, write: if isOwner() && serviceEnabled();
+    }
+
+    // Registro costi/fatture PASSIVE (quello che l'host paga a fornitori:
+    // agenzie di pulizia, property manager, manutentori con Partita IVA...).
+    // Diverso da tourism_staffPayments: qui il fornitore ha già emesso lui
+    // un documento fiscale all'host, questo è solo il registro di controllo
+    // (importo, scadenza, stato pagamento) — non genera nulla verso SDI.
+    match /tourism_supplierInvoices/{invoiceId} {
+      allow read, write: if isOwner() && serviceEnabled();
+    }
+
+    // Bozze e fatture PROGRAMMATE (tab Fatture → Bozze e programmate):
+    // scrittura diretta client per bozze/modifiche (nessuna validazione
+    // server necessaria finché non viene davvero emessa), ma l'emissione
+    // vera passa SEMPRE da issueInvoice (dashboard o script programmato
+    // GitHub Actions via Admin SDK) — mai da qui.
+    match /tourism_invoiceDrafts/{draftId} {
+      allow read, write: if isOwner() && serviceEnabled();
+    }
+
     // Messaggi lasciati dal widget di assistenza — la scrittura passa SOLO
     // dalla Cloud Function submitAssistMessage (validazione completa lato
     // server, l'Admin SDK bypassa comunque queste regole); la dashboard

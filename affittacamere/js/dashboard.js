@@ -27,6 +27,9 @@
     settingsPrivate: {},
     maintenanceData: [],
     staffPayments: [],
+    invoiceRecipients: [],
+    supplierInvoices: [],
+    invoiceDrafts: [],
     assistMessages: [],
     manualBookingOpen: false,
     // Valorizzato quando si clicca una cella vuota data/stanza nel
@@ -2495,6 +2498,8 @@
       causale: 'Prestazione di servizio', lineItem: { description: '', quantity: 1, unitPrice: '', vatRate: 22, natura: '' } },
     { id: 'credit', label: 'Nota di credito', documentType: 'credit_note', taxEnabled: false,
       causale: 'Storno per fattura n. ___ del __/__/____', lineItem: { description: 'Storno', quantity: 1, unitPrice: '', vatRate: 0, natura: '' } },
+    { id: 'debit', label: 'Nota di debito', documentType: 'debit_note', taxEnabled: false,
+      causale: 'Addebito integrativo per fattura n. ___ del __/__/____', lineItem: { description: 'Addebito integrativo', quantity: 1, unitPrice: '', vatRate: 22, natura: '' } },
     { id: 'other', label: 'Altro', documentType: 'invoice', taxEnabled: false, causale: '', lineItem: null }
   ];
   function applyInvoiceScenario(id) {
@@ -2552,7 +2557,8 @@
   function invoiceSectionFieldsHtml(section, valuesObj) {
     return section.fields.map(function (f) {
       var dataAttrs = 'data-invoice-field="' + f.id + '"';
-      return '<div class="invoice-field-row"><label>' + escapeHtml(f.label) + (f.required ? ' *' : '') + '</label>' + invoiceFieldInputHtml(f, valuesObj[f.id], dataAttrs) + '</div>';
+      return '<div class="invoice-field-row"><label>' + escapeHtml(f.label) + (f.required ? ' *' : '') + '</label>' + invoiceFieldInputHtml(f, valuesObj[f.id], dataAttrs) +
+        (f.hint ? '<span class="invoice-field-hint">' + escapeHtml(f.hint) + '</span>' : '') + '</div>';
     }).join('');
   }
   function invoiceLineItemsTableHtml(itemSection) {
@@ -2591,22 +2597,39 @@
   }
   function invoiceResultBannerHtml() {
     var r = state.invoiceResult;
-    if (r.ok) return '<div class="compliance-banner">✅ Fattura emessa — ID provider: ' + escapeHtml(r.providerInvoiceId) + ' (salvata nel registro qui sotto).</div>';
+    if (r.ok) return '<div class="compliance-banner">✅ Documento n. ' + escapeHtml(r.documentNumber || '') + ' emesso — ID provider: ' + escapeHtml(r.providerInvoiceId) + ' (salvato nel registro qui sotto).</div>';
     return '<div class="compliance-banner" style="background:#FDEAEA; color:#B23A3A;">❌ ' + escapeHtml(r.message) + '</div>';
   }
-  function invoicePastListHtml() {
+  var DOCUMENT_TYPE_LABELS = { invoice: 'Fattura', credit_note: 'Nota di credito', debit_note: 'Nota di debito' };
+  function invoiceSearchFilteredList() {
     var list = state.invoiceList || [];
-    if (state.invoiceListLoading) return '<div class="admin-note">Caricamento registro fatture…</div>';
-    if (!list.length) return '<div class="admin-note">Nessuna fattura emessa finora.</div>';
-    var rows = list.map(function (inv) {
-      return '<div class="admin-stat-row" style="grid-template-columns:110px 1fr 1fr 90px;">' +
+    var q = (state.invoiceSearch || '').trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(function (inv) {
+      return (inv.recipientName || '').toLowerCase().indexOf(q) !== -1 ||
+        (inv.documentNumber || '').toLowerCase().indexOf(q) !== -1 ||
+        (inv.providerInvoiceId || '').toLowerCase().indexOf(q) !== -1;
+    });
+  }
+  function invoiceRegistryRowsHtml() {
+    var list = invoiceSearchFilteredList();
+    return list.map(function (inv) {
+      return '<div class="admin-stat-row" style="grid-template-columns:90px 100px 1fr 1fr 90px;">' +
+        '<span>' + escapeHtml(inv.documentNumber || '—') + '</span>' +
         '<span>' + escapeHtml(inv.documentDate || '') + '</span>' +
-        '<span>' + escapeHtml(inv.recipientName || '') + '</span>' +
+        '<span>' + escapeHtml(inv.recipientName || '') + ' <span class="invoice-type-pill">' + escapeHtml(DOCUMENT_TYPE_LABELS[inv.documentType] || 'Fattura') + '</span></span>' +
         '<span>' + escapeHtml(inv.provider || '') + ' · ' + escapeHtml(inv.providerInvoiceId || '') + '</span>' +
         '<span>€' + Number((inv.totals && inv.totals.grandTotal) || 0).toFixed(2) + '</span>' +
       '</div>';
-    }).join('');
-    return '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Registro fatture emesse</span></div><div class="admin-stats-rows">' + rows + '</div></div>';
+    }).join('') || '<div class="admin-note" style="margin:0;">Nessun risultato per questa ricerca.</div>';
+  }
+  function invoicePastListHtml() {
+    if (state.invoiceListLoading) return '<div class="admin-note">Caricamento registro fatture…</div>';
+    if (!(state.invoiceList || []).length) return '<div class="admin-note">Nessuna fattura emessa finora.</div>';
+    return '<div class="admin-room-card">' +
+      '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Registro fatture emesse</span>' +
+      '<input type="text" class="admin-field" id="invoice-search" placeholder="Cerca per destinatario, numero, ID..." style="max-width:260px;" value="' + escapeHtml(state.invoiceSearch || '') + '"></div>' +
+      '<div class="admin-stats-rows" id="invoice-registry-rows">' + invoiceRegistryRowsHtml() + '</div></div>';
   }
   function prefillInvoiceFromBooking(bookingId, schema) {
     var b = (state.bookings || []).filter(function (x) { return x.id === bookingId; })[0];
@@ -2634,6 +2657,17 @@
     content.querySelectorAll('[data-invoice-scenario]').forEach(function (el) {
       el.addEventListener('click', function () { applyInvoiceScenario(el.getAttribute('data-invoice-scenario')); });
     });
+    var searchInput = document.getElementById('invoice-search');
+    if (searchInput) searchInput.addEventListener('input', function (e) {
+      // Aggiorna SOLO le righe del registro, non l'intera tab: un
+      // renderTabContent() qui ricreerebbe anche questo stesso campo di
+      // ricerca a ogni carattere digitato, perdendo il focus (stessa causa
+      // già vista per il toggle tassa di soggiorno, ma qui non risolvibile
+      // con un blur — è proprio mentre si scrive che la lista deve filtrarsi).
+      state.invoiceSearch = e.target.value;
+      var rowsEl = document.getElementById('invoice-registry-rows');
+      if (rowsEl) rowsEl.innerHTML = invoiceRegistryRowsHtml();
+    });
     var taxToggle = document.getElementById('invoice-tax-toggle');
     if (taxToggle) taxToggle.addEventListener('change', function (e) {
       state.invoiceTaxEnabled = e.target.checked;
@@ -2649,6 +2683,44 @@
       state.invoiceSelectedBookingId = e.target.value;
       if (e.target.value) prefillInvoiceFromBooking(e.target.value, schema);
       renderTabContent();
+    });
+    var recipientSelect = document.getElementById('invoice-recipient-select');
+    if (recipientSelect) recipientSelect.addEventListener('change', function (e) {
+      var r = (state.invoiceRecipients || []).filter(function (x) { return x.id === e.target.value; })[0];
+      if (r) applyRecipientToDraft(r);
+      renderTabContent();
+    });
+    var saveRecipientBtn = document.getElementById('invoice-save-recipient-btn');
+    if (saveRecipientBtn) saveRecipientBtn.addEventListener('click', function () {
+      var name = (state.invoiceDraft.recipientName || '').trim();
+      if (!name) { window.alert('Compila almeno il nome/ragione sociale prima di salvarlo in rubrica.'); return; }
+      window.CasaCelesteTourismDB.createInvoiceRecipient({
+        name: name, type: state.invoiceDraft.recipientVat ? 'azienda' : 'persona',
+        fiscalCode: state.invoiceDraft.recipientFiscalCode || '', vat: state.invoiceDraft.recipientVat || '',
+        address: state.invoiceDraft.recipientAddress || '', email: state.invoiceDraft.recipientEmail || '',
+        country: state.invoiceDraft.recipientCountry || 'IT', sdiCode: state.invoiceDraft.recipientSdiCode || '', pec: state.invoiceDraft.recipientPec || ''
+      }).then(function () { window.alert('Salvato in rubrica.'); }).catch(function (err) { window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err)); });
+    });
+    var saveDraftBtn = document.getElementById('invoice-save-draft-btn');
+    if (saveDraftBtn) saveDraftBtn.addEventListener('click', function () {
+      var payload = currentInvoiceDraftPayload();
+      var label = (payload.fields.recipientName || 'Senza destinatario') + ' — ' + (DOCUMENT_TYPE_LABELS[payload.fields.documentType] || 'Fattura');
+      var write = state.invoiceEditingDraftId
+        ? window.CasaCelesteTourismDB.setInvoiceDraft(state.invoiceEditingDraftId, { payload: payload, label: label, status: 'bozza' })
+        : window.CasaCelesteTourismDB.createInvoiceDraft({ payload: payload, label: label, status: 'bozza' });
+      write.then(function () { window.alert('Bozza salvata — la trovi in "Bozze e programmate".'); }).catch(function (err) { window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err)); });
+    });
+    var scheduleBtn = document.getElementById('invoice-schedule-btn');
+    if (scheduleBtn) scheduleBtn.addEventListener('click', function () {
+      var dateInput = document.getElementById('invoice-schedule-date');
+      var scheduledDate = dateInput.value;
+      if (!scheduledDate) { window.alert('Scegli prima una data di emissione.'); return; }
+      var payload = currentInvoiceDraftPayload();
+      var label = (payload.fields.recipientName || 'Senza destinatario') + ' — ' + (DOCUMENT_TYPE_LABELS[payload.fields.documentType] || 'Fattura');
+      var write = state.invoiceEditingDraftId
+        ? window.CasaCelesteTourismDB.setInvoiceDraft(state.invoiceEditingDraftId, { payload: payload, label: label, status: 'programmata', scheduledDate: scheduledDate })
+        : window.CasaCelesteTourismDB.createInvoiceDraft({ payload: payload, label: label, status: 'programmata', scheduledDate: scheduledDate });
+      write.then(function () { window.alert('Programmata per il ' + formatDateShort(scheduledDate) + ' — verrà emessa automaticamente.'); }).catch(function (err) { window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err)); });
     });
     content.querySelectorAll('[data-invoice-field]').forEach(function (el) {
       el.addEventListener('change', function (e) {
@@ -2685,19 +2757,14 @@
       // Un solo oggetto JSON strutturato con tutto ciò che serve al backend
       // (issueInvoice in functions/index.js) — vedi requisito "raccolga tutti
       // i dati inseriti in un singolo oggetto JSON strutturato".
-      var payloadFields = Object.assign({}, state.invoiceDraft);
-      if (!state.invoiceTaxEnabled) payloadFields.touristTaxAmount = 0;
-      var payload = {
-        fields: payloadFields,
-        lineItems: state.invoiceLineItems.map(function (li) {
-          return { description: li.description || '', quantity: Number(li.quantity) || 0, unitPrice: Number(li.unitPrice) || 0, vatRate: Number(li.vatRate) || 0, natura: li.natura || '' };
-        }),
-        bookingId: state.invoiceSelectedBookingId || null
-      };
+      var payload = currentInvoiceDraftPayload();
+      var editingDraftId = state.invoiceEditingDraftId;
       window.CasaCelesteTourismDB.issueInvoice(payload).then(function (res) {
         state.invoiceIssuing = false;
-        state.invoiceResult = { ok: true, providerInvoiceId: res.providerInvoiceId };
+        state.invoiceResult = { ok: true, providerInvoiceId: res.providerInvoiceId, documentNumber: res.documentNumber };
         state.invoiceList = null;
+        state.invoiceEditingDraftId = null;
+        if (editingDraftId) window.CasaCelesteTourismDB.deleteInvoiceDraft(editingDraftId);
         renderTabContent();
       }).catch(function (err) {
         state.invoiceIssuing = false;
@@ -2708,6 +2775,9 @@
   }
   var INVOICE_SUBNAV = [
     { id: 'fatture', label: 'Fatture' },
+    { id: 'bozze', label: 'Bozze e programmate' },
+    { id: 'rubrica', label: 'Rubrica' },
+    { id: 'costi', label: 'Costi & fornitori' },
     { id: 'compensi', label: 'Registro compensi personale' }
   ];
   function invoiceSubnavHtml() {
@@ -2788,10 +2858,231 @@
       });
     });
   }
+  /* ---- Rubrica destinatari (anagrafica riutilizzabile) ---- */
+  function applyRecipientToDraft(r) {
+    state.invoiceDraft.recipientName = r.name || '';
+    state.invoiceDraft.recipientFiscalCode = r.fiscalCode || '';
+    state.invoiceDraft.recipientVat = r.vat || '';
+    state.invoiceDraft.recipientAddress = r.address || '';
+    state.invoiceDraft.recipientEmail = r.email || '';
+    state.invoiceDraft.recipientCountry = r.country || 'IT';
+    state.invoiceDraft.recipientSdiCode = r.sdiCode || '';
+    state.invoiceDraft.recipientPec = r.pec || '';
+  }
+  function renderInvoiceRecipientsSection(content) {
+    var list = state.invoiceRecipients || [];
+    var rows = list.map(function (r) {
+      return '<div class="admin-stat-row" style="grid-template-columns:1fr 90px 1fr 1fr auto auto;">' +
+        '<span>' + escapeHtml(r.name || '') + '</span>' +
+        '<span>' + (r.type === 'azienda' ? 'Azienda' : 'Persona') + '</span>' +
+        '<span>' + escapeHtml(r.vat || r.fiscalCode || '') + '</span>' +
+        '<span>' + escapeHtml(r.email || '') + '</span>' +
+        '<button type="button" class="dash-action-btn" data-recipient-use="' + r.id + '">Usa in una fattura</button>' +
+        '<button type="button" class="admin-stat-remove" data-recipient-delete="' + r.id + '">✕</button>' +
+      '</div>';
+    }).join('') || '<div class="admin-note">Rubrica vuota: salva un destinatario dalla scheda "A (destinatario)" nel tab Fatture, oppure aggiungilo qui.</div>';
+    content.insertAdjacentHTML('beforeend',
+      '<div class="admin-note">Ospiti aziendali o aziende/enti ricorrenti: salvali qui una volta, poi richiamali da qualunque fattura futura senza ridigitarli.</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Nuovo destinatario</span></div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Nome / Ragione sociale</label><input type="text" class="admin-field" id="recip-new-name"></div>' +
+          '<div class="admin-field-group"><label>Tipo</label><select class="admin-field" id="recip-new-type"><option value="persona">Persona</option><option value="azienda">Azienda</option></select></div>' +
+          '<div class="admin-field-group"><label>Codice fiscale</label><input type="text" class="admin-field" id="recip-new-fiscalcode"></div>' +
+          '<div class="admin-field-group"><label>Partita IVA</label><input type="text" class="admin-field" id="recip-new-vat"></div>' +
+        '</div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Indirizzo</label><input type="text" class="admin-field" id="recip-new-address"></div>' +
+          '<div class="admin-field-group"><label>Email</label><input type="email" class="admin-field" id="recip-new-email"></div>' +
+          '<div class="admin-field-group"><label>Paese</label><input type="text" class="admin-field" id="recip-new-country" value="IT"></div>' +
+        '</div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Codice destinatario (SDI)</label><input type="text" class="admin-field" id="recip-new-sdi"></div>' +
+          '<div class="admin-field-group"><label>PEC</label><input type="email" class="admin-field" id="recip-new-pec"></div>' +
+        '</div>' +
+        '<button type="button" class="dash-add-room-btn" id="recip-add-btn">+ Aggiungi alla rubrica</button>' +
+      '</div>' +
+      '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Rubrica (' + list.length + ')</span></div><div class="admin-stats-rows">' + rows + '</div></div>'
+    );
+    var addBtn = document.getElementById('recip-add-btn');
+    if (addBtn) addBtn.addEventListener('click', function () {
+      var name = document.getElementById('recip-new-name').value.trim();
+      if (!name) { window.alert('Il nome/ragione sociale è obbligatorio.'); return; }
+      window.CasaCelesteTourismDB.createInvoiceRecipient({
+        name: name,
+        type: document.getElementById('recip-new-type').value,
+        fiscalCode: document.getElementById('recip-new-fiscalcode').value.trim(),
+        vat: document.getElementById('recip-new-vat').value.trim(),
+        address: document.getElementById('recip-new-address').value.trim(),
+        email: document.getElementById('recip-new-email').value.trim(),
+        country: document.getElementById('recip-new-country').value.trim() || 'IT',
+        sdiCode: document.getElementById('recip-new-sdi').value.trim(),
+        pec: document.getElementById('recip-new-pec').value.trim()
+      }).catch(function (err) { window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err)); });
+    });
+    content.querySelectorAll('[data-recipient-delete]').forEach(function (el) {
+      el.addEventListener('click', function () { window.CasaCelesteTourismDB.deleteInvoiceRecipient(el.getAttribute('data-recipient-delete')); });
+    });
+    content.querySelectorAll('[data-recipient-use]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var r = (state.invoiceRecipients || []).filter(function (x) { return x.id === el.getAttribute('data-recipient-use'); })[0];
+        if (!r) return;
+        ensureInvoiceDraftDefaults(state.invoiceSchema);
+        applyRecipientToDraft(r);
+        state.invoiceSubTab = 'fatture';
+        renderTabContent();
+      });
+    });
+  }
+  /* ---- Costi & fornitori (fatture passive: agenzie, property manager...) ---- */
+  var SUPPLIER_CATEGORIES = { agenzia_pulizie: 'Agenzia pulizie', property_manager: 'Property manager', manutenzione: 'Manutenzione', utenze: 'Utenze', altro: 'Altro' };
+  function renderSupplierInvoicesSection(content) {
+    var list = state.supplierInvoices || [];
+    var yearNow = new Date().getFullYear();
+    var yearTotal = list.filter(function (s) { return String(s.date || '').slice(0, 4) === String(yearNow); }).reduce(function (sum, s) { return sum + Number(s.amount || 0); }, 0);
+    var unpaid = list.filter(function (s) { return s.status !== 'pagata'; });
+    var rows = list.map(function (s) {
+      var overdue = s.status !== 'pagata' && s.dueDate && s.dueDate < todayISO();
+      return '<div class="admin-stat-row' + (overdue ? ' is-urgent' : '') + '" style="grid-template-columns:100px 1fr 120px 90px 100px auto auto;">' +
+        '<span>' + escapeHtml(formatDateShort(s.date || '')) + '</span>' +
+        '<span>' + escapeHtml(s.supplierName || '') + (s.invoiceRef ? ' — ' + escapeHtml(s.invoiceRef) : '') + '</span>' +
+        '<span>' + escapeHtml(SUPPLIER_CATEGORIES[s.category] || s.category || '') + '</span>' +
+        '<span>€' + Number(s.amount || 0).toFixed(2) + '</span>' +
+        '<span>' + (s.status === 'pagata' ? '✅ Pagata' : (overdue ? '⚠️ Scaduta' : '⏳ Da pagare')) + '</span>' +
+        '<button type="button" class="dash-action-btn" data-supplier-toggle-paid="' + s.id + '" data-paid="' + (s.status === 'pagata' ? '0' : '1') + '">' + (s.status === 'pagata' ? 'Segna da pagare' : 'Segna pagata') + '</button>' +
+        '<button type="button" class="admin-stat-remove" data-supplier-delete="' + s.id + '">✕</button>' +
+      '</div>';
+    }).join('') || '<div class="admin-note">Nessun costo registrato finora.</div>';
+    content.insertAdjacentHTML('beforeend',
+      '<div class="admin-note">Fatture PASSIVE: quelle che TI mandano agenzie di pulizie, property manager, manutentori con Partita IVA e altri fornitori. Il documento fiscale lo emettono loro (conservalo tu, es. email/PDF) — qui tieni solo il registro di controllo: importo, scadenza, se l\'hai già pagata.</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Totale ' + yearNow + '</span><span style="font-weight:700; font-size:16px;">€' + yearTotal.toFixed(2) + '</span></div>' +
+        (unpaid.length ? '<div class="admin-note" style="margin:0;">' + unpaid.length + ' fattur' + (unpaid.length === 1 ? 'a' : 'e') + ' ancora da pagare.</div>' : '') +
+      '</div>' +
+      '<div class="admin-room-card">' +
+        '<div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Nuovo costo</span></div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>Data fattura</label><input type="date" class="admin-field" id="supplier-date" value="' + todayISO() + '"></div>' +
+          '<div class="admin-field-group"><label>Fornitore</label><input type="text" class="admin-field" id="supplier-name" placeholder="Es. Agenzia Pulizie SRL"></div>' +
+          '<div class="admin-field-group"><label>Categoria</label><select class="admin-field" id="supplier-category">' +
+            Object.keys(SUPPLIER_CATEGORIES).map(function (k) { return '<option value="' + k + '">' + SUPPLIER_CATEGORIES[k] + '</option>'; }).join('') +
+          '</select></div>' +
+        '</div>' +
+        '<div class="admin-room-type-row">' +
+          '<div class="admin-field-group"><label>N. fattura fornitore</label><input type="text" class="admin-field" id="supplier-ref" placeholder="Il numero che hanno dato loro"></div>' +
+          '<div class="admin-field-group"><label>Importo (€)</label><input type="number" class="admin-field" id="supplier-amount" min="0" step="0.01"></div>' +
+          '<div class="admin-field-group"><label>Scadenza pagamento</label><input type="date" class="admin-field" id="supplier-duedate"></div>' +
+        '</div>' +
+        '<div class="admin-field-group admin-field-group--full"><label>Descrizione (facoltativa)</label><input type="text" class="admin-field" id="supplier-description"></div>' +
+        '<button type="button" class="dash-add-room-btn" id="supplier-add-btn">+ Aggiungi</button>' +
+      '</div>' +
+      '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Storico</span></div><div class="admin-stats-rows">' + rows + '</div></div>'
+    );
+    var addBtn = document.getElementById('supplier-add-btn');
+    if (addBtn) addBtn.addEventListener('click', function () {
+      var supplierName = document.getElementById('supplier-name').value.trim();
+      var amount = Number(document.getElementById('supplier-amount').value) || 0;
+      if (!supplierName || !amount) { window.alert('Servono almeno "Fornitore" e "Importo".'); return; }
+      window.CasaCelesteTourismDB.createSupplierInvoice({
+        date: document.getElementById('supplier-date').value || todayISO(),
+        supplierName: supplierName,
+        category: document.getElementById('supplier-category').value,
+        invoiceRef: document.getElementById('supplier-ref').value.trim(),
+        amount: amount,
+        dueDate: document.getElementById('supplier-duedate').value || '',
+        description: document.getElementById('supplier-description').value.trim(),
+        status: 'da_pagare'
+      }).catch(function (err) { window.alert('Salvataggio non riuscito: ' + (err && err.message ? err.message : err)); });
+    });
+    content.querySelectorAll('[data-supplier-delete]').forEach(function (el) {
+      el.addEventListener('click', function () { window.CasaCelesteTourismDB.deleteSupplierInvoice(el.getAttribute('data-supplier-delete')); });
+    });
+    content.querySelectorAll('[data-supplier-toggle-paid]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var makingPaid = el.getAttribute('data-paid') === '1';
+        window.CasaCelesteTourismDB.setSupplierInvoice(el.getAttribute('data-supplier-toggle-paid'), makingPaid ? { status: 'pagata', paidDate: todayISO() } : { status: 'da_pagare', paidDate: '' });
+      });
+    });
+  }
+  /* ---- Bozze e fatture programmate ---- */
+  function currentInvoiceDraftPayload() {
+    var fields = Object.assign({}, state.invoiceDraft);
+    if (!state.invoiceTaxEnabled) fields.touristTaxAmount = 0;
+    return {
+      fields: fields,
+      lineItems: state.invoiceLineItems.map(function (li) {
+        return { description: li.description || '', quantity: Number(li.quantity) || 0, unitPrice: Number(li.unitPrice) || 0, vatRate: Number(li.vatRate) || 0, natura: li.natura || '' };
+      }),
+      bookingId: state.invoiceSelectedBookingId || null
+    };
+  }
+  function loadInvoiceDraftIntoEditor(d, schema) {
+    ensureInvoiceDraftDefaults(schema);
+    state.invoiceDraft = Object.assign({}, state.invoiceDraft, (d.payload && d.payload.fields) || {});
+    state.invoiceLineItems = (d.payload && d.payload.lineItems && d.payload.lineItems.length) ? d.payload.lineItems.slice() : state.invoiceLineItems;
+    state.invoiceSelectedBookingId = (d.payload && d.payload.bookingId) || '';
+    state.invoiceTaxEnabled = Number(state.invoiceDraft.touristTaxAmount || 0) > 0;
+    state.invoiceEditingDraftId = d.id;
+    state.invoiceSubTab = 'fatture';
+    renderTabContent();
+  }
+  function invoiceDraftRowsHtml(schema) {
+    var list = state.invoiceDrafts || [];
+    if (!list.length) return '<div class="admin-note">Nessuna bozza salvata.</div>';
+    return list.map(function (d) {
+      var isScheduled = d.status === 'programmata';
+      var errored = d.status === 'errore';
+      return '<div class="admin-stat-row' + (errored ? ' is-urgent' : '') + '" style="grid-template-columns:1fr 130px 100px auto auto;">' +
+        '<span>' + escapeHtml(d.label || ((d.payload && d.payload.fields && d.payload.fields.recipientName) || 'Senza destinatario')) + '</span>' +
+        '<span>' + (isScheduled ? 'Programmata: ' + escapeHtml(formatDateShort(d.scheduledDate || '')) : (errored ? 'Errore: ' + escapeHtml(d.errorMessage || '') : 'Bozza')) + '</span>' +
+        '<span>€' + Number((d.payload && d.payload.lineItems || []).reduce(function (s, li) { return s + Number(li.quantity || 0) * Number(li.unitPrice || 0); }, 0)).toFixed(2) + '</span>' +
+        '<button type="button" class="dash-action-btn" data-draft-open="' + d.id + '">Apri</button>' +
+        '<button type="button" class="admin-stat-remove" data-draft-delete="' + d.id + '">✕</button>' +
+      '</div>';
+    }).join('');
+  }
+  function renderInvoiceDraftsSection(content, schema) {
+    content.insertAdjacentHTML('beforeend',
+      '<div class="admin-note">Salva una fattura a metà come bozza, oppure programmane l\'emissione automatica a una data futura (verrà emessa da sola, come le altre automazioni di questo sistema).</div>' +
+      '<div class="admin-room-card"><div class="admin-room-head"><span class="admin-room-name" style="font-weight:700;">Bozze e fatture programmate</span></div><div class="admin-stats-rows">' + invoiceDraftRowsHtml(schema) + '</div></div>'
+    );
+    content.querySelectorAll('[data-draft-delete]').forEach(function (el) {
+      el.addEventListener('click', function () { window.CasaCelesteTourismDB.deleteInvoiceDraft(el.getAttribute('data-draft-delete')); });
+    });
+    content.querySelectorAll('[data-draft-open]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var d = (state.invoiceDrafts || []).filter(function (x) { return x.id === el.getAttribute('data-draft-open'); })[0];
+        if (d) loadInvoiceDraftIntoEditor(d, schema);
+      });
+    });
+  }
+  /* ---- Riepilogo (cruscotto) ---- */
+  function invoiceSummaryHtml() {
+    var now = new Date(), monthKey = todayISO().slice(0, 7), yearKey = String(now.getFullYear());
+    var issued = state.invoiceList || [];
+    var monthIssued = issued.filter(function (i) { return (i.documentDate || '').slice(0, 7) === monthKey; });
+    var yearIssued = issued.filter(function (i) { return (i.documentDate || '').slice(0, 4) === yearKey; });
+    var fatturatoMese = monthIssued.reduce(function (s, i) { return s + ((i.totals && i.totals.subtotal) || 0); }, 0);
+    var ivaAnno = yearIssued.reduce(function (s, i) { return s + ((i.totals && i.totals.vatTotal) || 0); }, 0);
+    var costi = state.supplierInvoices || [];
+    var costiAnno = costi.filter(function (s) { return (s.date || '').slice(0, 4) === yearKey; }).reduce(function (s, c) { return s + Number(c.amount || 0); }, 0);
+    var fatturatoAnno = yearIssued.reduce(function (s, i) { return s + ((i.totals && i.totals.grandTotal) || 0); }, 0);
+    var scadenzeImminenti = costi.filter(function (c) { return c.status !== 'pagata' && c.dueDate; }).sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : 1; }).slice(0, 3);
+    return '<div class="invoice-summary-grid">' +
+      '<div class="invoice-summary-tile"><span>Fatturato ' + monthKey.slice(5) + '/' + monthKey.slice(0, 4) + '</span><strong>€' + fatturatoMese.toFixed(2) + '</strong></div>' +
+      '<div class="invoice-summary-tile"><span>Fatturato ' + yearKey + '</span><strong>€' + fatturatoAnno.toFixed(2) + '</strong></div>' +
+      '<div class="invoice-summary-tile"><span>IVA da versare (' + yearKey + ')</span><strong>€' + ivaAnno.toFixed(2) + '</strong></div>' +
+      '<div class="invoice-summary-tile"><span>Costi fornitori (' + yearKey + ')</span><strong>€' + costiAnno.toFixed(2) + '</strong></div>' +
+      '<div class="invoice-summary-tile invoice-summary-tile--balance"><span>Saldo ' + yearKey + '</span><strong>€' + (fatturatoAnno - costiAnno).toFixed(2) + '</strong></div>' +
+    '</div>' +
+    (scadenzeImminenti.length ? '<div class="admin-note" style="margin-top:10px;">Prossime scadenze: ' + scadenzeImminenti.map(function (c) { return escapeHtml(c.supplierName || '') + ' — €' + Number(c.amount || 0).toFixed(2) + ' entro il ' + escapeHtml(formatDateShort(c.dueDate)); }).join(' · ') + '</div>' : '');
+  }
   function renderInvoiceTab(content) {
     content.innerHTML = '<h1 class="dash-section-title">Fatture</h1>' + invoiceSubnavHtml();
     bindInvoiceSubnavEvents(content);
     if (state.invoiceSubTab === 'compensi') { renderStaffPaymentsSection(content); return; }
+    if (state.invoiceSubTab === 'rubrica') { renderInvoiceRecipientsSection(content); return; }
+    if (state.invoiceSubTab === 'costi') { renderSupplierInvoicesSection(content); return; }
     if (!state.invoiceSchema && !state.invoiceSchemaLoading) {
       state.invoiceSchemaLoading = true;
       window.CasaCelesteTourismDB.getInvoiceSchema().then(function (res) {
@@ -2820,6 +3111,7 @@
     }
     var schema = state.invoiceSchema;
     ensureInvoiceDraftDefaults(schema);
+    if (state.invoiceSubTab === 'bozze') { renderInvoiceDraftsSection(content, schema); return; }
     var hostSection = findInvoiceSection(schema, 'host'), recipientSection = findInvoiceSection(schema, 'recipient'),
       docSection = findInvoiceSection(schema, 'document'), itemSection = findInvoiceSection(schema, 'lineItems'),
       taxSection = findInvoiceSection(schema, 'touristTax');
@@ -2827,20 +3119,32 @@
     var bookingOptions = '<option value="">— nessuna, compila a mano —</option>' + activeBookings.map(function (b) {
       return '<option value="' + b.id + '"' + (state.invoiceSelectedBookingId === b.id ? ' selected' : '') + '>' + escapeHtml(b.roomLabel || '') + ' — ' + escapeHtml(b.name || '') + ' (' + escapeHtml(formatDateShort(b.checkIn)) + ')</option>';
     }).join('');
+    var recipientOptions = '<option value="">— nessuno, compila a mano —</option>' + (state.invoiceRecipients || []).map(function (r) {
+      return '<option value="' + r.id + '">' + escapeHtml(r.name || '') + '</option>';
+    }).join('');
 
     content.insertAdjacentHTML('beforeend',
+      invoiceSummaryHtml() +
       '<div class="admin-room-card">' +
         '<div class="admin-field-group admin-field-group--full"><label>A chi è rivolta (precompila causale, riga e tassa di soggiorno)</label></div>' +
         '<div class="invoice-chip-row">' + invoiceScenarioChipsHtml() + '</div>' +
-        '<div class="admin-field-group admin-field-group--full" style="margin-top:10px;"><label>Precompila da una prenotazione (facoltativo)</label>' +
-          '<select class="admin-field" id="invoice-booking-select">' + bookingOptions + '</select>' +
+        '<div class="admin-room-type-row" style="margin-top:10px;">' +
+          '<div class="admin-field-group"><label>Precompila da una prenotazione</label><select class="admin-field" id="invoice-booking-select">' + bookingOptions + '</select></div>' +
+          '<div class="admin-field-group"><label>Oppure da un destinatario in rubrica</label><select class="admin-field" id="invoice-recipient-select">' + recipientOptions + '</select></div>' +
         '</div>' +
       '</div>' +
+      (state.invoiceEditingDraftId ? '<div class="admin-note">Stai modificando una bozza salvata — "Salva bozza" la aggiorna, "Emetti Fattura" la trasforma in un documento definitivo.</div>' : '') +
       (state.invoiceResult ? invoiceResultBannerHtml() : '') +
       '<div class="invoice-preview">' +
+        '<div class="invoice-paper-head">' +
+          '<div class="invoice-paper-title">' + escapeHtml(DOCUMENT_TYPE_LABELS[state.invoiceDraft.documentType] || 'Fattura') + '</div>' +
+          '<div class="invoice-paper-meta">' + escapeHtml(state.invoiceDraft.hostName || '') + ' · ' + escapeHtml(formatDateShort(state.invoiceDraft.documentDate || todayISO())) + '</div>' +
+        '</div>' +
         '<div class="invoice-preview-header">' +
           '<div class="invoice-party"><div class="invoice-party-title">Da (host)</div>' + invoiceSectionFieldsHtml(hostSection, state.invoiceDraft) + '</div>' +
-          '<div class="invoice-party"><div class="invoice-party-title">A (' + escapeHtml((recipientSection.title || 'destinatario').toLowerCase()) + ')</div>' + invoiceSectionFieldsHtml(recipientSection, state.invoiceDraft) + '</div>' +
+          '<div class="invoice-party"><div class="invoice-party-title">A (' + escapeHtml((recipientSection.title || 'destinatario').toLowerCase()) + ')</div>' + invoiceSectionFieldsHtml(recipientSection, state.invoiceDraft) +
+            '<button type="button" class="dash-action-btn" id="invoice-save-recipient-btn" style="margin-top:4px;">★ Salva in rubrica</button>' +
+          '</div>' +
         '</div>' +
         '<div class="invoice-document-meta">' + invoiceSectionFieldsHtml(docSection, state.invoiceDraft) + '</div>' +
         '<div class="invoice-section-title">Linee di dettaglio</div>' +
@@ -2849,7 +3153,12 @@
         (state.invoiceTaxEnabled ? '<div class="invoice-tax-row">' + invoiceSectionFieldsHtml(taxSection, state.invoiceDraft) + '</div>' : '') +
         invoiceTotalsHtml() +
       '</div>' +
-      '<button type="button" class="dash-add-room-btn" id="invoice-issue-btn"' + (state.invoiceIssuing ? ' disabled' : '') + ' style="margin:14px 0;">' + (state.invoiceIssuing ? 'Invio in corso…' : 'Emetti Fattura') + '</button>' +
+      '<div class="invoice-actions-bar">' +
+        '<button type="button" class="dash-action-btn" id="invoice-save-draft-btn">💾 Salva bozza</button>' +
+        '<input type="date" class="admin-field" id="invoice-schedule-date" style="max-width:160px;" min="' + todayISO() + '">' +
+        '<button type="button" class="dash-action-btn" id="invoice-schedule-btn">🕓 Programma emissione</button>' +
+        '<button type="button" class="dash-add-room-btn" id="invoice-issue-btn"' + (state.invoiceIssuing ? ' disabled' : '') + '>' + (state.invoiceIssuing ? 'Invio in corso…' : 'Emetti Fattura') + '</button>' +
+      '</div>' +
       invoicePastListHtml()
     );
 
@@ -4434,6 +4743,9 @@
     if (state.unsubSettingsPrivate) state.unsubSettingsPrivate();
     if (state.unsubMaintenance) state.unsubMaintenance();
     if (state.unsubStaffPayments) state.unsubStaffPayments();
+    if (state.unsubInvoiceRecipients) state.unsubInvoiceRecipients();
+    if (state.unsubSupplierInvoices) state.unsubSupplierInvoices();
+    if (state.unsubInvoiceDrafts) state.unsubInvoiceDrafts();
     state.unsubBookings = window.CasaCelesteTourismDB.subscribeBookings(function (items) {
       state.bookings = items;
       // Precarica i documenti ospiti delle prenotazioni con check-in vicino,
@@ -4459,6 +4771,9 @@
     state.unsubSettingsPrivate = window.CasaCelesteTourismDB.subscribeSettingsPrivate(function (data) { state.settingsPrivate = data || {}; if (state.user) renderTabContent(); });
     state.unsubMaintenance = window.CasaCelesteTourismDB.subscribeMaintenance(function (items) { state.maintenanceData = items; if (state.user) renderTabContent(); });
     state.unsubStaffPayments = window.CasaCelesteTourismDB.subscribeStaffPayments(function (items) { state.staffPayments = items; if (state.user) renderTabContent(); });
+    state.unsubInvoiceRecipients = window.CasaCelesteTourismDB.subscribeInvoiceRecipients(function (items) { state.invoiceRecipients = items; if (state.user) renderTabContent(); });
+    state.unsubSupplierInvoices = window.CasaCelesteTourismDB.subscribeSupplierInvoices(function (items) { state.supplierInvoices = items; if (state.user) renderTabContent(); });
+    state.unsubInvoiceDrafts = window.CasaCelesteTourismDB.subscribeInvoiceDrafts(function (items) { state.invoiceDrafts = items; if (state.user) renderTabContent(); });
   }
   // Piattaforma SaaS (celeste-saas-control): kill switch totale quando il
   // gestore ha disattivato questo cliente (platform_control/status.enabled

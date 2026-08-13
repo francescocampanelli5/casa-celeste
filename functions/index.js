@@ -45,6 +45,7 @@ const { platformSetStatusCore, platformCreateOwnerUserCore, platformResetPasswor
 const { loadIntegrations } = require('./integration-settings');
 const { loadInvoiceSchema, buildInvoiceZodSchema, normalizeInvoicePayload } = require('./invoice-schema');
 const { getInvoiceProvider } = require('./invoice-providers');
+const { getNextInvoiceNumber } = require('./invoice-numbering');
 
 admin.initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 5 });
@@ -664,6 +665,13 @@ exports.issueInvoice = onCall({}, async (request) => {
     throw new HttpsError('invalid-argument', 'Dati fattura non validi: ' + (firstIssue ? (firstIssue.path.join('.') + ' — ' + firstIssue.message) : 'campo mancante.'));
   }
   const standardInvoice = normalizeInvoicePayload(schema, parsed.data);
+  // Numero fiscale sequenziale (obbligo di legge, mai un timestamp) —
+  // assegnato qui, appena prima dell'invio al provider, così un errore del
+  // provider non lascia comunque un buco nella numerazione: se createInvoice
+  // fallisce sotto, il numero già assegnato viene "bruciato" (scelta
+  // volutamente conservativa: un numero saltato per un tentativo fallito è
+  // normale e documentabile, un duplicato non lo è mai).
+  standardInvoice.document.documentNumber = await getNextInvoiceNumber(db, new Date(standardInvoice.document.documentDate || Date.now()).getFullYear());
 
   const integrations = await loadIntegrations(db);
   const invoicing = integrations.invoicing || {};
@@ -687,12 +695,14 @@ exports.issueInvoice = onCall({}, async (request) => {
     providerInvoiceId: result.providerInvoiceId,
     bookingId: standardInvoice.bookingId || null,
     recipientName: (standardInvoice.recipient && standardInvoice.recipient.recipientName) || '',
+    documentNumber: standardInvoice.document.documentNumber,
+    documentType: (standardInvoice.document && standardInvoice.document.documentType) || 'invoice',
     documentDate: (standardInvoice.document && standardInvoice.document.documentDate) || '',
     totals: standardInvoice.totals,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     createdBy: request.auth.uid
   });
-  return { ok: true, invoiceId: docRef.id, providerInvoiceId: result.providerInvoiceId, totals: standardInvoice.totals };
+  return { ok: true, invoiceId: docRef.id, providerInvoiceId: result.providerInvoiceId, documentNumber: standardInvoice.document.documentNumber, totals: standardInvoice.totals };
 });
 
 exports.listInvoices = onCall({}, async (request) => {

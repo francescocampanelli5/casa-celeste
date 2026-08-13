@@ -40,7 +40,9 @@ class FattureInCloudAdapter extends InvoiceProvider {
       data: {
         // "credit_note" ricostruito dal nome comune usato dall'API v2 per le
         // note di credito — da verificare in sandbox come il resto dei nomi
-        // campo di questo adapter (vedi nota in cima al file).
+        // campo di questo adapter (vedi nota in cima al file). Fatture in
+        // Cloud non ha un tipo distinto per la nota di debito: la trattiamo
+        // come una fattura normale (stesso effetto contabile lato loro).
         type: doc.documentType === 'credit_note' ? 'credit_note' : 'invoice',
         entity: {
           name: recipient.recipientName,
@@ -48,7 +50,9 @@ class FattureInCloudAdapter extends InvoiceProvider {
           tax_code: recipient.recipientFiscalCode || undefined,
           address_street: recipient.recipientAddress || undefined,
           country: recipient.recipientCountry || 'IT',
-          email: recipient.recipientEmail || undefined
+          email: recipient.recipientEmail || undefined,
+          ei_code: recipient.recipientSdiCode || undefined,
+          certified_email: recipient.recipientPec || undefined
         },
         date: doc.documentDate,
         subject: host.hostName,
