@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Automatizza i comandi da terminale della Parte 9.4 di GUIDA-PUBBLICAZIONE.md
-// per collegare un nuovo cliente affittacamere: deploy di regole/indici/
-// functions sul SUO progetto Firebase (già creato a mano in console, con
-// Firestore e Authentication attivi — nessun agente può farlo, richiede
-// browser+identità del cliente) e impostazione dei secret necessari al
-// primo deploy delle Cloud Function.
+// per collegare un nuovo cliente affittacamere: crea il SUO progetto Google
+// Cloud/Firebase, il suo database Firestore, imposta i secret necessari e
+// deploya regole/Cloud Functions/sito pubblico (vedi scripts/lib/tenant-deploy.js
+// per la parte di deploy, condivisa con scripts/update-tenants.js che
+// ripubblica gli aggiornamenti successivi sui clienti già collegati).
 //
 // Dal 2026-08-11 (vedi functions/integration-settings.js) email/Stripe/bot
 // Telegram/Google Sheet sono configurabili dal cliente stesso da dashboard
@@ -31,6 +31,9 @@
 // restano manuali SOLO le due cose che questo script non deve mai poter
 // fare da solo: passare il progetto al piano Blaze (serve una carta) e
 // attivare Authentication → Email/Password (30 secondi, un solo click).
+// Il progetto viene anche aggiunto a scripts/tenants.json, così
+// update-tenants.js sa che esiste quando in futuro pubblichi un aggiornamento
+// a tutti i clienti in un colpo solo.
 //
 // Uso (il segreto condiviso è opzionale: se lo ometti, ne genera uno forte):
 //   node scripts/onboard-tenant.js --project NOME-PROGETTO-CLIENTE
@@ -42,12 +45,10 @@
 // Firebase) — usalo per rivedere cosa farebbe prima del run vero.
 'use strict';
 
-const { spawnSync } = require('child_process');
 const path = require('path');
-const fs = require('fs');
-const os = require('os');
 const crypto = require('crypto');
 const readline = require('readline');
+const lib = require('./lib/tenant-deploy');
 
 const PLACEHOLDER_SECRETS = [
   'TELEGRAM_BOT_TOKEN',
@@ -103,16 +104,16 @@ function ask(question) {
 // script su un progetto già creato non lo tocca, così è sempre sicuro
 // rilanciarlo dopo aver fatto i due passi manuali rimasti — vedi main()).
 function ensureProject(project) {
-  const list = runCapture('firebase', ['projects:list']);
-  if (!globalDryRun && list.stdout.indexOf(project) !== -1) {
+  const list = lib.runCapture('firebase', ['projects:list']);
+  if (!lib.state.dryRun && list.stdout.indexOf(project) !== -1) {
     console.log('Progetto "' + project + '" già esistente, salto la creazione.');
     return false;
   }
-  if (globalDryRun) {
+  if (lib.state.dryRun) {
     console.log('[dry-run] firebase projects:create ' + project + ' -n ' + project);
     return true;
   }
-  const created = runCapture('firebase', ['projects:create', project, '-n', project]);
+  const created = lib.runCapture('firebase', ['projects:create', project, '-n', project]);
   if (created.status !== 0) {
     console.error('Creazione progetto fallita:\n' + created.stdout + created.stderr);
     process.exit(1);
@@ -125,16 +126,16 @@ function ensureProject(project) {
 // se non esiste già — stessa regione delle Cloud Function (europe-west1),
 // così restano vicine (meno latenza tra funzioni e dati).
 function ensureFirestoreDatabase(project) {
-  const list = runCapture('firebase', ['firestore:databases:list', '--project', project]);
-  if (!globalDryRun && list.stdout.indexOf('(default)') !== -1) {
+  const list = lib.runCapture('firebase', ['firestore:databases:list', '--project', project]);
+  if (!lib.state.dryRun && list.stdout.indexOf('(default)') !== -1) {
     console.log('Database Firestore predefinito già esistente, salto la creazione.');
     return;
   }
-  if (globalDryRun) {
+  if (lib.state.dryRun) {
     console.log('[dry-run] firebase firestore:databases:create "(default)" --location europe-west1 --project ' + project);
     return;
   }
-  const created = runCapture('firebase', ['firestore:databases:create', '(default)', '--location', 'europe-west1', '--project', project]);
+  const created = lib.runCapture('firebase', ['firestore:databases:create', '(default)', '--location', 'europe-west1', '--project', project]);
   if (created.status !== 0) {
     console.error('Creazione database Firestore fallita:\n' + created.stdout + created.stderr);
     process.exit(1);
@@ -142,154 +143,11 @@ function ensureFirestoreDatabase(project) {
   console.log(created.stdout);
 }
 
-function run(cmd, args, opts) {
-  const label = [cmd].concat(args).join(' ');
-  if (globalDryRun) {
-    console.log('[dry-run] ' + label + (opts && opts.input ? '  (input su stdin, valore nascosto)' : ''));
-    return { status: 0 };
-  }
-  console.log('$ ' + label);
-  const result = spawnSync(cmd, args, Object.assign({ stdio: opts && opts.input ? ['pipe', 'inherit', 'inherit'] : 'inherit', shell: true }, opts || {}));
-  if (result.status !== 0) {
-    console.error('Comando fallito (uscita ' + result.status + '): ' + label);
-    process.exit(result.status || 1);
-  }
-  return result;
-}
-
 function setSecret(project, name, value) {
   // --data-file - legge il valore da stdin senza prompt interattivo, stesso
   // pattern già verificato nel deploy manuale (vedi GUIDA-PUBBLICAZIONE.md 8.2.1).
-  run('firebase', ['functions:secrets:set', name, '--project', project, '--force', '--data-file', '-'], { input: value });
+  lib.run('firebase', ['functions:secrets:set', name, '--project', project, '--force', '--data-file', '-'], { input: value });
 }
-
-// Come run(), ma cattura stdout/stderr invece di lasciarli scorrere sul
-// terminale (servono da leggere: App ID appena creato, config web app) e
-// non termina il processo su un'uscita diversa da zero — il CLI Firebase su
-// Windows a volte va in crash DOPO aver già stampato l'output valido di
-// apps:sdkconfig ("Assertion failed... UV_HANDLE_CLOSING", bug noto
-// libuv/Node su questa piattaforma): meglio provare comunque a leggere
-// l'output piuttosto che considerarlo un fallimento vero.
-function runCapture(cmd, args, opts) {
-  const label = [cmd].concat(args).join(' ');
-  if (globalDryRun) {
-    console.log('[dry-run] ' + label);
-    return { status: 0, stdout: '', stderr: '' };
-  }
-  console.log('$ ' + label);
-  const result = spawnSync(cmd, args, Object.assign({ shell: true }, opts || {}));
-  return {
-    status: result.status,
-    stdout: (result.stdout || '').toString(),
-    stderr: (result.stderr || '').toString()
-  };
-}
-
-// Riusa un web app già registrato con lo stesso nome (utile se lo script
-// viene rilanciato dopo un errore a metà) invece di crearne uno nuovo ogni
-// volta — Firebase non impedisce nomi duplicati.
-function ensureWebApp(project, displayName) {
-  const list = runCapture('firebase', ['apps:list', 'WEB', '--project', project]);
-  if (!globalDryRun && list.stdout) {
-    const lines = list.stdout.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].indexOf(displayName) !== -1) {
-        const match = lines[i].match(/\d+:\d+:web:[a-f0-9]+/);
-        if (match) return match[0];
-      }
-    }
-  }
-  if (globalDryRun) return 'DRY-RUN-APP-ID';
-  const created = runCapture('firebase', ['apps:create', 'WEB', displayName, '--project', project]);
-  const match = created.stdout.match(/\d+:\d+:web:[a-f0-9]+/);
-  if (!match) {
-    console.error('Non sono riuscito a leggere l\'App ID appena creato. Output:\n' + created.stdout + created.stderr);
-    process.exit(1);
-  }
-  return match[0];
-}
-
-function fetchWebConfig(project, appId) {
-  if (globalDryRun) {
-    return { apiKey: 'DRY-RUN', authDomain: project + '.firebaseapp.com', projectId: project, storageBucket: project + '.firebasestorage.app', messagingSenderId: '0', appId: appId };
-  }
-  const result = runCapture('firebase', ['apps:sdkconfig', 'WEB', appId, '--project', project]);
-  const jsonStart = result.stdout.indexOf('{');
-  const jsonEnd = result.stdout.lastIndexOf('}');
-  if (jsonStart === -1 || jsonEnd === -1) {
-    console.error('Non sono riuscito a leggere la configurazione della web app. Output:\n' + result.stdout + result.stderr);
-    process.exit(1);
-  }
-  try {
-    return JSON.parse(result.stdout.slice(jsonStart, jsonEnd + 1));
-  } catch (e) {
-    console.error('Configurazione web app non valida (JSON non leggibile):\n' + result.stdout);
-    process.exit(1);
-  }
-}
-
-function buildHostingFirebaseConfigJs(cfg) {
-  return (
-    '// Generato automaticamente da scripts/onboard-tenant.js — non modificare a\n' +
-    '// mano: rilancia lo script se questi valori cambiano (es. web app ricreata).\n' +
-    'window.FIREBASE_CONFIG = {\n' +
-    '  apiKey: ' + JSON.stringify(cfg.apiKey) + ',\n' +
-    '  authDomain: ' + JSON.stringify(cfg.authDomain) + ',\n' +
-    '  projectId: ' + JSON.stringify(cfg.projectId) + ',\n' +
-    '  storageBucket: ' + JSON.stringify(cfg.storageBucket) + ',\n' +
-    '  messagingSenderId: ' + JSON.stringify(String(cfg.messagingSenderId)) + ',\n' +
-    '  appId: ' + JSON.stringify(cfg.appId) + '\n' +
-    '};\n\n' +
-    '// Lascia questo a false. Serve solo per i test in locale con gli emulatori\n' +
-    '// Firebase invece che con il progetto vero.\n' +
-    'window.USE_FIREBASE_EMULATOR = false;\n'
-  );
-}
-
-// Cartelle della radice affittacamere/ da NON pubblicare: scripts/ sono
-// automazioni server-side (cron GitHub Actions, node_modules incluso, non
-// hanno senso su hosting statico pubblico) e ical/ contiene i file .ics
-// GIÀ generati per Casa Celeste — un cliente nuovo parte senza (il suo
-// export si genera da solo al primo giro di sincronizzazione, quando/se la
-// configura). Tutto il resto (html/css/js/email-templates) è lo stesso
-// codice condiviso da ogni cliente, personalizzato a runtime da Firestore.
-const HOSTING_EXCLUDE_TOP = ['scripts', 'ical', 'README.md'];
-
-function deployHosting(project, root, webConfig) {
-  const srcDir = path.join(root, 'affittacamere');
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'affittacamere-hosting-'));
-  console.log('Preparo una copia temporanea del sito (esclusi scripts/ e ical/) in ' + tempDir + '...');
-  fs.cpSync(srcDir, tempDir, {
-    recursive: true,
-    filter: function (src) {
-      const rel = path.relative(srcDir, src);
-      if (rel === '') return true;
-      const top = rel.split(path.sep)[0];
-      return HOSTING_EXCLUDE_TOP.indexOf(top) === -1;
-    }
-  });
-  fs.writeFileSync(path.join(tempDir, 'js', 'firebase-config.js'), buildHostingFirebaseConfigJs(webConfig));
-  fs.writeFileSync(path.join(tempDir, 'firebase.json'), JSON.stringify({
-    hosting: { public: '.', ignore: ['firebase.json', '.firebaserc', '**/.*'] }
-  }, null, 2));
-  fs.writeFileSync(path.join(tempDir, '.firebaserc'), JSON.stringify({ projects: { default: project } }, null, 2));
-
-  if (globalDryRun) {
-    console.log('[dry-run] firebase deploy --only hosting --project ' + project + '  (da ' + tempDir + ')');
-    fs.rmSync(tempDir, { recursive: true, force: true });
-    return null;
-  }
-  console.log('$ firebase deploy --only hosting --project ' + project);
-  const result = spawnSync('firebase', ['deploy', '--only', 'hosting', '--project', project], { cwd: tempDir, stdio: 'inherit', shell: true });
-  if (result.status !== 0) {
-    console.error('Deploy hosting fallito (uscita ' + result.status + '). Copia temporanea lasciata in ' + tempDir + ' per ispezione.');
-    process.exit(result.status || 1);
-  }
-  fs.rmSync(tempDir, { recursive: true, force: true });
-  return 'https://' + project + '.web.app';
-}
-
-let globalDryRun = false;
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -300,10 +158,10 @@ async function main() {
   }
   const secret = args.secret || generateSecret();
   const secretWasGenerated = !args.secret;
-  globalDryRun = args.dryRun;
+  lib.state.dryRun = args.dryRun;
   const root = path.resolve(__dirname, '..');
 
-  console.log('Onboarding cliente sul progetto Firebase "' + args.project + '"' + (globalDryRun ? ' (DRY RUN — nessuna modifica reale)' : '') + '\n');
+  console.log('Onboarding cliente sul progetto Firebase "' + args.project + '"' + (lib.state.dryRun ? ' (DRY RUN — nessuna modifica reale)' : '') + '\n');
 
   console.log('1/7 — Progetto Google Cloud/Firebase');
   const justCreated = ensureProject(args.project);
@@ -311,7 +169,7 @@ async function main() {
   console.log('\n2/7 — Database Firestore predefinito (modalità produzione, europe-west1)');
   ensureFirestoreDatabase(args.project);
 
-  if (justCreated && !globalDryRun && !args.yes) {
+  if (justCreated && !lib.state.dryRun && !args.yes) {
     console.log(
       '\nProgetto appena creato: restano SOLO due cose che questo script non deve\n' +
       'mai poter fare da solo (nessuna delle due è automatizzabile in sicurezza):\n' +
@@ -325,23 +183,33 @@ async function main() {
   }
 
   console.log('\n3/7 — Regole Firestore/Storage + indici composti');
-  run('firebase', ['deploy', '--only', 'firestore:rules,firestore:indexes,storage', '--project', args.project], { cwd: root });
+  lib.deployRules(args.project, root);
 
-  console.log('\n4/7 — Secret placeholder (il cliente li sovrascriverà da Impostazioni → Integrazioni)');
+  console.log('\n4/7 — Secret placeholder (il cliente li sovrascriverà da Impostazioni → Integrazioni) + PLATFORM_SHARED_SECRET');
+  // Vanno impostati PRIMA del deploy delle Cloud Function: defineSecret()
+  // fa fallire il deploy se un secret referenziato non esiste ancora in
+  // Secret Manager, anche vuoto — vedi nota in cima al file.
   PLACEHOLDER_SECRETS.forEach(function (name) {
     setSecret(args.project, name, PLACEHOLDER_VALUE);
   });
-
-  console.log('\n5/7 — PLATFORM_SHARED_SECRET (' + (secretWasGenerated ? 'generato automaticamente' : 'valore passato con --secret') + ', collega questo progetto a platform-admin)');
+  console.log('PLATFORM_SHARED_SECRET (' + (secretWasGenerated ? 'generato automaticamente' : 'valore passato con --secret') + ', collega questo progetto a platform-admin)');
   setSecret(args.project, 'PLATFORM_SHARED_SECRET', secret);
 
-  console.log('\n6/7 — Deploy Cloud Functions');
-  run('firebase', ['deploy', '--only', 'functions', '--project', args.project], { cwd: root });
+  console.log('\n5/7 — Deploy Cloud Functions');
+  lib.deployFunctions(args.project, root);
 
-  console.log('\n7/7 — Sito pubblico su Firebase Hosting (progetto del cliente, gratuito)');
-  const webAppId = ensureWebApp(args.project, args.project);
-  const webConfig = fetchWebConfig(args.project, webAppId);
-  const hostingUrl = deployHosting(args.project, root, webConfig);
+  console.log('\n6/7 — Sito pubblico su Firebase Hosting (progetto del cliente, gratuito)');
+  const webAppId = lib.ensureWebApp(args.project, args.project);
+  const webConfig = lib.fetchWebConfig(args.project, webAppId);
+  const hostingUrl = lib.deployHosting(args.project, root, webConfig);
+
+  console.log('\n7/7 — Registrazione locale del cliente (scripts/tenants.json)');
+  if (!lib.state.dryRun) {
+    lib.addTenantProject(args.project);
+    console.log('Aggiunto "' + args.project + '" a scripts/tenants.json — da qui in poi `node scripts/update-tenants.js --all` lo include.');
+  } else {
+    console.log('[dry-run] non scrivo scripts/tenants.json');
+  }
 
   console.log(
     '\n================ FATTO ================\n' +
@@ -350,9 +218,9 @@ async function main() {
     '  1. "+ Nuovo cliente" → incolla come URL funzioni:\n' +
     '     https://europe-west1-' + args.project + '.cloudfunctions.net\n' +
     '     e come segreto: ' + (secretWasGenerated ? '(quello generato sopra)' : '(quello passato a --secret)') + '\n' +
-    '  2. Bottone "Crea utente proprietario" sulla card appena creata → email +\n' +
-    '     password temporanea del cliente: la piattaforma crea da remoto il suo\n' +
-    '     primo accesso alla dashboard, non serve entrare nella sua console Firebase.\n\n' +
+    '  2. Nello stesso form, in fondo: email + password temporanea del cliente\n' +
+    '     per creare subito anche il suo primo accesso alla dashboard (facoltativo,\n' +
+    '     puoi farlo dopo dal bottone "Crea utente proprietario" sulla card).\n\n' +
     (hostingUrl
       ? 'Sito pubblico del cliente, già online: ' + hostingUrl + '\n' +
         '(dashboard: ' + hostingUrl + '/dashboard.html). Indirizzo alternativo, stesso\n' +
@@ -365,7 +233,10 @@ async function main() {
     'quindi il sito funziona comunque, ma senza protezione anti-bot reale finché non\n' +
     'registri una chiave reCAPTCHA v3 dedicata per questo dominio).\n\n' +
     'Il cliente completa da solo credenziali email/Stripe/Telegram/Google Sheet da\n' +
-    'Impostazioni → Integrazioni quando le avrà.\n'
+    'Impostazioni → Integrazioni quando le avrà.\n\n' +
+    'D\'ora in poi, ogni volta che modifichi il prodotto (bug fix, nuova funzione) e\n' +
+    'vuoi che raggiunga anche questo cliente: `node scripts/update-tenants.js --project ' + args.project + '`\n' +
+    '(o `--all` per aggiornare ogni cliente collegato in un colpo solo).\n'
   );
 }
 
