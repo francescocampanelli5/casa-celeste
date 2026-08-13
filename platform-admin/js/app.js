@@ -225,8 +225,7 @@
     root().innerHTML = '<div class="wrap wrap--wide">' +
       '<header class="topbar"><h1>Clienti</h1><button type="button" class="link-btn" id="logout-btn">Esci</button></header>' +
       (state.banner && !state.newTenantOpen ? '<div class="banner banner--' + state.banner.kind + '">' + escapeHtml(state.banner.text) + '</div>' : '') +
-      auditLogPanelHtml() +
-      newTenantFormHtml() +
+      '<div class="toolbar-row">' + auditLogPanelHtml() + newTenantFormHtml() + '</div>' +
       '<div class="tenant-list">' +
         (ids.length ? ids.map(function (id) { return tenantCardHtml(id, state.tenants[id]); }).join('') : '<p class="empty-hint">Nessun cliente registrato ancora.</p>') +
       '</div>' +

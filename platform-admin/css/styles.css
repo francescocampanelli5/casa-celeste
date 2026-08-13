@@ -35,6 +35,14 @@ p { color: var(--text-muted); font-size: 13.5px; line-height: 1.6; }
 .banner--error { background: #FBE9E7; color: #9A2E24; }
 .banner--ok { background: #E4F5EA; color: #1F6B3B; }
 .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+/* Registro attività + Nuovo cliente: due bottoni indipendenti generati come
+   stringhe concatenate senza spazio tra loro — senza questo wrapper finiscono
+   letteralmente attaccati (nessun margine, nessun gap). Da collassati stanno
+   comodi fianco a fianco; se uno dei due si espande in un pannello/form
+   intero, la regola sotto lo fa tornare a piena larghezza invece di restare
+   schiacciato nella riga. */
+.toolbar-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.toolbar-row > .card { flex: 1 1 100%; margin-bottom: 0; }
 .tenant-list { display: flex; flex-direction: column; gap: 16px; }
 .tenant-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
 .tenant-head > div { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
