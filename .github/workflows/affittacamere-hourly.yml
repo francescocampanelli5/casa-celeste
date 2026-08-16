@@ -19,6 +19,9 @@ jobs:
       - name: Installa dipendenze
         working-directory: affittacamere/scripts
         run: npm install
+      - name: Installa dipendenze functions (moduli fatturazione condivisi, es. zod)
+        working-directory: functions
+        run: npm install --omit=dev
       - name: Promemoria pulizie (sera prima / mattina stessa)
         working-directory: affittacamere/scripts
         run: node cleaning-reminders.js
